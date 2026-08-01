@@ -36,6 +36,16 @@ public final class OmsNativeModule: Module {
 
     Events(nextTrackEvent, previousTrackEvent)
 
+    // The two commands default to isEnabled == true with nobody handling them.
+    // Claim them as disabled at launch so the buttons never appear dead.
+    OnCreate {
+      onMainThread {
+        let center = MPRemoteCommandCenter.shared()
+        center.nextTrackCommand.isEnabled = false
+        center.previousTrackCommand.isEnabled = false
+      }
+    }
+
     // Show/hide the two lock-screen buttons. Targets are installed lazily on
     // the first enable and then kept, so toggling is just an isEnabled flip.
     Function("setRemoteTrackCommandsEnabled") { (enabled: Bool) in
@@ -134,11 +144,13 @@ private func excludeUrlFromBackup(path: String) -> Bool {
 }
 
 private func fileUrl(from path: String) -> URL? {
-  if let url = URL(string: path), url.isFileURL {
-    return url
-  }
   guard !path.isEmpty else {
     return nil
+  }
+  // Rebuild from the decoded path: URL(string:) would read a raw "#" or "?" in
+  // a directory name as a fragment or query and silently drop the tail.
+  if let url = URL(string: path), url.isFileURL {
+    return URL(fileURLWithPath: url.path)
   }
   return URL(fileURLWithPath: path)
 }

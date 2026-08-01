@@ -15,6 +15,7 @@ import { usePlaylists } from "@/api/queries/playlists";
 import { playlistArtworkSource } from "@/domain/artwork";
 import { isSystemPlaylist, type Playlist } from "@/domain/playlist";
 import { useT } from "@/i18n";
+import { playlistRoute } from "@/lib/routes";
 import { useTheme } from "@/theme/provider";
 import { RADIUS } from "@/theme/tokens";
 import { ArtworkImage, EmptyState, ErrorState, Icon } from "@/ui";
@@ -79,7 +80,7 @@ export default function PlaylistsScreen() {
 
   const renderItem = useCallback(
     ({ item }: { item: Playlist }) => (
-      <PlaylistRow playlist={item} onPress={() => router.push(`/(main)/playlist/${item.id}`)} />
+      <PlaylistRow playlist={item} onPress={() => router.push(playlistRoute(item.id))} />
     ),
     [router],
   );

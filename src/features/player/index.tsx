@@ -22,15 +22,16 @@
  */
 import React, { useCallback, useEffect, useState } from "react";
 import { Pressable, Text, useWindowDimensions, View } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, type Href } from "expo-router";
 import { useLikedIds, useToggleLike } from "@/api/queries/likedSongs";
 import { getTransport } from "@/contracts/transport";
 import { songArtworkSource } from "@/domain/artwork";
-import { formatArtists, formatDuration, primaryArtistSlug } from "@/domain/format";
+import { formatArtists, formatDuration, primaryArtistSegment } from "@/domain/format";
 import type { LoopMode } from "@/domain/playback";
 import type { Song } from "@/domain/song";
 import { getShellSlots, useShellSlotsVersion } from "@/features/shell/slots";
 import { useT } from "@/i18n";
+import { songAlbumRoute, songArtistRoute } from "@/lib/routes";
 import { usePlaybackView } from "@/remote/mirror";
 import { getCachedAccent, resolveAccent } from "@/theme/accent";
 import { playerGradient } from "@/theme/gradients";
@@ -176,9 +177,9 @@ export default function NowPlayingBody() {
   // Links leave the player: dismiss the modal first so the destination lands
   // on the (main) stack rather than under it.
   const openInMain = useCallback(
-    (route: string) => {
+    (route: Href) => {
       router.back();
-      router.push(route as Parameters<typeof router.push>[0]);
+      router.push(route);
     },
     [router],
   );
@@ -192,7 +193,7 @@ export default function NowPlayingBody() {
   }
 
   const artistsLine = formatArtists(song) || t(`${NP}.unknownArtist`);
-  const artistSegment = primaryArtistSlug(song);
+  const artistSegment = primaryArtistSegment(song);
   const liked = (likedIds.data ?? []).includes(song.id);
   const CastButton = getShellSlots().castButton;
   const artworkSize = Math.min(width - 64, Math.round(height * 0.42));
@@ -220,13 +221,7 @@ export default function NowPlayingBody() {
               accessibilityRole="link"
               accessibilityLabel={t("components.music.Song.album")}
               disabled={!song.album || !artistSegment}
-              onPress={() =>
-                openInMain(
-                  `/(main)/album/${encodeURIComponent(artistSegment)}/${encodeURIComponent(
-                    song.album ?? "null",
-                  )}`,
-                )
-              }
+              onPress={() => openInMain(songAlbumRoute(song))}
             >
               <Text
                 numberOfLines={2}
@@ -239,7 +234,7 @@ export default function NowPlayingBody() {
               accessibilityRole="link"
               accessibilityLabel={t("components.music.Song.artist")}
               disabled={!artistSegment}
-              onPress={() => openInMain(`/(main)/artist/${encodeURIComponent(artistSegment)}`)}
+              onPress={() => openInMain(songArtistRoute(song))}
             >
               <Text
                 numberOfLines={1}

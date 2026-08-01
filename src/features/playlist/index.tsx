@@ -30,6 +30,7 @@ import { isLikedMirror, isSystemPlaylist, type PlaylistSong } from "@/domain/pla
 import type { Song } from "@/domain/song";
 import { useLocale, useT } from "@/i18n";
 import { formatDate } from "@/lib/dates";
+import { playlistRoute } from "@/lib/routes";
 import { LIKED_ACCENT } from "@/theme/tokens";
 import {
   artworkSourceUri,
@@ -173,7 +174,7 @@ const PlaylistBody = ({ playlistId }: { playlistId: PlaylistId }) => {
         disabled: copyMutation.isPending,
         onPress: () =>
           copyMutation.mutate(playlistId, {
-            onSuccess: (copy) => router.replace(`/(main)/playlist/${copy.id}`),
+            onSuccess: (copy) => router.replace(playlistRoute(copy.id)),
           }),
       });
     }

@@ -11,7 +11,7 @@
  */
 import { router } from "expo-router";
 import { registerSongMenuSlot, type SongMenuSlotHook } from "@/contracts/songMenu";
-import { songRadioRoute } from "@/features/artists/routes";
+import { songRadioRoute } from "@/lib/routes";
 
 const useStartRadioSlot: SongMenuSlotHook = (ctx) => {
   if (ctx.song.jam_song) return [];

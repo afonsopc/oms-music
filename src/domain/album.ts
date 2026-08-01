@@ -18,9 +18,13 @@ export const artistDisplayName = (artist: Artist | string | null | undefined): s
   return typeof artist === "string" ? artist : artist.name;
 };
 
-/** Route segment for a polymorphic artist: slug when we have one, else the encoded name. */
+/**
+ * Route segment for a polymorphic artist: slug when we have one, else the
+ * plain name. RAW on purpose - lib/routes.ts feeds these to expo-router as
+ * params, which URL-encode themselves.
+ */
 export const artistRouteSegment = (artist: Artist | string | null | undefined): string | null => {
   if (!artist) return null;
-  if (typeof artist === "string") return encodeURIComponent(artist);
-  return artist.slug || encodeURIComponent(artist.name);
+  if (typeof artist === "string") return artist;
+  return artist.slug || artist.name;
 };

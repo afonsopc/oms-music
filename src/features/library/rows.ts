@@ -4,6 +4,7 @@
  * no cover falls through to the ONE shared placeholder photo like every
  * other surface (FR-21) - never a letter tile.
  */
+import type { Href } from "expo-router";
 import type { AlbumSummary } from "@/domain/album";
 import { artistDisplayName, artistRouteSegment } from "@/domain/album";
 import type { Artist } from "@/domain/artist";
@@ -14,6 +15,7 @@ import {
 } from "@/domain/artwork";
 import type { Playlist } from "@/domain/playlist";
 import { isSystemPlaylist } from "@/domain/playlist";
+import { albumRoute, artistRoute, playlistRoute } from "@/lib/routes";
 
 export type LibraryFilter = "all" | "playlists" | "artists" | "albums";
 
@@ -23,7 +25,7 @@ export interface LibraryRow {
   name: string;
   subtitle: string;
   artwork: ArtworkSource;
-  route: string;
+  route: Href;
   /** Spotify-synced playlist: draws the emerald badge, never an edit affordance. */
   system: boolean;
   circular: boolean;
@@ -64,7 +66,7 @@ export const buildLibraryRows = (
           ? `${labels.playlistKind} • ${labels.spotify}`
           : labels.playlistKind,
         artwork: playlistArtworkSource(playlist),
-        route: `/(main)/playlist/${playlist.id}`,
+        route: playlistRoute(playlist.id),
         system,
         circular: false,
       });
@@ -80,7 +82,7 @@ export const buildLibraryRows = (
         name: artist.name,
         subtitle: labels.artistKind,
         artwork: artistImageSource(artist, "sm"),
-        route: `/(main)/artist/${artist.slug || encodeURIComponent(artist.name)}`,
+        route: artistRoute(artist.slug || artist.name),
         system: false,
         circular: true,
       });
@@ -100,7 +102,7 @@ export const buildLibraryRows = (
         artwork: album.artwork_fs_node_id
           ? { kind: "node", nodeId: album.artwork_fs_node_id }
           : { kind: "placeholder" },
-        route: `/(main)/album/${segment}/${encodeURIComponent(album.name)}`,
+        route: albumRoute(segment, album.name),
         system: false,
         circular: false,
       });

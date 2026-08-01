@@ -68,8 +68,9 @@ export const createRemoteTrackRouter = (
     stop(): void {
       if (stopped) return;
       stopped = true;
+      // A router that was never activated has nothing to turn off natively.
+      if (active !== null) native.setEnabled(false);
       active = false;
-      native.setEnabled(false);
       for (const subscription of subscriptions) subscription.remove();
       subscriptions = [];
     },

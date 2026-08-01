@@ -23,6 +23,7 @@ import {
 import { useContentBottomPadding } from "@/features/shell/metrics";
 import { useT } from "@/i18n";
 import { mixDescription, mixStampText, mixTitle } from "@/i18n/mixLabels";
+import { albumRoute, artistRoute, mixRoute, playlistRoute } from "@/lib/routes";
 import { useTheme } from "@/theme/provider";
 import { typeScale } from "@/theme/typography";
 import {
@@ -42,10 +43,6 @@ type HomeFilter = "all" | "playlists" | "albums" | "artists";
 
 const nodeArtwork = (nodeId: string | null | undefined): ArtworkSource =>
   nodeId ? { kind: "node", nodeId } : { kind: "placeholder" };
-
-/** Album route; a missing artist/album keeps the literal "null" segment. */
-const albumRoute = (artistSegment: string | null, album: string | null): string =>
-  `/(main)/album/${artistSegment ?? "null"}/${album ? encodeURIComponent(album) : "null"}`;
 
 /**
  * The friends listening strip (FR-29 placement): Home owns WHERE it sits,
@@ -103,7 +100,7 @@ export default function HomeScreen() {
           key: `playlist-${playlist.id}`,
           title: playlist.name,
           artwork: playlistArtworkSource(playlist),
-          onPress: () => router.push(`/(main)/playlist/${playlist.id}`),
+          onPress: () => router.push(playlistRoute(playlist.id)),
         }));
 
   const showSection = (kind: "playlists" | "albums" | "artists"): boolean =>
@@ -168,7 +165,7 @@ export default function HomeScreen() {
                   artworkUri={
                     mix.artist ? artworkSourceUri(artistImageSource(mix.artist, "sm")) : null
                   }
-                  onPress={() => router.push(`/(main)/mix/${encodeURIComponent(mix.slug)}`)}
+                  onPress={() => router.push(mixRoute(mix.slug))}
                 />
               );
             })
@@ -216,7 +213,7 @@ export default function HomeScreen() {
                 title={playlist.name}
                 subtitle={t("components.music.Home.playlistSubtitle")}
                 artwork={playlistArtworkSource(playlist)}
-                onPress={() => router.push(`/(main)/playlist/${playlist.id}`)}
+                onPress={() => router.push(playlistRoute(playlist.id))}
               />
             ))
           )}
@@ -244,7 +241,7 @@ export default function HomeScreen() {
                     ? artistImageSource(row.artist, "sm")
                     : { kind: "initials", name }
                 }
-                onPress={() => router.push(`/(main)/artist/${segment}`)}
+                onPress={() => router.push(artistRoute(segment))}
               />
             );
           })}

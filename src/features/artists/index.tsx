@@ -15,13 +15,13 @@ import { useArtistSongs } from "@/api/queries/songs";
 import { getTransport } from "@/contracts/transport";
 import type { Artist } from "@/domain/artist";
 import { useLocale, useT } from "@/i18n";
+import { artistRadioRoute, artistRoute } from "@/lib/routes";
 import { useTheme } from "@/theme/provider";
 import { RADIUS } from "@/theme/tokens";
 import { ErrorState, Icon, Skeleton, foregroundWash } from "@/ui";
 import { useContentBottomPadding } from "@/features/shell/metrics";
 import { ArtistShelf, type ArtistShelfEntry } from "./ArtistShelf";
 import { ArtistSpotlight } from "./ArtistSpotlight";
-import { artistRadioRoute, artistRoute } from "./routes";
 
 const StatTile = ({ value, label }: { value: string; label: string }) => {
   const { tokens, scheme } = useTheme();

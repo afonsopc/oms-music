@@ -18,6 +18,7 @@ import type { FriendListening } from "@/domain/social";
 import { useT } from "@/i18n";
 import { jamJoin } from "@/jam/channel";
 import { useJamStore } from "@/jam/store";
+import { profileRoute } from "@/lib/routes";
 import { artistNamesLine } from "@/social/display";
 import { useTheme } from "@/theme/provider";
 import { EMERALD_BADGE, RADIUS } from "@/theme/tokens";
@@ -45,7 +46,7 @@ export const isLiveRow = (row: FriendListening): boolean =>
   row.online && !row.paused && !!row.song;
 
 export const openFriendProfile = (handle: string): void => {
-  router.push(`/(main)/profile/${encodeURIComponent(handle)}`);
+  router.push(profileRoute(handle));
 };
 
 export const FriendActivityRow = ({ activity }: { activity: FriendListening }) => {

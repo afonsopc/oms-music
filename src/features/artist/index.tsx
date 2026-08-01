@@ -21,6 +21,7 @@ import { getTransport } from "@/contracts/transport";
 import { artistBannerSource } from "@/domain/artwork";
 import type { Song } from "@/domain/song";
 import { useLocale, useT } from "@/i18n";
+import { artistRadioRoute } from "@/lib/routes";
 import { usePlaybackView } from "@/remote/mirror";
 import { useTheme } from "@/theme/provider";
 import {
@@ -36,7 +37,6 @@ import {
   StickyTitle,
 } from "@/ui";
 import { useContentBottomPadding } from "@/features/shell/metrics";
-import { artistRadioRoute } from "@/features/artists/routes";
 import { AlbumGrid } from "./AlbumGrid";
 import { ArtistGallery } from "./ArtistGallery";
 import { htmlToParagraphs } from "./bioHtml";

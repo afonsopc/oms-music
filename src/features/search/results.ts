@@ -5,6 +5,7 @@
  * single row is drawn - without it "carlos" leads with "Agrupamento
  * Escolas D. Carlos I" and buries "Carlos Paiao".
  */
+import type { Href } from "expo-router";
 import type { AlbumSummary } from "@/domain/album";
 import { artistDisplayName, artistRouteSegment } from "@/domain/album";
 import type { Artist } from "@/domain/artist";
@@ -12,6 +13,7 @@ import { artistNamesList, primaryArtists } from "@/domain/format";
 import type { Playlist } from "@/domain/playlist";
 import { rankByMatch } from "@/domain/rank";
 import type { Song } from "@/domain/song";
+import { albumRoute } from "@/lib/routes";
 
 /** Top 3 per kind in the suggestion dropdown (web MAX_PER_KIND). */
 export const MAX_SUGGESTIONS_PER_KIND = 3;
@@ -20,14 +22,14 @@ export interface SearchAlbumHit {
   name: string;
   /** Display name of the album artist (may be a legacy bare string). */
   artist: string | null;
-  /** Route segment: artist_slug when the backend knows it, else encoded. */
+  /** Route segment, RAW: artist_slug when the backend knows it, else the name. */
   artistSegment: string | null;
   artworkFsNodeId: string | null;
 }
 
 export interface SearchArtistEntry {
   name: string;
-  /** Route segment: roster slug when known, else the URL-encoded name. */
+  /** Route segment, RAW: roster slug when known, else the plain name. */
   segment: string;
   /** Present only for direct /artists hits (enables the image chain). */
   artist?: Artist;
@@ -60,7 +62,7 @@ export const toAlbumHits = (albums: AlbumSummary[], term: string): SearchAlbumHi
 
 const entryFromArtist = (artist: Artist): SearchArtistEntry => ({
   name: artist.name,
-  segment: artist.slug || encodeURIComponent(artist.name),
+  segment: artist.slug || artist.name,
   artist,
 });
 
@@ -94,13 +96,13 @@ export const deriveArtistEntries = (
       for (const primary of primaries) {
         push({
           name: primary.name,
-          segment: primary.slug || encodeURIComponent(primary.name),
+          segment: primary.slug || primary.name,
         });
       }
       continue;
     }
     for (const name of artistNamesList(song.artist_names)) {
-      push({ name, segment: encodeURIComponent(name) });
+      push({ name, segment: name });
     }
   }
 
@@ -108,7 +110,7 @@ export const deriveArtistEntries = (
     if (!album.artist) continue;
     push({
       name: album.artist,
-      segment: album.artistSegment ?? encodeURIComponent(album.artist),
+      segment: album.artistSegment ?? album.artist,
     });
   }
 
@@ -174,6 +176,6 @@ export const buildSuggestions = (lists: {
   return out;
 };
 
-/** Album route for a hit; a missing artist/album keeps the literal "null". */
-export const albumHitRoute = (album: SearchAlbumHit): string =>
-  `/(main)/album/${album.artistSegment ?? "null"}/${encodeURIComponent(album.name)}`;
+/** Album route for a hit; a missing artist keeps the literal "null". */
+export const albumHitRoute = (album: SearchAlbumHit): Href =>
+  albumRoute(album.artistSegment, album.name);

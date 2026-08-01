@@ -20,11 +20,11 @@ import type { ArtistsRosterOrder } from "@/api/endpoints/artists";
 import type { Artist } from "@/domain/artist";
 import { artistImageSource } from "@/domain/artwork";
 import { useT } from "@/i18n";
+import { artistRoute } from "@/lib/routes";
 import { useTheme } from "@/theme/provider";
 import { RADIUS } from "@/theme/tokens";
 import { ArtistCard, CircleSkeleton, EmptyState, ErrorState, FilterPills, Icon, Skeleton } from "@/ui";
 import { useContentBottomPadding } from "@/features/shell/metrics";
-import { artistRoute } from "./routes";
 
 const SEARCH_DEBOUNCE_MS = 250;
 const SKELETON_COUNT = 12;

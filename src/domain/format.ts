@@ -61,17 +61,28 @@ export const withArtists = (song: { artists?: SongArtistEntry[] }): SongArtistEn
   (song.artists ?? []).filter((a) => a.role === "with").sort((a, b) => a.position - b.position);
 
 /**
- * Slug of the first primary artist, for artist routes. Falls back to the
- * URL-encoded name; "null" when nothing resolves (the unknown-artist segment).
+ * Slug of the first primary artist, RAW (never URL-encoded), for the router
+ * params in lib/routes.ts - which encode themselves. Falls back to the plain
+ * name; "null" when nothing resolves (the unknown-artist segment).
+ */
+export const primaryArtistSegment = (song: ArtistsCarrier): string => {
+  const list = song.artists ?? [];
+  const primary = list.find((a) => a.role === "primary") ?? list[0];
+  if (primary?.slug) return primary.slug;
+  if (primary?.name) return primary.name;
+  return artistNamesList(song.artist_names)[0] ?? "null";
+};
+
+/**
+ * The URL-encoded variant, kept for the offline collection key (FR-87) whose
+ * stored values predate the router doing its own encoding.
  */
 export const primaryArtistSlug = (song: ArtistsCarrier): string => {
   const list = song.artists ?? [];
   const primary = list.find((a) => a.role === "primary") ?? list[0];
   if (primary?.slug) return primary.slug;
-  if (primary?.name) return encodeURIComponent(primary.name);
-  const legacy = artistNamesList(song.artist_names)[0];
-  if (legacy) return encodeURIComponent(legacy);
-  return "null";
+  const segment = primaryArtistSegment(song);
+  return segment === "null" ? "null" : encodeURIComponent(segment);
 };
 
 /** Seconds -> "m:ss" (durations in tables and scrub labels). */

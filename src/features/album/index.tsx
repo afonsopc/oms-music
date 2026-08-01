@@ -21,8 +21,8 @@ import { albumKey } from "@/domain/albumKey";
 import { songArtworkSource } from "@/domain/artwork";
 import { totalDuration } from "@/domain/format";
 import { useT } from "@/i18n";
+import { artistRoute } from "@/lib/routes";
 import { useTheme } from "@/theme/provider";
-import { artistRoute } from "@/features/artists/routes";
 import { CollectionScreen } from "@/features/playlist/CollectionScreen";
 import {
   albumYear,

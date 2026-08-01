@@ -19,11 +19,11 @@ import { songArtworkSource } from "@/domain/artwork";
 import type { SongId } from "@/domain/ids";
 import type { MixKind } from "@/domain/mixes";
 import { useT } from "@/i18n";
+import { playlistRoute } from "@/lib/routes";
 import { useTheme } from "@/theme/provider";
 import { RADIUS, RADIO_KIND_GRADIENTS } from "@/theme/tokens";
 import { artworkSourceUri, Icon, MixTileArtwork } from "@/ui";
 import { CollectionScreen } from "@/features/playlist/CollectionScreen";
-import { playlistRoute } from "@/features/artists/routes";
 
 const HERO_ARTWORK_SIZE = 136;
 

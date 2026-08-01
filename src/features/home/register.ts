@@ -17,7 +17,7 @@ import {
   type SongMenuSlotHook,
 } from "@/contracts/songMenu";
 import { getTransport } from "@/contracts/transport";
-import { primaryArtistSlug } from "@/domain/format";
+import { songAlbumRoute, songArtistRoute } from "@/lib/routes";
 import { usePlaybackView } from "@/remote/mirror";
 import { openAddToPlaylist } from "@/features/playlists/addToPlaylist";
 
@@ -91,11 +91,7 @@ const useOpenAlbumSlot: SongMenuSlotHook = (ctx) => [
     id: "openAlbum",
     labelKey: "components.music.SongCard.openAlbum",
     icon: "disc",
-    onPress: () => {
-      const artist = primaryArtistSlug(ctx.song);
-      const album = ctx.song.album ? encodeURIComponent(ctx.song.album) : "null";
-      router.push(`/(main)/album/${artist}/${album}`);
-    },
+    onPress: () => router.push(songAlbumRoute(ctx.song)),
   },
 ];
 
@@ -104,7 +100,7 @@ const useOpenArtistSlot: SongMenuSlotHook = (ctx) => [
     id: "openArtist",
     labelKey: "components.music.SongCard.openArtist",
     icon: "user",
-    onPress: () => router.push(`/(main)/artist/${primaryArtistSlug(ctx.song)}`),
+    onPress: () => router.push(songArtistRoute(ctx.song)),
   },
 ];
 

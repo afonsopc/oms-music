@@ -55,9 +55,10 @@ describe("toAlbumHits", () => {
     expect(hit.artist).toBe("Carlos Paiao");
   });
 
-  it("encodes a bare-string artist into the route segment", () => {
+  // Segments stay RAW; lib/routes.ts hands them to the router, which encodes.
+  it("keeps a bare-string artist unencoded in the route segment", () => {
     const [hit] = toAlbumHits([album("Album", "Rui Veloso")], "album");
-    expect(hit.artistSegment).toBe("Rui%20Veloso");
+    expect(hit.artistSegment).toBe("Rui Veloso");
   });
 });
 
@@ -99,7 +100,7 @@ describe("deriveArtistEntries", () => {
     const legacy = { ...song(1, "Song"), artist_names: ["Legacy Name"] } as Song;
     const entries = deriveArtistEntries([], [legacy], [], "");
     expect(entries[0].name).toBe("Legacy Name");
-    expect(entries[0].segment).toBe("Legacy%20Name");
+    expect(entries[0].segment).toBe("Legacy Name");
   });
 });
 

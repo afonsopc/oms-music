@@ -11,8 +11,8 @@ import { useRouter } from "expo-router";
 import type { AlbumSummary } from "@/domain/album";
 import { artistDisplayName } from "@/domain/album";
 import { useT } from "@/i18n";
+import { albumRoute } from "@/lib/routes";
 import { Tile } from "@/ui";
-import { albumRoute } from "@/features/artists/routes";
 
 const GUTTER = 8;
 const HORIZONTAL_PADDING = 40;

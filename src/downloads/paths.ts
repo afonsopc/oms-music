@@ -45,8 +45,9 @@ export const ensureUserDownloadDirectory = (userId: string): Directory => {
 
 const excludeOnce = (uri: string): void => {
   if (excluded.has(uri)) return;
-  excluded.add(uri);
-  excludeFromBackup(uri);
+  // Only memoize a flag that actually stuck: a directory that did not exist yet
+  // returns false, and remembering that would disable FR-84 for the launch.
+  if (excludeFromBackup(uri)) excluded.add(uri);
 };
 
 /** Maps a Song's codec metadata onto a usable file extension. */

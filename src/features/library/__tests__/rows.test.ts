@@ -61,10 +61,17 @@ describe("buildLibraryRows", () => {
     expect(rows[2].artwork.kind).toBe("likedHeart");
   });
 
-  it("routes artists by slug and falls back to the encoded name", () => {
+  // Routes are Href objects with RAW params: the router does the encoding.
+  it("routes artists by slug and falls back to the plain name", () => {
     const rows = buildLibraryRows("artists", sources, "", labels);
-    expect(rows[0].route).toBe("/(main)/artist/xutos-pontapes");
-    expect(rows[1].route).toBe("/(main)/artist/Rui%20Veloso");
+    expect(rows[0].route).toEqual({
+      pathname: "/(main)/artist/[artist]",
+      params: { artist: "xutos-pontapes" },
+    });
+    expect(rows[1].route).toEqual({
+      pathname: "/(main)/artist/[artist]",
+      params: { artist: "Rui Veloso" },
+    });
     expect(rows[0].circular).toBeTruthy();
   });
 

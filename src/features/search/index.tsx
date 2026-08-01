@@ -17,7 +17,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter, type Href } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSearchArtists } from "@/api/queries/artists";
 import { useLikedIds } from "@/api/queries/likedSongs";
@@ -39,6 +39,7 @@ import {
   readRecentSearches,
   rememberSearch,
 } from "@/lib/recentSearches";
+import { artistRoute, playlistRoute, songHighlightRoute } from "@/lib/routes";
 import { usePlaybackView } from "@/remote/mirror";
 import { useTheme } from "@/theme/provider";
 import { RADIUS } from "@/theme/tokens";
@@ -75,18 +76,7 @@ const FILTERS: SearchFilter[] = ["all", "songs", "playlists", "albums", "artists
 const nodeArtwork = (nodeId: string | null | undefined): ArtworkSource =>
   nodeId ? { kind: "node", nodeId } : { kind: "placeholder" };
 
-const artistRoute = (entry: SearchArtistEntry): string => `/(main)/artist/${entry.segment}`;
-
-/**
- * Album page + song highlight (FR-44 param): the web's `#<title>` hash.
- */
-const songAlbumRoute = (song: Song): string => {
-  const artists = song.artists ?? [];
-  const primary = artists.find((a) => a.role === "primary") ?? artists[0];
-  const segment = primary?.slug || (primary ? encodeURIComponent(primary.name) : "null");
-  const album = song.album ? encodeURIComponent(song.album) : "null";
-  return `/(main)/album/${segment}/${album}?highlight=${encodeURIComponent(song.title)}`;
-};
+const entryRoute = (entry: SearchArtistEntry): Href => artistRoute(entry.segment);
 
 /** Deezer picture lookup for a name-only artist card (FR-33). */
 const DerivedArtistCard = ({
@@ -431,13 +421,13 @@ export default function SearchScreen() {
         playSongList([suggestion.song], 0);
         return;
       case "artist":
-        router.push(artistRoute(suggestion.entry));
+        router.push(entryRoute(suggestion.entry));
         return;
       case "album":
         router.push(albumHitRoute(suggestion.album));
         return;
       case "playlist":
-        router.push(`/(main)/playlist/${suggestion.playlist.id}`);
+        router.push(playlistRoute(suggestion.playlist.id));
         return;
     }
   };
@@ -446,16 +436,16 @@ export default function SearchScreen() {
     if (!top) return;
     switch (top.kind) {
       case "song":
-        router.push(songAlbumRoute(top.song));
+        router.push(songHighlightRoute(top.song));
         return;
       case "artist":
-        router.push(artistRoute(top.entry));
+        router.push(entryRoute(top.entry));
         return;
       case "album":
         router.push(albumHitRoute(top.album));
         return;
       case "playlist":
-        router.push(`/(main)/playlist/${top.playlist.id}`);
+        router.push(playlistRoute(top.playlist.id));
         return;
     }
   };
@@ -725,13 +715,13 @@ export default function SearchScreen() {
                       name={entry.name}
                       image={artistImageSource(entry.artist, "sm")}
                       size={96}
-                      onPress={() => router.push(artistRoute(entry))}
+                      onPress={() => router.push(entryRoute(entry))}
                     />
                   ) : (
                     <DerivedArtistCard
                       key={`derived-${i}-${entry.name}`}
                       entry={entry}
-                      onPress={() => router.push(artistRoute(entry))}
+                      onPress={() => router.push(entryRoute(entry))}
                     />
                   ),
                 )}
@@ -766,7 +756,7 @@ export default function SearchScreen() {
                     subtitle={t("components.music.Search.kindPlaylist")}
                     artwork={playlistArtworkSource(playlist)}
                     width={152}
-                    onPress={() => router.push(`/(main)/playlist/${playlist.id}`)}
+                    onPress={() => router.push(playlistRoute(playlist.id))}
                   />
                 ))}
               </View>
