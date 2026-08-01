@@ -11,14 +11,14 @@
  *
  * Remote commands: registered ONCE and dispatched through
  * contracts/transport, so a controller's lock-screen action advances the
- * ACTIVE device once WP9 registers its decorator. NOTE (day-1 spike, from
- * the vendored expo-audio sources): the current expo-audio handles
- * play/pause/seek/skip(+-10 s) natively against the player and exposes NO
- * next/previous-track commands and NO JS remote-command events on either
- * platform. routeRemoteCommand is the routing shim ready for the
- * config-plugin patch (or player-library swap) that surfaces them; until
- * then, native play/pause/seek stay honest because the engine mirrors
- * status updates into the store.
+ * ACTIVE device once WP9 registers its decorator. expo-audio still handles
+ * play/pause/seek/skip(+-10 s) natively against the player and emits no JS
+ * events for them (harmless: the engine mirrors status updates into the
+ * store). next/previous are ours: the local `oms-native` module registers
+ * additive targets on the process-wide MPRemoteCommandCenter and calls
+ * routeRemoteCommand through the router installed here by register.ts.
+ * Android has no next/previous at all - expo-audio strips those commands
+ * from the only MediaSession the app has (docs/LOCKSCREEN-PATCH.md).
  */
 import { getTransport } from "@/contracts/transport";
 import { getLocalFileIndex } from "@/contracts/localSource";
@@ -29,6 +29,12 @@ import { songArtworkSource } from "@/domain/artwork";
 import type { Song } from "@/domain/song";
 import { playerStore } from "./store";
 import type { AudioAdapter, LockScreenMetadata } from "./types";
+// Pure submodule on purpose: the native accessor (and its react-native drag)
+// is register.ts's business, not this file's.
+import {
+  inertRemoteTrackRouter,
+  type RemoteTrackRouter,
+} from "../../modules/oms-native/src/remoteTrackCommands";
 
 export type RemoteCommand =
   | { kind: "play" }
@@ -44,6 +50,18 @@ const SEEK_JUMP_S = 10;
 
 let overrideSong: Song | null = null;
 let lastPublished: { adapter: AudioAdapter; song: Song | null } | null = null;
+let trackRouter: RemoteTrackRouter = inertRemoteTrackRouter;
+
+/**
+ * register.ts installs the `oms-native` router here (inert when the native
+ * module is absent, i.e. Expo Go, web and every Android build). Kept behind a
+ * setter so this file never imports native code.
+ */
+export const setRemoteTrackRouter = (router: RemoteTrackRouter): void => {
+  if (trackRouter !== inertRemoteTrackRouter) trackRouter.stop();
+  trackRouter = router;
+  if (lastPublished) router.setActive((overrideSong ?? lastPublished.song) !== null);
+};
 
 /** Fresh metadata object per song (never mutate a previous one). */
 export const buildLockScreenMetadata = (song: Song): LockScreenMetadata => {
@@ -70,6 +88,10 @@ export const buildLockScreenMetadata = (song: Song): LockScreenMetadata => {
 export const publishLockScreen = (adapter: AudioAdapter, localSong: Song | null): void => {
   const song = overrideSong ?? localSong;
   lastPublished = { adapter, song: localSong };
+  // The next/previous buttons exist exactly while a song is on the lock
+  // screen: expo-audio's own disableRemoteCommands never touches them, so
+  // nobody else would ever turn them off.
+  trackRouter.setActive(song !== null);
   if (!song) {
     adapter.setLockScreenActive(false);
     return;

@@ -8,9 +8,8 @@
  *  - liked mirror: the purple heart artwork + #7e22ce accent.
  *
  * FR-51 (artwork change) ships for manual playlists through
- * ChangePlaylistArtwork; the square crop / 2 MB re-encode is degraded (no
- * image-manipulation library is installed) and refuses oversized picks
- * instead.
+ * ChangePlaylistArtwork: the pick is center-cropped to a square and re-encoded
+ * to JPEG under ~2 MB on the device before the multipart upload.
  */
 import React, { useCallback, useMemo, useState } from "react";
 import { Redirect, useLocalSearchParams, useRouter } from "expo-router";

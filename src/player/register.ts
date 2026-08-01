@@ -4,7 +4,8 @@
  * base transport (contracts/transport), configures the audio session
  * (playback category, background, doNotMix - required for lock screen
  * association), keeps the lock screen fed on every song / play-state /
- * metadata change, and registers the logout wipe (FR-10 / DESIGN 5.3) next to
+ * metadata change, wires the oms-native next/previous lock-screen commands
+ * into the transport seam (FR-63), and registers the logout wipe (FR-10 / DESIGN 5.3) next to
  * the cable's, the jam manager's and the download scheduler's.
  */
 import { setAudioModeAsync } from "expo-audio";
@@ -16,8 +17,9 @@ import type { Song } from "@/domain/song";
 import { PlayerEngineImpl } from "./engine";
 import { createExpoAudioAdapter } from "./expoAudioAdapter";
 import { createListenerSettingsPersistence } from "./persistence";
-import { publishLockScreen } from "./lockScreen";
+import { publishLockScreen, routeRemoteCommand, setRemoteTrackRouter } from "./lockScreen";
 import type { AudioAdapter } from "./types";
+import { createRemoteTrackRouter, getRemoteTrackCommands } from "../../modules/oms-native";
 
 let engine: PlayerEngineImpl | null = null;
 
@@ -63,6 +65,17 @@ export const registerPlayerEngine = (): PlayerEngineImpl => {
   engine = created;
 
   setBaseTransport(engineTransport(created));
+
+  // FR-63 lock-screen next/previous. The local `oms-native` module owns the
+  // two MPRemoteCommandCenter commands expo-audio never registers; the events
+  // land on routeRemoteCommand, which dispatches through contracts/transport,
+  // so on a controller device they advance the ACTIVE device. Inert wherever
+  // the native module is absent (Android, web, Expo Go).
+  setRemoteTrackRouter(
+    createRemoteTrackRouter(getRemoteTrackCommands(), (kind) => {
+      routeRemoteCommand({ kind });
+    }),
+  );
 
   // Logout / auth loss: stop the audio, drop the previous user's queue and
   // clear the lock screen. Runs even when DELETE /sessions/current fails.

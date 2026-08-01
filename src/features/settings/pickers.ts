@@ -8,16 +8,30 @@
  * this module so a future swap (expo-image-picker for a nicer photo UI) only
  * touches this file.
  *
+ * Picked images go through the same crop/compress pipeline as the playlist
+ * artwork (`@/lib/artworkTranscode`) before they leave the device: square for
+ * artwork and avatars, ratio-preserving for banners. That also normalizes HEIC
+ * camera output, which the backend's image attachers reject outright.
+ *
  * Android hands back `content://` URIs; React Native's FormData accepts them
  * as file parts, so the picked `{ uri, name, type }` shape is what every
  * multipart endpoint expects.
  */
 import { Directory, File, Paths } from "expo-file-system";
+import { BANNER_MAX_EDGE, transcodeToJpeg } from "@/lib/artworkTranscode";
+import { jpegName } from "@/lib/imageTransform";
 
 export interface PickedImage {
   uri: string;
   name: string;
   type: string;
+}
+
+export interface PickImageOptions {
+  /** Center-crop to the shorter side. Default true; banners pass false. */
+  square?: boolean;
+  /** Longest side of the first encode attempt. */
+  maxEdge?: number;
 }
 
 export interface PickedAudio {
@@ -65,16 +79,29 @@ const toPickedAudio = (file: File, relativePath: string): PickedAudio => ({
   relativePath,
 });
 
-export const pickImage = async (): Promise<PickedImage | null> => {
+export const pickImage = async (
+  options: PickImageOptions = {},
+): Promise<PickedImage | null> => {
   const picked = await File.pickFileAsync({ mimeTypes: ["image/*"] });
   if (picked.canceled || !picked.result) return null;
   const file = picked.result;
-  return {
-    uri: file.uri,
-    name: file.name,
-    type: file.type && file.type.length > 0 ? file.type : IMAGE_FALLBACK_TYPE,
-  };
+  try {
+    const jpeg = await transcodeToJpeg(file.uri, { ...options, name: jpegName(file.name) });
+    return { uri: jpeg.uri, name: jpeg.name, type: jpeg.type };
+  } catch {
+    // The native decoder could not read it; send the picked bytes as they are
+    // rather than losing the upload entirely.
+    return {
+      uri: file.uri,
+      name: file.name,
+      type: file.type && file.type.length > 0 ? file.type : IMAGE_FALLBACK_TYPE,
+    };
+  }
 };
+
+/** Artist banners are wide, so they keep their ratio and get a longer edge. */
+export const pickBannerImage = (): Promise<PickedImage | null> =>
+  pickImage({ square: false, maxEdge: BANNER_MAX_EDGE });
 
 /** Multi-pick, audio only (non-audio picks are dropped, web parity). */
 export const pickAudioFiles = async (): Promise<PickedAudio[]> => {

@@ -1,0 +1,9 @@
+{
+  "platforms": ["apple", "android"],
+  "apple": {
+    "modules": ["OmsNativeModule"]
+  },
+  "android": {
+    "modules": ["pt.omelhorsite.omsnative.OmsNativeModule"]
+  }
+}

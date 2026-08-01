@@ -1,60 +1,107 @@
 # oms-music
 
-The omelhorsite music app for iOS and Android: a native rebuild of the `/music` area of
-omelhorsite.pt against the SAME production backend (`https://backend.omelhorsite.pt`).
-Zero backend changes: every endpoint, param shape and quirk this app talks to already ships
-today, and the web client keeps working untouched.
+The omelhorsite music app for iOS and Android.
 
-What it does: your library (songs, playlists, artists, albums, liked), search including
-external sources and imports, a full player (queue, lyrics with translation and sync,
-playback modes with vocal separation), offline downloads, listening together (jams,
-friends listening, music profiles), remote playback across your own devices, and the
-settings/import surfaces (files, URL, Spotify sync, artist import).
+This is a full native rebuild of the `/music` area of omelhorsite.pt, running against the
+SAME production backend (`https://backend.omelhorsite.pt`) with **zero backend changes**.
+Every endpoint, parameter shape and quirk this app talks to already ships today, and the
+web client keeps working untouched. It is not a wrapper, a WebView or a PWA: the screens,
+the player, the queue, the download manager and the realtime layer are all reimplemented in
+TypeScript on React Native.
 
-Stack: Expo SDK 57 (RN 0.86, React 19, New Architecture), expo-router, expo-audio,
-expo-sqlite, expo-file-system, TanStack Query, zustand, hand-rolled ActionCable client.
-TypeScript strict. Package manager: bun.
+Scope is the 126 functional requirements in `docs/SPEC.md`: your library (songs, playlists,
+artists, albums, liked), search including external sources and imports, the full player
+(queue, lyrics with translation and sync, playback modes with vocal separation), offline
+downloads, listening together (jams, friends listening, music profiles), remote playback
+across your own devices, and the settings and import surfaces (files, URL, Spotify sync,
+artist import). 28 screens, three languages (en, pt in European Portuguese, lv).
 
 ---
 
-## Setup
+## Stack, and why
+
+| Piece | Choice |
+| --- | --- |
+| Runtime | Expo SDK 57 (`expo@~57.0.9`), React Native 0.86.2, React 19.2, New Architecture + Hermes |
+| Routing | expo-router v7, typed routes on |
+| Audio | **expo-audio** with `enableBackgroundPlayback` |
+| Storage | expo-sqlite (library, downloads, offline metadata), expo-secure-store (tokens) |
+| Files | expo-file-system task API (`createDownloadTask`, savables, background sessions on iOS) |
+| Data | TanStack Query v5 + zustand |
+| Realtime | `@kesha-antonov/react-native-action-cable` against the Rails cable |
+| Native glue | `modules/oms-native`, a local Expo module (see "native gaps" below) |
+| Language | TypeScript strict. Package manager: bun. |
+
+**Why expo-audio and not react-native-track-player.** RNTP is the obvious default for a
+music app, and both of its lines were rejected on purpose (`docs/STACK.md`):
+
+- **react-native-track-player v4** is frozen and does not build cleanly against recent SDK
+  and Kotlin versions (the `onBind` breakage, upstream issue #2472). Adopting it means
+  owning a fork on day one.
+- **`@rntp/player` v5**, the maintained rewrite, is genuinely excellent, and it is
+  **commercially licensed**: free for non-commercial use only, EUR 99/month for a
+  commercial app. This ships to the App Store and Play Store under omelhorsite, so a
+  recurring runtime license for the audio layer was not something to sign up for. It stays
+  documented as the escape hatch behind the engine interface if expo-audio ever runs out of
+  road.
+- **expo-audio** is MIT, ships and versions with the SDK, and covers what this app needs:
+  lock-screen and notification Now Playing with artwork on both platforms
+  (`setActiveForLockScreen`), an `AudioPlaylist` for gapless transitions, and
+  `AudioSource.headers` so authenticated stream URLs work without a signed-URL detour.
+
+What that choice costs, and how the repo pays for it: shuffle and repeat are not built in,
+so the queue is ordered in JS (`src/player/queueOps.ts`); there is no EQ and no
+sample-accurate two-player sync (see "Deferred"); and expo-audio surfaces no remote-command
+events to JS at all, which is why lock-screen next/previous needed a local native module.
+
+---
+
+## Running it
 
 ```bash
 bun install
+bunx expo prebuild        # generates ios/ and android/ (both gitignored)
+bunx expo run:ios         # builds and installs on a simulator or device
+bunx expo run:android     # emulator or a connected device
 ```
 
-A **development build is required**. Expo Go cannot host this app: background audio,
-lock-screen controls, SecureStore, SQLite and the `omsmusic://` scheme all need native
-code.
+`run:ios` / `run:android` prebuild on first use, so the explicit `prebuild` is only needed
+when you want to regenerate the native projects (after changing `app.json`, a config plugin
+or `modules/oms-native`). Once a dev build is installed, `bun start` is enough for
+day-to-day work; the dev client picks up the Metro bundle.
+
+**Expo Go cannot host this app.** Expo Go is a fixed prebuilt binary, and this app needs
+native code that is not in it: expo-audio's background audio mode and lock-screen session,
+the local `oms-native` module, SecureStore's keychain entitlement, SQLite, the `omsmusic://`
+scheme, the Android https intent filters, and the backup-rules config plugin. A development
+build (or an EAS `development` / `development-device` profile from `eas.json`) is mandatory.
+
+Backend selection is an env var, not a code edit:
 
 ```bash
-bunx expo run:ios        # builds and installs the dev client on a simulator or device
-bunx expo run:android    # same for an emulator or a connected device
+EXPO_PUBLIC_API_URL=http://localhost:1143 bun start
 ```
 
-Both commands prebuild the native projects on first run. After that, `bun start` is enough
-for day-to-day work (the dev client picks up the Metro bundle).
-
-Point the app at a local backend by editing `API_BASE_URL` in `src/api/client.ts`
-(the dev backend is `http://localhost:1143`). Note that Chrome/loopback flows do not work
-across ports in this environment, so authenticated dev testing happens on the device
-build.
+It defaults to `https://backend.omelhorsite.pt` (`src/api/client.ts`). Chrome blocks
+loopback requests across ports on the dev machine, so authenticated flows are exercised on
+the device build rather than in a browser.
 
 ### Checks
 
 ```bash
-bun x tsc --noEmit   # TypeScript, strict, must be clean
-bun run lint         # eslint (expo config)
-bun test             # 300+ unit and property tests, no device needed
-bun scripts/smoke.ts # optional: live API smoke, needs OMS_EMAIL / OMS_PASSWORD
+bun x tsc --noEmit    # TypeScript, strict, must be clean
+bun run lint          # eslint (expo config)
+bun test              # 360+ unit and property tests, no device needed
+bun scripts/smoke.ts  # optional: live API smoke, needs OMS_EMAIL / OMS_PASSWORD
+bun e2e/deeplinks.ts ios   # scripted deep-link matrix against a running dev build
 ```
 
 `bun test` also runs the repo gates in `src/boot/__tests__/gates.test.ts`: no em-dash
 character anywhere, and every subsystem `register.ts` reachable from `boot/wireup.ts`. The
 i18n catalogs are gated separately for key-tree equality across en/pt/lv.
 
-Device checklists (the parts no unit test can cover) live in `e2e/`, including a scripted
-deep-link pass: `bun e2e/deeplinks.ts ios`.
+Everything that needs real hardware lives in `e2e/` as operator checklists: boot and shell,
+the two-device playback matrix, downloads and offline, jam and social, rate limits.
 
 ---
 
@@ -74,13 +121,15 @@ src/
   lyrics/ separation/           LRC parsing, translation, stem separation service
   auth/ db/ i18n/ theme/ lib/   session, SQLite, catalogs, tokens, pure helpers
   boot/         wireup.ts: the single composition root, imported by app/_layout.tsx
+modules/
+  oms-native/   local Expo module: lock-screen next/previous, backup exclusion
 ```
 
 Subsystems never import each other directly. They meet at the seams in `src/contracts`
-(local files, offline fallback, transport, playback interceptor, song menu), each with an
-inert default, and every real implementation is installed by `src/boot/wireup.ts` at boot.
-In development the boot logs one `[boot] ok ...` line per seam, so a missing registration
-is visible immediately.
+(local files, offline fallback, transport, playback interceptor, song menu, separation),
+each with an inert default, and every real implementation is installed by
+`src/boot/wireup.ts` at boot. In development the boot logs one `[boot] ok ...` line per
+seam, so a missing registration is visible immediately.
 
 ---
 
@@ -103,41 +152,92 @@ The specification the implementation was built against. Read in this order:
 | `shell-nav-theme.md` | navigation, theming, i18n |
 | `design-shipping.md` | the shipping proposal that fed DESIGN.md |
 | `STACK.md` | dependency research and the player decision |
-| `LOCKSCREEN-PATCH.md` | the native change needed for lock-screen next/previous |
+| `LOCKSCREEN-PATCH.md` | the expo-audio native diff for lock-screen track commands |
+
+`store/listing.md` holds the App Store and Play listing copy (EN and PT-PT).
 
 ---
 
-## Deferred in v1 (DESIGN.md section 16)
+## Deferred in v1
 
-Everything in SPEC.md ships except these, each with its follow-up path:
+Everything in `SPEC.md` ships except the items in `DESIGN.md` section 16. Current status:
 
-1. **Custom blend (FR-69)**: expo-audio cannot sample-sync two players, so the blend
-   sliders are hidden and an adopted `custom` mode plays the plain mix; the wire values are
-   stored and republished untouched. Follow-up: a native stem-mixer module behind
-   `player/sources.ts`.
-2. **3-band EQ (FR-70)**: no EQ path in expo-audio; the panel is hidden, the bands persist
-   and round-trip. Same native module follow-up.
-3. **Passkeys (FR-13)**: blocked on associated domains for omelhorsite.pt; the contract
-   stub with the verbatim-payload rule stays in `auth/oauth.ts`.
-4. **Google OAuth (FR-12)**: GitHub and Spotify ship through the WebView interception
-   flow; Google refuses embedded WebViews, so its button is hidden until the web callback
-   page bounces back into the app.
-5. **Verified https deep links (FR-20)**: `omsmusic://` on both platforms plus an
-   unverified Android intent filter; iOS needs an AASA file that does not exist yet. The
-   parser already handles full web URLs.
-6. **Storage cap (FR-94)**: not enforced, and no cap UI is shown, per SPEC.
-7. **Downloads across process termination**: persisted savables plus boot re-attach and
-   verify-and-repair heal the next launch instead.
-8. **Lock-screen next/previous**: the vendored expo-audio never enables those remote
-   commands and surfaces no JS remote-command events. `player/lockScreen.ts#routeRemoteCommand`
-   is wired and inert; `docs/LOCKSCREEN-PATCH.md` documents the exact native diff and the
-   two ways to deliver it.
+1. **Custom blend (FR-69).** Deferred. expo-audio cannot sample-sync two players, so the
+   blend sliders are hidden and an adopted `custom` mode plays the plain mix; the wire
+   values (`playback_mode`, `vocal_volume`, `instrumental_volume`) are stored and
+   republished untouched. Follow-up: a native stem mixer behind `player/sources.ts`.
+2. **3-band EQ (FR-70).** Deferred. No EQ path in expo-audio; the panel is hidden, the bands
+   persist and round-trip on the wire. Same native module follow-up.
+3. **Passkeys (FR-13).** Blocked on associated domains for omelhorsite.pt. The contract stub
+   with the verbatim-payload (`raw: true`) rule stays in `auth/`.
+4. **Google OAuth (FR-12).** GitHub and Spotify ship through the WebView interception flow;
+   Google refuses embedded WebViews, so its button is hidden. Follow-up is a web-side
+   callback bounce into `omsmusic://oauth`; the `/sessions/adopt` plumbing already ships.
+5. **Verified https deep links (FR-20).** `omsmusic://` on both platforms plus an unverified
+   Android intent filter (disambiguation dialog). iOS cannot claim https links without an
+   AASA file. The parser already handles full web URLs.
+6. **Storage cap (FR-94).** Not enforced, and no cap UI is shown, per SPEC.
+7. **Downloads across process termination.** iOS background sessions survive suspension, not
+   a kill; Android downloads pause with the process. Persisted savables plus boot re-attach
+   and verify-and-repair heal the next launch instead.
+8. **Lock-screen next/previous (FR-63).** Closed on iOS, still open on Android. See below.
 
 ---
 
-## Release
+## Native gaps that remain
 
-`app.json` carries the identity (`pt.omelhorsite.music`, `omsmusic://` scheme, icons and
-splash generated from the site's music logo, the Android https intent filter). Bump
-`version` plus `ios.buildNumber` and `android.versionCode` per store submission. Store
-metadata is written in PT-PT and EN.
+- **Android lock-screen next/previous.** expo-audio's `AudioMediaSessionCallback` strips
+  `COMMAND_SEEK_TO_NEXT` / `COMMAND_SEEK_TO_PREVIOUS` from the only MediaSession the app
+  has, so they cannot be added additively the way they can on iOS. On iOS,
+  `modules/oms-native` registers its own targets on the process-wide
+  `MPRemoteCommandCenter` (which expo-audio never touches) and forwards them to
+  `player/lockScreen.ts#routeRemoteCommand`; on Android that module is a documented no-op.
+  `docs/LOCKSCREEN-PATCH.md` has the exact diff inside expo-audio that would close the
+  Android side and the two ways to deliver it. Nothing in `node_modules/` is patched today.
+- **No stem mixer and no EQ.** Deferred items 1 and 2 both wait on one unwritten native
+  module: two AVAudioPlayerNodes on a single render clock on iOS, a Media3/Oboe mixer plus
+  `DynamicsProcessing` on Android.
+- **No AASA / assetlinks.json on omelhorsite.pt.** This one missing web-side shipment is
+  what blocks passkeys (FR-13) and verified universal links (FR-20) at the same time.
+- **No download service that survives process death.** The fallback is named and unused:
+  `@kesha-antonov/react-native-background-downloader` behind `downloads/tasks.ts`, to be
+  added only if field data shows real losses.
+- **No Google Cast.** AirPlay works for free because expo-audio is AVPlayer-backed on iOS;
+  there is no Cast SDK on Android. Remote playback between the user's own devices is this
+  app's own ActionCable protocol, not a casting stack.
+- **No CarPlay, Android Auto, widgets or Watch app.** Not attempted in v1; each needs its
+  own native target on top of the generated projects.
+
+---
+
+## Identity and release
+
+`app.json` carries the identity: `pt.omelhorsite.music` on both stores, the `omsmusic://`
+scheme, the Android https intent filters, and the art.
+
+The art in `assets/images/` is generated from the site's own music mark,
+`frontend/assets/musicLogo.svg` in the omelhorsite repo: the gold bell on the `#660090`
+purple that is baked into the mark itself. (That is the logo's own purple, not a theme
+token; the in-app music section accent is a separate `#4B1E6D`, see
+`docs/shell-nav-theme.md`.)
+
+| File | Use |
+| --- | --- |
+| `icon.png` | 1024x1024 opaque; the light and default iOS icon, the store icon, Android legacy and web |
+| `icon-dark.png` | iOS 18 dark appearance, transparent plate |
+| `icon-tinted.png` | iOS 18 tinted appearance, opaque greyscale on black |
+| `android-icon-foreground.png` | adaptive foreground, scaled so no pixel leaves the 66% mask circle |
+| `android-icon-background.png` | flat `#660090` plate |
+| `android-icon-monochrome.png` | themed-icon layer; the mark's dark stroke is knocked out so the bands and the clapper still read once the launcher tints it |
+| `splash-icon.png` | splash mark, transparent; `expo-splash-screen` paints the `#660090` plate |
+| `favicon.png` | web export |
+
+The SVG is the source of truth: regenerate the PNGs from it rather than editing them by
+hand. `rsvg-convert` is not needed; `qlmanage -t -s 2048 -o . musicLogo.svg` rasterises it
+faithfully on macOS, and because Quick Look always flattens onto an opaque plate, the
+transparent variants come from rendering the mark twice, once over white and once over
+black, and recovering alpha as `a = 1 - (white - black)`.
+
+Bump `version` plus `ios.buildNumber` and `android.versionCode` per store submission.
+`ios/` and `android/` are generated and gitignored, so a release always starts from a clean
+`bunx expo prebuild`.

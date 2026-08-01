@@ -927,8 +927,8 @@
       "noFilterMatches": "Nekas neatbilst filtram."
     },
     "playlistArtwork": {
-      "tooLarge": "Attēls ir pārāk liels (maks. {max} MB). Izvēlies mazāku.",
-      "squareHint": "Attēls tiek augšupielādēts tāds, kāds tas ir, tāpēc kvadrātveida izskatās vislabāk."
+      "tooLarge": "Neizdevās samazināt attēlu zem {max} MB. Izvēlies mazāku.",
+      "squareHint": "Pirms augšupielādes attēls tiek apgriezts kvadrātā un pārveidots par JPEG."
     },
     "devices": {
       "title": "Ierīces",

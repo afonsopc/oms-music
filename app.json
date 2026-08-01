@@ -8,7 +8,11 @@
     "scheme": "omsmusic",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/images/icon.png",
+      "icon": {
+        "light": "./assets/images/icon.png",
+        "dark": "./assets/images/icon-dark.png",
+        "tinted": "./assets/images/icon-tinted.png"
+      },
       "bundleIdentifier": "pt.omelhorsite.music",
       "buildNumber": "1",
       "supportsTablet": true,
@@ -79,6 +83,7 @@
           "enableBackgroundPlayback": true
         }
       ],
+      "./modules/oms-native/app.plugin.js",
       "expo-sqlite",
       "expo-secure-store",
       "expo-image",

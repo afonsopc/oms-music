@@ -927,8 +927,8 @@
       "noFilterMatches": "Nothing matches your filter."
     },
     "playlistArtwork": {
-      "tooLarge": "Image is too large (max {max} MB). Pick a smaller one.",
-      "squareHint": "The image is uploaded as it is, so a square one looks best."
+      "tooLarge": "Could not get the image under {max} MB. Pick a smaller one.",
+      "squareHint": "The image is cropped to a square and converted to JPEG before it is uploaded."
     },
     "devices": {
       "title": "Devices",

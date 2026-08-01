@@ -927,8 +927,8 @@
       "noFilterMatches": "Nada corresponde ao filtro."
     },
     "playlistArtwork": {
-      "tooLarge": "Imagem demasiado grande (máx. {max} MB). Escolhe uma mais pequena.",
-      "squareHint": "A imagem é enviada tal como está, por isso uma quadrada fica melhor."
+      "tooLarge": "Não foi possível reduzir a imagem para menos de {max} MB. Escolhe outra mais pequena.",
+      "squareHint": "A imagem é recortada num quadrado e convertida para JPEG antes de ser enviada."
     },
     "devices": {
       "title": "Dispositivos",

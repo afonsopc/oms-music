@@ -3,6 +3,10 @@
  * playlist, tappable to replace the cover. Rendered only for manual
  * playlists - system playlists never get an artwork control (FR-53).
  *
+ * The pick is center-cropped to a square and re-encoded to JPEG under ~2 MB
+ * before it leaves the device (see artworkPicker / @/lib/artworkTranscode), so
+ * the overlay has three states: idle, preparing the file, uploading.
+ *
  * Multipart field is `artwork` (POST /playlists/:id/upload_artwork); the
  * mutation writes the returned playlist back into the cache, so the new
  * cover shows without a refresh. Failures and refusals surface in place -
@@ -32,17 +36,24 @@ export const ChangePlaylistArtwork = ({
 }: ChangePlaylistArtworkProps) => {
   const t = useT();
   const [notice, setNotice] = useState<string | null>(null);
+  // Cropping plus the compress loop is native work on a real file, so the
+  // overlay says what is happening instead of looking frozen.
+  const [preparing, setPreparing] = useState(false);
   const upload = useUploadPlaylistArtwork();
+  const busy = preparing || upload.isPending;
 
   const onPress = async () => {
-    if (upload.isPending) return;
+    if (busy) return;
     setNotice(null);
     let outcome;
+    setPreparing(true);
     try {
       outcome = await pickPlaylistArtwork();
     } catch {
       setNotice(t("components.music.ChangePlaylistArtwork.errorLoadingFile"));
       return;
+    } finally {
+      setPreparing(false);
     }
     if (outcome.kind === "canceled") return;
     if (outcome.kind === "notAnImage") {
@@ -67,10 +78,10 @@ export const ChangePlaylistArtwork = ({
     // refusal notice is overlaid rather than stacked underneath.
     <Pressable
       onPress={() => void onPress()}
-      disabled={upload.isPending}
+      disabled={busy}
       accessibilityRole="button"
       accessibilityLabel={t("components.music.ChangePlaylistArtwork.changeArtwork")}
-      // No crop step ships in v1, so the hint says the picture is used as is.
+      // The crop is automatic, so the hint says what happens to the picture.
       accessibilityHint={t("native.playlistArtwork.squareHint")}
       style={({ pressed }) => ({
         width: size,
@@ -114,15 +125,17 @@ export const ChangePlaylistArtwork = ({
           backgroundColor: "rgba(0, 0, 0, 0.55)",
         }}
       >
-        {upload.isPending ? (
+        {busy ? (
           <ActivityIndicator size="small" color="#ffffff" />
         ) : (
           <Icon name="plus" size={13} color="#ffffff" />
         )}
         <Text style={{ color: "#ffffff", fontSize: 11, fontWeight: "600" }} numberOfLines={1}>
-          {upload.isPending
-            ? t("components.music.ChangePlaylistArtwork.uploadingArtwork")
-            : t("components.music.ChangePlaylistArtwork.changeArtwork")}
+          {preparing
+            ? t("components.music.ChangePlaylistArtwork.loadingFile")
+            : upload.isPending
+              ? t("components.music.ChangePlaylistArtwork.uploadingArtwork")
+              : t("components.music.ChangePlaylistArtwork.changeArtwork")}
         </Text>
       </View>
     </Pressable>

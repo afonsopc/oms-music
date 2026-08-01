@@ -1,19 +1,25 @@
 /**
  * Playlist artwork picking (FR-51).
  *
- * expo-file-system (SDK 57) ships the system file picker, so no extra
- * dependency is needed to CHOOSE an image. What is missing is a way to
- * TRANSFORM one: neither expo-image nor expo-file-system can crop to a
- * square or re-encode to JPEG, and expo-image-manipulator is not installed.
- * v1 therefore uploads the picked file as it is and refuses anything over
- * the ~2 MB the web's compression targeted, instead of silently pushing a
- * 12 MP camera roll shot at the storage backend.
+ * expo-file-system (SDK 57) ships the system file picker, so choosing an image
+ * needs no extra dependency. Transforming one goes through
+ * `@/lib/artworkTranscode` (expo-image-manipulator): the pick is center-cropped
+ * to a square and re-encoded to JPEG under the ~2 MB the web's crop dialog
+ * compressed towards, instead of a 12 MP camera roll shot being pushed at the
+ * storage backend as it is. The backend names the node `.jpg` either way
+ * (SongServices::PlaylistArtworkUploader), so JPEG is the right output.
  */
 import { File } from "expo-file-system";
+import {
+  ARTWORK_FILE_NAME,
+  ARTWORK_MAX_BYTES,
+  ARTWORK_MAX_MB,
+  transcodeToJpeg,
+} from "@/lib/artworkTranscode";
 
-/** Same ceiling the web's crop dialog compressed towards. */
-export const MAX_ARTWORK_BYTES = 2 * 1024 * 1024;
-export const MAX_ARTWORK_MB = 2;
+/** Re-exported under the names the screen already imports. */
+export const MAX_ARTWORK_BYTES = ARTWORK_MAX_BYTES;
+export const MAX_ARTWORK_MB = ARTWORK_MAX_MB;
 
 const IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif", ".gif"];
 const FALLBACK_TYPE = "image/jpeg";
@@ -44,15 +50,29 @@ export const pickPlaylistArtwork = async (): Promise<ArtworkPickOutcome> => {
 
   const file = picked.result;
   if (!isImageLike(file.name, file.type)) return { kind: "notAnImage" };
-  if (file.size > MAX_ARTWORK_BYTES) return { kind: "tooLarge", size: file.size };
 
-  return {
-    kind: "picked",
-    artwork: {
-      uri: file.uri,
-      name: file.name,
-      type: file.type && file.type.length > 0 ? file.type : FALLBACK_TYPE,
-      size: file.size,
-    },
-  };
+  try {
+    const jpeg = await transcodeToJpeg(file.uri, { square: true, name: ARTWORK_FILE_NAME });
+    // Only reachable if even a 320px JPEG at the bottom of the quality ladder
+    // stayed over budget, which no real photograph does.
+    if (!jpeg.withinBudget) return { kind: "tooLarge", size: jpeg.size };
+    return {
+      kind: "picked",
+      artwork: { uri: jpeg.uri, name: jpeg.name, type: jpeg.type, size: jpeg.size },
+    };
+  } catch {
+    // The native decoder could not read the file (exotic format). Send the
+    // picked bytes as they are, but keep the ceiling so the fallback cannot
+    // turn into an unbounded upload.
+    if (file.size > MAX_ARTWORK_BYTES) return { kind: "tooLarge", size: file.size };
+    return {
+      kind: "picked",
+      artwork: {
+        uri: file.uri,
+        name: file.name,
+        type: file.type && file.type.length > 0 ? file.type : FALLBACK_TYPE,
+        size: file.size,
+      },
+    };
+  }
 };

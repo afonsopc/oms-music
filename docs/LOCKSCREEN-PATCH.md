@@ -1,13 +1,25 @@
 # LOCKSCREEN-PATCH.md - enabling next/previous on the lock screen
 
-Status: NOT applied. `player/lockScreen.ts#routeRemoteCommand` is wired to the transport
-seam and inert, because nothing ever calls it. This document is the exact native change
-required to call it, plus the two ways to deliver that change. Nothing inside
-`node_modules/` was modified and no patch tool was run; picking and applying one of the
-options below is a deliberate decision for the repo owner.
+**Status: iOS SHIPS. Android does not, and structurally cannot without patching
+expo-audio.** Delivered by the local Expo module `modules/oms-native` (option C below),
+which adds native code of its own instead of rewriting a dependency: nothing inside
+`node_modules/` is modified, no patch tool runs, and `bunx expo prebuild --clean`
+reproduces everything from a clean checkout.
 
 Vendored version read for this document: `expo-audio@57.0.3`
 (`node_modules/expo-audio/package.json:4`). Line numbers refer to that version.
+
+What ships today:
+
+| | iOS | Android |
+| --- | --- | --- |
+| lock-screen next / previous buttons | YES, `modules/oms-native` | no (see section 6) |
+| JS event for them | YES, `"nextTrack"` / `"previousTrack"` | never emitted |
+| routed through `contracts/transport` | YES, so a controller advances the ACTIVE device | n/a |
+| downloads excluded from backup (FR-84) | YES, `isExcludedFromBackup` at runtime | YES, backup-rules XML from the same module's config plugin |
+
+Sections 1-2 below stay as the record of WHY the module is shaped the way it is; section 6
+is what actually landed and what is still open.
 
 ---
 
@@ -27,7 +39,7 @@ Commands enabled today (`ios/MediaController.swift:234-312`, `enableRemoteComman
 | play / pause / togglePlayPause | yes, handled natively against `AVPlayer` | yes, `ACTION_PLAY` / `ACTION_PAUSE` / `ACTION_TOGGLE` (`AudioControlsService.kt:78-92`) |
 | changePlaybackPosition (scrub) | yes (`MediaController.swift:266`) | yes, via media3 seek commands |
 | skipForward / skipBackward (10 s) | yes, opt-in through `showSeekForward` / `showSeekBackward` (`MediaController.swift:278-311`) | yes, custom `CommandButton`s (`AudioControlsService.kt:238-277`) |
-| **nextTrack / previousTrack** | **absent**: no `nextTrackCommand` / `previousTrackCommand` target is ever added, so the buttons never appear | **removed on purpose**: `AudioMediaSessionCallback.kt:28-31` strips `COMMAND_SEEK_TO_NEXT_MEDIA_ITEM`, `COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM`, `COMMAND_SEEK_TO_NEXT`, `COMMAND_SEEK_TO_PREVIOUS` |
+| **nextTrack / previousTrack** | **untouched**: no `nextTrackCommand` / `previousTrackCommand` target is ever added AND neither is ever assigned `isEnabled` (not in `enableRemoteCommands`, not in `disableRemoteCommands`, `MediaController.swift:234-329`). That absence is what makes `modules/oms-native` possible: the two commands are unowned, so a second module can take them without a conflict | **removed on purpose**: `AudioMediaSessionCallback.kt:28-31` strips `COMMAND_SEEK_TO_NEXT_MEDIA_ITEM`, `COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM`, `COMMAND_SEEK_TO_NEXT`, `COMMAND_SEEK_TO_PREVIOUS` |
 
 Two structural consequences:
 
@@ -192,48 +204,83 @@ with `private const val REMOTE_COMMAND = "remoteCommand"` beside `PLAYBACK_STATU
 
 ---
 
-## 3. The oms-music side (small, and only worth writing once the native side exists)
+## 3. The oms-music side (this is what SHIPPED, via `modules/oms-native`)
 
-### 3.1 Adapter
+The adapter route in 3.1 below was NOT taken: it needs the `remoteCommand` event that only
+the patched expo-audio would emit. The events come from our own module instead, so
+`AudioAdapter` and `expoAudioAdapter.ts` are untouched.
+
+### 3.1 Adapter (superseded, kept for the option-B/patched route)
 
 `src/player/types.ts` (`AudioAdapter`): add
-`onRemoteCommand(cb: (command: RemoteCommand) => void): () => void;`.
+`onRemoteCommand(cb: (command: RemoteCommand) => void): () => void;`, implemented in
+`src/player/expoAudioAdapter.ts` with `player.addListener("remoteCommand", ...)`.
 
-`src/player/expoAudioAdapter.ts`: implement it with
-`player.addListener("remoteCommand", ...)` mapping `"next"`/`"previous"` to the existing
-`RemoteCommand` union in `player/lockScreen.ts`.
+### 3.2 Registration (shipped)
 
-### 3.2 Registration
+`modules/oms-native` exposes `getRemoteTrackCommands()` (null when the native module is not
+in the binary) and the pure `createRemoteTrackRouter(commands, route)`.
+`src/player/register.ts` builds the router once and installs it with
+`setRemoteTrackRouter`; the route callback is `routeRemoteCommand({ kind })`, which already
+dispatches through `contracts/transport`, so on a controller device the lock-screen next
+advances the ACTIVE remote device (FR-63 remote half) with no further work.
 
-`src/player/register.ts`: after creating the adapter,
-`adapter.onRemoteCommand(routeRemoteCommand)`. `routeRemoteCommand` already dispatches
-through `contracts/transport`, so on a controller device the lock-screen next advances the
-ACTIVE remote device (FR-63 remote half) with no further work.
+`src/player/lockScreen.ts#publishLockScreen` calls `router.setActive(song !== null)` on the
+same beat as `setActiveForLockScreen`, so the two buttons exist exactly while a song is
+published. This is not optional bookkeeping: expo-audio's `disableRemoteCommands` does not
+touch `nextTrackCommand` / `previousTrackCommand`, so if we never disabled them nobody
+would.
 
-`src/player/expoAudioAdapter.ts#setLockScreenActive` currently passes
-`{ showSeekForward: true, showSeekBackward: true }`; switch to
-`{ showNextTrack: true, showPreviousTrack: true }` (see the iOS layout note in 2.1).
+Still open: `src/player/expoAudioAdapter.ts#setLockScreenActive` passes
+`{ showSeekForward: true, showSeekBackward: true }`. iOS shows at most three transport
+controls, so with next/previous now enabled the +-10 s buttons compete for the same slots
+and the lock screen and Control Center can disagree. Flipping those two to `false` is the
+matching change and belongs to whoever owns `expoAudioAdapter.ts` (see the layout note in
+2.1). Android is unaffected: it has neither button.
 
-### 3.3 Fallback while unpatched
+### 3.3 Fallback where the module is absent
 
-`routeRemoteCommand` stays exported and unused. On the ACTIVE device that costs nothing:
-lock-screen play/pause/scrub keep working through the native handlers and the engine keeps
+`createRemoteTrackRouter(null, ...)` returns `inertRemoteTrackRouter`, so Android, web,
+Expo Go and any build made before this module landed behave exactly as before: lock-screen
+play/pause/scrub keep working through expo-audio's native handlers and the engine keeps
 mirroring status updates into the store, so the UI never disagrees with the lock screen.
 
-On a CONTROLLER device it is not free, and this is the residual gap FR-63 still has:
-`enterController()` (`remote/channel.ts`) clears the local source, then
-`setLockScreenSongOverride` publishes the REMOTE song's metadata, so the lock screen shows
-a track whose play/pause/scrub act on an empty local player and do nothing on either
-device. Next/previous never appear at all. Deactivating the lock screen while controlling
-would trade one wrong behavior for another (DESIGN 8.6 wants the metadata to follow the
-song the user is hearing about), so the honest fix is the native diff above; until then
-the in-app controls are the only working ones on a controller.
+The CONTROLLER gap is now closed on iOS and still open on Android: `enterController()`
+(`remote/channel.ts`) clears the local source, then `setLockScreenSongOverride` publishes
+the REMOTE song's metadata, so the lock screen shows a track whose play/pause/scrub act on
+an empty local player. On iOS the user at least gets working next/previous (they route to
+the active device); on Android the in-app controls remain the only working ones on a
+controller.
 
 ---
 
 ## 4. Delivery options
 
-### Option A - a local Expo config plugin under `modules/`
+### Option C - a local Expo MODULE under `modules/` (CHOSEN, shipped)
+
+`modules/oms-native`: a standard Expo Modules API package (`expo-module.config.json`,
+`ios/`, `android/`, `index.ts`, `app.plugin.js`) autolinked from the app's `modules`
+directory (`nativeModulesDir` defaults to `./modules`), with its config plugin registered
+in `app.json` as `"./modules/oms-native/app.plugin.js"`.
+
+It ADDS native code; it never rewrites expo-audio. On iOS that works because
+`MPRemoteCommandCenter.shared()` is a process-wide singleton and expo-audio leaves
+`nextTrackCommand` / `previousTrackCommand` completely unowned (section 1). Our module adds
+a target to each, flips `isEnabled` in step with lock-screen activation, and forwards the
+presses to JS as the `"nextTrack"` / `"previousTrack"` events. expo-audio's own play /
+pause / togglePlayPause / changePlaybackPosition / skipForward / skipBackward targets are
+untouched and keep working natively.
+
+The same module carries FR-84: `excludeFromBackup(path)` sets `isExcludedFromBackup` on
+iOS, and the config plugin writes the Android backup rules (section 6.2).
+
+Properties: reproducible from a clean checkout, no `node_modules` diff, no patch tool, no
+new dependency, no paid library, and no re-verification needed on an expo-audio bump (there
+is nothing to re-anchor - only the assumption that expo-audio still ignores those two
+commands, which section 6.3 says how to re-check). Cost: iOS only, and the module's Swift
+cannot be type-checked without a `pod install`.
+
+### Option A - a local Expo config plugin that rewrites the vendored sources
 
 Create `modules/oms-audio-lockscreen/app.plugin.js` and add it to `app.json` `plugins`.
 The plugin uses `withDangerousMod` for both platforms and rewrites the vendored sources
@@ -288,3 +335,85 @@ rapid-skip soak, FLAC decode failure) on the new backend.
 4. While following a jam, lock-screen next does nothing locally (the follower has no
    queue) and never leaves the jam.
 5. Rapid double-press of next never plays a stale track (WP3 rapid-skip soak still green).
+
+Point 1's Android half is NOT met and will not be met by option C. Points 1 (iOS), 2, 3, 4
+and 5 are device checks that still need a real build; nothing here has run on hardware.
+
+---
+
+## 6. What `modules/oms-native` actually contains
+
+### 6.1 FR-63, iOS
+
+- `ios/OmsNativeModule.swift` - `Name("OmsNative")`, `Events("nextTrack",
+  "previousTrack")`, `Function("setRemoteTrackCommandsEnabled")` (installs the two
+  `addTarget` handlers on first enable, keeps the returned tokens, then only flips
+  `isEnabled`), and `OnDestroy` removes them. Everything touching
+  `MPRemoteCommandCenter` hops to the main thread first.
+  - Note for anyone reading expo-audio's `disableRemoteCommands`: it calls
+    `removeTarget(self)` for its own six commands, but those were registered with the
+    block form `addTarget(handler:)`, which returns a TOKEN and is not matched by
+    `removeTarget(self)`. That is why our module stores the tokens instead.
+- `src/remoteTrackCommands.ts` - import-free, so bun can unit test it:
+  `createRemoteTrackRouter(commands, route)`, `inertRemoteTrackRouter`, and the
+  `RemoteTrackCommands` / `RemoteTrackRouter` types. Tests:
+  `src/__tests__/remoteTrackCommands.test.ts` (fake emitter: routing, single
+  subscription, idempotent enable, teardown).
+- `src/OmsNative.ts` - `requireOptionalNativeModule("OmsNative")`, so every call degrades
+  to a no-op when the module is not in the binary. Never throws.
+- App wiring: `src/player/register.ts` (install the router) and
+  `src/player/lockScreen.ts` (`setRemoteTrackRouter`, plus `setActive` inside
+  `publishLockScreen`).
+
+### 6.2 FR-84, both platforms
+
+- iOS: `excludeFromBackup(uri)` -> `setResourceValues(isExcludedFromBackup: true)`.
+  `src/downloads/paths.ts#ensureUserDownloadDirectory` calls it right after
+  `dir.create(...)`, once per path per launch, for the `oms-downloads` root AND the
+  per-user directory.
+- Android: `app.plugin.js` writes `res/xml/oms_backup_rules.xml` (`<full-backup-content>`,
+  Android 11 and older) and `res/xml/oms_data_extraction_rules.xml`
+  (`<data-extraction-rules>` with both `<cloud-backup>` and `<device-transfer>`, Android
+  12+), both excluding `domain="file" path="oms-downloads/"`, and points
+  `android:fullBackupContent` / `android:dataExtractionRules` at them on the main
+  `<application>`. `domain="file"` is the app's internal files dir, which is exactly what
+  expo-file-system reports as `Paths.document`
+  (`FileSystemModule.kt` -> `appContext.persistentFilesDirectory`).
+  The native `excludeFromBackup` returns `false` on Android by design.
+  Verified by running `expo prebuild --platform android` and reading the generated
+  manifest and `res/xml`.
+
+### 6.3 Why Android gets no next/previous, and what would change that
+
+expo-audio owns the app's only `MediaSession` and closes every extension point:
+
+1. `AudioMediaSessionCallback.onConnect` removes `COMMAND_SEEK_TO_NEXT`,
+   `COMMAND_SEEK_TO_PREVIOUS` and both `*_MEDIA_ITEM` variants from the available player
+   commands of EVERY controller, the system media controller included. Available commands
+   are decided by the session's callback, so a controller cannot grant itself more.
+2. The callback is constructed inline inside
+   `MediaSession.Builder(...).setCallback(AudioMediaSessionCallback())`
+   (`AudioControlsService.kt:373` and `:454`) and media3 cannot swap a session's callback
+   afterwards.
+3. `mediaSession` is a `private var` on `AudioControlsService` and the notification layout
+   comes from the private `updateSessionCustomLayout`, which hard-codes skip-10 buttons
+   into `SLOT_BACK` / `SLOT_FORWARD`.
+4. `MetadataInjectingPlayer`, the `ForwardingPlayer` that would be the interception point,
+   is `internal` and instantiated privately.
+
+Publishing a SECOND `MediaSession` from our module would put a competing media
+notification in the shade, detached from the actual playback - worse than no buttons. So
+Android stays a no-op until either the expo-audio diff in section 2.2 is applied (option A
+or upstream) or the backend swaps (option B).
+
+### 6.4 Re-verifying on an expo-audio bump
+
+The single assumption is: expo-audio still never adds a target to, and never assigns
+`isEnabled` on, `nextTrackCommand` / `previousTrackCommand`. One grep answers it:
+
+```sh
+grep -rn "nextTrackCommand\|previousTrackCommand" node_modules/expo-audio/ios/
+```
+
+No hits means the module is still purely additive. Hits mean the two sides now fight over
+the same commands, and `modules/oms-native` should be reduced to the FR-84 half.

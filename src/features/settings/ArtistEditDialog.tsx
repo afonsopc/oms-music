@@ -24,7 +24,7 @@ import { useT } from "@/i18n";
 import { useTheme } from "@/theme/provider";
 import { RADIUS } from "@/theme/tokens";
 import { ArtworkImage, Icon } from "@/ui";
-import { pickImage } from "./pickers";
+import { pickBannerImage, pickImage } from "./pickers";
 import {
   GhostButton,
   LabeledField,
@@ -113,7 +113,10 @@ export const ArtistEditDialog = ({
 
   const upload = async (kind: "image" | "banner"): Promise<void> => {
     setNotice(null);
-    const picked = await pickImage().catch(() => null);
+    // The avatar is square, the banner keeps its ratio; both come back as JPEG
+    // under the ceiling so a camera original never reaches the attacher.
+    const pick = kind === "banner" ? pickBannerImage : pickImage;
+    const picked = await pick().catch(() => null);
     if (!picked) return;
     setBusy(kind);
     try {

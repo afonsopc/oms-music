@@ -4,16 +4,24 @@
  * (m4a/mp3/flac/jpg...), one file per (song_key, kind). Storage accounting
  * is a directory walk (FR-85/92).
  *
- * Note: expo-file-system SDK 57 exposes no cloud-backup exclusion flag; the
- * per-user directory therefore rides the platform default until a config
- * plugin lands (reported upstream by WP8).
+ * Backup exclusion (FR-84): expo-file-system SDK 57 still exposes no
+ * cloud-backup flag, so the local `oms-native` module does it. iOS sets
+ * `isExcludedFromBackup` on the root and on the per-user directory right after
+ * creation (below); Android needs no runtime call - oms-native's config plugin
+ * excludes `<files>/oms-downloads/` through `android:fullBackupContent` and
+ * `android:dataExtractionRules`.
  */
 import { Directory, File, Paths } from "expo-file-system";
+import { excludeFromBackup } from "../../modules/oms-native";
 import type { SongKey } from "@/domain/ids";
 import type { DownloadKind } from "@/domain/downloads";
 import type { Song } from "@/domain/song";
 
+/** Must stay in sync with DOWNLOADS_DIR in modules/oms-native/app.plugin.js. */
 const ROOT_DIR_NAME = "oms-downloads";
+
+/** Paths already flagged this launch (the flag itself is persistent). */
+const excluded = new Set<string>();
 
 export const userDownloadDirectory = (userId: string): Directory =>
   new Directory(Paths.document, ROOT_DIR_NAME, userId);
@@ -26,7 +34,19 @@ export const ensureUserDownloadDirectory = (userId: string): Directory => {
   } catch {
     // Existing directory or transient FS error; downloads will surface it.
   }
+  // FR-84: keep downloads out of iCloud / iTunes backups. The root carries the
+  // flag for everything beneath it; the per-user directory is flagged too so a
+  // pre-existing root that missed the call still covers this user. Never
+  // throws, and a false return only means the files stay backed up.
+  excludeOnce(new Directory(Paths.document, ROOT_DIR_NAME).uri);
+  excludeOnce(dir.uri);
   return dir;
+};
+
+const excludeOnce = (uri: string): void => {
+  if (excluded.has(uri)) return;
+  excluded.add(uri);
+  excludeFromBackup(uri);
 };
 
 /** Maps a Song's codec metadata onto a usable file extension. */
