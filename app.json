@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "oms-music",
+    "name": "Música",
     "slug": "oms-music",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -8,9 +8,12 @@
     "scheme": "omsmusic",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/expo.icon",
+      "bundleIdentifier": "pt.omelhorsite.music",
+      "supportsTablet": true
     },
     "android": {
+      "package": "pt.omelhorsite.music",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -32,7 +35,16 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }
-      ]
+      ],
+      [
+        "expo-audio",
+        {
+          "enableBackgroundPlayback": true
+        }
+      ],
+      "expo-sqlite",
+      "expo-secure-store",
+      "expo-image"
     ],
     "experiments": {
       "typedRoutes": true,
