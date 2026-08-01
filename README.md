@@ -28,7 +28,7 @@ artist import). 28 screens, three languages (en, pt in European Portuguese, lv).
 | Storage | expo-sqlite (library, downloads, offline metadata), expo-secure-store (tokens) |
 | Files | expo-file-system task API (`createDownloadTask`, savables, background sessions on iOS) |
 | Data | TanStack Query v5 + zustand |
-| Realtime | `@kesha-antonov/react-native-action-cable` against the Rails cable |
+| Realtime | a hand-rolled ActionCable client (`src/cable`) against the Rails cable |
 | Native glue | `modules/oms-native`, a local Expo module (see "native gaps" below) |
 | Language | TypeScript strict. Package manager: bun. |
 
@@ -57,6 +57,25 @@ events to JS at all, which is why lock-screen next/previous needed a local nativ
 ---
 
 ## Running it
+
+### Toolchain prerequisites
+
+Verified on macOS 27 with Xcode 26.6 on 2026-08-01, and every one of these was a real
+blocker until installed:
+
+- **iOS platform SDK.** Xcode ships without it. `xcodebuild -downloadPlatform iOS`, or
+  Xcode > Settings > Components. Without it `xcodebuild` reports zero eligible destinations
+  even when simulators exist.
+- **Android SDK.** `brew install --cask android-commandlinetools`, then
+  `export ANDROID_HOME=/opt/homebrew/share/android-commandlinetools`, `sdkmanager --licenses`
+  and `sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"`. Gradle
+  fetches the NDK and CMake itself on first build.
+- **JDK 21, not newer.** `brew install openjdk@21` and build with
+  `JAVA_HOME=/opt/homebrew/opt/openjdk@21`. On JDK 26 the Android Gradle Plugin dies in
+  `JdkImageTransform` (`jlink` fails on `core-for-system-modules.jar`), which reads as an
+  unrelated dependency-resolution error.
+
+### Build
 
 ```bash
 bun install
