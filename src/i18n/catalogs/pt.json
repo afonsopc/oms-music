@@ -965,6 +965,7 @@
     },
     "player": {
       "audioSettings": "Definições de áudio",
+      "localDeviceOnly": "Estas definições pertencem ao dispositivo que está a tocar.",
       "speed": "Velocidade",
       "sleepTimer": "Temporizador",
       "sleepOff": "Desligado",

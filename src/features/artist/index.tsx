@@ -21,7 +21,7 @@ import { getTransport } from "@/contracts/transport";
 import { artistBannerSource } from "@/domain/artwork";
 import type { Song } from "@/domain/song";
 import { useLocale, useT } from "@/i18n";
-import { usePlayerStore } from "@/player/store";
+import { usePlaybackView } from "@/remote/mirror";
 import { useTheme } from "@/theme/provider";
 import {
   ActionBar,
@@ -122,8 +122,8 @@ export default function ArtistScreen() {
     return map;
   }, [topRows]);
 
-  const currentSongId = usePlayerStore((s) => s.currentSong?.id ?? null);
-  const playing = usePlayerStore((s) => s.playing);
+  const currentSongId = usePlaybackView((v) => v.song?.id ?? null);
+  const playing = usePlaybackView((v) => v.playing);
   const likedIdsQuery = useLikedIds();
   const likedIds = useMemo(
     () => new Set<number>(likedIdsQuery.data ?? []),

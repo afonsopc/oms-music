@@ -401,7 +401,13 @@ export const SongEditDialog = ({
       onRequestClose={onClose}
     >
       <View style={{ flex: 1, backgroundColor: tokens.background }}>
-        <ScrollView contentContainerStyle={{ padding: 20, gap: 16 }}>
+        {/* RN does not inset modal content for the keyboard: without these
+            two the lower fields and the save button sit underneath it. */}
+        <ScrollView
+          contentContainerStyle={{ padding: 20, gap: 16 }}
+          keyboardShouldPersistTaps="handled"
+          automaticallyAdjustKeyboardInsets
+        >
           <Text style={{ color: tokens.foreground, fontSize: 22, fontWeight: "800" }}>
             {t(`${DIALOG_KEY}.editSong`)}
           </Text>

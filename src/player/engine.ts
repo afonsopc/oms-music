@@ -22,7 +22,7 @@ import { PresignedResolver } from "./resolver";
 import { RecoveryTracker } from "./recovery";
 import { ListenAccumulator } from "./recording";
 import { SleepTimer } from "./sleepTimer";
-import { playerStore } from "./store";
+import { playerStore, resetPlayerStore } from "./store";
 import type {
   AudioAdapter,
   AudioAdapterStatus,
@@ -50,6 +50,16 @@ interface CurrentLoad {
   index: number;
   /** True once this load audibly played; gates candidate laddering. */
   audible: boolean;
+  /**
+   * True once `player.replace()` actually pointed the player at THIS load's
+   * candidate. The generation alone is not enough: `beginLoad` bumps it
+   * before the presigned-URL round trip, and the player keeps emitting
+   * statuses for the OUTGOING source meanwhile (the pause that precedes
+   * every swap emits one on both platforms). Consuming pendingSeek on such
+   * a status seeks the source that is about to be thrown away, and the new
+   * one then starts at 0.
+   */
+  replaced: boolean;
 }
 
 interface TransitionSeed {
@@ -100,7 +110,18 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
       this.now,
     );
 
-    const settings = deps.persistence.load();
+    this.player = deps.createPlayer();
+    this.applyPersistedSettings();
+    this.statusUnsub = this.player.onStatus((s) => this.onStatus(s));
+  }
+
+  /**
+   * Listener settings are per DEVICE, not per account (FR-65): the store and
+   * the player both start from the persisted values, and the logout wipe
+   * re-applies them on top of the reset store.
+   */
+  private applyPersistedSettings(): void {
+    const settings = this.deps.persistence.load();
     playerStore.setState({
       volume: clamp(settings.volume, 0, 1),
       rate: clamp(settings.rate, 0.25, 4),
@@ -113,11 +134,8 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
       eqMid: clamp(settings.eqMid, -12, 12),
       eqHigh: clamp(settings.eqHigh, -12, 12),
     });
-
-    this.player = deps.createPlayer();
     this.player.setVolume(clamp(settings.volume, 0, 1));
     this.player.setRate(this.platformRate(settings.rate));
-    this.statusUnsub = this.player.onStatus((s) => this.onStatus(s));
   }
 
   // ----- events -------------------------------------------------------------
@@ -161,6 +179,11 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
     };
   }
 
+  /** False while a controller stint holds the player at a null source. */
+  hasLoadedSource(): boolean {
+    return this.player.hasSource;
+  }
+
   // ----- queue operations ---------------------------------------------------
 
   setQueue(songs: Song[], startIndex?: number, opts?: { shuffle?: boolean }): void {
@@ -187,16 +210,26 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
   addToQueue(song: Song): void {
     this.q = ops.addToQueue(this.q, song);
     this.syncQueue();
+    // Queue ops are user-driven transitions (playback-core 4.5): appending to
+    // a non-empty queue never moves the current song, so the guard inside
+    // handleSongTransition makes this a no-op; filling a previously EMPTY
+    // queue DOES, and without the transition the store would advertise a
+    // current song the player has no source for.
+    this.handleSongTransition("user");
   }
 
   playNext(song: Song): void {
     this.q = ops.playNext(this.q, song);
     this.syncQueue();
+    this.handleSongTransition("user");
   }
 
   insertJamProposal(song: Song): void {
     this.q = ops.insertJamProposal(this.q, song);
     this.syncQueue();
+    // jam_song entries are exempt from the follower's interceptor, so "user"
+    // here only means "load and play it if the host's queue was empty".
+    this.handleSongTransition("user");
   }
 
   reorderQueue(fromVisible: number, toVisible: number): void {
@@ -405,6 +438,33 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
     playerStore.setState({ eqEnabled: on }); // deliberately NOT persisted
   }
 
+  /**
+   * Logout wipe (FR-10; DESIGN 5.3 "wipe token, zustand stores, query cache,
+   * cable, download scheduler even on failure"). Registered as a logout task
+   * by player/register.ts, so it runs on an explicit logout AND on auth loss.
+   * A store reset alone is not enough: the queue quartet lives inside the
+   * engine and the AudioPlayer keeps its source, so the next user would
+   * inherit the previous one's queue, audio and lock screen.
+   */
+  resetForLogout(): void {
+    this.stopAndClearSource();
+    this.sleepTimer.set(null);
+    this.resolver.reset();
+    this.recovery.reset();
+    this.accumulator.reset();
+    this.q = ops.emptyQueueState();
+    this.lastHandledSongId = null;
+    this.prevPlaying = false;
+    this.lastPositionEmitAt = 0;
+    resetPlayerStore();
+    // Listener settings belong to the DEVICE, not the account (FR-65): put
+    // them back so the store keeps matching what the player actually holds.
+    this.applyPersistedSettings();
+    this.emit("songChanged", { song: null });
+    this.emit("queueChanged", { queueIndex: 0, length: 0 });
+    this.deps.onLockScreenUpdate?.(null);
+  }
+
   dispose(): void {
     this.disposed = true;
     this.statusUnsub();
@@ -489,7 +549,14 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
       : resolved.candidates;
     this.loadingSongKey = key;
     this.requestedNode = { songKey: key, nodeId: resolved.wantedNodeId };
-    this.currentLoad = { gen, songKey: key, candidates, index: 0, audible: false };
+    this.currentLoad = {
+      gen,
+      songKey: key,
+      candidates,
+      index: 0,
+      audible: false,
+      replaced: false,
+    };
     this.lastErrorKey = null;
     if (candidates.length === 0) {
       this.markSongFailedAndAdvance(key);
@@ -504,6 +571,10 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
     if (!load || load.gen !== gen || gen !== this.transitionGen) return;
     const candidate = load.candidates[load.index];
     if (!candidate) return;
+
+    // Until replace() lands, every status still describes the previous
+    // source: no pendingSeek may be consumed against it (see CurrentLoad).
+    load.replaced = false;
 
     let uri: string;
     if (candidate.kind === "network") {
@@ -534,6 +605,7 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
 
     this.lastErrorKey = null;
     this.player.replace(uri);
+    load.replaced = true;
     this.player.setRate(this.platformRate(playerStore.getState().rate));
     if (autoplay) {
       this.intendedPlay = true;
@@ -690,12 +762,14 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
     }
 
     // pendingSeek applies on the first status with a finite duration for
-    // the current generation (seeks before metadata are dropped natively).
+    // the current generation AND the source it actually describes (seeks
+    // before metadata are dropped natively; see CurrentLoad.replaced).
     if (
       this.pendingSeek !== null &&
       s.isLoaded &&
       s.duration > 0 &&
       load &&
+      load.replaced &&
       load.gen === this.transitionGen
     ) {
       const target = Math.min(this.pendingSeek, s.duration);
@@ -726,7 +800,13 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
       this.deps.onLockScreenUpdate?.(ops.currentSongOf(this.q));
     }
 
-    if (playerStore.getState().buffering !== s.isBuffering) {
+    // While a load is in flight and its candidate has not been handed to the
+    // player yet, every status still describes the OUTGOING (paused, fully
+    // buffered) source, whose `isBuffering: false` would clear the flag
+    // beginLoad just raised. The web keeps `buffering` true from reloadSrc
+    // until `canplay`, i.e. across exactly this resolve + first-byte window.
+    const loadInFlight = !!load && load.gen === this.transitionGen && !load.replaced;
+    if (!loadInFlight && playerStore.getState().buffering !== s.isBuffering) {
       playerStore.setState({ buffering: s.isBuffering });
     }
 

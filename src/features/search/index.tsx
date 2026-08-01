@@ -39,7 +39,7 @@ import {
   readRecentSearches,
   rememberSearch,
 } from "@/lib/recentSearches";
-import { usePlayerStore } from "@/player/store";
+import { usePlaybackView } from "@/remote/mirror";
 import { useTheme } from "@/theme/provider";
 import { RADIUS } from "@/theme/tokens";
 import { typeScale } from "@/theme/typography";
@@ -364,8 +364,8 @@ export default function SearchScreen() {
   const playlistsQuery = useSearchPlaylists(term, enabled);
   const likedIdsQuery = useLikedIds();
 
-  const currentSongId = usePlayerStore((s) => s.currentSong?.id ?? null);
-  const isPlaying = usePlayerStore((s) => s.playing);
+  const currentSongId = usePlaybackView((v) => v.song?.id ?? null);
+  const isPlaying = usePlaybackView((v) => v.playing);
 
   const songs = useMemo(() => songsQuery.data ?? [], [songsQuery.data]);
   const directArtists = useMemo(() => artistsQuery.data ?? [], [artistsQuery.data]);

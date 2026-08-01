@@ -1,10 +1,39 @@
-import type { Song, SongArtistEntry } from "./song";
+import type { ArtistNames, Song, SongArtistEntry } from "./song";
 
-type ArtistsCarrier = { artists?: SongArtistEntry[]; artist_names?: string[] };
+type ArtistsCarrier = { artists?: SongArtistEntry[]; artist_names?: ArtistNames };
+
+/**
+ * `artist_names` is a comma-joined STRING on the wire (Listening::Snapshot
+ * and Jams::Serializer both `.join(", ")`), while older/derived payloads use
+ * an array. Nothing may touch the raw value: normalize through these two.
+ */
+export const artistNamesLine = (value: unknown): string => {
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) {
+    return value
+      .filter((entry): entry is string => typeof entry === "string" && entry.length > 0)
+      .join(", ");
+  }
+  return "";
+};
+
+/** The same value split back into individual names (routing, dedup). */
+export const artistNamesList = (value: unknown): string[] => {
+  if (typeof value === "string") {
+    return value
+      .split(",")
+      .map((name) => name.trim())
+      .filter((name) => name.length > 0);
+  }
+  if (Array.isArray(value)) {
+    return value.filter((entry): entry is string => typeof entry === "string" && entry.length > 0);
+  }
+  return [];
+};
 
 const formatArtistsLine = (song: ArtistsCarrier, includeWith: boolean): string => {
   const list = song.artists ?? [];
-  if (list.length === 0) return (song.artist_names ?? []).join(", ");
+  if (list.length === 0) return artistNamesLine(song.artist_names);
   const sorted = [...list].sort((a, b) => a.position - b.position);
   const primary = sorted.filter((a) => a.role === "primary");
   const featured = sorted.filter((a) => a.role === "featured");
@@ -40,7 +69,7 @@ export const primaryArtistSlug = (song: ArtistsCarrier): string => {
   const primary = list.find((a) => a.role === "primary") ?? list[0];
   if (primary?.slug) return primary.slug;
   if (primary?.name) return encodeURIComponent(primary.name);
-  const legacy = song.artist_names?.[0];
+  const legacy = artistNamesList(song.artist_names)[0];
   if (legacy) return encodeURIComponent(legacy);
   return "null";
 };

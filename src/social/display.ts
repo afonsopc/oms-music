@@ -1,23 +1,14 @@
 /**
  * Display helpers for cross-user payloads (friends feed, jams, profiles).
  *
- * `artist_names` is DEFENSIVE on purpose: the frozen domain type declares
- * `string[]`, but every producing serializer on the backend
- * (Listening::Snapshot.song_hash, Jams::Serializer) emits a comma-joined
- * STRING. Rather than trust either shape, everything that renders a
- * cross-user artist line goes through here. See the note in the WP10
- * handover: the domain type is the one that should move.
+ * `artist_names` is DEFENSIVE on purpose: every producing serializer on the
+ * backend (Listening::Snapshot.song_hash, Jams::Serializer) emits a
+ * comma-joined STRING while older payloads carry an array, so the domain
+ * type is the union `ArtistNames` and the normalizer lives in
+ * `domain/format` next to the other artist-line formatting. Re-exported here
+ * because every cross-user surface already imports this module.
  */
-
-export const artistNamesLine = (value: unknown): string => {
-  if (typeof value === "string") return value;
-  if (Array.isArray(value)) {
-    return value
-      .filter((entry): entry is string => typeof entry === "string" && entry.length > 0)
-      .join(", ");
-  }
-  return "";
-};
+export { artistNamesLine } from "@/domain/format";
 
 /** mm:ss for cross-user songs (they carry a plain `duration` in seconds). */
 export const formatSnapshotDuration = (seconds: number): string => {

@@ -19,7 +19,7 @@ import type { SongMenuItem } from "@/contracts/songMenu";
 import type { ArtworkSource } from "@/domain/artwork";
 import type { Song } from "@/domain/song";
 import { useT } from "@/i18n";
-import { usePlayerStore } from "@/player/store";
+import { usePlaybackView } from "@/remote/mirror";
 import {
   ActionBar,
   EmptyState,
@@ -123,8 +123,8 @@ export const CollectionScreen = ({
   const listRef = useRef<FlatList<Song>>(null);
   const [stickyVisible, setStickyVisible] = useState(false);
 
-  const currentSongId = usePlayerStore((s) => s.currentSong?.id ?? null);
-  const playing = usePlayerStore((s) => s.playing);
+  const currentSongId = usePlaybackView((v) => v.song?.id ?? null);
+  const playing = usePlaybackView((v) => v.playing);
   const likedIdsQuery = useLikedIds();
   const likedIds = useMemo(
     () => new Set<number>(likedIdsQuery.data ?? []),

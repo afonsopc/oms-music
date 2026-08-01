@@ -965,6 +965,7 @@
     },
     "player": {
       "audioSettings": "Skaņas iestatījumi",
+      "localDeviceOnly": "Šie iestatījumi pieder ierīcei, kas atskaņo.",
       "speed": "Ātrums",
       "sleepTimer": "Miega taimeris",
       "sleepOff": "Izslēgts",

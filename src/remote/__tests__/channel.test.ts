@@ -340,4 +340,45 @@ describe("transport decorator (FR-109/111, FR-63 remote half)", () => {
     expect(base.calls).toEqual(["setQueue"]);
     expect(harness.engine.adopted).toBeNull();
   });
+
+  it("resumes at the SNAPSHOT position after a controller stint, not the frozen local one", () => {
+    const harness = start();
+    const transport = decorate(harness);
+    // Another device takes over: this one goes silent, source cleared.
+    harness.cable.push(snapshotFrame({ active_device_id: OTHER }));
+    expect(harness.engine.calls).toContain("stopAndClearSource");
+    // It plays on and then goes away, leaving nobody active.
+    harness.cable.push({
+      type: "state_changed",
+      active_device_id: null,
+      state: wireSnapshot({ song_id: "1", position: 180, paused: false }),
+    });
+    expect(remoteStore.getState().role).toBe("no_active");
+
+    transport.play();
+    expect(harness.engine.seeks).toEqual([180]);
+    expect(harness.engine.calls).toContain("playFromIdle");
+  });
+
+  it("never re-seeks while the local source is still loaded", () => {
+    const harness = start();
+    const transport = decorate(harness);
+    harness.cable.push(snapshotFrame({ state: wireSnapshot({ position: 180 }) }));
+    expect(remoteStore.getState().role).toBe("no_active");
+    transport.play();
+    expect(harness.engine.seeks).toEqual([]);
+  });
+
+  it("never seeds a position from a snapshot describing another song", () => {
+    const harness = start();
+    const transport = decorate(harness);
+    harness.cable.push(snapshotFrame({ active_device_id: OTHER }));
+    harness.cable.push({
+      type: "state_changed",
+      active_device_id: null,
+      state: wireSnapshot({ song_id: "2", position: 180, paused: false }),
+    });
+    transport.play();
+    expect(harness.engine.seeks).toEqual([]);
+  });
 });

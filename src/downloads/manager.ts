@@ -16,12 +16,15 @@ import { File, type Directory } from "expo-file-system";
 import type { SQLiteDatabase } from "expo-sqlite";
 import { getLyrics } from "@/api/endpoints/lyrics";
 import { closeUserDb, openUserDb } from "@/db/index";
+import { isApiError } from "@/domain/api";
 import type { DownloadEntry, DownloadKind, LyricsState, SongDownloadStatus } from "@/domain/downloads";
 import type { FsNodeId, SongKey, UserId } from "@/domain/ids";
 import { toSongId, toSongKey } from "@/domain/ids";
 import type { Lyrics } from "@/domain/lyrics";
 import type { Song } from "@/domain/song";
+import { ArtworkNodeIndex } from "./artworkIndex";
 import * as repo from "./db";
+import { LyricsFetchQueue } from "./lyricsQueue";
 import { ensureUserDownloadDirectory, filenameFor, walkDirectoryBytes } from "./paths";
 import { getDownloadSettings } from "./settings";
 import {
@@ -63,6 +66,8 @@ interface ActiveSession {
   scheduler: TransferScheduler;
   collections: Set<string>;
   localIndex: Map<string, string>; // "key::kind" -> file uri
+  /** fs node id -> song key, so bare-node artwork resolves offline (FR-91). */
+  artworkNodes: ArtworkNodeIndex;
   /**
    * Parsed dl_songs rows kept in memory: the Downloads screen and the offline
    * library resolvers read the whole library on every coarse status bump, and
@@ -85,6 +90,8 @@ export const normalizeSongKey = (id: number | string): SongKey =>
 
 let active: ActiveSession | null = null;
 const startListeners = new Set<() => void>();
+/** One paced lyrics backfill queue for the process (see lyricsQueue.ts). */
+const lyricsQueue = new LyricsFetchQueue();
 
 // ---------------------------------------------------------------------------
 // Lifecycle
@@ -116,9 +123,13 @@ export const startManager = (userId: UserId): void => {
     scheduler: null as unknown as TransferScheduler,
     collections: new Set(repo.listCollections(db)),
     localIndex: new Map(),
+    artworkNodes: new ArtworkNodeIndex(),
     songs: new Map(repo.listStoredSongs(db).map((row) => [row.songKey, row])),
     closed: false,
   };
+  for (const stored of session.songs.values()) {
+    session.artworkNodes.add(stored.songKey, stored.song);
+  }
 
   const progressDbSteps = new Map<string, number>();
 
@@ -220,7 +231,9 @@ export const stopManager = (): void => {
   session.closed = true;
   active = null;
   session.scheduler.cancelAll();
+  lyricsQueue.clear();
   session.localIndex.clear();
+  session.artworkNodes.clear();
   session.collections.clear();
   session.songs.clear();
   resetStatuses();
@@ -242,6 +255,21 @@ export { subscribeDownloadStatus };
 /** LocalFileIndex read (contracts/localSource): done files only. */
 export const localUriFor = (songKey: SongKey, kind: DownloadKind): string | null =>
   active?.localIndex.get(indexKey(songKey, kind)) ?? null;
+
+/**
+ * LocalFileIndex read for artwork quoted as a BARE fs node (album tiles,
+ * artist grids, home rails): the reverse index answers which downloaded song
+ * owns that node, and the file has to actually be on disk (FR-91).
+ */
+export const localArtworkUriForNode = (nodeId: FsNodeId): string | null => {
+  const session = active;
+  if (!session) return null;
+  for (const songKey of session.artworkNodes.songKeysFor(nodeId)) {
+    const uri = session.localIndex.get(indexKey(songKey, "artwork"));
+    if (uri) return uri;
+  }
+  return null;
+};
 
 export const listStoredSongs = (): repo.StoredSong[] =>
   active ? [...active.songs.values()] : [];
@@ -357,10 +385,15 @@ const enqueueKind = (
 };
 
 const fetchLyricsIntoRow = (session: ActiveSession, song: Song, songKey: SongKey): void => {
-  // Best-effort, fire-and-forget; failures keep the 'unfetched' state so
-  // repair retries, while a confirmed miss is never refetched (FR-81).
-  void getLyrics(song.id)
-    .then((lyrics) => {
+  // Best-effort and paced: `/lyrics` is a 60/min bucket and both drivers (a
+  // bulk collection toggle, the whole-library repair pass) drain in
+  // microtasks, so the queue is what keeps a 250-song toggle from opening
+  // 250 concurrent requests. Failures keep the 'unfetched' state so repair
+  // retries, while a confirmed miss is never refetched (FR-81).
+  lyricsQueue.enqueue(songKey, async () => {
+    if (session.closed) return;
+    try {
+      const lyrics = await getLyrics(song.id);
       if (session.closed) return;
       const empty = lyrics.synced == null && lyrics.plain == null;
       const state: LyricsState = empty ? "none" : "cached";
@@ -370,8 +403,13 @@ const fetchLyricsIntoRow = (session: ActiveSession, song: Song, songKey: SongKey
       if (cached) {
         session.songs.set(songKey, { ...cached, lyricsState: state, lyrics: payload });
       }
-    })
-    .catch(() => undefined);
+    } catch (error) {
+      // Honor Retry-After instead of hammering the shared bucket (API.md 1).
+      if (isApiError(error) && error.status === 429) {
+        lyricsQueue.pauseFor((error.retryAfter ?? 60) * 1000);
+      }
+    }
+  });
 };
 
 export interface DownloadOpts {
@@ -399,6 +437,8 @@ export const downloadSong = async (song: Song, opts?: DownloadOpts): Promise<voi
   // any bytes arrive, and repair walks these rows.
   const existing = session.songs.get(songKey) ?? null;
   repo.upsertSong(session.db, songKey, song);
+  if (existing) session.artworkNodes.remove(songKey, existing.song);
+  session.artworkNodes.add(songKey, song);
   session.songs.set(songKey, {
     songKey,
     song,
@@ -463,6 +503,8 @@ export const removeDownload = async (id: number | string): Promise<void> => {
   }
   repo.deleteFilesForSong(session.db, songKey);
   repo.deleteStoredSong(session.db, songKey);
+  const stored = session.songs.get(songKey);
+  if (stored) session.artworkNodes.remove(songKey, stored.song);
   session.songs.delete(songKey);
   clearSongStatuses(songKey);
 };

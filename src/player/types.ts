@@ -69,12 +69,16 @@ export interface PlayerEngine {
 export interface PlayerEngineExtras {
   getCurrentSong(): Song | null;
   getQueueState(): QueueState;
+  /** False while a controller stint holds the player at a null source. */
+  hasLoadedSource(): boolean;
   insertJamProposal(song: Song): void;
   setSeparationEnabled(on: boolean): void;
   setVocalVolume(v: number): void;
   setInstrumentalVolume(v: number): void;
   setEqBand(band: "low" | "mid" | "high", db: number): void;
   setEqEnabled(on: boolean): void;
+  /** Logout wipe (FR-10): queue, source, lock screen and store back to boot. */
+  resetForLogout(): void;
 }
 
 /** Status slice the engine consumes (subset of expo-audio's AudioStatus). */

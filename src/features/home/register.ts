@@ -18,17 +18,15 @@ import {
 } from "@/contracts/songMenu";
 import { getTransport } from "@/contracts/transport";
 import { primaryArtistSlug } from "@/domain/format";
-import { usePlayerStore } from "@/player/store";
+import { usePlaybackView } from "@/remote/mirror";
 import { openAddToPlaylist } from "@/features/playlists/addToPlaylist";
 
 /** Play / Pause: label flips when this row IS the current song and playing.
  *  Rows pass their own onPlay; player surfaces omit it so the item toggles
  *  the current song (web useSongActions parity). */
 const usePlayPauseSlot: SongMenuSlotHook = (ctx) => {
-  const isCurrent = usePlayerStore(
-    (s) => s.currentSong != null && s.currentSong.id === ctx.song.id,
-  );
-  const playing = usePlayerStore((s) => s.playing);
+  const isCurrent = usePlaybackView((v) => v.song != null && v.song.id === ctx.song.id);
+  const playing = usePlaybackView((v) => v.playing);
   const showPause = isCurrent && playing;
   return [
     {

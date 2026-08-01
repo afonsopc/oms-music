@@ -3,10 +3,12 @@
  * engine singleton over the real expo-audio adapter, registers it as the
  * base transport (contracts/transport), configures the audio session
  * (playback category, background, doNotMix - required for lock screen
- * association), and keeps the lock screen fed on every song / play-state /
- * metadata change.
+ * association), keeps the lock screen fed on every song / play-state /
+ * metadata change, and registers the logout wipe (FR-10 / DESIGN 5.3) next to
+ * the cable's, the jam manager's and the download scheduler's.
  */
 import { setAudioModeAsync } from "expo-audio";
+import { registerLogoutTask } from "@/auth/session";
 import { setBaseTransport, type TransportActions } from "@/contracts/transport";
 import { resolveDataUrl } from "@/api/endpoints/fsNodes";
 import { postPlayEvent } from "@/api/endpoints/playEvents";
@@ -61,6 +63,12 @@ export const registerPlayerEngine = (): PlayerEngineImpl => {
   engine = created;
 
   setBaseTransport(engineTransport(created));
+
+  // Logout / auth loss: stop the audio, drop the previous user's queue and
+  // clear the lock screen. Runs even when DELETE /sessions/current fails.
+  registerLogoutTask(() => {
+    created.resetForLogout();
+  });
 
   // Playback category + background + doNotMix: without doNotMix the OS may
   // not associate lock screen controls with the player (expo-audio docs);

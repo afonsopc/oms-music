@@ -1,11 +1,14 @@
 /**
- * The MiniPlayer pill's read of the player store (WORKPLAN WP2.5: the pill
- * reads ONLY the player store and the transport contract). A cached
- * projection keeps the useSyncExternalStore snapshot referentially stable;
- * position ticks arrive at 4 Hz max per the store contract (FR-6).
+ * The MiniPlayer pill's read of playback state (WORKPLAN WP2.5: the pill
+ * reads ONLY the playback projection and the transport contract). While this
+ * device controls another one the projection mirrors the remote snapshot, so
+ * the pill describes what is actually audible (FR-109); locally it is the
+ * player store. A cached projection keeps the useSyncExternalStore snapshot
+ * referentially stable; position ticks arrive at 4 Hz max per the store
+ * contract (FR-6), 1 Hz while controlling.
  */
 import { useSyncExternalStore } from "react";
-import { playerStore } from "@/player/store";
+import { getPlaybackView, subscribePlaybackView } from "@/remote/mirror";
 import type { Song } from "@/domain/song";
 
 export interface PillPlayerState {
@@ -26,10 +29,10 @@ let cache: PillPlayerState = {
 };
 
 const readPillState = (): PillPlayerState => {
-  const state = playerStore.getState();
+  const state = getPlaybackView();
   const prev = cache;
   if (
-    state.currentSong === prev.song &&
+    state.song === prev.song &&
     state.playing === prev.playing &&
     state.buffering === prev.buffering &&
     state.position === prev.position &&
@@ -38,7 +41,7 @@ const readPillState = (): PillPlayerState => {
     return prev;
   }
   cache = {
-    song: state.currentSong,
+    song: state.song,
     playing: state.playing,
     buffering: state.buffering,
     position: state.position,
@@ -47,7 +50,5 @@ const readPillState = (): PillPlayerState => {
   return cache;
 };
 
-const subscribe = (cb: () => void): (() => void) => playerStore.subscribe(cb);
-
 export const usePillPlayerState = (): PillPlayerState =>
-  useSyncExternalStore(subscribe, readPillState, readPillState);
+  useSyncExternalStore(subscribePlaybackView, readPillState, readPillState);

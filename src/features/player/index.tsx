@@ -14,9 +14,11 @@
  *    DevicePicker), jam entry point and the cog sheet (FR-64/68 UI).
  *
  * Every transport call goes through `contracts/transport` so a controller
- * device forwards them as validated cable commands (FR-63 remote half). The
- * position slice is isolated inside <ScrubBar/>: the 4 Hz ticks re-render
- * that leaf only, never the whole screen.
+ * device forwards them as validated cable commands (FR-63 remote half), and
+ * every playback read goes through `remote/mirror` so a controller renders
+ * the REMOTE song, position and duration instead of the silenced local ones
+ * (FR-109). The position slice is isolated inside <ScrubBar/>: the 4 Hz
+ * ticks re-render that leaf only, never the whole screen.
  */
 import React, { useCallback, useEffect, useState } from "react";
 import { Pressable, Text, useWindowDimensions, View } from "react-native";
@@ -29,7 +31,7 @@ import type { LoopMode } from "@/domain/playback";
 import type { Song } from "@/domain/song";
 import { getShellSlots, useShellSlotsVersion } from "@/features/shell/slots";
 import { useT } from "@/i18n";
-import { usePlayerStore } from "@/player/store";
+import { usePlaybackView } from "@/remote/mirror";
 import { getCachedAccent, resolveAccent } from "@/theme/accent";
 import { playerGradient } from "@/theme/gradients";
 import { useTheme } from "@/theme/provider";
@@ -61,8 +63,8 @@ const nextLoopMode = (mode: LoopMode): LoopMode =>
 const ScrubBar = () => {
   const t = useT();
   const { tokens } = useTheme();
-  const position = usePlayerStore((s) => s.position);
-  const duration = usePlayerStore((s) => s.duration);
+  const position = usePlaybackView((v) => v.position);
+  const duration = usePlaybackView((v) => v.duration);
   const [dragSeconds, setDragSeconds] = useState<number | null>(null);
 
   const shownSeconds = dragSeconds ?? position;
@@ -96,7 +98,9 @@ const ScrubBar = () => {
 const VolumeRow = () => {
   const t = useT();
   const { tokens } = useTheme();
-  const volume = usePlayerStore((s) => s.volume);
+  // Volume is the ACTIVE device's output: shared, unlike the other listener
+  // settings, so a controller drag shows and moves the remote value.
+  const volume = usePlaybackView((v) => v.volume);
   return (
     <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
       <Icon name="volume" size={16} color={tokens.mutedForeground} />
@@ -155,11 +159,11 @@ export default function NowPlayingBody() {
   const { width, height } = useWindowDimensions();
   useShellSlotsVersion();
 
-  const song = usePlayerStore((s) => s.currentSong);
-  const playing = usePlayerStore((s) => s.playing);
-  const buffering = usePlayerStore((s) => s.buffering);
-  const shuffle = usePlayerStore((s) => s.shuffle);
-  const loopMode = usePlayerStore((s) => s.loopMode);
+  const song = usePlaybackView((v) => v.song);
+  const playing = usePlaybackView((v) => v.playing);
+  const buffering = usePlaybackView((v) => v.buffering);
+  const shuffle = usePlaybackView((v) => v.shuffle);
+  const loopMode = usePlaybackView((v) => v.loopMode);
 
   const likedIds = useLikedIds();
   const toggleLike = useToggleLike();

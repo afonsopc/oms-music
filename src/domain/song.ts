@@ -18,6 +18,15 @@ export interface SongArtistEntry {
   updated_at: string;
 }
 
+/**
+ * The `artist_names` display field. Every backend serializer that emits it
+ * (`Listening::Snapshot.song_hash`, `Jams::Serializer`) joins the names with
+ * ", " into a single STRING; array payloads survive from the web's legacy
+ * shape. Never index or `.join()` it: go through `domain/format`'s
+ * `artistNamesLine` / `artistNamesList`.
+ */
+export type ArtistNames = string | string[];
+
 export interface Song {
   id: SongId;
   created_at: string;
@@ -51,7 +60,7 @@ export interface Song {
   // jam-injected extras (present only on jam proposal entries)
   audio_url?: string;
   artwork_url?: string | null;
-  artist_names?: string[];
+  artist_names?: ArtistNames;
   jam_song?: true;
   jam_proposer?: { id: UserId; handle: string; name: string };
 }
@@ -63,7 +72,7 @@ export interface SnapshotSong {
   album: string | null;
   duration: number;
   owner_id: UserId;
-  artist_names: string[];
+  artist_names: ArtistNames;
   artwork_url: string | null; // presigned
 }
 

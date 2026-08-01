@@ -6,9 +6,10 @@
  * (pure, bun-tested); this module only bridges them to the manager and the
  * contracts seam.
  *
- * Artwork needs no separate resolver: ui/ArtworkImage already asks the
- * LocalFileIndex (contracts/localSource) for a downloaded artwork file, which
- * register.ts installs.
+ * Artwork needs no resolver registered HERE: ui/ArtworkImage asks the
+ * LocalFileIndex (contracts/localSource) for a downloaded artwork file, both
+ * by song id and by bare fs node id (the album/artist/rail form). The index
+ * that answers both is installed by downloads/register.ts.
  */
 import { registerOfflineResolver, setOfflineNowProvider } from "@/contracts/offlineFallback";
 import { ARTISTS_PAGE_SIZE } from "@/api/endpoints/artists";

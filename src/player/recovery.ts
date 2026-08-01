@@ -72,6 +72,15 @@ export class RecoveryTracker {
     return this.failed.has(songKey);
   }
 
+  /** Logout wipe: the failed set is session-scoped, never account-scoped. */
+  reset(): void {
+    this.recoveryAttemptSongKey = null;
+    this.lastToastAt = 0;
+    if (this.failed.size === 0) return;
+    this.failed.clear();
+    this.onFailedSetChanged?.(this.failed);
+  }
+
   get failedKeys(): ReadonlySet<SongKey> {
     return this.failed;
   }

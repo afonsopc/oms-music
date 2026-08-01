@@ -12,6 +12,10 @@
  *    owns them;
  *  - long-press drag on the grip reorders through
  *    `reorderQueue(fromVisible, toVisible)`.
+ *
+ * The quartet is read through `remote/mirror`: while controlling another
+ * device this list IS the remote queue, which is also the list the visible
+ * indices in every callback refer to server-side (FR-109).
  */
 import React, { useMemo } from "react";
 import { Text, View } from "react-native";
@@ -20,7 +24,7 @@ import { getTransport } from "@/contracts/transport";
 import type { SongMenuItem } from "@/contracts/songMenu";
 import type { Song } from "@/domain/song";
 import { useT } from "@/i18n";
-import { usePlayerStore } from "@/player/store";
+import { usePlaybackView } from "@/remote/mirror";
 import { useTheme } from "@/theme/provider";
 import { EmptyState, SongTable } from "@/ui";
 
@@ -30,11 +34,11 @@ const K = "native.player";
 export default function QueueBody() {
   const t = useT();
   const { tokens } = useTheme();
-  const queue = usePlayerStore((s) => s.queue);
-  const queueOrder = usePlayerStore((s) => s.queueOrder);
-  const queueIndex = usePlayerStore((s) => s.queueIndex);
-  const playing = usePlayerStore((s) => s.playing);
-  const currentSong = usePlayerStore((s) => s.currentSong);
+  const queue = usePlaybackView((v) => v.queue);
+  const queueOrder = usePlaybackView((v) => v.queueOrder);
+  const queueIndex = usePlaybackView((v) => v.queueIndex);
+  const playing = usePlaybackView((v) => v.playing);
+  const currentSong = usePlaybackView((v) => v.song);
   const likedIds = useLikedIds();
 
   // Visible order: what the user sees IS the play order under shuffle.

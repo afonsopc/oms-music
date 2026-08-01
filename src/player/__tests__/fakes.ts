@@ -62,6 +62,14 @@ export class FakeAudioPlayer implements AudioAdapter {
   lockScreenMetadata: LockScreenMetadata | undefined;
   seekLog: number[] = [];
   replaceLog: (string | null)[] = [];
+  /**
+   * Native adapters deliver status updates asynchronously (iOS through the
+   * periodic time observer, Android through onIsPlayingChanged), so a status
+   * caused by `pause()` lands a tick AFTER the caller's next statement. The
+   * default here is synchronous, which hides ordering bugs; flip this on to
+   * reproduce the real delivery order.
+   */
+  asyncStatus = false;
 
   private listeners = new Set<(s: AudioAdapterStatus) => void>();
 
@@ -154,7 +162,11 @@ export class FakeAudioPlayer implements AudioAdapter {
 
   emitStatus(): void {
     const status = this.buildStatus();
-    for (const cb of [...this.listeners]) cb(status);
+    const deliver = (): void => {
+      for (const cb of [...this.listeners]) cb(status);
+    };
+    if (this.asyncStatus) void Promise.resolve().then(deliver);
+    else deliver();
   }
 
   private buildStatus(): AudioAdapterStatus {

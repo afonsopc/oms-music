@@ -18,6 +18,7 @@ import type { TransportActions } from "@/contracts/transport";
 import type { LoopMode } from "@/domain/playback";
 import type { Song } from "@/domain/song";
 import type { LocalPlaybackState, RemoteEngine } from "./localPlayer";
+import { normalizeWireSongId } from "./snapshot";
 import { remoteStore } from "./store";
 
 export interface RemoteTransportDeps {
@@ -39,8 +40,34 @@ const wireSongId = (song: Song): string => String(song.id);
 export const createRemoteTransportDecorator =
   (deps: RemoteTransportDeps) =>
   (base: TransportActions): TransportActions => {
-    /** Resume locally, re-resolving the source if a controller stint cleared it. */
-    const playLocally = (): void => deps.engine.playFromIdle();
+    /**
+     * Resume locally, re-resolving the source if a controller stint cleared
+     * it. `stopAndClearSource()` FROZE the local store position at the moment
+     * this device went silent, so `playFromIdle` alone would restart where
+     * this device left off instead of where the other device got to. The web
+     * seeds pendingSeek from the remote snapshot (MusicProvider
+     * `playFromIdle`) and so do we: with no source loaded `engine.seek()`
+     * only plants pendingSeek + the store position, which playFromIdle then
+     * picks up. Guarded on the snapshot describing the SAME song, otherwise
+     * the local position is the honest one.
+     */
+    const playLocally = (): void => {
+      if (!deps.engine.hasLoadedSource()) {
+        const snapshot = remoteStore.getState().snapshot;
+        const position = snapshot?.position;
+        const current = deps.engine.getCurrentSong();
+        if (
+          typeof position === "number" &&
+          Number.isFinite(position) &&
+          position > 0 &&
+          current !== null &&
+          normalizeWireSongId(snapshot?.song_id) === normalizeWireSongId(current.id)
+        ) {
+          deps.engine.seek(position);
+        }
+      }
+      deps.engine.playFromIdle();
+    };
 
     const claimAndPlay = (): void => {
       deps.markSelfClaim();

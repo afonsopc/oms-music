@@ -4,7 +4,8 @@
  * or without a mounted screen:
  *
  *  1. LocalFileIndex (contracts/localSource) -> the player's offline ladder
- *     and ui/ArtworkImage's local artwork (FR-90, FR-91).
+ *     and ui/ArtworkImage's local artwork, both per song and by bare fs node
+ *     id for the surfaces that carry no song (FR-90, FR-91).
  *  2. The download status reader (ui/downloadStatus) -> row badges (FR-82/86).
  *  3. Offline library resolvers + the isOfflineNow flag (FR-91, FR-81 read).
  *  4. The DownloadStatusProvider shell provider (WP2's slot registry).
@@ -40,6 +41,7 @@ import {
   currentUserId,
   getProgressFor,
   getStatusFor,
+  localArtworkUriForNode,
   localUriFor,
   removeDownload,
   startManager,
@@ -168,7 +170,7 @@ export const registerDownloads = (): void => {
   if (registered) return;
   registered = true;
 
-  setLocalFileIndex({ get: localUriFor });
+  setLocalFileIndex({ get: localUriFor, getArtworkByNodeId: localArtworkUriForNode });
 
   setDownloadStatusReader({
     getStatus: getStatusFor,

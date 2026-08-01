@@ -965,6 +965,7 @@
     },
     "player": {
       "audioSettings": "Audio settings",
+      "localDeviceOnly": "These settings belong to the device that is playing.",
       "speed": "Speed",
       "sleepTimer": "Sleep timer",
       "sleepOff": "Off",

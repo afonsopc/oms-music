@@ -61,4 +61,12 @@ export class ListenAccumulator {
     this.lastTime = null;
     this.recorded = true;
   }
+
+  /** Logout wipe: no half-counted listen may cross an account switch. */
+  reset(): void {
+    this.songKey = null;
+    this.accumulated = 0;
+    this.lastTime = null;
+    this.recorded = false;
+  }
 }

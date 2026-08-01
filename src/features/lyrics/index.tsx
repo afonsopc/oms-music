@@ -4,11 +4,13 @@
  *
  *  - fetch with skeleton-on-slow-first, 200-with-nulls empty state, ~24 h
  *    client cache (WP1 hook), attribution footer, plain-only fallback;
- *  - synced rendering driven by the player store position (4 Hz leaf slice,
- *    the mandated UI read path - never the AudioPlayer): the active index is
- *    recomputed per tick but STATE only updates when the index changes, so
- *    there is no re-render churn; the tracking subscription stops entirely
- *    while the route is not focused (FR-77 battery rule);
+ *  - synced rendering driven by the playback projection (remote/mirror: the
+ *    player store's 4 Hz leaf slice locally, the mirrored snapshot while this
+ *    device controls another one - the mandated UI read path, never the
+ *    AudioPlayer): the active index is recomputed per tick but STATE only
+ *    updates when the index changes, so there is no re-render churn; the
+ *    tracking subscription stops entirely while the route is not focused
+ *    (FR-77 battery rule);
  *  - auto-center scroll with a 4 s manual-scroll grace and a "back to
  *    current line" pill; tap-to-seek through the transport contract,
  *    including placeholder-dot lines (FR-78);
@@ -45,7 +47,12 @@ import {
   splitPlainLines,
   syncedTranslationFor,
 } from "@/lyrics/translation";
-import { playerStore, usePlayerStore, type PlayerStoreState } from "@/player/store";
+import {
+  getPlaybackView,
+  subscribePlaybackView,
+  usePlaybackView,
+  type PlaybackView,
+} from "@/remote/mirror";
 import { useTheme } from "@/theme/provider";
 import { BottomSheet, EmptyState, ErrorState, GhostIconButton, Icon, Skeleton } from "@/ui";
 import { initialTranslationTarget, storeTranslationTarget } from "./targetStore";
@@ -66,7 +73,7 @@ export default function LyricsBody() {
   const t = useT();
   const { tokens } = useTheme();
   const focused = useIsFocused();
-  const songId = usePlayerStore((s) => s.currentSong?.id ?? null);
+  const songId = usePlaybackView((v) => v.song?.id ?? null);
   const lyricsQuery = useLyrics(songId);
 
   const synced = lyricsQuery.data?.synced ?? null;
@@ -143,9 +150,10 @@ export default function LyricsBody() {
   };
 
   // ----- active line tracking (FR-77) ---------------------------------------
-  // Frame-driven like the web rAF loop, but reading the STORE instead of the
-  // audio object (the mandated UI read path): the store's position slice
-  // ticks at 4 Hz, so between ticks the frame extrapolates
+  // Frame-driven like the web rAF loop, but reading the PROJECTION instead of
+  // the audio object (the mandated UI read path): its position slice ticks at
+  // 4 Hz locally and 1 Hz while controlling, so between ticks the frame
+  // extrapolates
   // `position + elapsed * rate` while playing. State is touched ONLY when the
   // active index actually changes (a few times per minute), so playback never
   // re-renders this screen per frame. The loop does not run while the route is
@@ -154,25 +162,28 @@ export default function LyricsBody() {
   // (song change).
   const clockRef = useRef({ position: 0, at: Date.now(), playing: false, rate: 1, duration: 0 });
   useEffect(() => {
-    const sample = (state: PlayerStoreState): void => {
+    const sample = (view: PlaybackView): void => {
       clockRef.current = {
-        position: state.position,
+        position: view.position,
         at: Date.now(),
-        playing: state.playing,
-        rate: state.rate,
-        duration: state.duration,
+        playing: view.playing,
+        rate: view.rate,
+        duration: view.duration,
       };
     };
-    sample(playerStore.getState());
-    return playerStore.subscribe((state, previous) => {
+    let previous = getPlaybackView();
+    sample(previous);
+    return subscribePlaybackView(() => {
+      const view = getPlaybackView();
       if (
-        state.position !== previous.position ||
-        state.playing !== previous.playing ||
-        state.rate !== previous.rate ||
-        state.duration !== previous.duration
+        view.position !== previous.position ||
+        view.playing !== previous.playing ||
+        view.rate !== previous.rate ||
+        view.duration !== previous.duration
       ) {
-        sample(state);
+        sample(view);
       }
+      previous = view;
     });
   }, []);
 
@@ -184,7 +195,7 @@ export default function LyricsBody() {
     return clock.duration > 0 ? Math.min(estimate, clock.duration) : estimate;
   }, []);
 
-  const playing = usePlayerStore((s) => s.playing);
+  const playing = usePlaybackView((v) => v.playing);
   const [activeIndex, setActiveIndex] = useState(-1);
   const activeIndexRef = useRef(-1);
 
@@ -208,8 +219,12 @@ export default function LyricsBody() {
     if (!playing) {
       // Paused: nothing to extrapolate, so no frame loop - only a seek moves
       // the line.
-      return playerStore.subscribe((state, previous) => {
-        if (state.position !== previous.position) apply();
+      let last = getPlaybackView().position;
+      return subscribePlaybackView(() => {
+        const position = getPlaybackView().position;
+        if (position === last) return;
+        last = position;
+        apply();
       });
     }
     let frame = requestAnimationFrame(function tick(): void {

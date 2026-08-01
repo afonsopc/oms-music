@@ -8,7 +8,7 @@
 import type { AlbumSummary } from "@/domain/album";
 import { artistDisplayName, artistRouteSegment } from "@/domain/album";
 import type { Artist } from "@/domain/artist";
-import { primaryArtists } from "@/domain/format";
+import { artistNamesList, primaryArtists } from "@/domain/format";
 import type { Playlist } from "@/domain/playlist";
 import { rankByMatch } from "@/domain/rank";
 import type { Song } from "@/domain/song";
@@ -99,7 +99,7 @@ export const deriveArtistEntries = (
       }
       continue;
     }
-    for (const name of song.artist_names ?? []) {
+    for (const name of artistNamesList(song.artist_names)) {
       push({ name, segment: encodeURIComponent(name) });
     }
   }

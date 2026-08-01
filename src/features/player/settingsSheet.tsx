@@ -13,9 +13,13 @@
  *    implemented by WP11) - never for jam songs;
  *  - the EQ section is deliberately absent in v1 (DESIGN 16.2).
  *
- * Rate goes through the transport (a controller forwards it to the active
- * device); sleep timer and playback mode are LOCAL-ONLY settings and call
- * the engine directly, which is also why they read as local state.
+ * Everything in this sheet is DEVICE-LOCAL: rate stays local even through the
+ * transport decorator (remote/transport.ts `setRate`), and sleep timer,
+ * playback mode and separation call the engine / service directly. While this
+ * device is CONTROLLING another one it owns no audio, so every one of them is
+ * greyed out (FR-109 "local-only settings greyed out"; separation is refused
+ * on controllers by DESIGN 8.7) exactly like the web threads
+ * `localSettingsDisabled={isController}` into the same cog.
  */
 import React from "react";
 import { Pressable, Text, View } from "react-native";
@@ -27,6 +31,7 @@ import type { Song } from "@/domain/song";
 import { useT } from "@/i18n";
 import { getPlayerEngine } from "@/player/register";
 import { usePlayerStore } from "@/player/store";
+import { useRemoteStore, type RemoteStoreState } from "@/remote/store";
 import { useTheme } from "@/theme/provider";
 import { BottomSheet, Icon } from "@/ui";
 
@@ -41,6 +46,8 @@ const MODE_LABEL: Record<string, string> = {
   instrumental: `${K}.modeInstrumental`,
   vocals: `${K}.modeVocals`,
 };
+
+const selectIsController = (s: RemoteStoreState): boolean => s.role === "controller";
 
 const Chip = ({
   label,
@@ -103,7 +110,7 @@ const Section = ({ title, children }: { title: string; children: React.ReactNode
 };
 
 /** Separation lifecycle for the current song (FR-71 UI half). */
-const SeparationSection = ({ song }: { song: Song }) => {
+const SeparationSection = ({ song, disabled }: { song: Song; disabled: boolean }) => {
   const t = useT();
   const { tokens } = useTheme();
   const service = getSeparationService();
@@ -148,6 +155,7 @@ const SeparationSection = ({ song }: { song: Song }) => {
           <Chip
             label={t(`${K}.removeStems`)}
             selected={false}
+            disabled={disabled}
             onPress={() => {
               void service.deleteSeparation(song.id);
             }}
@@ -156,7 +164,7 @@ const SeparationSection = ({ song }: { song: Song }) => {
           <Chip
             label={t(`${K}.separate`)}
             selected={false}
-            disabled={busy}
+            disabled={disabled || busy}
             onPress={() => {
               void service.triggerSeparation(song.id);
             }}
@@ -179,6 +187,9 @@ export const PlayerSettingsSheet = ({ visible, onClose, song }: PlayerSettingsSh
   const rate = usePlayerStore((s) => s.rate);
   const playbackMode = usePlayerStore((s) => s.playbackMode);
   const sleepTimer = usePlayerStore((s) => s.sleepTimer);
+  // Controlling another device: this player owns no audio, so every setting
+  // in this sheet would write state nobody ever hears (FR-109).
+  const localDisabled = useRemoteStore(selectIsController);
 
   const sleepMinutes =
     sleepTimer && "minutes" in sleepTimer ? sleepTimer.minutes : null;
@@ -203,6 +214,23 @@ export const PlayerSettingsSheet = ({ visible, onClose, song }: PlayerSettingsSh
         {t(`${K}.audioSettings`)}
       </Text>
 
+      {localDisabled ? (
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 6,
+            paddingHorizontal: 20,
+            paddingTop: 10,
+          }}
+        >
+          <Icon name="alert-circle" size={14} color={tokens.mutedForeground} />
+          <Text style={{ color: tokens.mutedForeground, fontSize: 12, flex: 1 }}>
+            {t(`${K}.localDeviceOnly`)}
+          </Text>
+        </View>
+      ) : null}
+
       <Section title={t(`${K}.speed`)}>
         <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
           {RATES.map((value) => (
@@ -210,6 +238,7 @@ export const PlayerSettingsSheet = ({ visible, onClose, song }: PlayerSettingsSh
               key={value}
               label={`${value}x`}
               selected={Math.abs(rate - value) < 0.01}
+              disabled={localDisabled}
               onPress={() => getTransport().setRate(value)}
             />
           ))}
@@ -221,6 +250,7 @@ export const PlayerSettingsSheet = ({ visible, onClose, song }: PlayerSettingsSh
           <Chip
             label={t(`${K}.sleepOff`)}
             selected={!sleepTimer}
+            disabled={localDisabled}
             onPress={() => getPlayerEngine().setSleepTimer(null)}
           />
           {SLEEP_MINUTES.map((minutes) => (
@@ -228,12 +258,14 @@ export const PlayerSettingsSheet = ({ visible, onClose, song }: PlayerSettingsSh
               key={minutes}
               label={t(`${K}.sleepMinutes`, { minutes })}
               selected={sleepMinutes === minutes}
+              disabled={localDisabled}
               onPress={() => getPlayerEngine().setSleepTimer({ minutes })}
             />
           ))}
           <Chip
             label={t(`${K}.sleepEndOfSong`)}
             selected={sleepEndOfSong}
+            disabled={localDisabled}
             onPress={() => getPlayerEngine().setSleepTimer({ endOfSong: true })}
           />
         </View>
@@ -246,7 +278,7 @@ export const PlayerSettingsSheet = ({ visible, onClose, song }: PlayerSettingsSh
               key={mode}
               label={t(MODE_LABEL[mode])}
               selected={playbackMode === mode}
-              disabled={mode !== "original" && !stemsReady}
+              disabled={localDisabled || (mode !== "original" && !stemsReady)}
               onPress={() => getPlayerEngine().setPlaybackMode(mode)}
             />
           ))}
@@ -266,7 +298,9 @@ export const PlayerSettingsSheet = ({ visible, onClose, song }: PlayerSettingsSh
         ) : null}
       </Section>
 
-      {song && !isJamSong ? <SeparationSection song={song} /> : null}
+      {song && !isJamSong ? (
+        <SeparationSection song={song} disabled={localDisabled} />
+      ) : null}
       <View style={{ height: 12 }} />
     </BottomSheet>
   );

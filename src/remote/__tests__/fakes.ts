@@ -117,6 +117,10 @@ export class FakeEngine implements RemoteEngine {
   rate = 1;
   mode: PlaybackMode = "original";
   volume = 1;
+  /** Seconds passed to seek(), in order (playFromIdle snapshot seeding). */
+  readonly seeks: number[] = [];
+  /** Mirrors the adapter's null-source state during a controller stint. */
+  sourceLoaded = true;
   private listeners = new Map<EngineEvent, Set<(payload: unknown) => void>>();
 
   private record(name: string): void {
@@ -176,8 +180,9 @@ export class FakeEngine implements RemoteEngine {
   previous(): void {
     this.record("previous");
   }
-  seek(): void {
+  seek(seconds: number): void {
     this.record("seek");
+    this.seeks.push(seconds);
   }
   setVolume(v: number): void {
     this.record("setVolume");
@@ -203,6 +208,7 @@ export class FakeEngine implements RemoteEngine {
   }
   stopAndClearSource(): void {
     this.record("stopAndClearSource");
+    this.sourceLoaded = false;
   }
   on(event: EngineEvent, cb: (payload: unknown) => void): () => void {
     let set = this.listeners.get(event);
@@ -226,6 +232,9 @@ export class FakeEngine implements RemoteEngine {
   getQueueState(): QueueState {
     return this.queueState;
   }
+  hasLoadedSource(): boolean {
+    return this.sourceLoaded;
+  }
   insertJamProposal(): void {
     this.record("insertJamProposal");
   }
@@ -243,6 +252,9 @@ export class FakeEngine implements RemoteEngine {
   }
   setEqEnabled(): void {
     this.record("setEqEnabled");
+  }
+  resetForLogout(): void {
+    this.record("resetForLogout");
   }
 }
 

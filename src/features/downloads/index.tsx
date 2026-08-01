@@ -12,6 +12,7 @@
  */
 import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { FlatList, Pressable, Text, View } from "react-native";
+import { useFocusEffect } from "expo-router";
 import { getTransport } from "@/contracts/transport";
 import { songArtworkSource } from "@/domain/artwork";
 import { formatArtists } from "@/domain/format";
@@ -34,6 +35,11 @@ import { formatBytes } from "./format";
 
 const ROW_ARTWORK = 48;
 const ROW_HEIGHT = 64;
+/** Same dwell as the floating notice host (boot/notices). */
+const NOTICE_VISIBLE_MS = 4200;
+
+/** Distinguishes two consecutive notices with the SAME key (timer restart). */
+let noticeSeq = 0;
 
 const useDownloadVersion = (): number =>
   useSyncExternalStore(subscribeDownloadStatus, getStatusVersion, getStatusVersion);
@@ -111,17 +117,36 @@ export default function DownloadsScreen() {
   const offline = useOfflineFlag();
 
   const [usage, setUsage] = useState<{ bytes: number; files: number } | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<{ key: string; id: number } | null>(null);
 
-  // While this screen is mounted it is the surface for download notices (the
+  // While this screen is FOCUSED it is the surface for download notices (the
   // WiFi refusal, FR-88): they render inline here instead of as a floating
-  // toast. On unmount the global notice host (wired in boot) is restored,
-  // never the console default.
+  // toast. On blur the global notice host (wired in boot) is restored, never
+  // the console default - and never later than the blur, because a tab
+  // screen stays mounted for the rest of the session once visited, so a
+  // mount-scoped takeover would swallow every refusal raised from the album,
+  // search or player surfaces afterwards.
+  useFocusEffect(
+    useCallback(() => {
+      const previous = getDownloadNoticeHandler();
+      setDownloadNoticeHandler((key) => {
+        noticeSeq += 1;
+        setNotice({ key, id: noticeSeq });
+      });
+      return () => {
+        setDownloadNoticeHandler(previous);
+        setNotice(null);
+      };
+    }, []),
+  );
+
+  // Inline notices expire like the floating ones do (a refusal from ten
+  // minutes ago must not still be sitting in the header).
   useEffect(() => {
-    const previous = getDownloadNoticeHandler();
-    setDownloadNoticeHandler((key) => setNotice(key));
-    return () => setDownloadNoticeHandler(previous);
-  }, []);
+    if (!notice) return;
+    const timer = setTimeout(() => setNotice(null), NOTICE_VISIBLE_MS);
+    return () => clearTimeout(timer);
+  }, [notice]);
 
   // The lists are synchronous reads of the download index; `version` is the
   // coarse counter that says "something changed", so it IS the dependency.
@@ -208,7 +233,7 @@ export default function DownloadsScreen() {
             padding: 10,
           }}
         >
-          <Text style={{ color: tokens.foreground, fontSize: 13 }}>{t(notice)}</Text>
+          <Text style={{ color: tokens.foreground, fontSize: 13 }}>{t(notice.key)}</Text>
         </View>
       ) : null}
 

@@ -216,9 +216,18 @@ ACTIVE remote device (FR-63 remote half) with no further work.
 
 ### 3.3 Fallback while unpatched
 
-Nothing to do. `routeRemoteCommand` stays exported and unused, lock-screen
-play/pause/scrub keep working through the native handlers, and the engine keeps mirroring
-status updates into the store, so the UI never disagrees with the lock screen.
+`routeRemoteCommand` stays exported and unused. On the ACTIVE device that costs nothing:
+lock-screen play/pause/scrub keep working through the native handlers and the engine keeps
+mirroring status updates into the store, so the UI never disagrees with the lock screen.
+
+On a CONTROLLER device it is not free, and this is the residual gap FR-63 still has:
+`enterController()` (`remote/channel.ts`) clears the local source, then
+`setLockScreenSongOverride` publishes the REMOTE song's metadata, so the lock screen shows
+a track whose play/pause/scrub act on an empty local player and do nothing on either
+device. Next/previous never appear at all. Deactivating the lock screen while controlling
+would trade one wrong behavior for another (DESIGN 8.6 wants the metadata to follow the
+song the user is hearing about), so the honest fix is the native diff above; until then
+the in-app controls are the only working ones on a controller.
 
 ---
 

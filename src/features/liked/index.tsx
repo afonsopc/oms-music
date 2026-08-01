@@ -14,7 +14,7 @@ import { getTransport } from "@/contracts/transport";
 import type { Song } from "@/domain/song";
 import { useContentBottomPadding } from "@/features/shell/metrics";
 import { useT } from "@/i18n";
-import { usePlayerStore } from "@/player/store";
+import { usePlaybackView } from "@/remote/mirror";
 import { useTheme } from "@/theme/provider";
 import { LIKED_ACCENT } from "@/theme/tokens";
 import {
@@ -41,8 +41,8 @@ export default function LikedScreen() {
 
   const likedQuery = useLikedInfinite();
   const likedIdsQuery = useLikedIds();
-  const currentSongId = usePlayerStore((s) => s.currentSong?.id ?? null);
-  const isPlaying = usePlayerStore((s) => s.playing);
+  const currentSongId = usePlaybackView((v) => v.song?.id ?? null);
+  const isPlaying = usePlaybackView((v) => v.playing);
 
   const rows = useMemo(() => likedQuery.data?.pages.flat() ?? [], [likedQuery.data]);
   const songs = useMemo<Song[]>(() => rows.map((row) => row.song), [rows]);

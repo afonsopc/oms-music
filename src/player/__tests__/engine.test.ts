@@ -12,6 +12,7 @@ import { setPlayerToastHandler } from "../recovery";
 import { playerStore, resetPlayerStore } from "../store";
 import { flush, makeEngineDeps, makeSong } from "./fakes";
 
+
 setPlayerToastHandler(() => {});
 
 const setup = () => {
@@ -309,6 +310,36 @@ describe("patch + modes (FR-68)", () => {
     ctx.engine.dispose();
   });
 
+  it("a late status from the OUTGOING source never eats pendingSeek", async () => {
+    const ctx = setup();
+    const s1 = makeSong(1, { instrumental_fs_node_id: "stem-1" });
+    urlFor(ctx, s1);
+    ctx.resolver.control.urls.set("stem-1", "http://cdn/stem1");
+    ctx.engine.setQueue([s1]);
+    await flush();
+    ctx.player.emitLoaded(200);
+    ctx.player.currentTime = 90;
+
+    // Real delivery order: the pause that precedes the swap reports the OLD
+    // item (isLoaded, duration 200) one tick later, while the stem URL is
+    // still resolving and the player still holds the original source.
+    ctx.player.asyncStatus = true;
+    ctx.resolver.control.hold.add("stem-1");
+    ctx.engine.setPlaybackMode("instrumental");
+    await flush();
+    ctx.resolver.control.release("stem-1");
+    await flush();
+    ctx.player.asyncStatus = false;
+
+    expect(ctx.player.uri?.startsWith("http://cdn/stem1")).toBe(true);
+    // replace() reset the clock: only a seek AFTER it restores the position.
+    expect(ctx.player.currentTime).toBe(0);
+    ctx.player.emitLoaded(200);
+    expect(ctx.player.currentTime).toBe(90);
+    expect(playerStore.getState().position).toBe(90);
+    ctx.engine.dispose();
+  });
+
   it("mode switch to the same file (original <-> custom) does nothing", async () => {
     const ctx = setup();
     const s1 = makeSong(1);
@@ -374,6 +405,142 @@ describe("transport odds and ends", () => {
     expect(ctx.player.rate).toBe(2);
     ctx.engine.setRate(0.5);
     expect(ctx.player.rate).toBe(0.5);
+    ctx.engine.dispose();
+  });
+});
+
+describe("queue ops that fill an empty queue", () => {
+  beforeEach(() => resetPlayerStore());
+
+  it("addToQueue on an EMPTY queue loads and autoplays the song", async () => {
+    const ctx = setup();
+    const s1 = makeSong(1);
+    urlFor(ctx, s1);
+    ctx.engine.addToQueue(s1);
+    await flush();
+    expect(playerStore.getState().currentSong?.id).toBe(s1.id);
+    expect(ctx.player.uri?.startsWith("http://cdn/1")).toBe(true);
+    expect(ctx.player.playing).toBe(true);
+    ctx.engine.dispose();
+  });
+
+  it("addToQueue on a NON-empty queue never restarts the playing track", async () => {
+    const ctx = setup();
+    const s1 = makeSong(1);
+    const s2 = makeSong(2);
+    urlFor(ctx, s1);
+    urlFor(ctx, s2);
+    ctx.engine.setQueue([s1]);
+    await flush();
+    ctx.player.emitLoaded(200);
+    ctx.player.currentTime = 42;
+    const replaces = ctx.player.replaceLog.length;
+    ctx.engine.addToQueue(s2);
+    await flush();
+    expect(ctx.player.replaceLog.length).toBe(replaces);
+    expect(ctx.player.currentTime).toBe(42);
+    expect(playerStore.getState().queue.length).toBe(2);
+    ctx.engine.dispose();
+  });
+
+  it("playNext and insertJamProposal also start an empty queue", async () => {
+    const first = setup();
+    const s1 = makeSong(1);
+    urlFor(first, s1);
+    first.engine.playNext(s1);
+    await flush();
+    expect(first.player.playing).toBe(true);
+    first.engine.dispose();
+
+    resetPlayerStore();
+    const second = setup();
+    const jam = makeSong(9, { jam_song: true, audio_url: "http://jam/9.mp3" });
+    second.engine.insertJamProposal(jam);
+    await flush();
+    expect(second.player.uri).toBe("http://jam/9.mp3");
+    expect(second.player.playing).toBe(true);
+    second.engine.dispose();
+  });
+});
+
+describe("buffering flag (FR-6 spinner honesty)", () => {
+  beforeEach(() => resetPlayerStore());
+
+  it("survives statuses from the outgoing source during the resolve", async () => {
+    const ctx = setup();
+    const s1 = makeSong(1);
+    const s2 = makeSong(2);
+    urlFor(ctx, s1);
+    urlFor(ctx, s2);
+    ctx.engine.setQueue([s1, s2]);
+    await flush();
+    ctx.player.emitLoaded(200);
+    expect(playerStore.getState().buffering).toBe(false);
+
+    ctx.resolver.control.hold.add("compressed-2");
+    ctx.engine.setQueueIndex(1);
+    expect(playerStore.getState().buffering).toBe(true);
+    // The paused OUTGOING source keeps reporting isBuffering: false.
+    ctx.player.emitStatus();
+    ctx.player.emitStatus();
+    expect(playerStore.getState().buffering).toBe(true);
+
+    ctx.resolver.control.release("compressed-2");
+    await flush();
+    ctx.player.emitLoaded(180);
+    expect(playerStore.getState().buffering).toBe(false);
+    ctx.engine.dispose();
+  });
+});
+
+describe("logout wipe (FR-10)", () => {
+  beforeEach(() => resetPlayerStore());
+
+  it("clears the queue, the source, the store and the lock screen", async () => {
+    resetPlayerStore();
+    setPlaybackInterceptor(null);
+    const lockScreen: (number | null)[] = [];
+    const ctx = makeEngineDeps({
+      onLockScreenUpdate: (song) => lockScreen.push(song ? (song.id as number) : null),
+    });
+    const engine = new PlayerEngineImpl(ctx.deps);
+    const s1 = makeSong(1);
+    ctx.resolver.control.urls.set("compressed-1", "http://cdn/1");
+    engine.setQueue([s1]);
+    await flush();
+    engine.setRate(1.5);
+    expect(ctx.player.playing).toBe(true);
+
+    engine.resetForLogout();
+
+    expect(ctx.player.playing).toBe(false);
+    expect(ctx.player.uri).toBeNull();
+    expect(engine.getQueueState().queue).toEqual([]);
+    expect(engine.getCurrentSong()).toBeNull();
+    expect(playerStore.getState().queue).toEqual([]);
+    expect(playerStore.getState().currentSong).toBeNull();
+    expect(playerStore.getState().position).toBe(0);
+    expect(lockScreen[lockScreen.length - 1]).toBeNull();
+    // Listener settings belong to the device: the persisted rate is restored,
+    // not the mid-session 1.5x the previous user set.
+    expect(playerStore.getState().rate).toBe(1);
+    expect(ctx.player.rate).toBe(1);
+    engine.dispose();
+  });
+
+  it("lets the next user start a fresh queue afterwards", async () => {
+    const ctx = setup();
+    const s1 = makeSong(1);
+    const s2 = makeSong(2);
+    urlFor(ctx, s1);
+    urlFor(ctx, s2);
+    ctx.engine.setQueue([s1]);
+    await flush();
+    ctx.engine.resetForLogout();
+    ctx.engine.setQueue([s2]);
+    await flush();
+    expect(ctx.player.uri?.startsWith("http://cdn/2")).toBe(true);
+    expect(ctx.player.playing).toBe(true);
     ctx.engine.dispose();
   });
 });

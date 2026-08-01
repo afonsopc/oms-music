@@ -3,11 +3,20 @@
  * RN Modal + animated slide-up + backdrop press to dismiss. Content taller
  * than maxHeightRatio scrolls internally (callers embed their own
  * ScrollView/FlatList when needed via `scroll={false}`).
+ *
+ * Keyboard: RN does NOT inset modal content on iOS, and this sheet is pinned
+ * to the bottom edge, so a KeyboardAvoidingView wraps the backdrop - without
+ * it the sheets that host a TextInput (the inline "create playlist" field,
+ * the import artwork search) are created straight underneath the keyboard.
+ * `keyboardShouldPersistTaps` keeps the first tap on a button working while
+ * the field still has focus.
  */
 import React, { useEffect, useState } from "react";
 import {
   Animated,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   useWindowDimensions,
@@ -54,37 +63,48 @@ export const BottomSheet = ({
 
   return (
     <Modal transparent statusBarTranslucent animationType="fade" onRequestClose={onClose}>
-      <Pressable
-        onPress={onClose}
-        style={{ flex: 1, backgroundColor: "rgba(0, 0, 0, 0.5)", justifyContent: "flex-end" }}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
       >
-        <Pressable onPress={() => {}} style={{ maxHeight: height * maxHeightRatio }}>
-          <Animated.View
-            style={{
-              backgroundColor: tokens.popover,
-              borderTopLeftRadius: 16,
-              borderTopRightRadius: 16,
-              borderWidth: 1,
-              borderColor: tokens.border,
-              transform: [{ translateY }],
-              maxHeight: height * maxHeightRatio,
-              paddingTop: 8,
-            }}
-          >
-            <View
+        <Pressable
+          onPress={onClose}
+          style={{ flex: 1, backgroundColor: "rgba(0, 0, 0, 0.5)", justifyContent: "flex-end" }}
+        >
+          <Pressable onPress={() => {}} style={{ maxHeight: height * maxHeightRatio }}>
+            <Animated.View
               style={{
-                alignSelf: "center",
-                width: 36,
-                height: 4,
-                borderRadius: 2,
-                backgroundColor: tokens.muted,
-                marginBottom: 8,
+                backgroundColor: tokens.popover,
+                borderTopLeftRadius: 16,
+                borderTopRightRadius: 16,
+                borderWidth: 1,
+                borderColor: tokens.border,
+                transform: [{ translateY }],
+                maxHeight: height * maxHeightRatio,
+                paddingTop: 8,
               }}
-            />
-            {scroll ? <ScrollView bounces={false}>{body}</ScrollView> : body}
-          </Animated.View>
+            >
+              <View
+                style={{
+                  alignSelf: "center",
+                  width: 36,
+                  height: 4,
+                  borderRadius: 2,
+                  backgroundColor: tokens.muted,
+                  marginBottom: 8,
+                }}
+              />
+              {scroll ? (
+                <ScrollView bounces={false} keyboardShouldPersistTaps="handled">
+                  {body}
+                </ScrollView>
+              ) : (
+                body
+              )}
+            </Animated.View>
+          </Pressable>
         </Pressable>
-      </Pressable>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };

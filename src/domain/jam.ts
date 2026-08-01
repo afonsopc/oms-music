@@ -1,5 +1,5 @@
 import type { JamId, UserId } from "./ids";
-import type { SnapshotSong } from "./song";
+import type { ArtistNames, SnapshotSong } from "./song";
 
 export interface Jam {
   id: JamId;
@@ -25,7 +25,7 @@ export interface JamState {
     id: string;
     title: string;
     duration: number;
-    artist_names: string[];
+    artist_names: ArtistNames;
     artwork_url: string | null;
     proposer: { id: UserId; handle: string } | null;
   }[];

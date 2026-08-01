@@ -110,4 +110,15 @@ export class PresignedResolver {
   clearPrefetched(): void {
     this.prefetched = null;
   }
+
+  /**
+   * Logout wipe: presigned URLs and the prefetch slot are minted against the
+   * PREVIOUS session's token and must never survive an account switch.
+   */
+  reset(): void {
+    this.cache.clear();
+    this.inFlight.clear();
+    this.prefetched = null;
+    this.prefetchInFlightSongKey = null;
+  }
 }

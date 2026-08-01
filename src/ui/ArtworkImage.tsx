@@ -5,11 +5,12 @@
  * discs are produced only by `artistImageSource` for pictureless artists in
  * grids, and are rendered here for that case alone).
  *
- * Resolution: local downloaded artwork (contracts/localSource, when a song
- * id is given) > explicit external URL > fs node via `imageUrl()` with the
- * `?token=` convention > placeholder. While offline, doomed network loads
- * are skipped straight to the placeholder. Network sources are cached by fs
- * node id (`cacheKey`), never by URL.
+ * Resolution: local downloaded artwork (contracts/localSource - by song id
+ * when one is given, otherwise by the fs node id itself, which is all the
+ * album/artist/rail rows carry) > explicit external URL > fs node via
+ * `imageUrl()` with the `?token=` convention > placeholder. While offline,
+ * doomed network loads are skipped straight to the placeholder. Network
+ * sources are cached by fs node id (`cacheKey`), never by URL.
  */
 import React, { useState } from "react";
 import type { StyleProp } from "react-native";
@@ -73,6 +74,14 @@ const resolveArtwork = (
 
   const externalUrl = source?.kind === "external" ? source.url : (uri ?? null);
   const node = source?.kind === "node" ? source.nodeId : (nodeId ?? null);
+
+  // Same win for artwork quoted as a bare fs node: album tiles, the artist
+  // album grid, the home rails and the library rows never carry a song id,
+  // and downloaded art must still render in airplane mode (FR-91).
+  if (node) {
+    const localNode = getLocalFileIndex().getArtworkByNodeId(node);
+    if (localNode) return { kind: "local", uri: localNode };
+  }
 
   if (isOfflineNow()) return { kind: "placeholder" };
   if (externalUrl) return { kind: "network", uri: externalUrl };

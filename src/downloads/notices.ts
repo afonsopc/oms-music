@@ -4,8 +4,10 @@
  * downloads subsystem never imports a UI surface: it emits i18n KEYS, and a
  * surface registers the handler that translates and shows them: boot wires the
  * global notice host (boot/notices) at startup, and the Downloads screen takes
- * over while it is mounted so its refusals render inline instead of as a
- * floating toast (it restores the global handler on unmount).
+ * over while it is FOCUSED so its refusals render inline instead of as a
+ * floating toast (it restores the global handler on blur - tab screens stay
+ * mounted once visited, so a mount-scoped takeover would silently swallow
+ * every later refusal raised from another screen).
  *
  * Default handler: a console warning, so headless callers (repair passes,
  * collection sync) stay silent but debuggable.
