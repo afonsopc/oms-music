@@ -1,18 +1,71 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { useColorScheme } from 'react-native';
+/**
+ * Root layout (DESIGN 2): provider stack in exact order
+ * ThemeProvider > I18nProvider > QueryClientProvider > SessionGate >
+ * DownloadStatusProvider > gesture root, plus the side-effect import of
+ * boot/wireup.ts. i18n needs no React provider (src/i18n is store-based;
+ * useT re-renders on locale change), and the DownloadStatusProvider position
+ * is the SlotProviders slot, filled by WP8 through boot/wireup.ts.
+ */
+import "@/boot/wireup";
+import React, { useEffect } from "react";
+import { Stack } from "expo-router";
+import * as SplashScreen from "expo-splash-screen";
+import { StatusBar } from "expo-status-bar";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { queryClient, wireQueryClient } from "@/api/queryClient";
+import { useSessionStore } from "@/auth/session";
+import { SessionGate } from "@/features/shell/SessionGate";
+import { SlotProviders } from "@/features/shell/slots";
+import { ThemeProvider, useTheme } from "@/theme/provider";
 
-import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import AppTabs from '@/components/app-tabs';
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
-SplashScreen.preventAutoHideAsync();
-
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
+const RootNavigator = () => {
+  const status = useSessionStore((s) => s.status);
+  const { tokens, scheme } = useTheme();
+  const authed = status === "authed";
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AnimatedSplashOverlay />
-      <AppTabs />
+    <>
+      <StatusBar style={scheme === "dark" ? "light" : "dark"} />
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: tokens.background },
+        }}
+      >
+        <Stack.Protected guard={authed}>
+          <Stack.Screen name="(main)" />
+          <Stack.Screen
+            name="(player)"
+            options={{ presentation: "fullScreenModal", animation: "slide_from_bottom" }}
+          />
+          <Stack.Screen name="jam" options={{ presentation: "modal" }} />
+        </Stack.Protected>
+        <Stack.Protected guard={!authed}>
+          <Stack.Screen name="(auth)" />
+        </Stack.Protected>
+      </Stack>
+    </>
+  );
+};
+
+export default function RootLayout() {
+  useEffect(() => {
+    wireQueryClient();
+  }, []);
+
+  return (
+    <ThemeProvider>
+      <QueryClientProvider client={queryClient}>
+        <SessionGate>
+          <SlotProviders>
+            <GestureHandlerRootView style={{ flex: 1 }}>
+              <RootNavigator />
+            </GestureHandlerRootView>
+          </SlotProviders>
+        </SessionGate>
+      </QueryClientProvider>
     </ThemeProvider>
   );
 }

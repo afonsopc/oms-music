@@ -1,0 +1,164 @@
+/**
+ * Mix tile (web MixTile parity): kind gradient square, optional artist
+ * photo under a dark scrim (dark at BOTH ends so the white icon and stamp
+ * stay readable over light portraits), kind icon top-left, uppercase stamp
+ * text stepped down by length, then title + 2-line description. Titles and
+ * descriptions arrive already localized (i18n/mixLabels, FR-121) - the
+ * server English fallbacks must never reach this component.
+ */
+import React from "react";
+import { Pressable, Text, View, type StyleProp, type ViewStyle } from "react-native";
+import { Image } from "expo-image";
+import { Icon, type IconName } from "./icons";
+import { foregroundWash, linearGradient } from "./uiTheme";
+import type { MixKind } from "@/domain/mixes";
+import { useTheme } from "@/theme/provider";
+import { MIX_KIND_GRADIENTS, RADIUS } from "@/theme/tokens";
+import { typeScale } from "@/theme/typography";
+import { TILE_WIDTH } from "./Tile";
+
+/** Stamp text size stepped by length (web stampSizeClass). */
+export const stampFontSize = (text: string): number => {
+  if (text.length <= 8) return 30;
+  if (text.length <= 14) return 24;
+  if (text.length <= 22) return 20;
+  return 16;
+};
+
+/** Stamp text: artist name (top_artist), "<seed>s" (time_capsule), else title. */
+export const mixStampText = (
+  kind: MixKind,
+  title: string,
+  artistName?: string | null,
+  seed?: string | number | null,
+): string => {
+  if (kind === "top_artist" && artistName) return artistName;
+  if (kind === "time_capsule" && seed != null) return `${seed}s`;
+  return title;
+};
+
+export interface MixTileArtworkProps {
+  kind: MixKind;
+  stamp: string;
+  /** Artist photo URI layered over the gradient (top_artist mixes). */
+  artworkUri?: string | null;
+  size: number;
+  /** Override the kind icon (radios reuse this tile with a radio icon). */
+  icon?: IconName;
+}
+
+/** The gradient square alone (also used as a Hero artworkSlot). */
+export const MixTileArtwork = ({ kind, stamp, artworkUri, size, icon }: MixTileArtworkProps) => {
+  const gradient = MIX_KIND_GRADIENTS[kind];
+  return (
+    <View
+      style={{
+        width: size,
+        height: size,
+        borderRadius: RADIUS,
+        overflow: "hidden",
+        padding: 12,
+        justifyContent: "space-between",
+        experimental_backgroundImage: linearGradient("135deg", ...gradient.colors),
+      }}
+    >
+      {artworkUri ? (
+        <>
+          <Image
+            source={{ uri: artworkUri }}
+            contentFit="cover"
+            style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
+            accessible={false}
+          />
+          <View
+            pointerEvents="none"
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              experimental_backgroundImage: linearGradient(
+                "to bottom",
+                "rgba(0, 0, 0, 0.6)",
+                "rgba(0, 0, 0, 0.2)",
+                "rgba(0, 0, 0, 0.75)",
+              ),
+            }}
+          />
+        </>
+      ) : null}
+      <Icon name={icon ?? gradient.icon} size={24} color="#ffffff" />
+      <Text
+        style={{
+          color: "#ffffff",
+          fontWeight: "900",
+          textTransform: "uppercase",
+          letterSpacing: -0.4,
+          fontSize: stampFontSize(stamp),
+          lineHeight: stampFontSize(stamp) * 1.02,
+        }}
+        numberOfLines={3}
+      >
+        {stamp}
+      </Text>
+    </View>
+  );
+};
+
+export interface MixTileProps {
+  kind: MixKind;
+  /** Localized title (title_key through i18n, NEVER the payload English). */
+  title: string;
+  /** Localized description. */
+  description: string;
+  stamp: string;
+  artworkUri?: string | null;
+  onPress: () => void;
+  width?: number;
+  style?: StyleProp<ViewStyle>;
+}
+
+export const MixTile = ({
+  kind,
+  title,
+  description,
+  stamp,
+  artworkUri,
+  onPress,
+  width = TILE_WIDTH,
+  style,
+}: MixTileProps) => {
+  const { tokens, scheme } = useTheme();
+  const artSize = width - 24;
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      style={({ pressed }) => [
+        {
+          width,
+          padding: 12,
+          borderRadius: RADIUS,
+          gap: 12,
+          backgroundColor: pressed ? foregroundWash(scheme, 0.05) : "transparent",
+        },
+        style,
+      ]}
+    >
+      <MixTileArtwork kind={kind} stamp={stamp} artworkUri={artworkUri} size={artSize} />
+      <View style={{ gap: 2, minWidth: 0 }}>
+        <Text style={[typeScale.tileTitle, { color: tokens.foreground }]} numberOfLines={1}>
+          {title}
+        </Text>
+        <Text
+          style={[typeScale.tileSubtitle, { color: tokens.mutedForeground }]}
+          numberOfLines={2}
+        >
+          {description}
+        </Text>
+      </View>
+    </Pressable>
+  );
+};

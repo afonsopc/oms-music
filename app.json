@@ -20,7 +20,20 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": false,
+          "data": [
+            { "scheme": "https", "host": "omelhorsite.pt", "pathPrefix": "/en/music" },
+            { "scheme": "https", "host": "omelhorsite.pt", "pathPrefix": "/pt/music" },
+            { "scheme": "https", "host": "omelhorsite.pt", "pathPrefix": "/lv/music" },
+            { "scheme": "https", "host": "omelhorsite.pt", "pathPrefix": "/music" }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
     },
     "web": {
       "output": "static",
