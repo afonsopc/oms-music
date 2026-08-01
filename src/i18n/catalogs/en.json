@@ -863,6 +863,12 @@
         "spotifyNotAllowlisted": "Your account is not allowed to use Spotify.",
         "oauthFailed": "Sign-in failed. Try again."
       },
+      "oauth": {
+        "dividerOr": "or",
+        "github": "Continue with GitHub",
+        "spotify": "Continue with Spotify",
+        "sheetTitle": "Sign in"
+      },
       "login": {
         "title": "Sign in",
         "email": "Email",
@@ -913,6 +919,163 @@
       "tabLibrary": "Library",
       "tabDownloads": "Downloads",
       "closePlayer": "Close player"
+    },
+    "library": {
+      "settings": "Settings",
+      "filterPlaceholder": "Filter your library",
+      "emptyAlbums": "No albums found",
+      "noFilterMatches": "Nothing matches your filter."
+    },
+    "playlistArtwork": {
+      "tooLarge": "Image is too large (max {max} MB). Pick a smaller one.",
+      "squareHint": "The image is uploaded as it is, so a square one looks best."
+    },
+    "devices": {
+      "title": "Devices",
+      "subtitle": "Sessions signed in to your account.",
+      "thisDevice": "This device",
+      "rename": "Rename this device",
+      "namePlaceholder": "Device name",
+      "save": "Save",
+      "lastUsed": "Last used {date}",
+      "empty": "No sessions found",
+      "renameError": "Could not rename this device.",
+      "revokeNote": "Other devices can only be signed out from the device itself."
+    },
+    "downloads": {
+      "noWifiRefused": "No WiFi - download refused.",
+      "enqueueFailed": "Could not start the download.",
+      "menuDownload": "Download",
+      "menuDownloading": "Downloading {percent}%",
+      "menuRemove": "Remove download",
+      "offlinePill": "No network",
+      "songCount": "{count, plural, one {# song} other {# songs}}",
+      "fileCount": "{count, plural, one {# file} other {# files}}",
+      "inFlightTitle": "Downloading",
+      "queued": "Queued",
+      "emptyHint": "No downloaded songs yet. Open a song menu and choose Download, or use a playlist's Download button to take it all at once.",
+      "settingsTitle": "Download settings",
+      "wifiOnlyTitle": "Only over WiFi",
+      "wifiOnlyDetail": "New downloads are refused on mobile data.",
+      "includeStemsTitle": "Include separated stems",
+      "includeStemsDetail": "Also downloads the vocals and the instrumental when they exist. Uses about twice the storage.",
+      "onlyDownloadedTitle": "Show downloaded only",
+      "onlyDownloadedDetail": "Playlists and albums list only downloaded songs, and manual reordering is disabled.",
+      "storageUsed": "{size} used on this device"
+    },
+    "player": {
+      "audioSettings": "Audio settings",
+      "speed": "Speed",
+      "sleepTimer": "Sleep timer",
+      "sleepOff": "Off",
+      "sleepMinutes": "{minutes} min",
+      "sleepEndOfSong": "End of song",
+      "playbackMode": "Playback",
+      "modeOriginal": "Original",
+      "modeInstrumental": "Instrumental",
+      "modeVocals": "Vocals",
+      "modeCustomUnavailable": "Custom blend is not available on this device.",
+      "stemsMissing": "Separate the vocals to unlock these modes.",
+      "separation": "Vocal separation",
+      "separate": "Separate vocals",
+      "separating": "Separating... {elapsed}",
+      "separationReady": "Vocals and instrumental ready",
+      "separationFailed": "Separation failed",
+      "separationIdle": "No separated tracks yet",
+      "removeStems": "Delete separated tracks",
+      "volume": "Volume",
+      "progress": "Playback progress",
+      "upNext": "Up next"
+    },
+    "settings": {
+      "hub": {
+        "title": "Settings",
+        "sectionLibrary": "Library",
+        "sectionPlayback": "Playback and device",
+        "rowDownloads": "Downloads",
+        "rowDevices": "Devices",
+        "theme": "Theme",
+        "themeLight": "Light",
+        "themeDark": "Dark",
+        "themeSystem": "System",
+        "language": "Language",
+        "languageEn": "English",
+        "languagePt": "Português",
+        "languageLv": "Latviešu"
+      },
+      "pickers": {
+        "unavailable": "Picking images is not available on this device."
+      },
+      "separation": {
+        "processing": "Separating vocals ({elapsed})"
+      },
+      "songs": {
+        "filtersTitle": "Filters",
+        "filtersClear": "Clear filters",
+        "noFilterOptions": "Nothing to filter yet",
+        "selectionStart": "Select",
+        "selectionCancel": "Cancel selection",
+        "toolsSection": "Tools",
+        "metadataToolTitle": "Metadata modifier",
+        "metadataToolDescription": "Edit the tags of a local audio file and save a tagged copy. Nothing in your library changes.",
+        "metadataToolNote": "Files up to 50 MB. Track numbers are not written.",
+        "metadataToolPick": "Choose an audio file",
+        "metadataToolRun": "Modify and save",
+        "metadataToolSaved": "Saved to {uri}",
+        "metadataToolTooLarge": "That file is over 50 MB.",
+        "metadataToolGenre": "Genre"
+      },
+      "artists": {
+        "mediaImage": "photo",
+        "mediaBanner": "banner",
+        "mediaGallery": "gallery",
+        "emptyFiltered": "No artists match this filter."
+      }
+    },
+    "import": {
+      "url": {
+        "artworkSearch": "Search covers",
+        "artworkSearchPlaceholder": "Artist and title",
+        "artworkUpload": "Upload image",
+        "deduped": "Already in your library",
+        "noTracks": "Nothing importable at that URL."
+      },
+      "spotify": {
+        "progressTitle": "Sync progress",
+        "trackTotals": "{queued} new, {skipped} already in library",
+        "enabled": "Syncing",
+        "disabled": "Not syncing",
+        "destructiveTitle": "Delete the local copy?",
+        "destructiveLiked": "Turning liked sync off deletes the mirrored Liked Songs playlist right away. Turning it back on recreates it on the next sync.",
+        "destructivePlaylist": "Deselecting \"{name}\" deletes its local copy right away. Selecting it again recreates it on the next sync.",
+        "destructiveConfirm": "Delete"
+      }
+    },
+    "jam": {
+      "hostBadge": "Host",
+      "noFriends": "Add friends to invite them to a jam.",
+      "noJoinable": "No jams to join right now.",
+      "endConfirmTitle": "End the jam?",
+      "endConfirmBody": "Everyone leaves with you. A jam cannot be handed over to another member.",
+      "endConfirm": "End jam",
+      "startFailed": "Could not start the jam",
+      "joinFailed": "Could not join the jam",
+      "inviteFailed": "Could not send the invite",
+      "rulesFailed": "Could not change the jam rules",
+      "inviteReceived": "@{handle} invited you to a jam"
+    },
+    "friends": {
+      "title": "Friends"
+    },
+    "profile": {
+      "title": "Music",
+      "private": "Nothing to show here.",
+      "listeningNow": "Listening now",
+      "topArtists": "Top artists",
+      "topSongs": "Top songs",
+      "recent": "Recently played",
+      "plays": "{count} plays",
+      "playsLastMonth": "{count} plays in the last 30 days"
     }
   }
 }

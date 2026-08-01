@@ -6,6 +6,7 @@
  * test enforces key-tree equality.
  */
 import { useSyncExternalStore } from "react";
+import { getLocales } from "expo-localization";
 import en from "./catalogs/en.json";
 import pt from "./catalogs/pt.json";
 import lv from "./catalogs/lv.json";
@@ -30,7 +31,23 @@ const catalogs: Record<Locale, Catalog> = {
 const isLocale = (value: unknown): value is Locale =>
   value === "en" || value === "pt" || value === "lv";
 
+/**
+ * Device language, in the user's own preference order: expo-localization
+ * reports the full preference list (a Latvian with English second gets lv),
+ * which Intl cannot do. Intl stays as the fallback so the module keeps
+ * working in bun tests and on any platform where the native module is absent.
+ */
 const detectDeviceLocale = (): Locale => {
+  try {
+    for (const entry of getLocales()) {
+      const language = (entry.languageCode ?? entry.languageTag)
+        .toLowerCase()
+        .split(/[-_]/)[0];
+      if (isLocale(language)) return language;
+    }
+  } catch {
+    // Native module unavailable (bun test, web SSR): fall through to Intl.
+  }
   try {
     const resolved = new Intl.DateTimeFormat().resolvedOptions().locale ?? "";
     const language = resolved.toLowerCase().split(/[-_]/)[0];

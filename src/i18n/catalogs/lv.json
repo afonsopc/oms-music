@@ -863,6 +863,12 @@
         "spotifyNotAllowlisted": "Jūsu kontam nav atļauts izmantot Spotify.",
         "oauthFailed": "Pierakstīšanās neizdevās. Mēģiniet vēlreiz."
       },
+      "oauth": {
+        "dividerOr": "vai",
+        "github": "Turpināt ar GitHub",
+        "spotify": "Turpināt ar Spotify",
+        "sheetTitle": "Pierakstīties"
+      },
       "login": {
         "title": "Pierakstīties",
         "email": "E-pasts",
@@ -913,6 +919,163 @@
       "tabLibrary": "Bibliotēka",
       "tabDownloads": "Lejupielādes",
       "closePlayer": "Aizvērt atskaņotāju"
+    },
+    "library": {
+      "settings": "Iestatījumi",
+      "filterPlaceholder": "Filtrēt savu bibliotēku",
+      "emptyAlbums": "Nav atrasts neviens albums",
+      "noFilterMatches": "Nekas neatbilst filtram."
+    },
+    "playlistArtwork": {
+      "tooLarge": "Attēls ir pārāk liels (maks. {max} MB). Izvēlies mazāku.",
+      "squareHint": "Attēls tiek augšupielādēts tāds, kāds tas ir, tāpēc kvadrātveida izskatās vislabāk."
+    },
+    "devices": {
+      "title": "Ierīces",
+      "subtitle": "Sesijas, kas pieteikušās tavā kontā.",
+      "thisDevice": "Šī ierīce",
+      "rename": "Pārdēvēt šo ierīci",
+      "namePlaceholder": "Ierīces nosaukums",
+      "save": "Saglabāt",
+      "lastUsed": "Pēdējoreiz izmantota {date}",
+      "empty": "Nav atrasta neviena sesija",
+      "renameError": "Neizdevās pārdēvēt šo ierīci.",
+      "revokeNote": "Sesijas citās ierīcēs var beigt tikai no pašas ierīces."
+    },
+    "downloads": {
+      "noWifiRefused": "Nav WiFi - lejupielāde atteikta.",
+      "enqueueFailed": "Neizdevās sākt lejupielādi.",
+      "menuDownload": "Lejupielādēt",
+      "menuDownloading": "Lejupielādē {percent}%",
+      "menuRemove": "Noņemt lejupielādi",
+      "offlinePill": "Nav savienojuma",
+      "songCount": "{count, plural, zero {# dziesmu} one {# dziesma} other {# dziesmas}}",
+      "fileCount": "{count, plural, zero {# failu} one {# fails} other {# faili}}",
+      "inFlightTitle": "Lejupielādē",
+      "queued": "Rindā",
+      "emptyHint": "Vēl nav lejupielādētu dziesmu. Atver dziesmas izvēlni un izvēlies Lejupielādēt vai izmanto atskaņošanas saraksta pogu, lai lejupielādētu visu uzreiz.",
+      "settingsTitle": "Lejupielāžu iestatījumi",
+      "wifiOnlyTitle": "Tikai WiFi tīklā",
+      "wifiOnlyDetail": "Mobilajos datos jaunas lejupielādes tiek atteiktas.",
+      "includeStemsTitle": "Iekļaut atdalītos celiņus",
+      "includeStemsDetail": "Lejupielādē arī vokālu un instrumentālo versiju, ja tās pastāv. Aizņem apmēram divreiz vairāk vietas.",
+      "onlyDownloadedTitle": "Rādīt tikai lejupielādētās",
+      "onlyDownloadedDetail": "Atskaņošanas sarakstos un albumos redzamas tikai lejupielādētās dziesmas, un manuāla pārkārtošana ir atspējota.",
+      "storageUsed": "{size} izmantoti šajā ierīcē"
+    },
+    "player": {
+      "audioSettings": "Skaņas iestatījumi",
+      "speed": "Ātrums",
+      "sleepTimer": "Miega taimeris",
+      "sleepOff": "Izslēgts",
+      "sleepMinutes": "{minutes} min",
+      "sleepEndOfSong": "Dziesmas beigās",
+      "playbackMode": "Atskaņošana",
+      "modeOriginal": "Oriģināls",
+      "modeInstrumental": "Instrumentālais",
+      "modeVocals": "Vokāls",
+      "modeCustomUnavailable": "Pielāgotais miksējums šajā ierīcē nav pieejams.",
+      "stemsMissing": "Atdali vokālu, lai atslēgtu šos režīmus.",
+      "separation": "Vokāla atdalīšana",
+      "separate": "Atdalīt vokālu",
+      "separating": "Notiek atdalīšana... {elapsed}",
+      "separationReady": "Vokāls un instrumentālais ir gatavi",
+      "separationFailed": "Atdalīšana neizdevās",
+      "separationIdle": "Atdalīto celiņu vēl nav",
+      "removeStems": "Dzēst atdalītos celiņus",
+      "volume": "Skaļums",
+      "progress": "Atskaņošanas gaita",
+      "upNext": "Nākamās"
+    },
+    "settings": {
+      "hub": {
+        "title": "Iestatījumi",
+        "sectionLibrary": "Bibliotēka",
+        "sectionPlayback": "Atskaņošana un ierīce",
+        "rowDownloads": "Lejupielādes",
+        "rowDevices": "Ierīces",
+        "theme": "Motīvs",
+        "themeLight": "Gaišs",
+        "themeDark": "Tumšs",
+        "themeSystem": "Sistēmas",
+        "language": "Valoda",
+        "languageEn": "English",
+        "languagePt": "Português",
+        "languageLv": "Latviešu"
+      },
+      "pickers": {
+        "unavailable": "Attēlu izvēle šajā ierīcē nav pieejama."
+      },
+      "separation": {
+        "processing": "Atdala vokālu ({elapsed})"
+      },
+      "songs": {
+        "filtersTitle": "Filtri",
+        "filtersClear": "Notīrīt filtrus",
+        "noFilterOptions": "Vēl nav ko filtrēt",
+        "selectionStart": "Atlasīt",
+        "selectionCancel": "Atcelt atlasi",
+        "toolsSection": "Rīki",
+        "metadataToolTitle": "Metadatu redaktors",
+        "metadataToolDescription": "Rediģē lokāla audio faila tagus un saglabā tagotu kopiju. Bibliotēka netiek mainīta.",
+        "metadataToolNote": "Faili līdz 50 MB. Celiņa numurs netiek ierakstīts.",
+        "metadataToolPick": "Izvēlēties audio failu",
+        "metadataToolRun": "Mainīt un saglabāt",
+        "metadataToolSaved": "Saglabāts: {uri}",
+        "metadataToolTooLarge": "Šis fails pārsniedz 50 MB.",
+        "metadataToolGenre": "Žanrs"
+      },
+      "artists": {
+        "mediaImage": "foto",
+        "mediaBanner": "banneris",
+        "mediaGallery": "galerija",
+        "emptyFiltered": "Neviens izpildītājs neatbilst šim filtram."
+      }
+    },
+    "import": {
+      "url": {
+        "artworkSearch": "Meklēt vākus",
+        "artworkSearchPlaceholder": "Izpildītājs un nosaukums",
+        "artworkUpload": "Augšupielādēt attēlu",
+        "deduped": "Jau ir bibliotēkā",
+        "noTracks": "Šajā URL nav ko importēt."
+      },
+      "spotify": {
+        "progressTitle": "Sinhronizācijas gaita",
+        "trackTotals": "{queued} jaunas, {skipped} jau bibliotēkā",
+        "enabled": "Sinhronizē",
+        "disabled": "Nesinhronizē",
+        "destructiveTitle": "Dzēst lokālo kopiju?",
+        "destructiveLiked": "Izslēdzot patīk sinhronizāciju, spoguļotais patīk saraksts tiek dzēsts uzreiz. To ieslēdzot atkal, saraksts tiek izveidots nākamajā sinhronizācijā.",
+        "destructivePlaylist": "Noņemot \"{name}\", tā lokālā kopija tiek dzēsta uzreiz. To atzīmējot atkal, saraksts tiek izveidots nākamajā sinhronizācijā.",
+        "destructiveConfirm": "Dzēst"
+      }
+    },
+    "jam": {
+      "hostBadge": "Saimnieks",
+      "noFriends": "Pievieno draugus, lai uzaicinātu viņus uz jam sesiju.",
+      "noJoinable": "Pašlaik nav neviena jam, kam pievienoties.",
+      "endConfirmTitle": "Beigt jam sesiju?",
+      "endConfirmBody": "Visi aiziet kopā ar tevi. Jam sesiju nevar nodot citam dalībniekam.",
+      "endConfirm": "Beigt jam",
+      "startFailed": "Neizdevās sākt jam sesiju",
+      "joinFailed": "Neizdevās pievienoties jam sesijai",
+      "inviteFailed": "Neizdevās nosūtīt uzaicinājumu",
+      "rulesFailed": "Neizdevās mainīt jam noteikumus",
+      "inviteReceived": "@{handle} uzaicināja tevi uz jam sesiju"
+    },
+    "friends": {
+      "title": "Draugi"
+    },
+    "profile": {
+      "title": "Mūzika",
+      "private": "Šeit nav ko rādīt.",
+      "listeningNow": "Klausās tagad",
+      "topArtists": "Populārākie izpildītāji",
+      "topSongs": "Populārākās dziesmas",
+      "recent": "Nesen klausītais",
+      "plays": "{count} atskaņojumi",
+      "playsLastMonth": "{count} atskaņojumi pēdējās 30 dienās"
     }
   }
 }

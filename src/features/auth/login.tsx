@@ -2,8 +2,8 @@
  * Login screen (FR-7). Email + password -> POST /sessions via the WP1 auth
  * service; on success the session store flips to authed and the root layout's
  * guards land on Home. 401 shows the inline invalid-credentials message; 429
- * shows the retry-after countdown message. OAuth buttons are hidden until the
- * WebView dependency is approved (FR-12); no passkey button (FR-13 deferred).
+ * shows the retry-after countdown message. OAuth buttons (GitHub, Spotify) run
+ * the WebView ticket flow (FR-12); no passkey button (FR-13 deferred).
  */
 import React, { useState } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";

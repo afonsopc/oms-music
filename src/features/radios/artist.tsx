@@ -1,24 +1,17 @@
 /**
- * Placeholder scaffold (WP2). Owned by WP6, which replaces this file
- * wholesale. Deliberately self-contained: no imports from src/** so the
- * scaffold compiles standalone.
+ * Artist radio route body (FR-122). The `[artist]` segment is a slug or a
+ * raw name; a missing/blank segment falls back Home rather than firing a
+ * request that can only 404 (FR-123 AC).
  */
-import { useLocalSearchParams } from "expo-router";
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Redirect, useLocalSearchParams } from "expo-router";
+import { RadioScreen } from "./index";
 
 export default function ArtistRadioScreen() {
-  const params = useLocalSearchParams();
-  return (
-    <View style={styles.container}>
-      <Text style={styles.label}>radios/artist - not built yet (WP6)</Text>
-      <Text style={styles.params}>{JSON.stringify(params)}</Text>
-    </View>
-  );
+  const params = useLocalSearchParams<{ artist: string }>();
+  const artist = (params.artist ?? "").trim();
+  if (!artist || artist === "null") {
+    return <Redirect href="/(main)/(tabs)/home" />;
+  }
+  return <RadioScreen kind="artist" artist={artist} />;
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24 },
-  label: { opacity: 0.5, textAlign: "center" },
-  params: { opacity: 0.35, marginTop: 8, fontSize: 12, textAlign: "center" },
-});

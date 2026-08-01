@@ -11,6 +11,7 @@ import { isApiError } from "@/domain/api";
 import type { Session, User } from "@/domain/user";
 import { clearToken, loadToken, setToken } from "./token";
 import { onAuthLoss, setAuthReady } from "./guard";
+import { adoptTicket } from "./oauth";
 
 export type SessionStatus = "booting" | "anon" | "authed";
 
@@ -119,6 +120,24 @@ export const login = async (email: string, password: string): Promise<void> => {
     set({ user });
   } catch {
     // The embedded user from the token view is enough to render.
+  }
+};
+
+/**
+ * OAuth (FR-12): exchange the intercepted callback ticket for a session and
+ * land authed exactly like login() - the WebView flow has no password step,
+ * so the account payload comes from /sessions/mine + /users/:id.
+ */
+export const adoptOAuthTicket = async (ticket: string): Promise<void> => {
+  await adoptTicket(ticket);
+  const session = await request<Session>("GET", "/sessions/mine");
+  set({ status: "authed", session, user: session.user ?? null, offlineBoot: false });
+  setAuthReady(true);
+  try {
+    const user = await request<User>("GET", `/users/${session.user_id}`);
+    set({ user });
+  } catch {
+    // The session view carries enough to render; the account refreshes later.
   }
 };
 

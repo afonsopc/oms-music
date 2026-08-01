@@ -1,24 +1,17 @@
 /**
- * Placeholder scaffold (WP2). Owned by WP6, which replaces this file
- * wholesale. Deliberately self-contained: no imports from src/** so the
- * scaffold compiles standalone.
+ * Song radio route body (FR-122). A non-numeric or missing id falls back
+ * Home instead of requesting a radio that cannot exist (FR-123 AC).
  */
-import { useLocalSearchParams } from "expo-router";
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Redirect, useLocalSearchParams } from "expo-router";
+import type { SongId } from "@/domain/ids";
+import { RadioScreen } from "./index";
 
 export default function SongRadioScreen() {
-  const params = useLocalSearchParams();
-  return (
-    <View style={styles.container}>
-      <Text style={styles.label}>radios/song - not built yet (WP6)</Text>
-      <Text style={styles.params}>{JSON.stringify(params)}</Text>
-    </View>
-  );
+  const params = useLocalSearchParams<{ id: string }>();
+  const songId = Number(params.id);
+  if (!Number.isInteger(songId) || songId <= 0) {
+    return <Redirect href="/(main)/(tabs)/home" />;
+  }
+  return <RadioScreen kind="song" songId={songId as SongId} />;
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24 },
-  label: { opacity: 0.5, textAlign: "center" },
-  params: { opacity: 0.35, marginTop: 8, fontSize: 12, textAlign: "center" },
-});

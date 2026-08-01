@@ -8,14 +8,19 @@
     "scheme": "omsmusic",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon",
+      "icon": "./assets/images/icon.png",
       "bundleIdentifier": "pt.omelhorsite.music",
-      "supportsTablet": true
+      "buildNumber": "1",
+      "supportsTablet": true,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "pt.omelhorsite.music",
+      "versionCode": 1,
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#660090",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -26,12 +31,31 @@
           "action": "VIEW",
           "autoVerify": false,
           "data": [
-            { "scheme": "https", "host": "omelhorsite.pt", "pathPrefix": "/en/music" },
-            { "scheme": "https", "host": "omelhorsite.pt", "pathPrefix": "/pt/music" },
-            { "scheme": "https", "host": "omelhorsite.pt", "pathPrefix": "/lv/music" },
-            { "scheme": "https", "host": "omelhorsite.pt", "pathPrefix": "/music" }
+            {
+              "scheme": "https",
+              "host": "omelhorsite.pt",
+              "pathPrefix": "/en/music"
+            },
+            {
+              "scheme": "https",
+              "host": "omelhorsite.pt",
+              "pathPrefix": "/pt/music"
+            },
+            {
+              "scheme": "https",
+              "host": "omelhorsite.pt",
+              "pathPrefix": "/lv/music"
+            },
+            {
+              "scheme": "https",
+              "host": "omelhorsite.pt",
+              "pathPrefix": "/music"
+            }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ]
     },
@@ -44,9 +68,9 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
+          "backgroundColor": "#660090",
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "imageWidth": 160
         }
       ],
       [
@@ -57,7 +81,8 @@
       ],
       "expo-sqlite",
       "expo-secure-store",
-      "expo-image"
+      "expo-image",
+      "expo-localization"
     ],
     "experiments": {
       "typedRoutes": true,

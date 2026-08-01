@@ -863,6 +863,12 @@
         "spotifyNotAllowlisted": "A sua conta não tem permissão para usar o Spotify.",
         "oauthFailed": "O início de sessão falhou. Tente novamente."
       },
+      "oauth": {
+        "dividerOr": "ou",
+        "github": "Continuar com o GitHub",
+        "spotify": "Continuar com o Spotify",
+        "sheetTitle": "Iniciar sessão"
+      },
       "login": {
         "title": "Iniciar sessão",
         "email": "Email",
@@ -913,6 +919,163 @@
       "tabLibrary": "Biblioteca",
       "tabDownloads": "Transferências",
       "closePlayer": "Fechar leitor"
+    },
+    "library": {
+      "settings": "Definições",
+      "filterPlaceholder": "Filtrar a tua biblioteca",
+      "emptyAlbums": "Nenhum álbum encontrado",
+      "noFilterMatches": "Nada corresponde ao filtro."
+    },
+    "playlistArtwork": {
+      "tooLarge": "Imagem demasiado grande (máx. {max} MB). Escolhe uma mais pequena.",
+      "squareHint": "A imagem é enviada tal como está, por isso uma quadrada fica melhor."
+    },
+    "devices": {
+      "title": "Dispositivos",
+      "subtitle": "Sessões com sessão iniciada na tua conta.",
+      "thisDevice": "Este dispositivo",
+      "rename": "Mudar o nome deste dispositivo",
+      "namePlaceholder": "Nome do dispositivo",
+      "save": "Guardar",
+      "lastUsed": "Última utilização a {date}",
+      "empty": "Nenhuma sessão encontrada",
+      "renameError": "Não foi possível mudar o nome deste dispositivo.",
+      "revokeNote": "As sessões noutros dispositivos só podem terminar a partir do próprio dispositivo."
+    },
+    "downloads": {
+      "noWifiRefused": "Sem WiFi - transferência recusada.",
+      "enqueueFailed": "Não foi possível iniciar a transferência.",
+      "menuDownload": "Transferir",
+      "menuDownloading": "A transferir {percent}%",
+      "menuRemove": "Remover transferência",
+      "offlinePill": "Sem rede",
+      "songCount": "{count, plural, one {# música} other {# músicas}}",
+      "fileCount": "{count, plural, one {# ficheiro} other {# ficheiros}}",
+      "inFlightTitle": "A transferir",
+      "queued": "Na fila",
+      "emptyHint": "Ainda não tens músicas descarregadas. Abre o menu de uma música e escolhe Transferir, ou usa o botão Transferir de uma playlist para levares tudo de uma vez.",
+      "settingsTitle": "Definições de transferências",
+      "wifiOnlyTitle": "Só por WiFi",
+      "wifiOnlyDetail": "Novas transferências são recusadas em dados móveis.",
+      "includeStemsTitle": "Incluir faixas separadas",
+      "includeStemsDetail": "Transfere também as vozes e o instrumental quando existem. Ocupa cerca do dobro do espaço.",
+      "onlyDownloadedTitle": "Mostrar só descarregadas",
+      "onlyDownloadedDetail": "As playlists e os álbuns mostram só músicas descarregadas e a reordenação manual fica desativada.",
+      "storageUsed": "{size} usados neste dispositivo"
+    },
+    "player": {
+      "audioSettings": "Definições de áudio",
+      "speed": "Velocidade",
+      "sleepTimer": "Temporizador",
+      "sleepOff": "Desligado",
+      "sleepMinutes": "{minutes} min",
+      "sleepEndOfSong": "Fim da música",
+      "playbackMode": "Reprodução",
+      "modeOriginal": "Original",
+      "modeInstrumental": "Instrumental",
+      "modeVocals": "Vozes",
+      "modeCustomUnavailable": "A mistura personalizada não está disponível neste dispositivo.",
+      "stemsMissing": "Separa as vozes para desbloqueares estes modos.",
+      "separation": "Separação de vozes",
+      "separate": "Separar vozes",
+      "separating": "A separar... {elapsed}",
+      "separationReady": "Vozes e instrumental prontos",
+      "separationFailed": "A separação falhou",
+      "separationIdle": "Ainda não há faixas separadas",
+      "removeStems": "Apagar faixas separadas",
+      "volume": "Volume",
+      "progress": "Progresso da reprodução",
+      "upNext": "A seguir"
+    },
+    "settings": {
+      "hub": {
+        "title": "Definições",
+        "sectionLibrary": "Biblioteca",
+        "sectionPlayback": "Reprodução e dispositivo",
+        "rowDownloads": "Transferências",
+        "rowDevices": "Dispositivos",
+        "theme": "Tema",
+        "themeLight": "Claro",
+        "themeDark": "Escuro",
+        "themeSystem": "Sistema",
+        "language": "Idioma",
+        "languageEn": "English",
+        "languagePt": "Português",
+        "languageLv": "Latviešu"
+      },
+      "pickers": {
+        "unavailable": "Escolher imagens não está disponível neste dispositivo."
+      },
+      "separation": {
+        "processing": "A separar vozes ({elapsed})"
+      },
+      "songs": {
+        "filtersTitle": "Filtros",
+        "filtersClear": "Limpar filtros",
+        "noFilterOptions": "Ainda não há nada para filtrar",
+        "selectionStart": "Selecionar",
+        "selectionCancel": "Cancelar seleção",
+        "toolsSection": "Ferramentas",
+        "metadataToolTitle": "Editor de metadados",
+        "metadataToolDescription": "Edita as etiquetas de um ficheiro áudio local e guarda uma cópia etiquetada. A tua biblioteca não muda.",
+        "metadataToolNote": "Ficheiros até 50 MB. O número da faixa não é escrito.",
+        "metadataToolPick": "Escolher ficheiro áudio",
+        "metadataToolRun": "Modificar e guardar",
+        "metadataToolSaved": "Guardado em {uri}",
+        "metadataToolTooLarge": "Esse ficheiro tem mais de 50 MB.",
+        "metadataToolGenre": "Género"
+      },
+      "artists": {
+        "mediaImage": "foto",
+        "mediaBanner": "banner",
+        "mediaGallery": "galeria",
+        "emptyFiltered": "Nenhum artista corresponde a este filtro."
+      }
+    },
+    "import": {
+      "url": {
+        "artworkSearch": "Procurar capas",
+        "artworkSearchPlaceholder": "Artista e título",
+        "artworkUpload": "Carregar imagem",
+        "deduped": "Já está na tua biblioteca",
+        "noTracks": "Não há nada para importar neste URL."
+      },
+      "spotify": {
+        "progressTitle": "Progresso da sincronização",
+        "trackTotals": "{queued} novas, {skipped} já na biblioteca",
+        "enabled": "A sincronizar",
+        "disabled": "Sem sincronizar",
+        "destructiveTitle": "Apagar a cópia local?",
+        "destructiveLiked": "Desligar a sincronização dos gostos apaga já a lista espelho das músicas gostadas. Ao voltar a ligar, a lista é recriada na sincronização seguinte.",
+        "destructivePlaylist": "Desmarcar \"{name}\" apaga já a cópia local. Ao voltar a marcar, a lista é recriada na sincronização seguinte.",
+        "destructiveConfirm": "Apagar"
+      }
+    },
+    "jam": {
+      "hostBadge": "Anfitrião",
+      "noFriends": "Adiciona amigos para os convidares para uma jam.",
+      "noJoinable": "Não há jams para entrar neste momento.",
+      "endConfirmTitle": "Terminar a jam?",
+      "endConfirmBody": "Toda a gente sai contigo. Uma jam não pode ser passada para outro membro.",
+      "endConfirm": "Terminar jam",
+      "startFailed": "Não foi possível iniciar a jam",
+      "joinFailed": "Não foi possível entrar na jam",
+      "inviteFailed": "Não foi possível enviar o convite",
+      "rulesFailed": "Não foi possível alterar as regras da jam",
+      "inviteReceived": "@{handle} convidou-te para uma jam"
+    },
+    "friends": {
+      "title": "Amigos"
+    },
+    "profile": {
+      "title": "Música",
+      "private": "Não há nada para mostrar aqui.",
+      "listeningNow": "A ouvir agora",
+      "topArtists": "Artistas de topo",
+      "topSongs": "Músicas de topo",
+      "recent": "Ouvido recentemente",
+      "plays": "{count} reproduções",
+      "playsLastMonth": "{count} reproduções nos últimos 30 dias"
     }
   }
 }
