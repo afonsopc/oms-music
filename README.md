@@ -181,14 +181,20 @@ The specification the implementation was built against. Read in this order:
 
 Everything in `SPEC.md` ships except the items in `DESIGN.md` section 16. Current status:
 
-1. **Custom blend (FR-69).** Deferred. expo-audio cannot sample-sync two players, so the
-   blend sliders are hidden and an adopted `custom` mode plays the plain mix; the wire
-   values (`playback_mode`, `vocal_volume`, `instrumental_volume`) are stored and
-   republished untouched. Follow-up: a native stem mixer behind `player/sources.ts`.
-2. **3-band EQ (FR-70).** Deferred. No EQ path in expo-audio; the panel is hidden, the bands
-   persist and round-trip on the wire. Same native module follow-up.
-3. **Passkeys (FR-13).** Blocked on associated domains for omelhorsite.pt. The contract stub
-   with the verbatim-payload (`raw: true`) rule stays in `auth/`.
+1. **Custom blend (FR-69).** SHIPPED on 2026-08-03. `modules/oms-native` mixes the two stems:
+   two `AVAudioPlayerNode`s scheduled at the same sample time on iOS, two `MediaCodec`
+   decoders feeding one `AudioTrack` on Android, so the stems share a clock rather than
+   promising to. The muted expo-audio player stays loaded as the clock and lock-screen owner,
+   exactly as the web keeps a muted `<audio>` element. Both stems must be on disk first, same
+   as the web. The old behavior (plain mix, wire values untouched) survives as the fallback
+   when no mixer is in the build, the stems are not resident yet, or the mixer reports a
+   failure.
+2. **3-band EQ (FR-70).** SHIPPED on 2026-08-03, inside that mixer, with per-band bypass so a
+   flat EQ costs nothing.
+3. **Passkeys (FR-13).** SHIPPED on 2026-08-03 against the WebAuthn the backend already had.
+   Still needs configuration outside this repo before it works in production: publish the two
+   `.well-known` files (written into the website repo), confirm the Apple Developer Program
+   membership, and choose the Android signing key. `docs/PASSKEYS.md` has the steps.
 4. **Google OAuth (FR-12).** GitHub and Spotify ship through the WebView interception flow;
    Google refuses embedded WebViews, so its button is hidden. Follow-up is a web-side
    callback bounce into `omsmusic://oauth`; the `/sessions/adopt` plumbing already ships.
@@ -213,11 +219,16 @@ Everything in `SPEC.md` ships except the items in `DESIGN.md` section 16. Curren
   `player/lockScreen.ts#routeRemoteCommand`; on Android that module is a documented no-op.
   `docs/LOCKSCREEN-PATCH.md` has the exact diff inside expo-audio that would close the
   Android side and the two ways to deliver it. Nothing in `node_modules/` is patched today.
-- **No stem mixer and no EQ.** Deferred items 1 and 2 both wait on one unwritten native
-  module: two AVAudioPlayerNodes on a single render clock on iOS, a Media3/Oboe mixer plus
-  `DynamicsProcessing` on Android.
-- **No AASA / assetlinks.json on omelhorsite.pt.** This one missing web-side shipment is
-  what blocks passkeys (FR-13) and verified universal links (FR-20) at the same time.
+- **Stem blend drift is unmeasured.** The mixer cannot drift internally (one clock per
+  platform by construction), but the scrub bar reads the muted reference player while the
+  ears hear the mixer, and the two are only realigned on transport events. A ten-minute
+  listen on real hardware is the check that has not been done.
+- **The `.well-known` files are written but not published.** They live in the website repo at
+  `frontend/public/.well-known/`, and a real build proved the static export keeps them.
+  Until the site is deployed, passkeys (FR-13) and verified universal links (FR-20) stay
+  blocked. `assetlinks.json` deliberately carries an EMPTY fingerprint list: the Android
+  debug key is public, so listing it with `get_login_creds` would hand this domain's passkeys
+  to any app wearing the same package name.
 - **No download service that survives process death.** The fallback is named and unused:
   `@kesha-antonov/react-native-background-downloader` behind `downloads/tasks.ts`, to be
   added only if field data shows real losses.

@@ -571,9 +571,10 @@ are part of the frozen contract.
   LINKING reuses the same WebView against `/auth/link/spotify?token=<session token>`, and
   its `?error=spotify_not_allowlisted` refusal is EXPLAINED in the Spotify tab rather than
   closing the sheet silently.
-- **Passkeys (FR-13, P2).** Blocked on associated domains/asset-links which do not exist.
-  Contract stub only in `auth/`; WebAuthn payloads documented as `raw: true` (sentinel
-  bypass). Section 16.
+- **Passkeys (FR-13, P2).** IMPLEMENTED 2026-08-03, see `docs/PASSKEYS.md`. Sign in, register
+  and manage passkeys against `/webauthn_credentials/*`; WebAuthn payloads are `raw: true`
+  (sentinel bypass). What is left is domain and signing configuration outside this repo, not
+  code. Section 16.
 - **Devices (FR-14, P2).** `GET /sessions` list; rename current via `PATCH /sessions/:id`;
   NO fake revoke-other button (DELETE always kills the caller).
 
@@ -1196,10 +1197,15 @@ follow-up.
    FALLBACK, taken when no mixer is in the build or the stems are not on disk yet.
 2. **FR-70 3-band EQ (P2).** SUPERSEDED by amendment 16.A: the EQ ships inside the mixer
    path, with per-band bypass so a flat EQ still costs nothing in the audio path.
-3. **FR-13 passkeys (P2).** Blocked on AASA/assetlinks for omelhorsite.pt (do not exist).
-   v1: no passkey button; `auth/` keeps the contract stub with the verbatim-payload
-   (`raw: true`) rule. Follow-up: ship associated domains on the web origin, then
-   react-native-passkeys against `/webauthn_credentials/*`.
+3. **FR-13 passkeys (P2).** SUPERSEDED on 2026-08-03: implemented. react-native-passkeys
+   drives the four `/webauthn_credentials/*` endpoints the backend always had, sign-in is
+   the discoverable-credential ceremony, and registration plus management live under
+   Settings. WebAuthn payloads keep the verbatim-payload (`raw: true`) rule. What remains is
+   platform configuration outside this repo, tracked in `docs/PASSKEYS.md`: publishing the
+   two `.well-known` files (already written into the website repo), confirming the Apple
+   Developer Program membership since Associated Domains is a paid capability, and choosing
+   the Android signing key before `assetlinks.json` and the backend's allowed origins can
+   name it.
 4. **FR-12 Google OAuth (P1).** SETTLED: GitHub + Spotify ship via WebView interception and
    Google stays hidden. Google refuses OAuth in embedded user agents with
    `disallowed_useragent`, and neither escape exists on this stack today.
