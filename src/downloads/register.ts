@@ -51,6 +51,7 @@ import { registerOfflineLibrary, setOnlineState } from "./offlineLibrary";
 import { runRepairPass } from "./repair";
 import { getDownloadSettings, subscribeDownloadSettings } from "./settings";
 import { getStatusVersion, subscribeDownloadStatus } from "./status";
+import { registerStemFileProvider } from "./stemProvision";
 
 const LAST_USER_KV_KEY = "oms-music.downloads.last-user-id";
 
@@ -171,6 +172,10 @@ export const registerDownloads = (): void => {
   registered = true;
 
   setLocalFileIndex({ get: localUriFor, getArtworkByNodeId: localArtworkUriForNode });
+
+  // Custom blend: the mixer plays local files only, so the player asks this
+  // package to bring both stems onto disk first (DESIGN 16.1 amendment).
+  registerStemFileProvider();
 
   setDownloadStatusReader({
     getStatus: getStatusFor,

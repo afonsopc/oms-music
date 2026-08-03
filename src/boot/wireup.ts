@@ -47,8 +47,11 @@ import {
   SONG_MENU_SLOT_ORDER,
   type SongMenuSlotHook,
 } from "@/contracts/songMenu";
+import { getStemMixer } from "@/contracts/stemMixer";
+import { getStemFileProvider } from "@/contracts/stemFiles";
 import { getTransport } from "@/contracts/transport";
 import { DownloadStatusProvider } from "@/downloads/context";
+import { stemFileProvider } from "@/downloads/stemProvision";
 import { getShellSlots, registerShellProvider } from "@/features/shell/slots";
 import { registerDeviceSurfaces } from "@/features/devices/register";
 import { registerCoreSongMenuSlots } from "@/features/home/register";
@@ -66,6 +69,17 @@ import { NoticeHost, registerNoticeHandlers } from "./notices";
 // time, so a later identity change proves the engine (and then the remote
 // decorator) took over.
 const inertTransport = getTransport();
+
+/**
+ * Same trick for the custom-blend mixer (contracts/stemMixer). player/register
+ * installs the native bridge inside `registerPlayerEngine()`, which runs in
+ * this module's BODY, so the value captured here is still the inert default
+ * and a later identity change proves the real one took over. The check is
+ * about the WIRING, not about the binary: a build with no native mixer
+ * installs a bridge that honestly reports `isAvailable() === false`, and the
+ * report says so on the same row.
+ */
+const inertStemMixer = getStemMixer();
 
 /**
  * Separation is disabled on a controller (DESIGN 8.7): the run would land on
@@ -182,6 +196,24 @@ export const seamReport = (): SeamCheck[] => {
       seam: "separationService",
       ok: menu.has("separateVocals"),
       detail: "contracts/separation + separation/register",
+    },
+    {
+      // The mixer that makes `custom` audible. Two independent facts: the
+      // seam is wired (identity moved off the inert default) and whether this
+      // binary actually carries the native module.
+      seam: "stemMixer (custom blend audio)",
+      ok: getStemMixer() !== inertStemMixer,
+      detail: getStemMixer().isAvailable()
+        ? "player/register + oms-native OmsStemMixer"
+        : "player/register (no native mixer in this binary)",
+    },
+    {
+      // The mixer plays local files only, so the blend needs both stems on
+      // disk; without this the seam answers from the local index alone and
+      // never fetches.
+      seam: "stemFileProvider (stems on disk before the blend)",
+      ok: getStemFileProvider() === stemFileProvider,
+      detail: "downloads/stemProvision via downloads/register",
     },
     {
       seam: "playbackChannel (presence, roles, snapshots)",

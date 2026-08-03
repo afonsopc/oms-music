@@ -16,6 +16,10 @@
       "bundleIdentifier": "pt.omelhorsite.music",
       "buildNumber": "1",
       "supportsTablet": true,
+      "associatedDomains": [
+        "webcredentials:omelhorsite.pt",
+        "applinks:omelhorsite.pt"
+      ],
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }

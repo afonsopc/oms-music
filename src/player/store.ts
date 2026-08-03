@@ -11,6 +11,18 @@ import type { SongKey } from "@/domain/ids";
 import type { LoopMode, PlaybackMode } from "@/domain/playback";
 import type { Song } from "@/domain/song";
 
+/**
+ * What the custom blend is doing right now (DESIGN 16.1 amendment
+ * 2026-08-03). Purely a UI read: the audible truth is the mixer's.
+ *
+ *  - `off`         not in custom mode, or the song has no stems;
+ *  - `unsupported` custom mode but this build has no mixer (plain mix plays);
+ *  - `fetching`    both stems downloading; the plain mix stays audible;
+ *  - `active`      the mixer owns the audio, the original is muted;
+ *  - `failed`      the stems could not be fetched or loaded; plain mix plays.
+ */
+export type StemPhase = "off" | "unsupported" | "fetching" | "active" | "failed";
+
 export interface PlayerStoreState {
   queue: Song[];
   queueOrder: number[];
@@ -32,6 +44,12 @@ export interface PlayerStoreState {
   eqMid: number;
   eqHigh: number;
   eqEnabled: boolean;
+  /** Custom blend lifecycle; drives the cog's blend section (FR-69). */
+  stemPhase: StemPhase;
+  /** 0..1 while `stemPhase` is "fetching", else 0. */
+  stemProgress: number;
+  /** Capability read: whether a stem mixer exists in this build at all. */
+  stemMixerAvailable: boolean;
   sleepTimer: { minutes: number; endsAt: number } | { endOfSong: true } | null;
   failedSongKeys: ReadonlySet<SongKey>;
 }
@@ -57,6 +75,9 @@ export const initialPlayerState: PlayerStoreState = {
   eqMid: 0,
   eqHigh: 0,
   eqEnabled: false,
+  stemPhase: "off",
+  stemProgress: 0,
+  stemMixerAvailable: false,
   sleepTimer: null,
   failedSongKeys: new Set<SongKey>(),
 };

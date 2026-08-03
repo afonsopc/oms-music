@@ -1,18 +1,31 @@
 /**
  * OAuth sign-in buttons (FR-12, P1). react-native-webview is installed, so
  * the WebView interception flow is live: the button opens
- * `/auth/<provider>?mode=signin` in a modal WebView, `onShouldStartLoadWithRequest`
- * catches the hardcoded `https://omelhorsite.pt/account/oauth/callback` redirect
+ * `/auth/<provider>?mode=<signin|signup>` in a modal WebView and the hardcoded
+ * `https://omelhorsite.pt/account/oauth/callback` redirect is intercepted
  * (there is no custom-scheme redirect server-side and adding one would need a
- * backend change), and the extracted ticket is exchanged through
- * `POST /sessions/adopt` within its 2 minute TTL. Failures come back as
- * `?error=<code>` and map to the catalog through OAUTH_ERROR_KEYS.
+ * backend change). The extracted ticket is exchanged through
+ * `POST /sessions/adopt` within its 2 minute TTL, then handed to the shared
+ * `establishSession` path so OAuth lands exactly like a password login.
+ * Failures come back as `?error=<code>` and map to the catalog through
+ * OAUTH_ERROR_KEYS; an adopt that arrives too late maps to a "took too long"
+ * message rather than a generic one.
  *
- * GitHub and Spotify ship. Google stays hidden in v1: Google refuses embedded
- * WebViews with `disallowed_useragent` and the frontend-only "open in app"
- * bounce that fixes it is the follow-up in DESIGN 16.4. The `/sessions/adopt`
- * plumbing below is provider-agnostic, so turning Google on later is a
- * one-line change to OAUTH_PROVIDERS.
+ * Interception runs on BOTH `onShouldStartLoadWithRequest` and
+ * `onNavigationStateChange`: Android does not reliably fire the former for a
+ * server-side 302, and the backend callback IS a redirect. `parseOAuthCallback`
+ * matches on host plus normalised path rather than a literal prefix, because
+ * the apex rewrites `/account/oauth/callback` to
+ * `/<locale>/account/oauth/callback/` and Android often reports only that final
+ * URL.
+ *
+ * Which providers appear, and WHY Google does not, is decided by
+ * `oauthProvidersFor` in auth/oauthCallback.ts - the reasoning is recorded
+ * there because it is a contract fact, not a styling choice.
+ *
+ * The sheet only ever opens from a tap here, which is what stands in for the
+ * web client's `oauth_pending` marker: a callback URL cannot be replayed into
+ * the app because nothing else can navigate this WebView.
  *
  * The WebView runs `incognito`: the provider round trip needs its own cookie
  * jar, but nothing about it may persist (native auth is bearer-token only).
@@ -20,11 +33,14 @@
 import React, { useRef, useState } from "react";
 import { ActivityIndicator, Modal, Pressable, Text, View } from "react-native";
 import { WebView } from "react-native-webview";
+import { authErrorMessage, classifyAdoptError } from "@/auth/authErrors";
 import {
   buildOAuthUrl,
+  oauthErrorKey,
+  oauthProvidersFor,
   OAUTH_ERROR_KEYS,
   parseOAuthCallback,
-  type OAuthErrorCode,
+  type OAuthMode,
   type OAuthProvider,
 } from "@/auth/oauth";
 import { adoptOAuthTicket } from "@/auth/session";
@@ -34,14 +50,11 @@ import { AuthError } from "./ui";
 
 export const OAUTH_ENABLED = true as boolean;
 
-/** Google omitted on purpose (DESIGN 16.4). */
-const OAUTH_PROVIDERS: { provider: OAuthProvider; labelKey: string }[] = [
-  { provider: "github", labelKey: "native.auth.oauth.github" },
-  { provider: "spotify", labelKey: "native.auth.oauth.spotify" },
-];
-
-const errorKeyFor = (code: string): string =>
-  OAUTH_ERROR_KEYS[code as OAuthErrorCode] ?? OAUTH_ERROR_KEYS.oauth_failed;
+const PROVIDER_LABEL_KEYS: Record<OAuthProvider, string> = {
+  google_oauth2: "native.auth.oauth.google",
+  github: "native.auth.oauth.github",
+  spotify: "native.auth.oauth.spotify",
+};
 
 const Divider = () => {
   const { tokens } = useTheme();
@@ -90,14 +103,20 @@ const ProviderButton = ({
   );
 };
 
-export default function OAuthButtons() {
+export default function OAuthButtons({ mode = "signin" }: { mode?: OAuthMode }) {
   const t = useT();
   const { tokens } = useTheme();
   const [provider, setProvider] = useState<OAuthProvider | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  /** Callback URL already consumed (both interception paths fire on Android). */
-  const handled = useRef<string | null>(null);
+  /**
+   * One callback per opened sheet. It is a flag, not the URL: the same
+   * outcome reaches us under two spellings (the pre-redirect
+   * `/account/oauth/callback?...` and the locale-prefixed, trailing-slashed
+   * one the apex 302s to), so comparing URLs would let a ticket be adopted
+   * twice.
+   */
+  const handled = useRef(false);
 
   if (!OAUTH_ENABLED) return null;
 
@@ -109,17 +128,22 @@ export default function OAuthButtons() {
    *
    * Android does not always fire onShouldStartLoadWithRequest for a server
    * side 302 (and the backend callback IS a redirect), so the same function
-   * also runs from onNavigationStateChange; `handled` keeps the ticket from
-   * being adopted twice.
+   * also runs from onNavigationStateChange.
    */
   const handleRequest = (url: string): boolean => {
     const result = parseOAuthCallback(url);
     if (result === null) return true;
-    if (handled.current === url) return false;
-    handled.current = url;
+    if (handled.current) return false;
+    handled.current = true;
     close();
     if (result.kind === "error") {
-      setError(t(errorKeyFor(result.error)));
+      setError(t(oauthErrorKey(result.error)));
+      return false;
+    }
+    if (result.kind === "token") {
+      // Legacy branch, unreachable from this app and refused on purpose; see
+      // OAuthCallbackResult in auth/oauthCallback.ts.
+      setError(t(OAUTH_ERROR_KEYS.oauth_failed));
       return false;
     }
     setBusy(true);
@@ -129,8 +153,8 @@ export default function OAuthButtons() {
         // Success: the session store flips to authed and the root layout's
         // guards unmount this screen.
       })
-      .catch(() => {
-        setError(t(OAUTH_ERROR_KEYS.oauth_failed));
+      .catch((e: unknown) => {
+        setError(authErrorMessage(classifyAdoptError(e), t));
       })
       .finally(() => setBusy(false));
     return false;
@@ -140,15 +164,15 @@ export default function OAuthButtons() {
     <View>
       <Divider />
       <AuthError message={error} />
-      {OAUTH_PROVIDERS.map((entry) => (
+      {oauthProvidersFor(mode).map((entry) => (
         <ProviderButton
-          key={entry.provider}
-          label={t(entry.labelKey)}
+          key={entry}
+          label={t(PROVIDER_LABEL_KEYS[entry])}
           disabled={busy}
           onPress={() => {
             setError(null);
-            handled.current = null;
-            setProvider(entry.provider);
+            handled.current = false;
+            setProvider(entry);
           }}
         />
       ))}
@@ -182,7 +206,7 @@ export default function OAuthButtons() {
           </View>
           {provider ? (
             <WebView
-              source={{ uri: buildOAuthUrl(provider, "signin") }}
+              source={{ uri: buildOAuthUrl(provider, mode) }}
               incognito
               sharedCookiesEnabled={false}
               onShouldStartLoadWithRequest={(request) => handleRequest(request.url)}

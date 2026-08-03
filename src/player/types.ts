@@ -4,7 +4,7 @@
  * (FakeAudioPlayer in CI, expo-audio on device via player/register.ts).
  */
 import type { SongId, SongKey, FsNodeId } from "@/domain/ids";
-import type { LoopMode, PlaybackMode, QueueState } from "@/domain/playback";
+import type { EqBands, LoopMode, PlaybackMode, QueueState, StemGains } from "@/domain/playback";
 import type { Song } from "@/domain/song";
 
 export type TransitionCause =
@@ -72,11 +72,31 @@ export interface PlayerEngineExtras {
   /** False while a controller stint holds the player at a null source. */
   hasLoadedSource(): boolean;
   insertJamProposal(song: Song): void;
+  /**
+   * RAW setter, no cascade (web parity: `setSeparationEnabled`). Remote
+   * adoption MUST use this one: the snapshot has to land exactly as it was
+   * given, or adopting `{ playback_mode: "custom", separation_enabled: false }`
+   * silently rewrites the mode and the publisher overwrites the account state.
+   */
   setSeparationEnabled(on: boolean): void;
+  /**
+   * The cog switch (web parity: `setSeparationEnabledUserAction`, MusicProvider
+   * 1871-1876): turning the disclosure off forces the mode back to original.
+   * Every USER-driven toggle calls this; nothing else does.
+   */
+  setSeparationEnabledUserAction(on: boolean): void;
   setVocalVolume(v: number): void;
   setInstrumentalVolume(v: number): void;
-  setEqBand(band: "low" | "mid" | "high", db: number): void;
+  setEqBand(band: keyof EqBands, db: number): void;
   setEqEnabled(on: boolean): void;
+  /** True when this build can actually mix two stems (custom blend audible). */
+  supportsStemMixing(): boolean;
+  /**
+   * Re-run the custom-blend reconciliation: the cog's Retry after a stem
+   * download or a mixer prepare failed (web parity: `retryStems`). A no-op
+   * outside custom mode.
+   */
+  retryStemBlend(): void;
   /** Logout wipe (FR-10): queue, source, lock screen and store back to boot. */
   resetForLogout(): void;
 }
@@ -121,6 +141,35 @@ export interface AudioAdapter {
   setLockScreenActive(active: boolean, metadata?: LockScreenMetadata): void;
   updateLockScreenMetadata(metadata: LockScreenMetadata): void;
   remove(): void;
+
+  // ----- custom blend, additive (DESIGN 16.1 amendment 2026-08-03) ---------
+  //
+  // Every member below is OPTIONAL, so an adapter with no mixer still
+  // satisfies this interface and the frozen 7.3 surface above is untouched.
+  // The adapter, not the engine, owns the fan-out: while the stems are
+  // active, `play` / `pause` / `seekTo` / `setRate` drive the mixer as well
+  // as the muted original, and `replace` (a new main source) always releases
+  // the mixer first - stems can never survive a track change.
+
+  /** True while the mixer, not the main player, is producing the audio. */
+  readonly stemsActive?: boolean;
+  /** Whether a real stem mixer backs this adapter in this build. */
+  supportsStems?(): boolean;
+  /**
+   * Load both LOCAL stem files, mute the main player (gain law: mainGain 0,
+   * mixer master = device volume) and start the blend aligned to the main
+   * player's current position and play state. Rejects when the mixer cannot
+   * open either file; the caller then stays on the plain mix, never a half
+   * mix.
+   */
+  replaceStems?(vocalsUri: string, instrumentalUri: string): Promise<void>;
+  /** Live gain writes, no restart. Remembered while the stems are off. */
+  setStemGains?(gains: StemGains): void;
+  /** dB per band; the adapter clamps to -12..+12 before it reaches audio. */
+  setEqBands?(bands: EqBands): void;
+  setEqEnabled?(on: boolean): void;
+  /** Stop the stems, release the mixer, restore mainGain = device volume. */
+  releaseStems?(): void;
 }
 
 /** Listener settings that persist across launches (FR-65). */

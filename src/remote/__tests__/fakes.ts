@@ -241,6 +241,16 @@ export class FakeEngine implements RemoteEngine {
   setSeparationEnabled(): void {
     this.record("setSeparationEnabled");
   }
+  /** Adoption must NEVER reach this one: it forces the mode to original. */
+  setSeparationEnabledUserAction(): void {
+    this.record("setSeparationEnabledUserAction");
+  }
+  supportsStemMixing(): boolean {
+    return false;
+  }
+  retryStemBlend(): void {
+    this.record("retryStemBlend");
+  }
   setVocalVolume(): void {
     this.record("setVocalVolume");
   }
@@ -284,6 +294,9 @@ export class FakeLocalState implements LocalPlaybackState {
       eqMid: 0,
       eqHigh: 0,
       eqEnabled: false,
+      stemPhase: "off",
+      stemProgress: 0,
+      stemMixerAvailable: false,
       sleepTimer: null,
       failedSongKeys: new Set(),
       ...initial,

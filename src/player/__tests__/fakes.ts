@@ -3,7 +3,9 @@
  * fakes so protocol logic runs in CI without devices).
  */
 import type { SongId } from "@/domain/ids";
+import type { EqBands, StemGains } from "@/domain/playback";
 import type { Song } from "@/domain/song";
+import { gainLaw } from "../gainLaw";
 import type {
   AudioAdapter,
   AudioAdapterStatus,
@@ -71,29 +73,67 @@ export class FakeAudioPlayer implements AudioAdapter {
    */
   asyncStatus = false;
 
+  // ---- custom blend (mirrors expoAudioAdapter's stem surface) ----
+  /** Flip off to model a build with no native mixer. */
+  stemMixerAvailable = true;
+  /** Set to reject the next replaceStems (unopenable stem file). */
+  stemPrepareError: string | null = null;
+  /** Held open until release(); the test drives it like a real prepare. */
+  stemPrepareGate: (() => void)[] | null = null;
+  stemsOn = false;
+  stemPair: { vocals: string; instrumental: string } | null = null;
+  stemGains: StemGains = { vocal: 1, instrumental: 1 };
+  eqBands: EqBands = { low: 0, mid: 0, high: 0 };
+  eqEnabled = false;
+  masterVolume = 1;
+  mixerMaster = 1;
+  mixerPlaying = false;
+  mixerSeekLog: number[] = [];
+  mixerRate = 1;
+  stemLog: string[] = [];
+
   private listeners = new Set<(s: AudioAdapterStatus) => void>();
 
   get hasSource(): boolean {
     return this.uri !== null;
   }
 
+  get stemsActive(): boolean {
+    return this.stemsOn;
+  }
+
+  private applyGains(): void {
+    const law = gainLaw({
+      masterVolume: this.masterVolume,
+      stemsActive: this.stemsOn,
+      vocalVolume: this.stemGains.vocal,
+      instrumentalVolume: this.stemGains.instrumental,
+    });
+    this.volume = law.mainGain;
+    this.mixerMaster = this.stemsOn ? law.master : 1;
+  }
+
   setVolume(v: number): void {
-    this.volume = v;
+    this.masterVolume = v;
+    this.applyGains();
   }
 
   play(): void {
     if (this.uri === null) return;
     this.playing = true;
+    if (this.stemsOn) this.mixerPlaying = true;
     this.emitStatus();
   }
 
   pause(): void {
+    if (this.stemsOn) this.mixerPlaying = false;
     if (!this.playing) return;
     this.playing = false;
     this.emitStatus();
   }
 
   replace(uri: string | null): void {
+    this.releaseStems();
     this.uri = uri;
     this.replaceLog.push(uri);
     this.currentTime = 0;
@@ -105,12 +145,63 @@ export class FakeAudioPlayer implements AudioAdapter {
 
   seekTo(seconds: number): Promise<void> {
     this.seekLog.push(seconds);
+    if (this.stemsOn) this.mixerSeekLog.push(seconds);
     this.currentTime = seconds;
     return Promise.resolve();
   }
 
   setRate(rate: number): void {
     this.rate = rate;
+    if (this.stemsOn) this.mixerRate = rate;
+  }
+
+  supportsStems(): boolean {
+    return this.stemMixerAvailable;
+  }
+
+  async replaceStems(vocalsUri: string, instrumentalUri: string): Promise<void> {
+    if (!this.stemMixerAvailable) throw new Error("Stem mixer unavailable");
+    this.releaseStems();
+    if (this.stemPrepareGate) {
+      await new Promise<void>((resolve) => this.stemPrepareGate?.push(resolve));
+    }
+    if (this.stemPrepareError) throw new Error(this.stemPrepareError);
+    this.stemsOn = true;
+    this.stemPair = { vocals: vocalsUri, instrumental: instrumentalUri };
+    this.stemLog.push(`prepare:${vocalsUri}+${instrumentalUri}`);
+    this.applyGains();
+    this.mixerRate = this.rate;
+    this.mixerSeekLog.push(this.currentTime);
+    this.mixerPlaying = this.playing;
+  }
+
+  setStemGains(gains: StemGains): void {
+    this.stemGains = { ...gains };
+    this.applyGains();
+  }
+
+  setEqBands(bands: EqBands): void {
+    this.eqBands = { ...bands };
+  }
+
+  setEqEnabled(on: boolean): void {
+    this.eqEnabled = on;
+  }
+
+  releaseStems(): void {
+    if (!this.stemsOn) return;
+    this.stemsOn = false;
+    this.stemPair = null;
+    this.mixerPlaying = false;
+    this.stemLog.push("release");
+    this.applyGains();
+  }
+
+  /** Lets a held replaceStems continue (models a slow native prepare). */
+  releasePrepareGate(): void {
+    const waiters = this.stemPrepareGate ?? [];
+    this.stemPrepareGate = null;
+    for (const w of waiters) w();
   }
 
   onStatus(cb: (s: AudioAdapterStatus) => void): () => void {
@@ -128,6 +219,7 @@ export class FakeAudioPlayer implements AudioAdapter {
   }
 
   remove(): void {
+    this.releaseStems();
     this.removed = true;
   }
 
@@ -256,18 +348,21 @@ export const makeEngineDeps = (
   player: FakeAudioPlayer;
   resolver: ReturnType<typeof makeFakeResolve>;
   recorded: number[];
+  /** Every persistence patch the engine wrote, in order (FR-65 assertions). */
+  saved: Partial<PersistedListenerSettings>[];
 } => {
   const player = new FakeAudioPlayer();
   const resolver = makeFakeResolve();
   const recorded: number[] = [];
+  const persistence = memoryPersistence();
   const deps: EngineDeps = {
     createPlayer: () => player,
     resolveDataUrl: resolver.resolveDataUrl,
     recordPlay: (songId) => recorded.push(songId),
-    persistence: memoryPersistence(),
+    persistence,
     ...overrides,
   };
-  return { deps, player, resolver, recorded };
+  return { deps, player, resolver, recorded, saved: persistence.saved };
 };
 
 /** Drain pending microtasks (async continuations inside the engine). */

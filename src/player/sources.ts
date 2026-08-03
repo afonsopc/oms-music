@@ -9,17 +9,31 @@ import type { PlaybackMode } from "@/domain/playback";
 import type { FsNodeId } from "@/domain/ids";
 import { toSongKey } from "@/domain/ids";
 import { getLocalFileIndex } from "@/contracts/localSource";
-import { localKindsForMode, wantedNodeId } from "./modes";
+import { getStemFileProvider } from "@/contracts/stemFiles";
+import { localKindsForMode, stemPairNodeIds, wantedNodeId } from "./modes";
 
 export type SourceCandidate =
   | { kind: "jam"; uri: string }
   | { kind: "local"; uri: string }
-  | { kind: "network"; nodeId: FsNodeId };
+  | { kind: "network"; nodeId: FsNodeId }
+  /**
+   * The custom blend (DESIGN 16.1 amendment 2026-08-03): two LOCAL stem files
+   * played together by the mixer. Deliberately NOT part of the ladder
+   * `resolveSources` returns - the ladder feeds the ONE main player, which in
+   * custom mode stays on the plain mix as the muted clock and lock-screen
+   * owner. `resolveStemSource` answers for the mixer instead.
+   */
+  | { kind: "stems"; vocals: string; instrumental: string };
+
+export type StemSourceCandidate = Extract<SourceCandidate, { kind: "stems" }>;
+
+/** What the ONE main player can be pointed at: a single file, never a pair. */
+export type MainSourceCandidate = Exclude<SourceCandidate, { kind: "stems" }>;
 
 export interface ResolvedSources {
   /** The fs node the player is being pointed at (null for jam proposals). */
   wantedNodeId: FsNodeId | null;
-  candidates: SourceCandidate[];
+  candidates: MainSourceCandidate[];
 }
 
 /**
@@ -32,7 +46,7 @@ export const resolveSources = (song: Song, mode: PlaybackMode): ResolvedSources 
     return { wantedNodeId: null, candidates: [{ kind: "jam", uri: song.audio_url }] };
   }
   const wanted = wantedNodeId(song, mode);
-  const candidates: SourceCandidate[] = [];
+  const candidates: MainSourceCandidate[] = [];
   const index = getLocalFileIndex();
   const key = toSongKey(song.id);
   for (const kind of localKindsForMode(song, mode)) {
@@ -47,4 +61,16 @@ export const resolveSources = (song: Song, mode: PlaybackMode): ResolvedSources 
 export const wouldHitNetwork = (song: Song, mode: PlaybackMode): boolean => {
   const { candidates } = resolveSources(song, mode);
   return candidates.length > 0 && candidates[0]!.kind === "network";
+};
+
+/**
+ * The custom-blend source: both stem files, already on local disk. Null when
+ * the song has no stems or they are not resident yet - the caller then keeps
+ * the plain mix audible and provisions the files first, never a half mix.
+ */
+export const resolveStemSource = (song: Song): StemSourceCandidate | null => {
+  if (!stemPairNodeIds(song)) return null;
+  const files = getStemFileProvider().resident(song);
+  if (!files) return null;
+  return { kind: "stems", vocals: files.vocalsUri, instrumental: files.instrumentalUri };
 };

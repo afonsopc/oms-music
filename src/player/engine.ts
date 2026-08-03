@@ -12,17 +12,19 @@
  */
 import type { FsNodeId, SongId, SongKey } from "@/domain/ids";
 import { toSongKey } from "@/domain/ids";
-import type { LoopMode, PlaybackMode, QueueState } from "@/domain/playback";
+import type { EqBands, LoopMode, PlaybackMode, QueueState } from "@/domain/playback";
 import type { Song } from "@/domain/song";
 import { getPlaybackInterceptor } from "@/contracts/playbackInterceptor";
+import { getStemFileProvider } from "@/contracts/stemFiles";
+import { getStemMixer } from "@/contracts/stemMixer";
 import * as ops from "./queueOps";
-import { stemNodeIdForMode, wantedNodeId } from "./modes";
-import { resolveSources, type SourceCandidate } from "./sources";
+import { stemPairNodeIds, wantedNodeId } from "./modes";
+import { resolveSources, resolveStemSource, type MainSourceCandidate } from "./sources";
 import { PresignedResolver } from "./resolver";
 import { RecoveryTracker } from "./recovery";
 import { ListenAccumulator } from "./recording";
 import { SleepTimer } from "./sleepTimer";
-import { playerStore, resetPlayerStore } from "./store";
+import { playerStore, resetPlayerStore, type StemPhase } from "./store";
 import type {
   AudioAdapter,
   AudioAdapterStatus,
@@ -46,7 +48,8 @@ const clamp = (v: number, lo: number, hi: number): number => Math.min(hi, Math.m
 interface CurrentLoad {
   gen: number;
   songKey: SongKey;
-  candidates: SourceCandidate[];
+  /** Single-file candidates only: the blend is driven by syncStemMode. */
+  candidates: MainSourceCandidate[];
   index: number;
   /** True once this load audibly played; gates candidate laddering. */
   audible: boolean;
@@ -91,9 +94,19 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
   private lastHandledSongId: SongId | null = null;
   private currentLoad: CurrentLoad | null = null;
   private lastErrorKey: string | null = null;
+  /**
+   * Monotonic token for the custom blend, bumped by every syncStemMode: a
+   * download or a mixer prepare that finishes after the user left custom
+   * mode (or skipped the track) must not engage a stale blend.
+   */
+  private stemGen = 0;
+  /** The pair currently loaded in the mixer; a re-sync to it is a no-op. */
+  private engagedStems: { vocals: string; instrumental: string } | null = null;
   private prevPlaying = false;
   private lastPositionEmitAt = 0;
   private readonly statusUnsub: () => void;
+  /** The mixer's failure channel; inert (a no-op) without a native mixer. */
+  private readonly stemStatusUnsub: () => void;
   private disposed = false;
 
   constructor(private readonly deps: EngineDeps) {
@@ -113,6 +126,22 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
     this.player = deps.createPlayer();
     this.applyPersistedSettings();
     this.statusUnsub = this.player.onStatus((s) => this.onStatus(s));
+    // The mixer's own failure channel. While the blend is live the main
+    // player is MUTED by the gain law, so a mixer that gives up mid-track
+    // would leave NOTHING audible - the one outcome worse than losing the
+    // blend. Tearing it down restores mainGain and hands the audio back to
+    // the plain mix, exactly as the web keeps the original playing when the
+    // stem graph fails (frontend/lib/vocalSeparation.ts:198-204), and the
+    // "failed" phase puts Retry in the cog.
+    //
+    // Subscribed at construction, so player/register.ts installs the native
+    // mixer BEFORE it builds the engine (it does; that ordering is also what
+    // seeds `stemMixerAvailable`).
+    this.stemStatusUnsub = getStemMixer().onStatus((s) => {
+      if (s.error === null || !this.engagedStems) return;
+      this.stemGen++; // anything still provisioning for this blend is stale
+      this.releaseStemBlend("failed");
+    });
   }
 
   /**
@@ -127,15 +156,22 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
       rate: clamp(settings.rate, 0.25, 4),
       loopMode: settings.loopMode,
       playbackMode: settings.playbackMode, // "custom" already restored as "original"
-      separationEnabled: settings.separationEnabled,
+      // A restored stem mode IS separation in use. Publishing
+      // `{ playback_mode: "instrumental", separation_enabled: false }` is
+      // self-contradictory and the web adopts both raw, so its cog would show
+      // separation off while a stem plays.
+      separationEnabled: settings.separationEnabled || settings.playbackMode !== "original",
       vocalVolume: clamp(settings.vocalVolume, 0, 1),
       instrumentalVolume: clamp(settings.instrumentalVolume, 0, 1),
       eqLow: clamp(settings.eqLow, -12, 12),
       eqMid: clamp(settings.eqMid, -12, 12),
       eqHigh: clamp(settings.eqHigh, -12, 12),
+      stemMixerAvailable: this.supportsStemMixing(),
     });
     this.player.setVolume(clamp(settings.volume, 0, 1));
     this.player.setRate(this.platformRate(settings.rate));
+    this.pushStemGains();
+    this.pushEqualizer();
   }
 
   // ----- events -------------------------------------------------------------
@@ -263,6 +299,9 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
     if (current && current.id === songId) {
       this.deps.onLockScreenUpdate?.(current);
       this.reconcileModeSource();
+      // Separation finishing (or stems being deleted) on the PLAYING song is
+      // exactly when the blend becomes possible or impossible.
+      this.syncStemMode();
     }
   }
 
@@ -356,14 +395,30 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
     if (m === prev) return;
     playerStore.setState({ playbackMode: m });
     this.deps.persistence.save({ playbackMode: m });
+    // Any non-original mode IS separation in use: keep the pair this device
+    // publishes self-consistent. Adoption applies `separation_enabled` AFTER
+    // the mode (remote/adoption.ts), so a remote snapshot still lands verbatim.
+    if (m !== "original" && !playerStore.getState().separationEnabled) {
+      this.setSeparationEnabled(true);
+    }
     const song = ops.currentSongOf(this.q);
-    if (!song || song.audio_url) return; // jam proposals have one source
+    if (!song || song.audio_url) {
+      // jam proposals have one source and never blend
+      this.syncStemMode();
+      return;
+    }
     const wanted = wantedNodeId(song, m);
     const req = this.requestedNode;
     if (req && req.songKey === toSongKey(song.id) && req.nodeId === wanted) {
-      // Same file (e.g. original <-> custom in v1): never restart.
+      // Same MAIN file (original <-> custom): never restart it. In custom
+      // mode that player keeps running as the muted clock and the lock-screen
+      // owner while the mixer takes over the audio, so position and play
+      // state are preserved by construction.
+      this.syncStemMode();
       return;
     }
+    // Different main file: swapSourcePreservingPosition re-syncs the blend
+    // once the new source is loaded (see loadCandidate).
     this.swapSourcePreservingPosition();
   }
 
@@ -392,6 +447,8 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
     this.requestedNode = null;
     this.pendingSeek = null;
     this.intendedPlay = false;
+    this.stemGen++; // any in-flight provisioning is now stale
+    this.releaseStemBlend("off");
     this.player.pause();
     this.player.replace(null);
     playerStore.setState({ playing: false, buffering: false });
@@ -399,9 +456,26 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
 
   // ----- extras (additive; used by WP7/WP9/WP11) ---------------------------
 
+  /**
+   * RAW setter, deliberately WITHOUT the force-to-original cascade (web
+   * parity: MusicProvider's `setSeparationEnabled`). Remote adoption calls
+   * this one, so a snapshot carrying `{ playback_mode: "custom",
+   * separation_enabled: false }` lands exactly as it was given instead of
+   * being rewritten to `original` and republished over the account state.
+   */
   setSeparationEnabled(on: boolean): void {
+    if (playerStore.getState().separationEnabled === on) return;
     playerStore.setState({ separationEnabled: on });
     this.deps.persistence.save({ separationEnabled: on });
+  }
+
+  /**
+   * The cog switch (web parity: `setSeparationEnabledUserAction`). Only a
+   * USER turning the disclosure off forces the mode back to original; the
+   * cascade lives here and nowhere else.
+   */
+  setSeparationEnabledUserAction(on: boolean): void {
+    this.setSeparationEnabled(on);
     if (!on && playerStore.getState().playbackMode !== "original") {
       this.setPlaybackMode("original");
     }
@@ -411,15 +485,17 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
     const vocalVolume = clamp(v, 0, 1);
     playerStore.setState({ vocalVolume });
     this.deps.persistence.save({ vocalVolume });
+    this.pushStemGains();
   }
 
   setInstrumentalVolume(v: number): void {
     const instrumentalVolume = clamp(v, 0, 1);
     playerStore.setState({ instrumentalVolume });
     this.deps.persistence.save({ instrumentalVolume });
+    this.pushStemGains();
   }
 
-  setEqBand(band: "low" | "mid" | "high", db: number): void {
+  setEqBand(band: keyof EqBands, db: number): void {
     const value = clamp(db, -12, 12);
     if (band === "low") {
       playerStore.setState({ eqLow: value });
@@ -431,11 +507,169 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
       playerStore.setState({ eqHigh: value });
       this.deps.persistence.save({ eqHigh: value });
     }
-    // v1: no EQ audio path (DESIGN 16.2); bands persist and round-trip only.
+    this.pushEqualizer();
   }
 
   setEqEnabled(on: boolean): void {
-    playerStore.setState({ eqEnabled: on }); // deliberately NOT persisted
+    playerStore.setState({ eqEnabled: on }); // session-only, NEVER persisted
+    this.pushEqualizer();
+  }
+
+  // ----- custom blend (DESIGN 16.1 amendment 2026-08-03) -------------------
+  //
+  // The main player NEVER stops in custom mode: it stays loaded on the plain
+  // mix, muted by the gain law, as the transport clock and the owner of the
+  // lock screen / media session, exactly as frontend/lib/vocalSeparation.ts
+  // keeps `mainAudio` alive with `mainGain = 0`. Everything below only
+  // decides WHEN the mixer owns the audio; the adapter owns the fan-out of
+  // play / pause / seek / rate while it does.
+
+  supportsStemMixing(): boolean {
+    return this.player.supportsStems?.() ?? false;
+  }
+
+  /**
+   * The cog's Retry after a stem download or a mixer prepare failed (web
+   * parity: `retryStems`). Re-runs the reconciliation from scratch, so a
+   * transient WiFi refusal or an unreadable file is recoverable without a
+   * track change. A no-op outside custom mode.
+   */
+  retryStemBlend(): void {
+    this.syncStemMode();
+  }
+
+  /** The song whose blend should be playing, or null when none should. */
+  private stemBlendTarget(): Song | null {
+    if (playerStore.getState().playbackMode !== "custom") return null;
+    const song = ops.currentSongOf(this.q);
+    if (!song || !stemPairNodeIds(song)) return null;
+    return song;
+  }
+
+  private setStemState(phase: StemPhase, progress = 0): void {
+    const st = playerStore.getState();
+    if (st.stemPhase === phase && st.stemProgress === progress) return;
+    playerStore.setState({ stemPhase: phase, stemProgress: progress });
+  }
+
+  /** Tear the mixer down and restore the main gain. Idempotent. */
+  private releaseStemBlend(phase: StemPhase): void {
+    if (this.engagedStems || this.player.stemsActive) {
+      this.engagedStems = null;
+      this.player.releaseStems?.();
+    }
+    this.setStemState(phase);
+  }
+
+  /**
+   * Reconciles the mixer with (mode, current song, stem files on disk).
+   * Called on every mode change, every source load, and whenever stem ids
+   * land on the playing song. Bumping stemGen first is what makes a slow
+   * download or prepare that finishes AFTER the user moved on inert.
+   */
+  private syncStemMode(): void {
+    const gen = ++this.stemGen;
+    const available = this.supportsStemMixing();
+    if (playerStore.getState().stemMixerAvailable !== available) {
+      playerStore.setState({ stemMixerAvailable: available });
+    }
+
+    const song = this.stemBlendTarget();
+    if (!song) {
+      this.releaseStemBlend("off");
+      return;
+    }
+    if (!available) {
+      // No mixer in this build: the plain mix keeps playing and the wire
+      // value `custom` still round-trips untouched (DESIGN 15.6).
+      this.releaseStemBlend("unsupported");
+      return;
+    }
+
+    const resident = resolveStemSource(song);
+    if (resident) {
+      if (
+        this.engagedStems &&
+        this.engagedStems.vocals === resident.vocals &&
+        this.engagedStems.instrumental === resident.instrumental
+      ) {
+        // Already blending exactly these files: never restart a live mix,
+        // just re-assert the live parameters.
+        this.pushStemGains();
+        this.pushEqualizer();
+        this.setStemState("active");
+        return;
+      }
+      void this.engageStemBlend(gen, resident.vocals, resident.instrumental);
+      return;
+    }
+
+    // Stems not on disk yet. The mixer cannot stream, so the plain mix stays
+    // audible while both files download - web parity, where the original
+    // keeps playing until BOTH buffers have decoded.
+    this.releaseStemBlend("fetching");
+    void getStemFileProvider()
+      .fetch(song, (fraction) => {
+        if (gen !== this.stemGen) return;
+        this.setStemState("fetching", clamp(fraction, 0, 1));
+      })
+      .then((files) => {
+        if (gen !== this.stemGen) return;
+        return this.engageStemBlend(gen, files.vocalsUri, files.instrumentalUri);
+      })
+      .catch(() => {
+        if (gen !== this.stemGen) return;
+        this.setStemState("failed");
+      });
+  }
+
+  private async engageStemBlend(
+    gen: number,
+    vocals: string,
+    instrumental: string,
+  ): Promise<void> {
+    const replaceStems = this.player.replaceStems;
+    if (!replaceStems) {
+      this.releaseStemBlend("unsupported");
+      return;
+    }
+    // `engagedStems` tracks a CONFIRMED live blend only: the adapter drops
+    // the previous one inside replaceStems, so holding the old pair across
+    // the await would let a concurrent sync skip a re-engage it needs.
+    this.engagedStems = null;
+    try {
+      // The adapter mutes the main player and starts both stems aligned to
+      // its clock and play state, so position and play state survive the
+      // swap the same way swapSourcePreservingPosition preserves them.
+      await replaceStems.call(this.player, vocals, instrumental);
+    } catch {
+      if (gen !== this.stemGen) return;
+      this.engagedStems = null;
+      this.setStemState("failed");
+      return;
+    }
+    if (gen !== this.stemGen) {
+      // A newer sync (mode change, skip, stems deleted) won the race: undo.
+      this.player.releaseStems?.();
+      return;
+    }
+    this.engagedStems = { vocals, instrumental };
+    this.pushStemGains();
+    this.pushEqualizer();
+    this.player.setRate(this.platformRate(playerStore.getState().rate));
+    this.setStemState("active");
+  }
+
+  /** Live gain writes; remembered by the adapter while the stems are off. */
+  private pushStemGains(): void {
+    const s = playerStore.getState();
+    this.player.setStemGains?.({ vocal: s.vocalVolume, instrumental: s.instrumentalVolume });
+  }
+
+  private pushEqualizer(): void {
+    const s = playerStore.getState();
+    this.player.setEqBands?.({ low: s.eqLow, mid: s.eqMid, high: s.eqHigh });
+    this.player.setEqEnabled?.(s.eqEnabled);
   }
 
   /**
@@ -467,7 +701,10 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
 
   dispose(): void {
     this.disposed = true;
+    this.stemGen++;
+    this.releaseStemBlend("off");
     this.statusUnsub();
+    this.stemStatusUnsub();
     this.sleepTimer.dispose();
     this.player.remove();
   }
@@ -493,6 +730,8 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
       this.requestedNode = null;
       this.pendingSeek = null;
       this.intendedPlay = false;
+      this.stemGen++;
+      this.releaseStemBlend("off");
       this.player.pause();
       this.player.replace(null);
       playerStore.setState({ buffering: false, position: 0, duration: 0 });
@@ -511,6 +750,8 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
         this.currentLoad = null;
         this.loadingSongKey = null;
         this.requestedNode = null;
+        this.stemGen++;
+        this.releaseStemBlend("off");
         this.player.pause();
         this.player.replace(null);
         playerStore.setState({ buffering: false });
@@ -542,6 +783,10 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
   private beginLoad(song: Song, opts: { autoplay: boolean; fresh: boolean }): void {
     const gen = ++this.transitionGen;
     const key = toSongKey(song.id);
+    // A new MAIN source invalidates the blend: stems belong to one song and
+    // one file. loadCandidate re-syncs once the new source is in place.
+    this.stemGen++;
+    this.releaseStemBlend("off");
     const mode = playerStore.getState().playbackMode;
     const resolved = resolveSources(song, mode);
     const candidates = opts.fresh
@@ -611,6 +856,9 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
       this.intendedPlay = true;
       this.player.play();
     }
+    // The muted clock is in place: bring the blend back if custom mode wants
+    // one for this song (track change, mode swap, recovery reload).
+    this.syncStemMode();
   }
 
   /** Mode switches and stem reconciliation preserve position + play state. */
@@ -625,13 +873,22 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
     this.beginLoad(song, { autoplay: wasPlaying, fresh: false });
   }
 
-  /** Stale-queue reconciliation (FR-68): swap to the stem file when ids land. */
+  /**
+   * Stale-queue reconciliation (FR-68): swap to the stem file when the ids
+   * land, and back to the plain mix when they go away.
+   *
+   * `wantedNodeId`, not `stemNodeIdForMode`: the latter answers null once the
+   * stems are deleted, and returning on that left the player streaming a file
+   * the backend had just destroyed while the cog still showed the stem mode
+   * selected. The plain-mix fallback is the documented rule for a stem mode
+   * with no stem, and DELETING stems is now one tap away in the cog.
+   */
   private reconcileModeSource(): void {
     const mode = playerStore.getState().playbackMode;
     if (mode !== "instrumental" && mode !== "vocals") return;
     const song = ops.currentSongOf(this.q);
     if (!song || song.audio_url) return;
-    const wanted = stemNodeIdForMode(song, mode);
+    const wanted = wantedNodeId(song, mode);
     if (!wanted) return;
     const req = this.requestedNode;
     if (!req || req.songKey !== toSongKey(song.id)) return;

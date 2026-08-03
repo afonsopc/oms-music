@@ -485,6 +485,36 @@ export const downloadSong = async (song: Song, opts?: DownloadOpts): Promise<voi
   }
 };
 
+/**
+ * Enqueues ONLY the two stem files, for the custom blend (DESIGN 16.1
+ * amendment 2026-08-03): the native mixers play local files, so entering
+ * custom mode for a song whose stems are not resident downloads them while
+ * the plain mix keeps playing.
+ *
+ * Deliberately writes NO dl_songs row: a song heard once in custom mode must
+ * not silently join the offline library, and verifyAndRepair walks dl_songs -
+ * a row here would make the next repair pass pull the whole bundle. Orphan
+ * dl_files rows are harmless: boot re-attach resumes them, removeDownload
+ * deletes them, and getMixedStatus (the row badge) never sees them.
+ */
+export const downloadStemsForPlayback = async (song: Song): Promise<void> => {
+  const session = active;
+  if (!session) throw new Error("Downloads unavailable: no signed-in session.");
+  if (song.jam_song) throw new Error("Jam songs have no stems.");
+  const vocals = song.vocals_fs_node_id;
+  const instrumental = song.instrumental_fs_node_id;
+  if (!vocals || !instrumental) throw new Error("Song has no stems.");
+
+  await wifiGate();
+  if (session.closed) throw new Error("Downloads session closed.");
+
+  const songKey = toSongKey(song.id);
+  enqueueKind(session, song, songKey, "vocal", vocals, { usesCompressedNode: false });
+  enqueueKind(session, song, songKey, "instrumental", instrumental, {
+    usesCompressedNode: false,
+  });
+};
+
 /** Removes every stored kind, the files on disk and the song row. */
 export const removeDownload = async (id: number | string): Promise<void> => {
   const session = active;

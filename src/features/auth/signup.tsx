@@ -4,12 +4,28 @@
  * The resend button is disabled with a countdown, respecting the server's
  * 4/min + 20/h *_start buckets; a 429 feeds its retry_after straight into
  * the countdown.
+ *
+ * The code has a real budget the server never reports back: 15 minutes of
+ * life, and the FIFTH wrong guess destroys it. `create_end` answers the same
+ * 404 "Invalid Verification" for wrong, expired and burned, so the screen
+ * tracks its own OtpBudget and says which one it is. It also consumes the
+ * code BEFORE creating the account, so a 422 on the account fields leaves the
+ * user with a spent code and no account: that path sends them back to the
+ * email step with both facts on screen.
  */
 import React, { useEffect, useState } from "react";
 import { useRouter } from "expo-router";
+import {
+  authErrorMessage,
+  classifyCodeRequestError,
+  classifyCodeSubmitError,
+  classifyLoginError,
+} from "@/auth/authErrors";
+import { isOtpShape, otpIssued, otpState, otpWrongGuess, OTP_UNSENT } from "@/auth/otp";
 import { login, signupEnd, signupStart } from "@/auth/session";
 import { isApiError } from "@/domain/api";
 import { useT } from "@/i18n";
+import OAuthButtons from "./OAuthButtons";
 import {
   AuthButton,
   AuthError,
@@ -18,7 +34,6 @@ import {
   AuthLinkRow,
   AuthScreen,
   AuthTitle,
-  useApiErrorMessage,
 } from "./ui";
 
 type Step = "email" | "code" | "details";
@@ -26,12 +41,9 @@ type Step = "email" | "code" | "details";
 /** 4/min shared bucket -> never allow more than one send per 15 s; use 20. */
 const RESEND_COOLDOWN_SECONDS = 20;
 
-const CODE_PATTERN = /^\d{6}$/;
-
 export default function SignupScreen() {
   const t = useT();
   const router = useRouter();
-  const apiErrorMessage = useApiErrorMessage();
 
   const [step, setStep] = useState<Step>("email");
   const [email, setEmail] = useState("");
@@ -41,6 +53,7 @@ export default function SignupScreen() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [cooldown, setCooldown] = useState(0);
+  const [budget, setBudget] = useState(OTP_UNSENT);
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -58,20 +71,35 @@ export default function SignupScreen() {
     setError(null);
     try {
       await signupStart(trimmed);
+      // A fresh code replaces any previous one server side, so the local
+      // budget resets with it.
+      setBudget(otpIssued(Date.now()));
       setCooldown(RESEND_COOLDOWN_SECONDS);
       setStep("code");
     } catch (e) {
-      if (isApiError(e) && e.status === 409) {
-        setError(t("native.auth.signup.emailTaken"));
-      } else if (isApiError(e) && e.status === 429) {
-        setCooldown(e.retryAfter ?? 60);
-        setError(apiErrorMessage(e));
-      } else {
-        setError(apiErrorMessage(e));
-      }
+      const info = classifyCodeRequestError(e);
+      if (info.code === "rateLimited") setCooldown(Number(info.params.seconds ?? 60));
+      setError(authErrorMessage(info, t));
     } finally {
       setBusy(false);
     }
+  };
+
+  /** Local pre-flight so a dead code does not spend a request or an attempt. */
+  const continueFromCode = (): void => {
+    const state = otpState(budget, Date.now());
+    if (state === "burned" || state === "expired") {
+      setError(
+        t(
+          state === "burned"
+            ? "native.auth.errors.codeBurned"
+            : "native.auth.errors.codeExpired",
+        ),
+      );
+      return;
+    }
+    setError(null);
+    setStep("details");
   };
 
   const submitDetails = async (): Promise<void> => {
@@ -80,18 +108,38 @@ export default function SignupScreen() {
     if (!trimmedName || !password) return;
     setBusy(true);
     setError(null);
+    let accountCreated = false;
     try {
       await signupEnd(email.trim(), code, trimmedName, password);
+      accountCreated = true;
       // create_end does NOT log in (FR-8): follow with POST /sessions.
       await login(email.trim(), password);
       // Success: the root guards land on Home; this screen unmounts.
     } catch (e) {
+      if (accountCreated) {
+        // The account exists; only the chained sign-in failed. Send them to
+        // the login screen with the address prefilled rather than pretending
+        // signup failed and inviting a duplicate attempt.
+        setError(authErrorMessage(classifyLoginError(e), t));
+        router.replace(`/(auth)/login?email=${encodeURIComponent(email.trim())}`);
+        setBusy(false);
+        return;
+      }
+      const charged = otpWrongGuess(budget);
+      const info = classifyCodeSubmitError(e, charged, Date.now());
       if (isApiError(e) && e.status === 404) {
-        // "Invalid Verification": bad/expired code - back to the code step.
-        setError(t("native.auth.signup.invalidCode"));
+        // Wrong, expired or burned: the server charged an attempt either way.
+        setBudget(charged);
+        setError(authErrorMessage(info, t));
         setStep("code");
+      } else if (isApiError(e) && e.status === 422) {
+        // create_end verifies (and DESTROYS) the code before User.create, so a
+        // rejected name/password leaves no account and no usable code.
+        setBudget(OTP_UNSENT);
+        setError(`${authErrorMessage(info, t)} ${t("native.auth.errors.codeConsumed")}`);
+        setStep("email");
       } else {
-        setError(apiErrorMessage(e));
+        setError(authErrorMessage(info, t));
       }
       setBusy(false);
     }
@@ -123,6 +171,7 @@ export default function SignupScreen() {
             busy={busy}
             disabled={!email.trim() || cooldown > 0}
           />
+          <OAuthButtons mode="signup" />
           <AuthLinkRow
             hint={t("native.auth.signup.haveAccount")}
             label={t("native.auth.signup.signIn")}
@@ -145,11 +194,8 @@ export default function SignupScreen() {
           />
           <AuthButton
             label={t("native.auth.signup.continue")}
-            onPress={() => {
-              setError(null);
-              setStep("details");
-            }}
-            disabled={!CODE_PATTERN.test(code)}
+            onPress={continueFromCode}
+            disabled={!isOtpShape(code)}
           />
           <AuthLinkRow
             label={

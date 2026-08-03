@@ -5,11 +5,14 @@
  * (playback category, background, doNotMix - required for lock screen
  * association), keeps the lock screen fed on every song / play-state /
  * metadata change, wires the oms-native next/previous lock-screen commands
- * into the transport seam (FR-63), and registers the logout wipe (FR-10 / DESIGN 5.3) next to
- * the cable's, the jam manager's and the download scheduler's.
+ * into the transport seam (FR-63), installs the native stem mixer behind the
+ * custom-blend seam (FR-69 / FR-70), and registers the logout wipe
+ * (FR-10 / DESIGN 5.3) next to the cable's, the jam manager's and the download
+ * scheduler's.
  */
 import { setAudioModeAsync } from "expo-audio";
 import { registerLogoutTask } from "@/auth/session";
+import { setStemMixer } from "@/contracts/stemMixer";
 import { setBaseTransport, type TransportActions } from "@/contracts/transport";
 import { resolveDataUrl } from "@/api/endpoints/fsNodes";
 import { postPlayEvent } from "@/api/endpoints/playEvents";
@@ -19,7 +22,11 @@ import { createExpoAudioAdapter } from "./expoAudioAdapter";
 import { createListenerSettingsPersistence } from "./persistence";
 import { publishLockScreen, routeRemoteCommand, setRemoteTrackRouter } from "./lockScreen";
 import type { AudioAdapter } from "./types";
-import { createRemoteTrackRouter, getRemoteTrackCommands } from "../../modules/oms-native";
+import {
+  createRemoteTrackRouter,
+  getNativeStemMixer,
+  getRemoteTrackCommands,
+} from "../../modules/oms-native";
 
 let engine: PlayerEngineImpl | null = null;
 
@@ -45,6 +52,13 @@ const engineTransport = (e: PlayerEngineImpl): TransportActions => ({
 /** Idempotent: boot calls this once; late callers get the same singleton. */
 export const registerPlayerEngine = (): PlayerEngineImpl => {
   if (engine) return engine;
+
+  // FR-69 / FR-70 custom blend. Installed BEFORE the engine is constructed:
+  // the constructor seeds `stemMixerAvailable` from the adapter, and the
+  // adapter answers that from this seam. Without a native mixer in the binary
+  // (Expo Go, web, an older build) the bridge reports itself unavailable, so
+  // `custom` mode keeps falling back to the plain mix instead of throwing.
+  setStemMixer(getNativeStemMixer());
 
   let adapter: AudioAdapter | null = null;
   const created = new PlayerEngineImpl({

@@ -1,9 +1,12 @@
 {
   "platforms": ["apple", "android"],
   "apple": {
-    "modules": ["OmsNativeModule"]
+    "modules": ["OmsNativeModule", "OmsStemMixerModule"]
   },
   "android": {
-    "modules": ["pt.omelhorsite.omsnative.OmsNativeModule"]
+    "modules": [
+      "pt.omelhorsite.omsnative.OmsNativeModule",
+      "pt.omelhorsite.omsnative.OmsStemMixerModule"
+    ]
   }
 }

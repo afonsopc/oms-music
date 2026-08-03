@@ -21,7 +21,7 @@ import {
 } from "@/api/endpoints/spotifySync";
 import { useSpotifySyncPreview, useSpotifySyncStatus } from "@/api/queries/spotifySync";
 import { invalidationTargets, keys } from "@/api/queryKeys";
-import { buildLinkUrl, parseOAuthCallback } from "@/auth/oauth";
+import { buildLinkUrl, oauthErrorKey, parseOAuthCallback } from "@/auth/oauth";
 import { formatDateTime } from "@/lib/dates";
 import {
   GhostButton,
@@ -44,13 +44,14 @@ const LinkWebView = ({
   onDone,
 }: {
   visible: boolean;
-  onDone: () => void;
+  /** `errorKey` is set when the callback carried `?error=<code>`. */
+  onDone: (errorKey?: string) => void;
 }) => {
   const { tokens } = useTheme();
   const t = useT();
   if (!visible) return null;
   return (
-    <Modal visible animationType="slide" presentationStyle="pageSheet" onRequestClose={onDone}>
+    <Modal visible animationType="slide" presentationStyle="pageSheet" onRequestClose={() => onDone()}>
       <View style={{ flex: 1, backgroundColor: tokens.background }}>
         <View
           style={{
@@ -61,25 +62,40 @@ const LinkWebView = ({
             borderBottomColor: tokens.border,
           }}
         >
-          <GhostButton label={t("native.common.cancel")} compact onPress={onDone} />
+          <GhostButton label={t("native.common.cancel")} compact onPress={() => onDone()} />
         </View>
         <WebView
           source={{ uri: buildLinkUrl("spotify") }}
           incognito
-          onShouldStartLoadWithRequest={(request) => {
-            // The backend always lands on the hardcoded https callback; we
-            // are already signed in, so no ticket adoption is needed - the
-            // identity is linked server-side by then.
-            if (parseOAuthCallback(request.url) !== null) {
-              onDone();
-              return false;
-            }
-            return true;
+          onShouldStartLoadWithRequest={(request) => handleCallback(request.url, onDone)}
+          onNavigationStateChange={(state) => {
+            // Android often reports only the FINAL url of a redirect chain,
+            // and the backend callback IS a redirect.
+            handleCallback(state.url, onDone);
           }}
         />
       </View>
     </Modal>
   );
+};
+
+/**
+ * Consumes the linking callback. The backend always lands on the hardcoded
+ * https callback and we are already signed in, so the ticket it carries is for
+ * a session this app does not need and is deliberately ignored.
+ *
+ * What must NOT be ignored is `?error=`: Spotify linking is gated on the
+ * admin-set `users.allowed_to_use_spotify` flag (Spotify Dev Mode allowlists
+ * every address by hand), and `IdentitiesController#link` refuses with
+ * `?error=spotify_not_allowlisted` (`identities_controller.rb:27-33`) before
+ * the provider is ever reached. Closing the sheet silently on that made the
+ * button look broken; now the refusal is explained.
+ */
+const handleCallback = (url: string, onDone: (errorKey?: string) => void): boolean => {
+  const result = parseOAuthCallback(url);
+  if (result === null) return true;
+  onDone(result.kind === "error" ? oauthErrorKey(result.error) : undefined);
+  return false;
 };
 
 const PlaylistProgressRow = ({
@@ -240,6 +256,9 @@ export default function SpotifyImportTab() {
   if (!connected) {
     return (
       <View style={{ gap: 16 }}>
+        {/* The allowlist refusal lands here: linking is refused before the
+            provider round trip, so the tab never reaches the connected view. */}
+        {error ? <NoticeBanner kind="error" message={error} /> : null}
         <SettingsSection title={t(`${SYNC_KEY}.title`)}>
           <View style={{ padding: 16, gap: 12 }}>
             <Text style={{ color: tokens.mutedForeground, fontSize: 13 }}>
@@ -254,8 +273,9 @@ export default function SpotifyImportTab() {
         </SettingsSection>
         <LinkWebView
           visible={linking}
-          onDone={() => {
+          onDone={(errorKey) => {
             setLinking(false);
+            setError(errorKey ? t(errorKey) : null);
             void statusQuery.refetch();
           }}
         />

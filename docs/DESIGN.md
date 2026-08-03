@@ -525,14 +525,28 @@ are part of the frozen contract.
 
 ## 6. Auth flows (FR-7..14)
 
-- **Login.** `POST /sessions { email, password }`; store `token` in SecureStore + mirror;
-  `GET /sessions/mine` -> `GET /users/:id`; land on Home. 401 bare-string inline; 429 shows
-  a retry-after countdown.
+- **One establishment path.** Every method ends on `auth/session.ts#establishSession(token,
+  seed?)`: store the token, clear the query cache, flip the store to authed, then
+  `setAuthReady(true)` so the cable registrars reconnect. Password and passkey pass the
+  session they already received (both answer the full `:token` view); `/sessions/adopt`
+  returns only a token, so it passes nothing and the helper reads `GET /sessions/mine`.
+  Adding a fourth method means obtaining a token and calling it, never re-implementing the
+  store writes.
+- **Login.** `POST /sessions { email, password }` -> `establishSession`. Four real outcomes,
+  told apart by `auth/authErrors.ts#classifyLoginError`: 401 bare string (wrong
+  credentials), **422 with an EMPTY body (the account is DEACTIVATED** - `sessions.create!`
+  trips `user_not_deactivated`, Rails' `PublicExceptions` finds no `public/422.html` and
+  passes through), 429 (10/min per IP, holds the button for the reported window), 5xx.
+  A body with no `password` key makes the server 500, so `login()` refuses to send one.
 - **Signup.** `create_start` (409 "Email already registered." inline) -> OTP step (6 digits,
   15 min TTL, 5 attempts; resend disabled-with-countdown respecting 4/min + 20/h) ->
-  `create_end` (does NOT log in) -> immediate `POST /sessions` -> Home.
+  `create_end` (does NOT log in) -> immediate `POST /sessions` -> Home. `*_end` answers the
+  same 404 for a wrong, an expired AND a burned code, so the screens carry an `auth/otp.ts`
+  budget and say which one it is; `create_end` also destroys the code BEFORE `User.create`,
+  so a 422 on the account fields leaves a spent code and sends the user back to resend.
 - **Reset.** `reset_password_start` (always 200, anti-enumeration copy) -> code + new
-  password -> `reset_password_end` -> login prefilled.
+  password -> `reset_password_end` -> login prefilled. Same code budget as signup, and the
+  same shared `verify_start` bucket, so the same client-side send cooldown.
 - **Boot.** Stored token -> `GET /sessions/mine` then `GET /users/:id` behind splash; 401
   wipes and shows login; NETWORK FAILURE keeps the token and enters authed-offline (offline
   library still browses and plays, FR-91). Account payload gates Spotify UI
@@ -543,14 +557,20 @@ are part of the frozen contract.
   library intact; a DIFFERENT user gets their own db + directory).
 - **OAuth (FR-12, P1).** The callback is hardcoded server-side to
   `https://omelhorsite.pt/account/oauth/callback?ticket=...|?error=<code>`; no custom-scheme
-  redirect exists. v1 path: `react-native-webview` (install needs user approval) renders
-  `/auth/<provider>?mode=signin`; `onShouldStartLoadWithRequest` intercepts the callback
-  URL, extracts `ticket` (2 min TTL) or `error` (map codes account_exists /
-  account_not_found / unauthorized / conflict / internal / spotify_not_allowlisted to i18n
-  messages), closes the view, `POST /sessions/adopt { ticket }`. GitHub and Spotify allow
-  WebView OAuth; Google may refuse (`disallowed_useragent`) - see section 16 for the
-  degraded behavior and follow-up. Spotify account LINKING reuses the same WebView against
-  `/auth/link/spotify?token=<session token>`.
+  redirect exists. `react-native-webview` renders `/auth/<provider>?mode=<signin|signup>`;
+  BOTH `onShouldStartLoadWithRequest` and `onNavigationStateChange` run the interception,
+  because Android often reports only the final URL of a redirect chain. The match is on host
+  plus normalised path, NOT a literal prefix: the apex 302s
+  `/account/oauth/callback` to `/<locale>/account/oauth/callback/` (`_redirects:32`), so the
+  URL that reaches the app may be locale prefixed and trailing slashed. Extract `ticket`
+  (2 min TTL) -> `POST /sessions/adopt` -> `establishSession`, or `error` -> i18n copy
+  (account_exists / account_not_found / unauthorized / conflict / internal /
+  spotify_not_allowlisted). The legacy `?token=` branch is parsed and REFUSED: adopting a
+  raw session token out of a URL is a fixation primitive the app has no use for. GitHub and
+  Spotify ship, Google is hidden for a settled reason (section 16.4). Spotify account
+  LINKING reuses the same WebView against `/auth/link/spotify?token=<session token>`, and
+  its `?error=spotify_not_allowlisted` refusal is EXPLAINED in the Spotify tab rather than
+  closing the sheet silently.
 - **Passkeys (FR-13, P2).** Blocked on associated domains/asset-links which do not exist.
   Contract stub only in `auth/`; WebAuthn payloads documented as `raw: true` (sentinel
   bypass). Section 16.
@@ -694,7 +714,10 @@ moves to the next candidate, not into the failure ladder:
    another user's fs nodes.
 2. Wanted node by mode: `instrumental` -> instrumental_fs_node_id; `vocals` ->
    vocals_fs_node_id (either missing -> fall through to the plain mix); `original` /
-   `custom` / fallback -> `compressed_audio_fs_node_id || audio_fs_node_id`.
+   `custom` / fallback -> `compressed_audio_fs_node_id || audio_fs_node_id`. `custom` keeps
+   pointing the MAIN player at the plain mix on purpose: per amendment 16.A that player is
+   muted and serves as the clock and lock-screen owner while the mixer plays the stems,
+   resolved separately by `resolveStemSource` (never part of this ladder).
 3. Local-first via `contracts/localSource.ts` LocalFileIndex: plain mix -> local
    `mixed_original` file (quality upgrade; may fail iOS decode) then local `mixed`; stems ->
    local stem file. `file://` URIs. Decoder rejections fall through SILENTLY (FLAC-on-iOS
@@ -759,7 +782,9 @@ stems" and stops on stems_ready/terminal (`complete|failed` only - there is NO "
 projection idle/pending/processing/ready/failed with a live elapsed m:ss counter; on ready
 `engine.patchQueueSong` injects stem ids in place (never restarts); `DELETE
 /songs/:id/separation` removes stems. Menu item disabled/relabelled while processing;
-disabled for jam songs and on controllers. Custom blend + EQ do NOT ship in v1: section 16.
+disabled for jam songs and on controllers. Custom blend + EQ: see amendment 16.A
+(2026-08-03) - they ship, the muted main player stays the clock and the lock-screen owner
+while a native mixer produces the blend from the two stem files.
 
 Separation service interface (frozen so WP7's cog and WP11's songs screen share it):
 `useSeparationStatus(songId)` -> `{ phase, progressPercent, elapsedSeconds, job }`;
@@ -1165,23 +1190,28 @@ never call either; native uses bearer tokens only and disables any cookie jar.
 Nothing else in SPEC.md is dropped. Each item below states the exact v1 behavior and the
 follow-up.
 
-1. **FR-69 custom blend (P2).** expo-audio cannot sample-sync two players; JS dual-player
-   blend drifts audibly. v1: blend sliders hidden; adopted/persisted `custom` mode plays the
-   plain mix; wire values (`playback_mode`, `vocal_volume`, `instrumental_volume`) stored
-   and republished untouched; cog shows "custom blend not available on this device".
-   Follow-up: `modules/oms-stem-mixer` Expo native module - iOS AVAudioEngine (two
-   AVAudioPlayerNodes on one render clock + gains), Android Media3/Oboe mixer - slotted
-   behind `player/sources.ts` as an alternative backend for custom mode only.
-2. **FR-70 3-band EQ (P2).** No EQ path in expo-audio. v1: EQ panel hidden; bands persist
-   per FR-65 and round-trip on the wire. Follow-up: same native module (AVAudioUnitEQ /
-   DynamicsProcessing), flat EQ bypassing the processing path entirely.
+1. **FR-69 custom blend (P2).** SUPERSEDED by amendment 16.A (2026-08-03): the blend ships
+   for real on both platforms. The original position - blend sliders hidden, `custom` plays
+   the plain mix, wire values stored and republished untouched - survives only as the
+   FALLBACK, taken when no mixer is in the build or the stems are not on disk yet.
+2. **FR-70 3-band EQ (P2).** SUPERSEDED by amendment 16.A: the EQ ships inside the mixer
+   path, with per-band bypass so a flat EQ still costs nothing in the audio path.
 3. **FR-13 passkeys (P2).** Blocked on AASA/assetlinks for omelhorsite.pt (do not exist).
    v1: no passkey button; `auth/` keeps the contract stub with the verbatim-payload
    (`raw: true`) rule. Follow-up: ship associated domains on the web origin, then
    react-native-passkeys against `/webauthn_credentials/*`.
-4. **FR-12 Google OAuth (P1).** GitHub + Spotify ship via WebView interception. Google may
-   return `disallowed_useragent` in WebViews; if it does, the Google button is hidden in v1.
-   Follow-up: an "open in app" bounce on the web callback page
+4. **FR-12 Google OAuth (P1).** SETTLED: GitHub + Spotify ship via WebView interception and
+   Google stays hidden. Google refuses OAuth in embedded user agents with
+   `disallowed_useragent`, and neither escape exists on this stack today.
+   `openAuthSessionAsync` (expo-web-browser, already a dependency) hands the round trip to
+   ASWebAuthenticationSession / Custom Tabs, which Google accepts, but iOS matches the
+   return by CUSTOM SCHEME only, and the backend's return target is hardcoded to
+   `https://omelhorsite.pt/account/oauth/callback` with no per-request `redirect_uri`
+   (`identities_controller.rb:203-218`), so the session would succeed and then strand the
+   ticket on the website; a universal link would work, but the apex serves no AASA and
+   claiming that path would hijack it for the web client too. The reasoning lives beside the
+   code in `auth/oauthCallback.ts#oauthProvidersFor`, which is also the single line to change
+   when it lands. Follow-up unchanged: an "open in app" bounce on the web callback page
    (`omelhorsite.pt/account/oauth/callback` forwards ticket to `omsmusic://oauth` - a
    frontend-only change, backend untouched) + `openAuthSessionAsync`; the
    `/sessions/adopt` plumbing ships in v1 regardless.
@@ -1196,6 +1226,96 @@ follow-up.
    boot re-attach + verify-and-repair heal everything on next launch. Follow-up if field
    data shows unacceptable losses: `@kesha-antonov/react-native-background-downloader`
    (install requires approval) behind `downloads/tasks.ts`.
+
+### 16.A Amendment 2026-08-03 - the custom blend and the EQ ship
+
+Items 1 and 2 above are lifted. FR-69 and FR-70 are implemented, on both platforms, and the
+architecture MIRRORS THE WEB rather than replacing the player:
+
+**The muted-clock design.** The expo-audio player stays loaded on the plain mix
+(`compressed_audio_fs_node_id || audio_fs_node_id`) in `custom` mode, but MUTED. It remains
+the transport clock, the source of `duration` / `position` / `ended`, and the owner of the
+lock screen (iOS `MPNowPlayingInfoCenter` + `MPRemoteCommandCenter`, Android MediaSession).
+A separate native mixer produces the audible signal from the two stem files. This is exactly
+`frontend/lib/vocalSeparation.ts` with `mainGain = 0`, and it is what keeps us out of a
+fight with expo-audio over the media session, which is bound to its own `AVPlayer` /
+`ExoPlayer` instance.
+
+**Gain law (verbatim from the web, `player/gainLaw.ts`, unit-tested).**
+
+| | mainGain | mixer master | vocal | instrumental |
+|---|---|---|---|---|
+| stems OFF | `masterVolume` | 1 | - | - |
+| stems ON | **0** | `masterVolume` | `vocalVolume` | `instrumentalVolume` |
+
+Both stems at 1.0 reproduce the original at roughly unity. EQ: low shelf 120 Hz, mid peaking
+1000 Hz Q=1, high shelf 8000 Hz, every band clamped -12..+12 dB, default 0, `eqEnabled`
+session-only and never persisted.
+
+**Stems must be fully on local disk first.** iOS `AVAudioFile` cannot open a remote URL and
+two independent progressive streams that must never underrun relative to each other double
+the failure surface on Android, so the blend is gated on both stem files being resident -
+the same shape as the web, which fetches and decodes both stems whole before muting the
+original. Not-yet-resident stems are fetched through the existing download machinery
+(`downloads/stemProvision.ts` -> `downloadStemsForPlayback`), the plain mix stays audible
+throughout, and progress is surfaced. A half mix is never audible. Those transfers write NO
+`dl_songs` row on purpose: playing a song in custom mode must not enrol it in the offline
+library, which `verifyAndRepair` walks.
+
+**Seams added (all additive; the frozen 7.3 surface is untouched).**
+
+- `contracts/stemMixer.ts` - `StemMixer` (`isAvailable`, `prepare`, `play`, `pause`, `seek`,
+  `setGains`, `setEq`, `setRate`, `onStatus`, `release`) with an INERT default that reports
+  itself unavailable, so this package compiles and tests green before the native module
+  lands. `player/register.ts` installs the real one with
+  `setStemMixer(getNativeStemMixer())`, BEFORE it constructs the engine (the constructor
+  seeds `stemMixerAvailable` from the adapter, which answers from this seam). The module
+  never imports app code, so the dependency arrow keeps pointing app -> module, exactly as
+  with the FR-63 remote-track router next to it. The engine subscribes to the mixer's
+  `onStatus` in its constructor: a mixer that gives up mid-track would otherwise leave
+  NOTHING audible (the main player is muted by the gain law), so a non-null `error` tears
+  the blend down, restores `mainGain` and puts the cog in `failed` with a Retry.
+- `contracts/stemFiles.ts` - `StemFileProvider` (`resident`, `fetch`), defaulting to a
+  LocalFileIndex-only reader; `downloads/register.ts` installs the fetching one.
+- `player/types.ts` `AudioAdapter` gains OPTIONAL `stemsActive`, `supportsStems`,
+  `replaceStems(vocalsUri, instrumentalUri)`, `setStemGains`, `setEqBands`, `setEqEnabled`,
+  `releaseStems`. Optional keeps every mixer-less adapter (and `FakeAudioPlayer`) valid.
+  The ADAPTER owns the fan-out: while the stems are active, `play` / `pause` / `seekTo` /
+  `setRate` drive the mixer as well as the muted original, and `replace` always releases the
+  mixer first - stems can never survive a track change.
+  It also owns the fan-IN, which is not optional: expo-audio's lock-screen targets act
+  straight on its own player and never reach JS (`MediaController.swift:234-306` calls
+  `player.ref.pause()` / `player.ref.seek(to:)` / the +-10 s skips), and interruptions and
+  audio-focus loss arrive the same way. So on every status tick the adapter mirrors
+  `status.playing` onto the mixer exactly (a disagreement can only mean the change came from
+  outside) and hands `status.currentTime` to the OPTIONAL `StemMixer.resync(reference,
+  tolerance)`, which compares it against the mixer's own clock NATIVELY - the one place that
+  clock is exact - and re-pairs both stems only past 0.5 s. Without the fan-in, pausing from
+  the lock screen in custom mode would stop a player nobody can hear and leave the blend
+  playing on.
+- `player/sources.ts` gains a `{ kind: "stems"; vocals; instrumental }` `SourceCandidate`
+  plus `resolveStemSource(song)`. It is deliberately NOT in the ladder `resolveSources`
+  returns (typed `MainSourceCandidate[]`): that ladder feeds the one main player.
+- `player/store.ts` gains `stemPhase` (`off | unsupported | fetching | active | failed`),
+  `stemProgress` and `stemMixerAvailable` for the cog.
+- `PlayerEngineExtras` gains `supportsStemMixing()`, `retryStemBlend()` (the cog's Retry,
+  web parity `retryStems`) and `setSeparationEnabledUserAction()`.
+
+**Two separation-state fixes that ship with it.**
+
+- `setSeparationEnabled` is now the RAW setter with no cascade, and the force-to-original
+  cascade moved into `setSeparationEnabledUserAction` - web parity (MusicProvider 1871-1876).
+  Remote adoption calls the raw setter, so a snapshot carrying
+  `{ playback_mode: "custom", separation_enabled: false }` lands verbatim instead of being
+  rewritten to `original` and republished over the account state.
+- Choosing any non-original mode now implies `separationEnabled: true` (and a persisted
+  stem mode does the same at boot), so this device can no longer publish the
+  self-contradictory pair `{ playback_mode: "instrumental", separation_enabled: false }`.
+  Adoption applies `separation_enabled` AFTER the mode, so remote snapshots still win.
+
+Unchanged by this amendment: `custom` is still never restored from persistence
+(`player/persistence.ts` writes it out as `original`), `eqEnabled` is still session-only,
+and the mode wire value still round-trips untouched on devices with no mixer.
 
 ---
 

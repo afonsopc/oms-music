@@ -3,6 +3,23 @@ import type { Song } from "./song";
 export type LoopMode = "none" | "one" | "all";
 export type PlaybackMode = "original" | "instrumental" | "vocals" | "custom";
 
+/**
+ * Per-stem gains for the custom blend, 0..1 each (web `vocalVolume` /
+ * `instrumentalVolume`). Both at 1.0 reproduce the original at roughly unity:
+ * the separator's two stems sum back to the mix.
+ */
+export interface StemGains {
+  vocal: number;
+  instrumental: number;
+}
+
+/** 3-band EQ in dB, clamped -12..+12 (FR-70). Flat is 0 on every band. */
+export interface EqBands {
+  low: number;
+  mid: number;
+  high: number;
+}
+
 /** The queue quartet. currentSong = queue[queueOrder[queueIndex]]. */
 export interface QueueState {
   queue: Song[];
