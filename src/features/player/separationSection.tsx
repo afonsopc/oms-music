@@ -180,37 +180,17 @@ export const SeparationSection = ({ song, disabled }: { song: Song; disabled: bo
   const busy = status.phase === "pending" || status.phase === "processing";
   const inCustom = playbackMode === "custom";
 
+  // No enable switch: "off" is exactly the Original mode below it, so the
+  // switch and the mode chips were two controls for one choice, and turning it
+  // off just to hear the original restarted playback for nothing.
   return (
-    <Section
-      title={t(`${K}.separation`)}
-      trailing={
-        <Switch
-          value={separationEnabled}
-          disabled={disabled}
-          accessibilityLabel={t(`${K}.separation`)}
-          {...switchColors(tokens)}
-          onValueChange={(on) => getPlayerEngine().setSeparationEnabledUserAction(on)}
-        />
-      }
-    >
+    <Section title={t(`${K}.separation`)}>
       {/* A run in flight is a fact about the SONG, not a listening
           preference, so it stays visible with the disclosure closed: the
-          trigger also lives in the song menu, and watching progress must not
-          require flipping a switch that changes what you hear. */}
+          trigger also lives in the song menu. */}
       <JobStatus status={status} />
 
-      {!separationEnabled ? (
-        <Text
-          style={{
-            color: tokens.mutedForeground,
-            fontSize: 12,
-            lineHeight: 17,
-            marginTop: 8,
-          }}
-        >
-          {t(`${K}.separationHint`)}
-        </Text>
-      ) : (
+      {
         <View>
           <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
             {MODES.map((mode) => (
@@ -262,18 +242,11 @@ export const SeparationSection = ({ song, disabled }: { song: Song; disabled: bo
             <NoteLine text={t(`${K}.separationDescription`)} />
           ) : null}
 
-          <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
-            {stemsReady ? (
-              <Chip
-                label={t(`${K}.removeStems`)}
-                selected={false}
-                disabled={disabled}
-                onPress={() => {
-                  void service.deleteSeparation(song.id);
-                }}
-              />
-            ) : null}
-            {!stemsReady ? (
+          {/* Deleting the stems is destructive, costs a re-run to undo, and
+              belongs with the other song-level actions in the song menu, not
+              one tap away from the listening modes. */}
+          {!stemsReady ? (
+            <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
               <Chip
                 label={t(`${K}.separate`)}
                 selected={false}
@@ -282,10 +255,10 @@ export const SeparationSection = ({ song, disabled }: { song: Song; disabled: bo
                   void service.triggerSeparation(song.id);
                 }}
               />
-            ) : null}
-          </View>
+            </View>
+          ) : null}
         </View>
-      )}
+      }
     </Section>
   );
 };
@@ -310,27 +283,25 @@ export const EqualizerSection = ({ disabled }: { disabled: boolean }) => {
   const values: EqBands = { low: eqLow, mid: eqMid, high: eqHigh };
   const flat = eqLow === 0 && eqMid === 0 && eqHigh === 0;
 
+  // No enable switch: "off" and "all bands at 0" are the same sound, so the
+  // switch was a second control for a state Reset already produces, and one
+  // that could silently mute the bands the user had just set.
   return (
-    <Section
-      title={t(`${K}.equalizer`)}
-      trailing={
-        <Switch
-          value={eqEnabled}
-          disabled={disabled}
-          accessibilityLabel={t(`${K}.equalizer`)}
-          {...switchColors(tokens)}
-          onValueChange={(on) => getPlayerEngine().setEqEnabled(on)}
-        />
-      }
-    >
+    <Section title={t(`${K}.equalizer`)}>
       {EQ_BANDS.map((band) => (
         <SliderRow
           key={band}
           label={t(EQ_LABEL[band])}
           valueLabel={formatDb(values[band])}
           value={fractionFromDb(values[band])}
-          disabled={disabled || !eqEnabled}
-          onChange={(fraction) => getPlayerEngine().setEqBand(band, dbFromFraction(fraction))}
+          disabled={disabled}
+          onChange={(fraction) => {
+            const engine = getPlayerEngine();
+            // Touching a band IS turning the EQ on, now that there is no
+            // separate switch to leave it stranded in the off position.
+            if (!eqEnabled) engine.setEqEnabled(true);
+            engine.setEqBand(band, dbFromFraction(fraction));
+          }}
         />
       ))}
 
@@ -348,9 +319,7 @@ export const EqualizerSection = ({ disabled }: { disabled: boolean }) => {
 
       {/* The EQ lives in the mixer's chain, and the mixer only produces audio
           for the custom blend - saying so beats a knob that does nothing. */}
-      {!eqEnabled ? (
-        <NoteLine text={t(`${K}.eqOff`)} />
-      ) : !stemMixerAvailable ? (
+      {!stemMixerAvailable ? (
         <NoteLine text={t(`${K}.modeCustomUnavailable`)} />
       ) : playbackMode !== "custom" ? (
         <NoteLine text={t(`${K}.eqCustomOnly`)} />

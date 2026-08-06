@@ -901,12 +901,17 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
     if (!r) return;
     if (r.restart) {
       // Loop All wrapped onto the same entry (single-song queue): a state
-      // no-op would dead-end playback, so restart the source directly.
-      this.seekWithRetry(0);
-      if (!suppressAutoplay) {
-        this.intendedPlay = true;
-        this.player.play();
+      // no-op would dead-end playback, so restart the source directly. Same
+      // ordering rule as repeat-one - play() only after the rewind lands,
+      // or it asks a player parked at the end of the track to play.
+      if (suppressAutoplay) {
+        void this.seekWithRetry(0);
+        return;
       }
+      this.intendedPlay = true;
+      void this.seekWithRetry(0).then(() => {
+        if (this.intendedPlay) this.player.play();
+      });
       return;
     }
     if (r.index === this.q.queueIndex) return; // clamped at the end
@@ -928,11 +933,19 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
     if (this.loopMode() === "one") {
       // Repeat-one on the ended event, NEVER a native loop flag: ended must
       // keep firing for the sleep timer and the accumulator reset.
-      this.seekWithRetry(0);
-      if (!sleepFired) {
-        this.intendedPlay = true;
-        this.player.play();
+      //
+      // play() must wait for the rewind to LAND. Fired straight after the
+      // seek it asked a player still sitting at the end of the track to
+      // play, which does nothing, so repeat-one simply stopped at the end of
+      // every song.
+      if (sleepFired) {
+        void this.seekWithRetry(0);
+        return;
       }
+      this.intendedPlay = true;
+      void this.seekWithRetry(0).then(() => {
+        if (this.intendedPlay) this.player.play();
+      });
       return;
     }
     this.nextInternal("auto", sleepFired);
@@ -1126,8 +1139,9 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
     return clamp(rate, 0.25, PLATFORM_MAX_RATE);
   }
 
-  private seekWithRetry(seconds: number): void {
-    void this.player
+  /** Resolves once the seek has landed (or all three attempts failed). */
+  private seekWithRetry(seconds: number): Promise<void> {
+    return this.player
       .seekTo(seconds)
       .catch(() => this.player.seekTo(seconds))
       .catch(() => this.player.seekTo(seconds))

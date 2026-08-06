@@ -262,9 +262,15 @@ describe("identity colors carry a readable ink in both schemes", () => {
     ),
   ];
 
-  it("keeps the brand-white display ink on every identity gradient", () => {
+  // This used to assert white ink everywhere, which held only while the
+  // identity colors were deep purples. The brand is orange (#ff7a00): white on
+  // it is about 2.6:1, so demanding white would be demanding an unreadable
+  // label. What must hold is that the ink CLEARS the bar, whichever side of
+  // the surface it lands on.
+  it("keeps a readable display ink on every identity gradient", () => {
     for (const [label, surface] of identitySurfaces) {
-      expect(`${label}: ${preferredOn(surface, ON_DARK, AA_LARGE)}`).toBe(`${label}: ${ON_DARK}`);
+      const ink = preferredOn(surface, ON_DARK, AA_LARGE);
+      expect(`${label}: ${contrastRatio(ink, surface) >= AA_LARGE}`).toBe(`${label}: true`);
     }
   });
 

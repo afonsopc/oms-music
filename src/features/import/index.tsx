@@ -48,7 +48,10 @@ export default function ImportScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: tokens.background }}>
-      <View style={{ paddingTop: 16, gap: 8 }}>
+      {/* The heading is FIXED, outside the scroll view, so the safe-area inset
+          belongs here: applying it to the scrolling content left the title
+          itself under the dynamic island. */}
+      <View style={{ paddingTop: topPadding, gap: 8 }}>
         <View style={{ paddingHorizontal: 16, gap: 4 }}>
           <Text style={{ color: tokens.foreground, fontSize: 26, fontWeight: "800" }}>
             {t(`${PAGE_KEY}.title`)}
@@ -62,7 +65,7 @@ export default function ImportScreen() {
 
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ padding: 16, paddingTop: topPadding, paddingBottom: bottomPadding, gap: 16 }}
+        contentContainerStyle={{ padding: 16, paddingBottom: bottomPadding, gap: 16 }}
         keyboardShouldPersistTaps="handled"
       >
         {activeTab === "files" ? <FilesImportTab /> : null}

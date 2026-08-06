@@ -38,3 +38,21 @@ export const fractionFromDb = (db: number): number =>
 
 /** Readout for an EQ band ("+3.0 dB", "0.0 dB", "-1.5 dB"). */
 export const formatDb = (db: number): string => `${db > 0 ? "+" : ""}${db.toFixed(1)} dB`;
+
+// ---------------------------------------------------------------------------
+// Playback rate (0.5x .. 1.5x), for the speed track that sits under the preset
+// chips. Snapped to 0.05 so the readout never shows a value the presets could
+// not also produce.
+// ---------------------------------------------------------------------------
+
+export const RATE_MIN = 0.5;
+export const RATE_MAX = 1.5;
+const RATE_STEP = 0.05;
+
+/** Track fraction -> playback rate. */
+export const fractionToRate = (fraction: number): number =>
+  Math.round((RATE_MIN + clamp01(fraction) * (RATE_MAX - RATE_MIN)) / RATE_STEP) * RATE_STEP;
+
+/** Playback rate -> track fraction. */
+export const rateToFraction = (rate: number): number =>
+  clamp01((rate - RATE_MIN) / (RATE_MAX - RATE_MIN));

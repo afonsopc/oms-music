@@ -6,15 +6,12 @@
  * modules owned by WP7 (player, lyrics) and WP10 (friends).
  */
 import React, { useEffect, useRef, useState } from "react";
-import { Pressable, ScrollView, View, useWindowDimensions } from "react-native";
-import { useRouter } from "expo-router";
+import { ScrollView, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import NowPlayingBody from "@/features/player";
 import QueueBody from "@/features/player/queue";
 import LyricsBody from "@/features/lyrics";
 import { useTheme } from "@/theme/provider";
-import { useT } from "@/i18n";
-import { ChevronDownGlyph } from "./glyphs";
 
 /** 0 = Now Playing, 1 = Queue, 2 = Lyrics. */
 export type PlayerPageIndex = 0 | 1 | 2;
@@ -25,8 +22,6 @@ export const PlayerPager = ({ initialPage }: { initialPage: PlayerPageIndex }) =
   const { width } = useWindowDimensions();
   const { tokens } = useTheme();
   const insets = useSafeAreaInsets();
-  const router = useRouter();
-  const t = useT();
   const scrollRef = useRef<ScrollView>(null);
   const [activePage, setActivePage] = useState<number>(initialPage);
 
@@ -39,19 +34,13 @@ export const PlayerPager = ({ initialPage }: { initialPage: PlayerPageIndex }) =
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // No top inset and no close chevron. The player is presented as a sheet, so
+  // the presentation already insets it from the top and adding insets.top on
+  // top of that left a slab of empty black above the artwork; and the sheet's
+  // own grabber plus the drag-down gesture make a dedicated close button
+  // redundant.
   return (
-    <View style={{ flex: 1, backgroundColor: tokens.background, paddingTop: insets.top }}>
-      <View style={{ alignItems: "center", paddingVertical: 8 }}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t("native.shell.closePlayer")}
-          hitSlop={12}
-          onPress={() => router.back()}
-          style={{ padding: 8 }}
-        >
-          <ChevronDownGlyph color={tokens.mutedForeground} size={26} />
-        </Pressable>
-      </View>
+    <View style={{ flex: 1, backgroundColor: tokens.background }}>
       <ScrollView
         ref={scrollRef}
         horizontal

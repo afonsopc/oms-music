@@ -28,7 +28,8 @@ import { useRemoteStore, type RemoteStoreState } from "@/remote/store";
 import { useTheme } from "@/theme/provider";
 import { BottomSheet, Icon } from "@/ui";
 import { EqualizerSection, SeparationSection } from "./separationSection";
-import { Chip, Section } from "./sheetControls";
+import { Chip, Section, SliderRow } from "./sheetControls";
+import { fractionToRate, rateToFraction } from "./blendMath";
 
 const K = "native.player";
 
@@ -103,6 +104,15 @@ export const PlayerSettingsSheet = ({ visible, onClose, song }: PlayerSettingsSh
             />
           ))}
         </View>
+        {/* The chips are the quick presets; the track reaches everything in
+            between, which the presets alone cannot express. */}
+        <SliderRow
+          label={t(`${K}.speed`)}
+          valueLabel={`${rate.toFixed(2)}x`}
+          value={rateToFraction(rate)}
+          disabled={localDisabled}
+          onChange={(fraction) => getTransport().setRate(fractionToRate(fraction))}
+        />
       </Section>
 
       <Section title={t(`${K}.sleepTimer`)}>

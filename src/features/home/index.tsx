@@ -146,8 +146,6 @@ export default function HomeScreen() {
         ) : null
       ) : null}
 
-      {filter === "all" ? <FriendsStrip /> : null}
-
       {filter === "all" && (mixesQuery.isLoading || mixes.length > 0) ? (
         <Rail title={t("components.music.Home.madeForYou")}>
           {mixesQuery.isLoading ? (
@@ -247,6 +245,11 @@ export default function HomeScreen() {
           })}
         </Rail>
       ) : null}
+
+      {/* Social LAST. What friends are playing is worth a glance, but it was
+          sitting between the shortcuts and the first rail, pushing the actual
+          listening surfaces off a phone screen. */}
+      {filter === "all" ? <FriendsStrip /> : null}
     </ScrollView>
   );
 }

@@ -36,32 +36,31 @@ const QuickLink = ({
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
+      // A FULL-WIDTH row, not a cell in a strip. Four destinations with names
+      // like "Transferencias" and "Lejupielades" cannot share the width of a
+      // phone, and every attempt to make them fit (shrinking, wrapping,
+      // stacking the icon) traded legibility for a layout nobody asked for.
+      // One per line reads instantly and cannot overflow at any type size.
       style={({ pressed }) => ({
-        flex: 1,
-        // Icon ABOVE the label, not beside it: side by side, the three shortcuts
-        // shared each button's width with their glyph and the longer Portuguese
-        // and Latvian labels ("Transferencias", "Lejupielades") overflowed.
-        flexDirection: "column",
+        flexDirection: "row",
         alignItems: "center",
-        justifyContent: "center",
-        gap: 6,
-        paddingVertical: 10,
-        paddingHorizontal: 6,
-        minHeight: 64,
+        gap: 14,
+        paddingVertical: 14,
+        paddingHorizontal: 16,
         borderRadius: RADIUS,
         backgroundColor: tokens.secondary,
         opacity: pressed ? 0.7 : 1,
       })}
     >
-      <Icon name={icon} size={18} color={tokens.foreground} />
+      <Icon name={icon} size={20} color={tokens.foreground} />
       <Text
         style={{
           color: tokens.foreground,
-          fontSize: 12,
+          fontSize: 15,
           fontWeight: "600",
-          textAlign: "center",
+          flex: 1,
         }}
-        numberOfLines={2}
+        numberOfLines={1}
       >
         {label}
       </Text>
@@ -194,7 +193,7 @@ export default function LibraryScreen() {
         {t("components.music.Sidebar.libraryTitle")}
       </Text>
 
-      <View style={{ flexDirection: "row", gap: 8, paddingHorizontal: 24 }}>
+      <View style={{ gap: 8, paddingHorizontal: 24 }}>
         <QuickLink
           icon="heart"
           label={t("components.music.Sidebar.liked")}

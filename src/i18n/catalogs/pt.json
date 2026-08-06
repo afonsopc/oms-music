@@ -852,7 +852,8 @@
       "ok": "OK",
       "loading": "A carregar...",
       "rateLimited": "Demasiados pedidos - tente novamente dentro de {seconds} s",
-      "offlineBanner": "Estás offline. A mostrar as tuas transferências."
+      "offlineBanner": "Estás offline. A mostrar as tuas transferências.",
+      "close": "Fechar"
     },
     "auth": {
       "errors": {

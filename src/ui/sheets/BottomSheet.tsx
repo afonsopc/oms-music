@@ -19,10 +19,12 @@ import {
   Platform,
   Pressable,
   ScrollView,
+  StyleSheet,
   useWindowDimensions,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useT } from "@/i18n";
 import { useTheme } from "@/theme/provider";
 import { modalScrim } from "../uiTheme";
 
@@ -44,6 +46,7 @@ export const BottomSheet = ({
   scroll = true,
 }: BottomSheetProps) => {
   const { tokens, scheme } = useTheme();
+  const closeLabel = useT()("native.common.close");
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
   const [slide] = useState(() => new Animated.Value(0));
@@ -68,11 +71,19 @@ export const BottomSheet = ({
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
       >
-        <Pressable
-          onPress={onClose}
-          style={{ flex: 1, backgroundColor: modalScrim(scheme), justifyContent: "flex-end" }}
-        >
-          <Pressable onPress={() => {}} style={{ maxHeight: height * maxHeightRatio }}>
+        <View style={{ flex: 1, justifyContent: "flex-end" }}>
+          {/* The backdrop is a SIBLING behind the sheet, not its parent.
+              Wrapping the sheet in a Pressable to swallow taps also made that
+              Pressable claim every touch that began on the sheet's own
+              background, so the ScrollView underneath it never saw the drag:
+              the sheet could only be scrolled by starting on a button, which
+              hands the gesture back on move. */}
+          <Pressable
+            onPress={onClose}
+            accessibilityLabel={closeLabel}
+            style={[StyleSheet.absoluteFill, { backgroundColor: modalScrim(scheme) }]}
+          />
+          <View style={{ maxHeight: height * maxHeightRatio }}>
             <Animated.View
               style={{
                 backgroundColor: tokens.popover,
@@ -103,8 +114,8 @@ export const BottomSheet = ({
                 body
               )}
             </Animated.View>
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </KeyboardAvoidingView>
     </Modal>
   );

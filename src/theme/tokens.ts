@@ -101,12 +101,25 @@ export const RADIUS = 8;
 // Fixed identity colors
 // ---------------------------------------------------------------------------
 
-/** Music section accent (deep purple). */
-export const MUSIC_ACCENT = "#4B1E6D";
-/** Liked Songs page accent (purple-700); also the Spotify liked mirror. */
-export const LIKED_ACCENT = "#7e22ce";
-/** Liked artwork gradient: violet-700 -> purple-700 -> indigo-900. */
-export const LIKED_GRADIENT = ["#6d28d9", "#7e22ce", "#312e81"] as const;
+/**
+ * Brand. The app is orange, not purple: `primary` stays monochrome for text
+ * and surfaces, and THIS is the color that marks something as ours - selected
+ * chips, switches, the section accent.
+ */
+export const BRAND = "#ff7a00";
+/** Darkened brand for ink on light surfaces, where #ff7a00 is too pale. */
+export const BRAND_INK = "#b85200";
+/** Lighter brand used by the logo. */
+export const BRAND_LOGO = "#ff930f";
+/** Tinted brand wash for light-scheme backgrounds. */
+export const BRAND_SOFT = "#fff3e6";
+
+/** Music section accent. */
+export const MUSIC_ACCENT = BRAND;
+/** Liked Songs page accent; also the Spotify liked mirror. */
+export const LIKED_ACCENT = BRAND;
+/** Liked artwork gradient, brand shades rather than the old violets. */
+export const LIKED_GRADIENT = [BRAND_LOGO, BRAND, BRAND_INK] as const;
 /**
  * Spotify-sync markers and the "Playing on X" controller strip. Both are
  * FILLS: as ink on the light page emerald-500 is ~2.5:1, so anything drawing

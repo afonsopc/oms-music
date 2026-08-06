@@ -1,23 +1,24 @@
 /**
- * Draggable track used by the Now Playing scrub bar and the volume row (no
- * slider package is installed; PanResponder is core RN).
+ * Draggable track used by the Now Playing scrub bar, the EQ rows and the
+ * volume row (no slider package is installed).
  *
  * The value is a 0..1 fraction. While dragging, the parent must render the
  * DRAG value, not the store value, so the thumb does not fight the 4 Hz
  * position ticks: `onSlide` reports every move, `onCommit` fires once on
  * release (the seek/volume write).
  *
- * The responder is claimed ONLY once the gesture is clearly horizontal, and
- * never on touch-down. Claiming on touch-down cost us two real bugs on device:
- * a sheet full of sliders could not be scrolled at all unless the drag happened
- * to start on a button (every slider ate the touch before the ScrollView saw
- * it), and merely resting a finger near the left edge of an EQ row wrote the
- * minimum, which is how all three bands silently became -12 dB. The trade is
- * that a bare tap no longer jumps the value; a deliberate drag still grabs the
- * thumb wherever the finger is.
+ * The gesture is directional, which PanResponder could not express: it claimed
+ * either on touch-down or not at all. Claiming on touch-down meant a sheet full
+ * of sliders could not be scrolled anywhere a slider sat, and a finger resting
+ * near the left edge of an EQ row wrote the minimum (that is how all three
+ * bands silently became -12 dB). Declining meant the parent scroll view won
+ * every touch and the thumbs never moved. activeOffsetX/failOffsetY route each
+ * gesture to whichever it actually is, and a tap keeps working because a tap is
+ * never a scroll.
  */
 import React, { useEffect, useRef, useState } from "react";
-import { PanResponder, View, type LayoutChangeEvent } from "react-native";
+import { View, type LayoutChangeEvent } from "react-native";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { useTheme } from "@/theme/provider";
 
 export interface SliderProps {
@@ -67,56 +68,70 @@ export const Slider = ({
   // Gesture callbacks run on touch events, never during render, and every
   // value they read lives in a ref, so the compiler keeps this stable for
   // the whole gesture.
-  // eslint-disable-next-line react-hooks/refs
-  const responder = PanResponder.create({
-    onStartShouldSetPanResponder: () => false,
-    onMoveShouldSetPanResponder: (_event, gesture) =>
-      !handlersRef.current.disabled &&
-      Math.abs(gesture.dx) > DRAG_SLOP &&
-      Math.abs(gesture.dx) > Math.abs(gesture.dy),
-    onPanResponderTerminationRequest: () => false,
-    onPanResponderGrant: (event) => {
-      const { pageX, locationX } = event.nativeEvent;
-      originRef.current = pageX - locationX;
-      const next = clamp01(locationX / Math.max(1, widthRef.current));
+  //
+  // gesture-handler rather than PanResponder because only it can express "this
+  // is mine once the finger moves sideways, otherwise let the scroll view
+  // have it". With PanResponder the choice was all or nothing: claim on
+  // touch-down and the sheet could not be scrolled anywhere a slider sat, or
+  // decline and the parent scroll view won the touch first and the thumb
+  // never moved at all. activeOffsetX/failOffsetY hand each gesture to
+  // whichever of the two it actually is.
+  /* eslint-disable react-hooks/refs -- the builders below only CLOSE OVER the
+     refs; every `.current` read happens later, inside a touch callback, never
+     while rendering. */
+  const pan = Gesture.Pan()
+    .activeOffsetX([-DRAG_SLOP, DRAG_SLOP])
+    .failOffsetY([-DRAG_SLOP * 2, DRAG_SLOP * 2])
+    .enabled(!disabled)
+    .onBegin((event) => {
+      originRef.current = event.absoluteX - event.x;
+    })
+    .onUpdate((event) => {
+      const next = clamp01((event.absoluteX - originRef.current) / Math.max(1, widthRef.current));
       dragRef.current = next;
       setDragValue(next);
       handlersRef.current.onSlide?.(next);
-    },
-    onPanResponderMove: (event) => {
-      const next = clamp01(
-        (event.nativeEvent.pageX - originRef.current) / Math.max(1, widthRef.current),
-      );
-      dragRef.current = next;
-      setDragValue(next);
-      handlersRef.current.onSlide?.(next);
-    },
-    onPanResponderRelease: () => {
+    })
+    .onEnd(() => {
       const next = dragRef.current;
       dragRef.current = null;
       setDragValue(null);
       if (next != null) handlersRef.current.onCommit(next);
-    },
-    onPanResponderTerminate: () => {
+    })
+    .onFinalize(() => {
       dragRef.current = null;
       setDragValue(null);
-    },
-  });
+    })
+    .runOnJS(true);
+
+  // A plain tap still jumps the value: it cannot be confused with a scroll,
+  // so there is no reason to make the user drag for it.
+  const tap = Gesture.Tap()
+    .enabled(!disabled)
+    .onEnd((event) => {
+      const next = clamp01(event.x / Math.max(1, widthRef.current));
+      handlersRef.current.onSlide?.(next);
+      handlersRef.current.onCommit(next);
+    })
+    .runOnJS(true);
+
+  const gesture = Gesture.Exclusive(pan, tap);
+  /* eslint-enable react-hooks/refs */
 
   const shown = clamp01(dragValue ?? value);
   const fill = fillColor ?? tokens.primary;
 
   return (
-    <View
-      {...responder.panHandlers}
-      accessibilityRole="adjustable"
-      accessibilityLabel={accessibilityLabel}
-      accessibilityValue={{ min: 0, max: 100, now: Math.round(shown * 100) }}
-      onLayout={(event: LayoutChangeEvent) => {
-        widthRef.current = event.nativeEvent.layout.width;
-      }}
-      style={{ height: 32, justifyContent: "center", opacity: disabled ? 0.4 : 1 }}
-    >
+    <GestureDetector gesture={gesture}>
+      <View
+        accessibilityRole="adjustable"
+        accessibilityLabel={accessibilityLabel}
+        accessibilityValue={{ min: 0, max: 100, now: Math.round(shown * 100) }}
+        onLayout={(event: LayoutChangeEvent) => {
+          widthRef.current = event.nativeEvent.layout.width;
+        }}
+        style={{ height: 32, justifyContent: "center", opacity: disabled ? 0.4 : 1 }}
+      >
       <View
         style={{
           height,
@@ -146,7 +161,8 @@ export const Slider = ({
             backgroundColor: fill,
           }}
         />
+        </View>
       </View>
-    </View>
+    </GestureDetector>
   );
 };
