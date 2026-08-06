@@ -1,9 +1,13 @@
 /**
- * (player) modal pager host (FR-17 shell): a full-screen swipeable pager
- * across Now Playing / Queue / Lyrics / Friends. The three (player) routes
- * render this host with different initial pages (the Friends page is pager
- * content only, matching the web's rail tabs). Page bodies are feature
- * modules owned by WP7 (player, lyrics) and WP10 (friends).
+ * (player) modal pager host (FR-17 shell): a full-screen pager across
+ * Now Playing / Lyrics / Queue. The three (player) routes render this host at
+ * different initial pages. Page bodies are feature modules owned by WP7.
+ *
+ * The pager scrolls VERTICALLY. It used to page sideways, which meant lyrics
+ * were two horizontal swipes away and read as a separate screen rather than
+ * more of the song; every music app people actually use puts them below the
+ * artwork, reached by pushing the now playing view up. Vertical also frees the
+ * horizontal axis, which the sheet's own drag-to-dismiss wants.
  */
 import React, { useEffect, useRef, useState } from "react";
 import { ScrollView, View, useWindowDimensions } from "react-native";
@@ -13,48 +17,50 @@ import QueueBody from "@/features/player/queue";
 import LyricsBody from "@/features/lyrics";
 import { useTheme } from "@/theme/provider";
 
-/** 0 = Now Playing, 1 = Queue, 2 = Lyrics. */
+/** 0 = Now Playing, 1 = Lyrics, 2 = Queue (top to bottom). */
 export type PlayerPageIndex = 0 | 1 | 2;
 
-const PAGES = [NowPlayingBody, QueueBody, LyricsBody] as const;
+const INDICATOR_HEIGHT = 24;
+
+const PAGES = [NowPlayingBody, LyricsBody, QueueBody] as const;
 
 export const PlayerPager = ({ initialPage }: { initialPage: PlayerPageIndex }) => {
-  const { width } = useWindowDimensions();
+  const { height } = useWindowDimensions();
   const { tokens } = useTheme();
   const insets = useSafeAreaInsets();
   const scrollRef = useRef<ScrollView>(null);
   const [activePage, setActivePage] = useState<number>(initialPage);
 
+  // The sheet presentation eats the top inset, so a page is the window height
+  // less the bottom inset the indicator column occupies.
+  const pageHeight = Math.max(1, height - insets.bottom - INDICATOR_HEIGHT);
+
   // contentOffset covers iOS; the effect covers platforms that ignore it.
   useEffect(() => {
     if (initialPage > 0) {
-      scrollRef.current?.scrollTo({ x: initialPage * width, animated: false });
+      scrollRef.current?.scrollTo({ y: initialPage * pageHeight, animated: false });
     }
-    // Initial positioning only; width is stable (portrait-locked app).
+    // Initial positioning only.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // No top inset and no close chevron. The player is presented as a sheet, so
-  // the presentation already insets it from the top and adding insets.top on
-  // top of that left a slab of empty black above the artwork; and the sheet's
-  // own grabber plus the drag-down gesture make a dedicated close button
-  // redundant.
+  // No close chevron: the sheet's grabber and its drag-down gesture already
+  // close it, and the button was one more thing above the artwork.
   return (
     <View style={{ flex: 1, backgroundColor: tokens.background }}>
       <ScrollView
         ref={scrollRef}
-        horizontal
         pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        contentOffset={{ x: initialPage * width, y: 0 }}
+        showsVerticalScrollIndicator={false}
+        contentOffset={{ x: 0, y: initialPage * pageHeight }}
         onMomentumScrollEnd={(event) => {
-          const page = Math.round(event.nativeEvent.contentOffset.x / Math.max(1, width));
+          const page = Math.round(event.nativeEvent.contentOffset.y / pageHeight);
           setActivePage(page);
         }}
         style={{ flex: 1 }}
       >
         {PAGES.map((PageBody, index) => (
-          <View key={index} style={{ width, flex: 1 }}>
+          <View key={index} style={{ height: pageHeight }}>
             <PageBody />
           </View>
         ))}
@@ -65,8 +71,9 @@ export const PlayerPager = ({ initialPage }: { initialPage: PlayerPageIndex }) =
           flexDirection: "row",
           justifyContent: "center",
           gap: 6,
-          paddingTop: 8,
-          paddingBottom: insets.bottom + 8,
+          height: INDICATOR_HEIGHT,
+          alignItems: "center",
+          paddingBottom: insets.bottom,
         }}
       >
         {PAGES.map((_, index) => (
