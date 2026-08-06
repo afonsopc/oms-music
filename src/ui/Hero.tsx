@@ -9,6 +9,7 @@
 import React, { useEffect, useState } from "react";
 import { Text, useWindowDimensions, View, type StyleProp, type ViewStyle } from "react-native";
 import { Image } from "expo-image";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ArtworkImage, artworkSourceUri } from "./ArtworkImage";
 import { InitialsAvatar } from "./InitialsAvatar";
 import { linearGradient } from "./uiTheme";
@@ -99,7 +100,8 @@ export const Hero = ({
   const kindInk = isArtistBackdrop ? ink : withAlpha(ink, 0.88);
   const metaInk = isArtistBackdrop ? ink : withAlpha(ink, 0.92);
 
-  const minHeight = Math.round(height * (isArtistBackdrop ? 0.42 : 0.36));
+  const insets = useSafeAreaInsets();
+  const minHeight = Math.round(height * (isArtistBackdrop ? 0.42 : 0.36)) + insets.top;
   const artSize = 136;
 
   return (
@@ -125,7 +127,19 @@ export const Hero = ({
             : linearGradient("to bottom", accent, "transparent"),
         }}
       />
-      <View style={{ paddingHorizontal: 24, paddingTop: 24, paddingBottom: 12, gap: 16 }}>
+      {/* The gradient and any backdrop bleed to the very top on purpose, but
+          the CONTENT must clear the status bar and the dynamic island: this
+          hero is the shared header of every collection screen, so without the
+          inset the artwork of playlists, albums, mixes and radios all sat
+          under the island. */}
+      <View
+        style={{
+          paddingHorizontal: 24,
+          paddingTop: insets.top + 24,
+          paddingBottom: 12,
+          gap: 16,
+        }}
+      >
         {artistAvatarFallback ? (
           image && image.kind !== "initials" ? (
             <ArtworkImage source={image} size={artSize} shape="circle" />

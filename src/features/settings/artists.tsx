@@ -16,7 +16,7 @@ import { keys } from "@/api/queryKeys";
 import { useAuthReady } from "@/auth/guard";
 import { artistImageSource } from "@/domain/artwork";
 import type { Artist } from "@/domain/artist";
-import { useContentBottomPadding } from "@/features/shell/metrics";
+import { useContentBottomPadding, useContentTopPadding } from "@/features/shell/metrics";
 import { useT } from "@/i18n";
 import { useTheme } from "@/theme/provider";
 import { ArtworkImage, ConfirmDialog, EmptyState, ErrorState, Icon } from "@/ui";
@@ -129,6 +129,7 @@ export default function ArtistsManagementScreen() {
   const t = useT();
   const { tokens } = useTheme();
   const bottomPadding = useContentBottomPadding();
+  const topPadding = useContentTopPadding();
   const errorMessage = useApiErrorMessage();
 
   const artistsQuery = useAllArtists();
@@ -189,7 +190,7 @@ export default function ArtistsManagementScreen() {
         initialNumToRender={20}
         windowSize={11}
         removeClippedSubviews
-        contentContainerStyle={{ paddingBottom: bottomPadding }}
+        contentContainerStyle={{ paddingTop: topPadding, paddingBottom: bottomPadding }}
         renderItem={({ item }) => (
           <ArtistManagementRow
             artist={item}

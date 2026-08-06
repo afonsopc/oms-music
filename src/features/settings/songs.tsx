@@ -20,7 +20,7 @@ import { songArtworkSource } from "@/domain/artwork";
 import { formatArtists, formatDuration } from "@/domain/format";
 import type { SongId } from "@/domain/ids";
 import type { Song } from "@/domain/song";
-import { useContentBottomPadding } from "@/features/shell/metrics";
+import { useContentBottomPadding, useContentTopPadding } from "@/features/shell/metrics";
 import { useT } from "@/i18n";
 import { useTheme } from "@/theme/provider";
 import { RADIUS } from "@/theme/tokens";
@@ -274,6 +274,7 @@ export default function SongsManagementScreen() {
   const t = useT();
   const { tokens, ink } = useTheme();
   const bottomPadding = useContentBottomPadding();
+  const topPadding = useContentTopPadding();
   const errorMessage = useApiErrorMessage();
 
   const songsQuery = useSongsInfinite();
@@ -381,7 +382,7 @@ export default function SongsManagementScreen() {
         initialNumToRender={20}
         windowSize={11}
         removeClippedSubviews
-        contentContainerStyle={{ paddingBottom: bottomPadding }}
+        contentContainerStyle={{ paddingTop: topPadding, paddingBottom: bottomPadding }}
         ListHeaderComponent={
           <View style={{ padding: 16, gap: 12 }}>
             <Text style={{ color: tokens.foreground, fontSize: 26, fontWeight: "800" }}>

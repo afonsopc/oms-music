@@ -12,7 +12,7 @@ import { useRenameSession, useSessions } from "@/api/queries/sessions";
 import { useSessionStore } from "@/auth/session";
 import { isApiError } from "@/domain/api";
 import type { Session } from "@/domain/user";
-import { useContentBottomPadding } from "@/features/shell/metrics";
+import { useContentBottomPadding, useContentTopPadding } from "@/features/shell/metrics";
 import { useLocale, useT } from "@/i18n";
 import { formatDateTime } from "@/lib/dates";
 import { useTheme } from "@/theme/provider";
@@ -188,13 +188,14 @@ export default function DevicesScreen() {
   const t = useT();
   const { tokens } = useTheme();
   const bottomPadding = useContentBottomPadding();
+  const topPadding = useContentTopPadding();
   const currentSessionId = useSessionStore((s) => s.session?.id ?? null);
   const sessions = useSessions();
 
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: tokens.background }}
-      contentContainerStyle={{ padding: 16, paddingBottom: bottomPadding, gap: 16 }}
+      contentContainerStyle={{ padding: 16, paddingTop: topPadding, paddingBottom: bottomPadding, gap: 16 }}
     >
       <View style={{ gap: 6 }}>
         <Text style={{ color: tokens.foreground, fontSize: 28, fontWeight: "800" }}>

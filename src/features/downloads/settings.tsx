@@ -12,7 +12,7 @@ import React, { useEffect, useState } from "react";
 import { ScrollView, Switch, Text, View } from "react-native";
 import { storageUsage } from "@/downloads/manager";
 import { updateDownloadSettings, useDownloadSettings } from "@/downloads/settings";
-import { useContentBottomPadding } from "@/features/shell/metrics";
+import { useContentBottomPadding, useContentTopPadding } from "@/features/shell/metrics";
 import { useT } from "@/i18n";
 import { switchColors } from "@/theme/switchColors";
 import { useTheme } from "@/theme/provider";
@@ -84,6 +84,7 @@ export default function DownloadSettingsScreen() {
   const t = useT();
   const { tokens } = useTheme();
   const bottomPadding = useContentBottomPadding();
+  const topPadding = useContentTopPadding();
   const settings = useDownloadSettings();
   const [usage, setUsage] = useState<{ bytes: number; files: number } | null>(null);
 
@@ -102,7 +103,7 @@ export default function DownloadSettingsScreen() {
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: tokens.background }}
-      contentContainerStyle={{ padding: 16, paddingBottom: bottomPadding, gap: 16 }}
+      contentContainerStyle={{ padding: 16, paddingTop: topPadding, paddingBottom: bottomPadding, gap: 16 }}
     >
       <Text style={{ color: tokens.foreground, fontSize: 28, fontWeight: "800" }}>
         {t("native.downloads.settingsTitle")}

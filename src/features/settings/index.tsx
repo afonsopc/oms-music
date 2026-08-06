@@ -8,7 +8,7 @@
 import React from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { useRouter } from "expo-router";
-import { useContentBottomPadding } from "@/features/shell/metrics";
+import { useContentBottomPadding, useContentTopPadding } from "@/features/shell/metrics";
 import { LOCALES, setLocale, useLocale, useT, type Locale } from "@/i18n";
 import { useTheme, type ThemeMode } from "@/theme/provider";
 import { SettingsRow, SettingsSection } from "./ui";
@@ -74,6 +74,7 @@ export default function SettingsHubScreen() {
   const { tokens, mode, setMode } = useTheme();
   const locale = useLocale();
   const bottomPadding = useContentBottomPadding();
+  const topPadding = useContentTopPadding();
 
   const themeLabels: Record<ThemeMode, string> = {
     light: t("native.settings.hub.themeLight"),
@@ -87,7 +88,7 @@ export default function SettingsHubScreen() {
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: tokens.background }}
-      contentContainerStyle={{ padding: 16, paddingBottom: bottomPadding, gap: 20 }}
+      contentContainerStyle={{ padding: 16, paddingTop: topPadding, paddingBottom: bottomPadding, gap: 20 }}
     >
       <Text style={{ color: tokens.foreground, fontSize: 28, fontWeight: "800" }}>
         {t("native.settings.hub.title")}

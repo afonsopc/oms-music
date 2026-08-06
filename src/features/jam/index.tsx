@@ -21,7 +21,7 @@ import { avatarUrl } from "@/api/mediaUrl";
 import { useSessionStore } from "@/auth/session";
 import type { UserId } from "@/domain/ids";
 import type { Jam } from "@/domain/jam";
-import { useContentBottomPadding } from "@/features/shell/metrics";
+import { useContentBottomPadding, useContentTopPadding } from "@/features/shell/metrics";
 import { useT } from "@/i18n";
 import { jamCreate, jamEnd, jamInvite, jamJoin, jamLeave, jamUpdateRules } from "@/jam/channel";
 import { selectIsHost, useJamStore } from "@/jam/store";
@@ -245,6 +245,7 @@ export default function JamScreen() {
   const t = useT();
   const { tokens } = useTheme();
   const bottomPadding = useContentBottomPadding();
+  const topPadding = useContentTopPadding();
   const myId = useSessionStore((s) => s.user?.id ?? null);
   const jam = useJamStore((s) => s.jam);
   const isHost = useJamStore(selectIsHost);
@@ -276,7 +277,7 @@ export default function JamScreen() {
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: tokens.background }}
-      contentContainerStyle={{ padding: 16, paddingBottom: bottomPadding, gap: 16 }}
+      contentContainerStyle={{ padding: 16, paddingTop: topPadding, paddingBottom: bottomPadding, gap: 16 }}
     >
       <Text style={{ color: tokens.foreground, fontSize: 28, fontWeight: "800" }}>
         {t(`${PANEL}.title`)}

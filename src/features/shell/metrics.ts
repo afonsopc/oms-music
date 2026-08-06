@@ -57,3 +57,14 @@ export const useOverlayBottomOffset = (): number => {
  */
 export const useContentBottomPadding = (): number =>
   useOverlayBottomOffset() + OVERLAY_PILL_HEIGHT + OVERLAY_MARGIN;
+
+/**
+ * Top padding for a scrollable screen that draws its OWN heading rather than
+ * a Hero. The Hero applies the inset itself, so collection screens must not
+ * use this or they would pay it twice; downloads and settings do, which is
+ * why their titles sat under the dynamic island.
+ */
+export const useContentTopPadding = (extra = 16): number => {
+  const insets = useSafeAreaInsets();
+  return insets.top + extra;
+};

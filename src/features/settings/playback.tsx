@@ -7,7 +7,7 @@ import React, { useState } from "react";
 import { ScrollView, Text } from "react-native";
 import { useUpdateUser } from "@/api/queries/users";
 import { refreshAccount, useSessionStore } from "@/auth/session";
-import { useContentBottomPadding } from "@/features/shell/metrics";
+import { useContentBottomPadding, useContentTopPadding } from "@/features/shell/metrics";
 import { useT } from "@/i18n";
 import { useTheme } from "@/theme/provider";
 import { NoticeBanner, SettingsSection, SwitchRow } from "./ui";
@@ -16,6 +16,7 @@ export default function PlaybackSettingsScreen() {
   const t = useT();
   const { tokens } = useTheme();
   const bottomPadding = useContentBottomPadding();
+  const topPadding = useContentTopPadding();
   const user = useSessionStore((s) => s.user);
   const updateUser = useUpdateUser();
 
@@ -51,7 +52,7 @@ export default function PlaybackSettingsScreen() {
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: tokens.background }}
-      contentContainerStyle={{ padding: 16, paddingBottom: bottomPadding, gap: 16 }}
+      contentContainerStyle={{ padding: 16, paddingTop: topPadding, paddingBottom: bottomPadding, gap: 16 }}
     >
       <Text style={{ color: tokens.foreground, fontSize: 28, fontWeight: "800" }}>
         {t("components.music.Settings.PlaybackPage.title")}

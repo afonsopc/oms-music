@@ -26,7 +26,7 @@ import {
 import { getDownloadNoticeHandler, setDownloadNoticeHandler } from "@/downloads/notices";
 import { isOffline, subscribeOnlineState } from "@/downloads/offlineLibrary";
 import { getStatusVersion, subscribeDownloadStatus } from "@/downloads/status";
-import { useContentBottomPadding } from "@/features/shell/metrics";
+import { useContentBottomPadding, useContentTopPadding } from "@/features/shell/metrics";
 import { useT } from "@/i18n";
 import { useTheme } from "@/theme/provider";
 import { RADIUS } from "@/theme/tokens";
@@ -113,6 +113,7 @@ export default function DownloadsScreen() {
   const t = useT();
   const { tokens } = useTheme();
   const bottomPadding = useContentBottomPadding();
+  const topPadding = useContentTopPadding();
   const version = useDownloadVersion();
   const offline = useOfflineFlag();
 
@@ -283,7 +284,7 @@ export default function DownloadsScreen() {
   return (
     <FlatList
       style={{ flex: 1, backgroundColor: tokens.background }}
-      contentContainerStyle={{ padding: 16, paddingBottom: bottomPadding }}
+      contentContainerStyle={{ padding: 16, paddingTop: topPadding, paddingBottom: bottomPadding }}
       data={songs}
       keyExtractor={(item) => String(item.id)}
       renderItem={renderItem}

@@ -10,7 +10,7 @@
 import React, { useMemo, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 import { useSessionStore } from "@/auth/session";
-import { useContentBottomPadding } from "@/features/shell/metrics";
+import { useContentBottomPadding, useContentTopPadding } from "@/features/shell/metrics";
 import { TabStrip } from "@/features/settings/ui";
 import { useT } from "@/i18n";
 import { useTheme } from "@/theme/provider";
@@ -27,6 +27,7 @@ export default function ImportScreen() {
   const t = useT();
   const { tokens } = useTheme();
   const bottomPadding = useContentBottomPadding();
+  const topPadding = useContentTopPadding();
   const user = useSessionStore((s) => s.user);
   const spotifyAllowed = user?.allowed_to_use_spotify === true;
 
@@ -61,7 +62,7 @@ export default function ImportScreen() {
 
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ padding: 16, paddingBottom: bottomPadding, gap: 16 }}
+        contentContainerStyle={{ padding: 16, paddingTop: topPadding, paddingBottom: bottomPadding, gap: 16 }}
         keyboardShouldPersistTaps="handled"
       >
         {activeTab === "files" ? <FilesImportTab /> : null}

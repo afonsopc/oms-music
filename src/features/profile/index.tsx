@@ -15,7 +15,7 @@ import React from "react";
 import { ScrollView, Text, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { useMusicProfile } from "@/api/queries/social";
-import { useContentBottomPadding } from "@/features/shell/metrics";
+import { useContentBottomPadding, useContentTopPadding } from "@/features/shell/metrics";
 import { useT } from "@/i18n";
 import { artistNamesLine, formatSnapshotDuration, musicProfileArtistImage } from "@/social/display";
 import { useTheme } from "@/theme/provider";
@@ -92,6 +92,7 @@ export default function ProfileScreen() {
   const t = useT();
   const { tokens } = useTheme();
   const bottomPadding = useContentBottomPadding();
+  const topPadding = useContentTopPadding();
   const params = useLocalSearchParams<{ idOrHandle?: string }>();
   // Handles arrive from friend rows with no "@" and are lowercased server
   // side; ids come from notification contexts. Both are legal path segments.
@@ -110,7 +111,7 @@ export default function ProfileScreen() {
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: tokens.background }}
-      contentContainerStyle={{ padding: 16, paddingBottom: bottomPadding, gap: 20 }}
+      contentContainerStyle={{ padding: 16, paddingTop: topPadding, paddingBottom: bottomPadding, gap: 20 }}
     >
       <Text style={{ color: tokens.foreground, fontSize: 28, fontWeight: "800" }}>
         {t(`${PROFILE}.title`)}

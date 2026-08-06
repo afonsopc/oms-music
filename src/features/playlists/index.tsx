@@ -19,7 +19,7 @@ import { playlistRoute } from "@/lib/routes";
 import { useTheme } from "@/theme/provider";
 import { RADIUS } from "@/theme/tokens";
 import { ArtworkImage, EmptyState, ErrorState, Icon } from "@/ui";
-import { useContentBottomPadding } from "@/features/shell/metrics";
+import { useContentBottomPadding, useContentTopPadding } from "@/features/shell/metrics";
 import { CreatePlaylistDialog } from "./CreatePlaylistDialog";
 
 const ROW_ARTWORK = 96;
@@ -73,6 +73,7 @@ export default function PlaylistsScreen() {
   const { tokens } = useTheme();
   const router = useRouter();
   const bottomPadding = useContentBottomPadding();
+  const topPadding = useContentTopPadding(20);
   const [createOpen, setCreateOpen] = useState(false);
 
   const playlistsQuery = usePlaylists();
@@ -155,7 +156,7 @@ export default function PlaylistsScreen() {
         removeClippedSubviews
         contentContainerStyle={{
           paddingHorizontal: 20,
-          paddingTop: 20,
+          paddingTop: topPadding,
           paddingBottom: bottomPadding,
         }}
       />

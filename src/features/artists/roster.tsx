@@ -24,7 +24,7 @@ import { artistRoute } from "@/lib/routes";
 import { useTheme } from "@/theme/provider";
 import { RADIUS } from "@/theme/tokens";
 import { ArtistCard, CircleSkeleton, EmptyState, ErrorState, FilterPills, Icon, Skeleton } from "@/ui";
-import { useContentBottomPadding } from "@/features/shell/metrics";
+import { useContentBottomPadding, useContentTopPadding } from "@/features/shell/metrics";
 
 const SEARCH_DEBOUNCE_MS = 250;
 const SKELETON_COUNT = 12;
@@ -45,6 +45,7 @@ export default function ArtistsRosterScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const bottomPadding = useContentBottomPadding();
+  const topPadding = useContentTopPadding(20);
 
   const [sort, setSort] = useState<Sort>("alphabetical");
   const [filter, setFilter] = useState("");
@@ -189,7 +190,7 @@ export default function ArtistsRosterScreen() {
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{
           paddingHorizontal: 20,
-          paddingTop: 20,
+          paddingTop: topPadding,
           paddingBottom: bottomPadding,
         }}
       />

@@ -19,7 +19,7 @@ import { artistRadioRoute, artistRoute } from "@/lib/routes";
 import { useTheme } from "@/theme/provider";
 import { RADIUS } from "@/theme/tokens";
 import { ErrorState, Icon, Skeleton, foregroundWash } from "@/ui";
-import { useContentBottomPadding } from "@/features/shell/metrics";
+import { useContentBottomPadding, useContentTopPadding } from "@/features/shell/metrics";
 import { ArtistShelf, type ArtistShelfEntry } from "./ArtistShelf";
 import { ArtistSpotlight } from "./ArtistSpotlight";
 
@@ -61,6 +61,7 @@ export default function ArtistsHubScreen() {
   const { tokens } = useTheme();
   const router = useRouter();
   const bottomPadding = useContentBottomPadding();
+  const topPadding = useContentTopPadding(20);
 
   const overviewQuery = useArtistOverview();
   const overview = overviewQuery.data;
@@ -129,7 +130,7 @@ export default function ArtistsHubScreen() {
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: tokens.background }}
-      contentContainerStyle={{ gap: 24, paddingTop: 20, paddingBottom: bottomPadding }}
+      contentContainerStyle={{ gap: 24, paddingTop: topPadding, paddingBottom: bottomPadding }}
     >
       {overviewQuery.isLoading ? (
         <View style={{ paddingHorizontal: 20 }}>

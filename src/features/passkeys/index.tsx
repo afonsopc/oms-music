@@ -25,7 +25,7 @@ import React, { useEffect, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 import { classifyPasskeyFailure, passkeyErrorMessage } from "@/auth/passkeyErrors";
 import { usePasskeysAvailable, type PasskeySummary } from "@/auth/passkeys";
-import { useContentBottomPadding } from "@/features/shell/metrics";
+import { useContentBottomPadding, useContentTopPadding } from "@/features/shell/metrics";
 import { GhostButton, LabeledField, NoticeBanner, PrimaryButton, SettingsSection } from "@/features/settings/ui";
 import { useLocale, useT } from "@/i18n";
 import { formatDate, formatDateTime } from "@/lib/dates";
@@ -86,6 +86,7 @@ export default function PasskeysScreen() {
   const t = useT();
   const { tokens } = useTheme();
   const bottomPadding = useContentBottomPadding();
+  const topPadding = useContentTopPadding();
   const available = usePasskeysAvailable();
 
   const passkeys = usePasskeys();
@@ -149,7 +150,7 @@ export default function PasskeysScreen() {
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: tokens.background }}
-      contentContainerStyle={{ padding: 16, paddingBottom: bottomPadding, gap: 16 }}
+      contentContainerStyle={{ padding: 16, paddingTop: topPadding, paddingBottom: bottomPadding, gap: 16 }}
     >
       <View style={{ gap: 6 }}>
         <Text style={{ color: tokens.foreground, fontSize: 28, fontWeight: "800" }}>

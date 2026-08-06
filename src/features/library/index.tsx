@@ -10,7 +10,7 @@ import { FlatList, Pressable, Text, TextInput, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { usePlaylists } from "@/api/queries/playlists";
-import { useContentBottomPadding } from "@/features/shell/metrics";
+import { useContentBottomPadding, useContentTopPadding } from "@/features/shell/metrics";
 import { useT } from "@/i18n";
 import { useTheme } from "@/theme/provider";
 import { RADIUS } from "@/theme/tokens";
@@ -38,20 +38,30 @@ const QuickLink = ({
       accessibilityRole="button"
       style={({ pressed }) => ({
         flex: 1,
-        flexDirection: "row",
+        // Icon ABOVE the label, not beside it: side by side, the three shortcuts
+        // shared each button's width with their glyph and the longer Portuguese
+        // and Latvian labels ("Transferencias", "Lejupielades") overflowed.
+        flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        gap: 8,
+        gap: 6,
         paddingVertical: 10,
+        paddingHorizontal: 6,
+        minHeight: 64,
         borderRadius: RADIUS,
         backgroundColor: tokens.secondary,
         opacity: pressed ? 0.7 : 1,
       })}
     >
-      <Icon name={icon} size={16} color={tokens.foreground} />
+      <Icon name={icon} size={18} color={tokens.foreground} />
       <Text
-        style={{ color: tokens.foreground, fontSize: 12, fontWeight: "600" }}
-        numberOfLines={1}
+        style={{
+          color: tokens.foreground,
+          fontSize: 12,
+          fontWeight: "600",
+          textAlign: "center",
+        }}
+        numberOfLines={2}
       >
         {label}
       </Text>
@@ -115,6 +125,7 @@ export default function LibraryScreen() {
   const { tokens } = useTheme();
   const insets = useSafeAreaInsets();
   const bottomPadding = useContentBottomPadding();
+  const topPadding = useContentTopPadding();
 
   // "all" walks every artist and album row; the web defaults to playlists
   // for exactly that reason.
@@ -277,7 +288,7 @@ export default function LibraryScreen() {
       windowSize={11}
       removeClippedSubviews
       keyboardShouldPersistTaps="handled"
-      contentContainerStyle={{ paddingBottom: bottomPadding + 24 }}
+      contentContainerStyle={{ paddingTop: topPadding, paddingBottom: bottomPadding + 24 }}
     />
   );
 }
