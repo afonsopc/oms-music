@@ -1,65 +1,96 @@
 /**
- * (player) modal host (FR-17 shell): ONE continuous vertical scroll through
- * Now Playing, then Lyrics, then Queue. The three (player) routes render this
- * host scrolled to different offsets. Page bodies are feature modules owned
- * by WP7.
+ * (player) modal surfaces (FR-17 shell), in the Spotify shape the owner asked
+ * for by screenshot:
  *
- * Continuous, not paged. The paged version snapped each section to its own
- * screen with an indicator-dot strip overlaid at the bottom, which read as
- * three separate pages (and the dots sat on top of the now playing extras
- * row). The Spotify idiom the owner asked for is a single scroll where the
- * lyrics are simply further down the same surface, so `pagingEnabled` and the
- * dots are gone and the scroll runs free.
+ *  - `NowPlayingScroll`: the now-playing route. One free vertical scroll: the
+ *    full-viewport now playing screen, then the lyrics CARD (features/lyrics
+ *    card.tsx), then a queue row. No paging, no indicator dots - the dots
+ *    strip sat on top of the extras row and the snap read as separate pages.
+ *  - `PlayerSubpage`: chrome for the full-screen lyrics and queue routes - a
+ *    chevron-down back button over the body, like the full-lyrics view in the
+ *    reference screenshots.
  */
-import React, { useEffect, useRef } from "react";
-import { ScrollView, View, useWindowDimensions } from "react-native";
+import React from "react";
+import { Pressable, ScrollView, Text, useWindowDimensions, View } from "react-native";
+import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import NowPlayingBody from "@/features/player";
-import QueueBody from "@/features/player/queue";
-import LyricsBody from "@/features/lyrics";
+import { LyricsCard } from "@/features/lyrics/card";
+import { useT } from "@/i18n";
 import { useTheme } from "@/theme/provider";
+import { Icon } from "@/ui";
+import { ChevronDownGlyph } from "./glyphs";
 
-/** 0 = Now Playing, 1 = Lyrics, 2 = Queue (top to bottom). */
-export type PlayerPageIndex = 0 | 1 | 2;
-
-const SECTIONS = [NowPlayingBody, LyricsBody, QueueBody] as const;
-
-export const PlayerPager = ({ initialPage }: { initialPage: PlayerPageIndex }) => {
+export const NowPlayingScroll = () => {
   const { height } = useWindowDimensions();
   const { tokens } = useTheme();
   const insets = useSafeAreaInsets();
-  const scrollRef = useRef<ScrollView>(null);
+  const router = useRouter();
+  const t = useT();
 
-  // Each section still fills one screen: now playing is composed for a full
-  // viewport, and lyrics/queue manage their own internal scrolling.
-  const sectionHeight = Math.max(1, height - insets.bottom);
+  // The sheet presentation already insets the top; now playing is composed
+  // for a full viewport.
+  const viewport = Math.max(1, height - insets.bottom);
 
-  // contentOffset covers iOS; the effect covers platforms that ignore it.
-  useEffect(() => {
-    if (initialPage > 0) {
-      scrollRef.current?.scrollTo({ y: initialPage * sectionHeight, animated: false });
-    }
-    // Initial positioning only.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  return (
+    <ScrollView
+      style={{ flex: 1, backgroundColor: tokens.background }}
+      contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
+      showsVerticalScrollIndicator={false}
+    >
+      <View style={{ height: viewport }}>
+        <NowPlayingBody />
+      </View>
 
-  // No close chevron: the sheet's grabber and its drag-down gesture already
-  // close it, and the button was one more thing above the artwork.
+      <LyricsCard />
+
+      {/* The queue kept its full-screen route; this row is how you reach it
+          now that the pager pages are gone. */}
+      <Pressable
+        onPress={() => router.push("/(player)/queue")}
+        accessibilityRole="button"
+        style={({ pressed }) => ({
+          marginHorizontal: 16,
+          marginTop: 12,
+          borderRadius: 14,
+          backgroundColor: tokens.secondary,
+          paddingHorizontal: 20,
+          paddingVertical: 16,
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 12,
+          opacity: pressed ? 0.7 : 1,
+        })}
+      >
+        <Icon name="list-music" size={18} color={tokens.foreground} />
+        <Text style={{ flex: 1, color: tokens.foreground, fontSize: 15, fontWeight: "700" }}>
+          {t("components.music.NowPlayingSheet.queue")}
+        </Text>
+        <Icon name="chevron-right" size={18} color={tokens.mutedForeground} />
+      </Pressable>
+    </ScrollView>
+  );
+};
+
+/** Full-screen player subpage (lyrics, queue): body + a way back down. */
+export const PlayerSubpage = ({ children }: { children: React.ReactNode }) => {
+  const { tokens } = useTheme();
+  const router = useRouter();
+  const t = useT();
   return (
     <View style={{ flex: 1, backgroundColor: tokens.background }}>
-      <ScrollView
-        ref={scrollRef}
-        showsVerticalScrollIndicator={false}
-        contentOffset={{ x: 0, y: initialPage * sectionHeight }}
-        contentContainerStyle={{ paddingBottom: insets.bottom }}
-        style={{ flex: 1 }}
-      >
-        {SECTIONS.map((SectionBody, index) => (
-          <View key={index} style={{ height: sectionHeight }}>
-            <SectionBody />
-          </View>
-        ))}
-      </ScrollView>
+      <View style={{ alignItems: "flex-start", paddingHorizontal: 12, paddingTop: 10 }}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t("native.common.close")}
+          hitSlop={12}
+          onPress={() => router.back()}
+          style={{ padding: 6 }}
+        >
+          <ChevronDownGlyph color={tokens.mutedForeground} size={26} />
+        </Pressable>
+      </View>
+      <View style={{ flex: 1 }}>{children}</View>
     </View>
   );
 };

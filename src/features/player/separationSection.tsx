@@ -27,7 +27,7 @@
  *    would be the plain mix, and the EQ is only in the mixer's path.
  */
 import React from "react";
-import { ActivityIndicator, Switch, Text, View } from "react-native";
+import { ActivityIndicator, Text, View } from "react-native";
 import { getSeparationService, type SeparationStatus } from "@/contracts/separation";
 import { updateDownloadSettings, useDownloadSettings } from "@/downloads/settings";
 import { formatDuration } from "@/domain/format";
@@ -36,7 +36,6 @@ import type { Song } from "@/domain/song";
 import { useT } from "@/i18n";
 import { getPlayerEngine } from "@/player/register";
 import { usePlayerStore } from "@/player/store";
-import { switchColors } from "@/theme/switchColors";
 import { useTheme } from "@/theme/provider";
 import {
   dbFromFraction,
@@ -165,10 +164,8 @@ const BlendStatus = ({ disabled }: { disabled: boolean }) => {
 
 export const SeparationSection = ({ song, disabled }: { song: Song; disabled: boolean }) => {
   const t = useT();
-  const { tokens } = useTheme();
   const service = getSeparationService();
   const status = service.useSeparationStatus(song.id);
-  const separationEnabled = usePlayerStore((s) => s.separationEnabled);
   const playbackMode = usePlayerStore((s) => s.playbackMode);
   const vocalVolume = usePlayerStore((s) => s.vocalVolume);
   const instrumentalVolume = usePlayerStore((s) => s.instrumentalVolume);
@@ -272,7 +269,6 @@ const EQ_LABEL: Record<keyof EqBands, string> = {
 
 export const EqualizerSection = ({ disabled }: { disabled: boolean }) => {
   const t = useT();
-  const { tokens } = useTheme();
   const eqEnabled = usePlayerStore((s) => s.eqEnabled);
   const eqLow = usePlayerStore((s) => s.eqLow);
   const eqMid = usePlayerStore((s) => s.eqMid);

@@ -1153,6 +1153,9 @@
       "recent": "Ouvido recentemente",
       "plays": "{count} reproduções",
       "playsLastMonth": "{count} reproduções nos últimos 30 dias"
+    },
+    "lyrics": {
+      "cardTitle": "Letra"
     }
   }
 }

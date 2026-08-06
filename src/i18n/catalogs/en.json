@@ -1153,6 +1153,9 @@
       "recent": "Recently played",
       "plays": "{count} plays",
       "playsLastMonth": "{count} plays in the last 30 days"
+    },
+    "lyrics": {
+      "cardTitle": "Lyrics"
     }
   }
 }

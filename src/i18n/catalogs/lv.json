@@ -1153,6 +1153,9 @@
       "recent": "Nesen klausītais",
       "plays": "{count} atskaņojumi",
       "playsLastMonth": "{count} atskaņojumi pēdējās 30 dienās"
+    },
+    "lyrics": {
+      "cardTitle": "Dziesmas vārdi"
     }
   }
 }

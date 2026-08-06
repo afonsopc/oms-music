@@ -1,6 +1,12 @@
 import React from "react";
-import { PlayerPager } from "../PlayerPager";
+import QueueBody from "@/features/player/queue";
+import { PlayerSubpage } from "../PlayerPager";
 
+/** Full-screen queue, opened from the row on the now playing scroll. */
 export default function QueuePage() {
-  return <PlayerPager initialPage={2} />;
+  return (
+    <PlayerSubpage>
+      <QueueBody />
+    </PlayerSubpage>
+  );
 }

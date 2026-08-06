@@ -124,7 +124,7 @@ const VolumeRow = () => {
  * the synchronous cache read covers songs already seen (theme flips restyle
  * without re-downloading bytes).
  */
-const useSongAccent = (song: Song | null): string => {
+export const useSongAccent = (song: Song | null): string => {
   const { scheme } = useTheme();
   const artworkUri = song ? artworkSourceUri(songArtworkSource(song)) : null;
   const accentKey = song ? String(song.id) : "";
