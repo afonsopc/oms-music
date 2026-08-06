@@ -42,9 +42,17 @@ const RootNavigator = () => {
       >
         <Stack.Protected guard={authed}>
           <Stack.Screen name="(main)" />
+          {/* "modal", not "fullScreenModal": on iOS only the sheet
+              presentation can be dragged down to dismiss, and a now playing
+              screen that can only be closed by hunting for a small chevron at
+              the top reads as broken. The grabber comes for free. */}
           <Stack.Screen
             name="(player)"
-            options={{ presentation: "fullScreenModal", animation: "slide_from_bottom" }}
+            options={{
+              presentation: "modal",
+              animation: "slide_from_bottom",
+              gestureEnabled: true,
+            }}
           />
           <Stack.Screen name="jam" options={{ presentation: "modal" }} />
         </Stack.Protected>

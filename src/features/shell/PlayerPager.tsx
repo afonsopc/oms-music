@@ -12,15 +12,14 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import NowPlayingBody from "@/features/player";
 import QueueBody from "@/features/player/queue";
 import LyricsBody from "@/features/lyrics";
-import FriendsBody from "@/features/friends";
 import { useTheme } from "@/theme/provider";
 import { useT } from "@/i18n";
 import { ChevronDownGlyph } from "./glyphs";
 
-/** 0 = Now Playing, 1 = Queue, 2 = Lyrics, 3 = Friends. */
-export type PlayerPageIndex = 0 | 1 | 2 | 3;
+/** 0 = Now Playing, 1 = Queue, 2 = Lyrics. */
+export type PlayerPageIndex = 0 | 1 | 2;
 
-const PAGES = [NowPlayingBody, QueueBody, LyricsBody, FriendsBody] as const;
+const PAGES = [NowPlayingBody, QueueBody, LyricsBody] as const;
 
 export const PlayerPager = ({ initialPage }: { initialPage: PlayerPageIndex }) => {
   const { width } = useWindowDimensions();

@@ -174,11 +174,15 @@ export default function NowPlayingBody() {
   const accent = useSongAccent(song);
   const [gradientTop, gradientBottom] = playerGradient(accent, scheme);
 
-  // Links leave the player: dismiss the modal first so the destination lands
-  // on the (main) stack rather than under it.
+  // Links leave the player entirely: an album or a radio opened from here
+  // belongs on the (main) stack, not stacked as a second sheet over the one
+  // the user is already in. `back()` only pops one entry and races the push,
+  // which is how the destination ended up presented as another sheet;
+  // dismissAll() unwinds every modal first, and canDismiss() keeps it safe
+  // when the player is somehow not presented modally.
   const openInMain = useCallback(
     (route: Href) => {
-      router.back();
+      if (router.canDismiss()) router.dismissAll();
       router.push(route);
     },
     [router],

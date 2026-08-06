@@ -200,6 +200,13 @@ export default function LibraryScreen() {
           label={t("components.music.Sidebar.liked")}
           onPress={() => router.push("/(main)/liked")}
         />
+        {/* Friends used to be reachable only as the fourth page of the player
+            sheet, which is not where anyone looks for a social screen. */}
+        <QuickLink
+          icon="user"
+          label={t("native.friends.title")}
+          onPress={() => router.push("/(main)/friends")}
+        />
         <QuickLink
           icon="download"
           label={t("native.shell.tabDownloads")}
