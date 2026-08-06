@@ -300,6 +300,16 @@ export const EqualizerSection = ({ disabled }: { disabled: boolean }) => {
             // Touching a band IS turning the EQ on, now that there is no
             // separate switch to leave it stranded in the off position.
             if (!eqEnabled) engine.setEqEnabled(true);
+            // The EQ lives in the stem mixer's graph, and the mixer only
+            // produces audio for the custom blend: adjusted from Original the
+            // bands moved on screen and changed NOTHING audible. Hop into the
+            // blend - at the default 1/1 gains it sounds like the original and
+            // original<->custom keeps the same main file, so nothing restarts.
+            // From Instrumental/Vocals the hop would change what plays, so the
+            // note below explains instead.
+            if (playbackMode === "original" && stemMixerAvailable) {
+              engine.setPlaybackMode("custom");
+            }
             engine.setEqBand(band, dbFromFraction(fraction));
           }}
         />

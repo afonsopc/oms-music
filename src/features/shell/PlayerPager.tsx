@@ -1,15 +1,17 @@
 /**
- * (player) modal pager host (FR-17 shell): a full-screen pager across
- * Now Playing / Lyrics / Queue. The three (player) routes render this host at
- * different initial pages. Page bodies are feature modules owned by WP7.
+ * (player) modal host (FR-17 shell): ONE continuous vertical scroll through
+ * Now Playing, then Lyrics, then Queue. The three (player) routes render this
+ * host scrolled to different offsets. Page bodies are feature modules owned
+ * by WP7.
  *
- * The pager scrolls VERTICALLY. It used to page sideways, which meant lyrics
- * were two horizontal swipes away and read as a separate screen rather than
- * more of the song; every music app people actually use puts them below the
- * artwork, reached by pushing the now playing view up. Vertical also frees the
- * horizontal axis, which the sheet's own drag-to-dismiss wants.
+ * Continuous, not paged. The paged version snapped each section to its own
+ * screen with an indicator-dot strip overlaid at the bottom, which read as
+ * three separate pages (and the dots sat on top of the now playing extras
+ * row). The Spotify idiom the owner asked for is a single scroll where the
+ * lyrics are simply further down the same surface, so `pagingEnabled` and the
+ * dots are gone and the scroll runs free.
  */
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import { ScrollView, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import NowPlayingBody from "@/features/player";
@@ -20,25 +22,22 @@ import { useTheme } from "@/theme/provider";
 /** 0 = Now Playing, 1 = Lyrics, 2 = Queue (top to bottom). */
 export type PlayerPageIndex = 0 | 1 | 2;
 
-const INDICATOR_HEIGHT = 24;
-
-const PAGES = [NowPlayingBody, LyricsBody, QueueBody] as const;
+const SECTIONS = [NowPlayingBody, LyricsBody, QueueBody] as const;
 
 export const PlayerPager = ({ initialPage }: { initialPage: PlayerPageIndex }) => {
   const { height } = useWindowDimensions();
   const { tokens } = useTheme();
   const insets = useSafeAreaInsets();
   const scrollRef = useRef<ScrollView>(null);
-  const [activePage, setActivePage] = useState<number>(initialPage);
 
-  // The sheet presentation eats the top inset, so a page is the window height
-  // less the bottom inset the indicator column occupies.
-  const pageHeight = Math.max(1, height - insets.bottom - INDICATOR_HEIGHT);
+  // Each section still fills one screen: now playing is composed for a full
+  // viewport, and lyrics/queue manage their own internal scrolling.
+  const sectionHeight = Math.max(1, height - insets.bottom);
 
   // contentOffset covers iOS; the effect covers platforms that ignore it.
   useEffect(() => {
     if (initialPage > 0) {
-      scrollRef.current?.scrollTo({ y: initialPage * pageHeight, animated: false });
+      scrollRef.current?.scrollTo({ y: initialPage * sectionHeight, animated: false });
     }
     // Initial positioning only.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -50,44 +49,17 @@ export const PlayerPager = ({ initialPage }: { initialPage: PlayerPageIndex }) =
     <View style={{ flex: 1, backgroundColor: tokens.background }}>
       <ScrollView
         ref={scrollRef}
-        pagingEnabled
         showsVerticalScrollIndicator={false}
-        contentOffset={{ x: 0, y: initialPage * pageHeight }}
-        onMomentumScrollEnd={(event) => {
-          const page = Math.round(event.nativeEvent.contentOffset.y / pageHeight);
-          setActivePage(page);
-        }}
+        contentOffset={{ x: 0, y: initialPage * sectionHeight }}
+        contentContainerStyle={{ paddingBottom: insets.bottom }}
         style={{ flex: 1 }}
       >
-        {PAGES.map((PageBody, index) => (
-          <View key={index} style={{ height: pageHeight }}>
-            <PageBody />
+        {SECTIONS.map((SectionBody, index) => (
+          <View key={index} style={{ height: sectionHeight }}>
+            <SectionBody />
           </View>
         ))}
       </ScrollView>
-      <View
-        pointerEvents="none"
-        style={{
-          flexDirection: "row",
-          justifyContent: "center",
-          gap: 6,
-          height: INDICATOR_HEIGHT,
-          alignItems: "center",
-          paddingBottom: insets.bottom,
-        }}
-      >
-        {PAGES.map((_, index) => (
-          <View
-            key={index}
-            style={{
-              width: 6,
-              height: 6,
-              borderRadius: 3,
-              backgroundColor: index === activePage ? tokens.primary : tokens.muted,
-            }}
-          />
-        ))}
-      </View>
     </View>
   );
 };

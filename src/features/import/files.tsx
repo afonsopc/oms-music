@@ -170,23 +170,22 @@ export default function FilesImportTab() {
           <Text style={{ color: tokens.mutedForeground, fontSize: 13, lineHeight: 19 }}>
             {t(`${SETTINGS_KEY}.dropzoneDescription`)}
           </Text>
-          <View style={{ flexDirection: "row", gap: 10 }}>
-            <View style={{ flex: 1 }}>
-              <PrimaryButton
-                label={t(`${SETTINGS_KEY}.selectFiles`)}
-                onPress={() => void chooseFiles()}
-                disabled={busy}
-                compact
-              />
-            </View>
-            <View style={{ flex: 1 }}>
-              <GhostButton
-                label={t(`${SETTINGS_KEY}.selectFolder`)}
-                onPress={() => void chooseFolder()}
-                disabled={busy}
-                compact
-              />
-            </View>
+          {/* Stacked, not side by side: "Selecionar Ficheiros" wrapped to two
+              lines at half a phone's width while its sibling stayed on one,
+              and a pair of buttons at two different heights reads broken. */}
+          <View style={{ gap: 10 }}>
+            <PrimaryButton
+              label={t(`${SETTINGS_KEY}.selectFiles`)}
+              onPress={() => void chooseFiles()}
+              disabled={busy}
+              compact
+            />
+            <GhostButton
+              label={t(`${SETTINGS_KEY}.selectFolder`)}
+              onPress={() => void chooseFolder()}
+              disabled={busy}
+              compact
+            />
           </View>
 
           {busy && progress ? (

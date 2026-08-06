@@ -116,10 +116,14 @@ export const BRAND_SOFT = "#fff3e6";
 
 /** Music section accent. */
 export const MUSIC_ACCENT = BRAND;
-/** Liked Songs page accent; also the Spotify liked mirror. */
-export const LIKED_ACCENT = BRAND;
-/** Liked artwork gradient, brand shades rather than the old violets. */
-export const LIKED_GRADIENT = [BRAND_LOGO, BRAND, BRAND_INK] as const;
+/**
+ * Liked Songs identity. Deliberately NOT the brand: the owner rejected the
+ * orange repaint here - the purple heart is what "liked" has always looked
+ * like, and rebranding the chrome was never meant to touch it.
+ */
+export const LIKED_ACCENT = "#7e22ce";
+/** Liked artwork gradient: violet-700 -> purple-700 -> indigo-900. */
+export const LIKED_GRADIENT = ["#6d28d9", "#7e22ce", "#312e81"] as const;
 /**
  * Spotify-sync markers and the "Playing on X" controller strip. Both are
  * FILLS: as ink on the light page emerald-500 is ~2.5:1, so anything drawing
