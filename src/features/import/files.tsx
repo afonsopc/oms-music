@@ -54,7 +54,7 @@ interface Progress {
 
 export default function FilesImportTab() {
   const t = useT();
-  const { tokens } = useTheme();
+  const { tokens, ink } = useTheme();
   const queryClient = useQueryClient();
   const errorMessage = useApiErrorMessage();
   const busy = useImportBusy();
@@ -224,7 +224,7 @@ export default function FilesImportTab() {
               }}
             >
               <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                <Icon name="alert-circle" size={16} color={tokens.destructive} />
+                <Icon name="alert-circle" size={16} color={ink.destructive} />
                 <Text style={{ color: tokens.foreground, fontSize: 14, fontWeight: "700", flex: 1 }}>
                   {record.path}
                 </Text>

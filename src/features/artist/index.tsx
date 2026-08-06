@@ -23,6 +23,7 @@ import type { Song } from "@/domain/song";
 import { useLocale, useT } from "@/i18n";
 import { artistRadioRoute } from "@/lib/routes";
 import { usePlaybackView } from "@/remote/mirror";
+import { withAlpha } from "@/theme/contrast";
 import { useTheme } from "@/theme/provider";
 import {
   ActionBar,
@@ -290,7 +291,7 @@ export default function ArtistScreen() {
               {bioParagraphs.map((paragraph, index) => (
                 <Text
                   key={index}
-                  style={{ color: tokens.foreground, opacity: 0.9, fontSize: 14, lineHeight: 21 }}
+                  style={{ color: withAlpha(tokens.foreground, 0.9), fontSize: 14, lineHeight: 21 }}
                 >
                   {paragraph}
                 </Text>

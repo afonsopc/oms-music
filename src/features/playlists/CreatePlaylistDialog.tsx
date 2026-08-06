@@ -17,6 +17,7 @@ import { useCreatePlaylist } from "@/api/queries/playlists";
 import type { Playlist } from "@/domain/playlist";
 import { useT } from "@/i18n";
 import { useTheme } from "@/theme/provider";
+import { modalScrim } from "@/ui/uiTheme";
 import { RADIUS } from "@/theme/tokens";
 
 export interface CreatePlaylistDialogProps {
@@ -31,7 +32,7 @@ export const CreatePlaylistDialog = ({
   onClose,
   onCreated,
 }: CreatePlaylistDialogProps) => {
-  const { tokens } = useTheme();
+  const { tokens, scheme } = useTheme();
   const t = useT();
   const [name, setName] = useState("");
   const createMutation = useCreatePlaylist();
@@ -63,7 +64,7 @@ export const CreatePlaylistDialog = ({
         onPress={close}
         style={{
           flex: 1,
-          backgroundColor: "rgba(0, 0, 0, 0.5)",
+          backgroundColor: modalScrim(scheme),
           alignItems: "center",
           justifyContent: "center",
           padding: 24,

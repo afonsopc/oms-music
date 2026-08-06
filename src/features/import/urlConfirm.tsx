@@ -70,7 +70,7 @@ const useLibraryRefreshOnComplete = (songId: number | null): void => {
 
 const TrackProgressRow = ({ importId }: { importId: number }) => {
   const t = useT();
-  const { tokens } = useTheme();
+  const { tokens, ink } = useTheme();
   const query = useSongImportPoll(importId);
   const data = query.data;
   useLibraryRefreshOnComplete(data?.state === "complete" ? data.song_id : null);
@@ -98,21 +98,21 @@ const TrackProgressRow = ({ importId }: { importId: number }) => {
         kind={failed ? "failed" : data.state === "complete" ? "done" : "normal"}
       />
       {failed && data.error_message ? (
-        <Text style={{ color: tokens.destructive, fontSize: 11 }}>{data.error_message}</Text>
+        <Text style={{ color: ink.destructive, fontSize: 11 }}>{data.error_message}</Text>
       ) : null}
     </View>
   );
 };
 
 const TrackStateIcon = ({ importId }: { importId: number | undefined }) => {
-  const { tokens } = useTheme();
+  const { tokens, ink } = useTheme();
   const query = useSongImportPoll(importId ?? null, importId != null);
   const data = query.data;
   useLibraryRefreshOnComplete(data?.state === "complete" ? data.song_id : null);
   if (importId == null) return null;
   const state = data?.state;
   if (state === "complete") return <Icon name="circle-check" size={15} color={tokens.primary} />;
-  if (state === "failed") return <Icon name="x" size={15} color={tokens.destructive} />;
+  if (state === "failed") return <Icon name="x" size={15} color={ink.destructive} />;
   return <ActivityIndicator size="small" color={tokens.mutedForeground} />;
 };
 

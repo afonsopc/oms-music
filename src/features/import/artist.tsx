@@ -52,7 +52,7 @@ interface SpotifyArtist {
 
 const RecentRow = ({ record }: { record: ArtistImport }) => {
   const t = useT();
-  const { tokens } = useTheme();
+  const { tokens, ink } = useTheme();
   const totalAlbums = record.total_albums ?? record.album_ids.length;
   const processed = record.processed_albums ?? 0;
   const ratio = totalAlbums > 0 ? Math.min(1, processed / totalAlbums) : null;
@@ -75,7 +75,7 @@ const RecentRow = ({ record }: { record: ArtistImport }) => {
           <Icon
             name={record.state === "failed" ? "alert-circle" : "circle-check"}
             size={14}
-            color={record.state === "failed" ? tokens.destructive : tokens.mutedForeground}
+            color={record.state === "failed" ? ink.destructive : tokens.mutedForeground}
           />
         )}
         <Text numberOfLines={1} style={{ flex: 1, color: tokens.foreground, fontSize: 13 }}>
@@ -109,7 +109,7 @@ const RecentRow = ({ record }: { record: ArtistImport }) => {
         </Text>
       ) : null}
       {record.state === "failed" && record.error_message ? (
-        <Text numberOfLines={2} style={{ color: tokens.destructive, fontSize: 11 }}>
+        <Text numberOfLines={2} style={{ color: ink.destructive, fontSize: 11 }}>
           {record.error_message}
         </Text>
       ) : null}

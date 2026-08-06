@@ -20,7 +20,8 @@ import {
 import { isApiError } from "@/domain/api";
 import { useT } from "@/i18n";
 import { useTheme } from "@/theme/provider";
-import { EMERALD, RADIUS } from "@/theme/tokens";
+import { statusInkFor } from "@/theme/scheme";
+import { RADIUS } from "@/theme/tokens";
 import { Icon, type IconName } from "@/ui";
 
 export const useApiErrorMessage = (): ((error: unknown) => string) => {
@@ -99,8 +100,8 @@ export const SettingsRow = ({
   trailing?: React.ReactNode;
   first?: boolean;
 }) => {
-  const { tokens } = useTheme();
-  const color = destructive ? tokens.destructive : tokens.foreground;
+  const { tokens, ink } = useTheme();
+  const color = destructive ? ink.destructive : tokens.foreground;
   return (
     <Pressable
       onPress={onPress}
@@ -117,7 +118,7 @@ export const SettingsRow = ({
         opacity: disabled ? 0.5 : pressed ? 0.7 : 1,
       })}
     >
-      {icon ? <Icon name={icon} size={20} color={destructive ? tokens.destructive : tokens.mutedForeground} /> : null}
+      {icon ? <Icon name={icon} size={20} color={destructive ? ink.destructive : tokens.mutedForeground} /> : null}
       <View style={{ flex: 1, gap: 2 }}>
         <Text style={{ color, fontSize: 15, fontWeight: "600" }}>{label}</Text>
         {detail ? (
@@ -217,9 +218,9 @@ export const NoticeBanner = ({
   message: string;
   style?: StyleProp<ViewStyle>;
 }) => {
-  const { tokens } = useTheme();
+  const { tokens, ink } = useTheme();
   const color =
-    kind === "error" ? tokens.destructive : kind === "success" ? tokens.primary : tokens.mutedForeground;
+    kind === "error" ? ink.destructive : kind === "success" ? tokens.primary : tokens.mutedForeground;
   return (
     <View
       style={[
@@ -437,10 +438,13 @@ export const ProgressBar = ({
   value: number;
   kind?: "normal" | "failed" | "done";
 }) => {
-  const { tokens } = useTheme();
+  const { tokens, scheme } = useTheme();
+  // The track is `muted`, not the page: the page ink for `destructive`
+  // reaches only 2.85:1 on the dark muted fill.
+  const ink = statusInkFor(scheme, "muted");
   const clamped = Math.max(0, Math.min(1, Number.isFinite(value) ? value : 0));
   const color =
-    kind === "failed" ? tokens.destructive : kind === "done" ? EMERALD : tokens.primary;
+    kind === "failed" ? ink.destructive : kind === "done" ? ink.sync : tokens.primary;
   return (
     <View
       style={{

@@ -8,7 +8,11 @@ import React from "react";
 import { View, type StyleProp, type ViewStyle } from "react-native";
 import { Icon } from "./icons";
 import { linearGradient } from "./uiTheme";
+import { AA_LARGE, ON_DARK, preferredOn } from "@/theme/contrast";
 import { LIKED_GRADIENT, RADIUS } from "@/theme/tokens";
+
+/** The heart sits over the middle stop; purple-700 keeps white in both schemes. */
+const HEART_COLOR = preferredOn(LIKED_GRADIENT[1], ON_DARK, AA_LARGE);
 
 export interface LikedArtworkProps {
   size: number;
@@ -32,6 +36,6 @@ export const LikedArtwork = ({ size, borderRadius = RADIUS, style }: LikedArtwor
       style,
     ]}
   >
-    <Icon name="heart" size={size / 3} color="#ffffff" filled />
+    <Icon name="heart" size={size / 3} color={HEART_COLOR} filled />
   </View>
 );

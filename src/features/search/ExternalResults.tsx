@@ -37,7 +37,7 @@ const ExternalTrackRow = ({
   track: ExternalSearchResult;
   first: boolean;
 }) => {
-  const { tokens } = useTheme();
+  const { tokens, ink } = useTheme();
   const t = useT();
   const queryClient = useQueryClient();
   /** Terminal states reached WITHOUT a poll (deduped / immediate failure). */
@@ -141,7 +141,7 @@ const ExternalTrackRow = ({
           {subtitle}
         </Text>
         {state === "failed" && errorMessage ? (
-          <Text style={{ color: tokens.destructive, fontSize: 11 }} numberOfLines={2}>
+          <Text style={{ color: ink.destructive, fontSize: 11 }} numberOfLines={2}>
             {errorMessage}
           </Text>
         ) : null}
@@ -201,7 +201,7 @@ const ExternalTrackRow = ({
           </Text>
         </View>
       ) : state === "done" ? (
-        <Icon name="circle-check" size={18} color={tokens.success} />
+        <Icon name="circle-check" size={18} color={ink.success} />
       ) : (
         <Pressable
           onPress={() => {

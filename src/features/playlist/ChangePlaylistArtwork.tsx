@@ -18,9 +18,18 @@ import { useUploadPlaylistArtwork } from "@/api/queries/playlists";
 import type { ArtworkSource } from "@/domain/artwork";
 import type { PlaylistId } from "@/domain/ids";
 import { useT } from "@/i18n";
-import { ArtworkImage, Icon } from "@/ui";
+import { ArtworkImage, Icon, photoScrim } from "@/ui";
+import { ON_DARK, preferredOn } from "@/theme/contrast";
 import { RADIUS } from "@/theme/tokens";
 import { MAX_ARTWORK_MB, pickPlaylistArtwork } from "./artworkPicker";
+
+/**
+ * Both overlay bars are scrims over arbitrary artwork, so the ink is resolved
+ * against the scrim over its worst case (a white cover) rather than assumed.
+ */
+const NOTICE_SCRIM = photoScrim(0.7);
+const CONTROL_SCRIM = photoScrim(0.6);
+const OVERLAY_INK = preferredOn(CONTROL_SCRIM, ON_DARK);
 
 export interface ChangePlaylistArtworkProps {
   playlistId: PlaylistId;
@@ -102,10 +111,10 @@ export const ChangePlaylistArtwork = ({
             top: 0,
             paddingHorizontal: 8,
             paddingVertical: 6,
-            backgroundColor: "rgba(0, 0, 0, 0.7)",
+            backgroundColor: NOTICE_SCRIM,
           }}
         >
-          <Text style={{ color: "#ffffff", fontSize: 10 }} numberOfLines={3}>
+          <Text style={{ color: OVERLAY_INK, fontSize: 10 }} numberOfLines={3}>
             {notice}
           </Text>
         </View>
@@ -122,15 +131,18 @@ export const ChangePlaylistArtwork = ({
           justifyContent: "center",
           gap: 6,
           paddingVertical: 6,
-          backgroundColor: "rgba(0, 0, 0, 0.55)",
+          backgroundColor: CONTROL_SCRIM,
         }}
       >
         {busy ? (
-          <ActivityIndicator size="small" color="#ffffff" />
+          <ActivityIndicator size="small" color={OVERLAY_INK} />
         ) : (
-          <Icon name="plus" size={13} color="#ffffff" />
+          <Icon name="plus" size={13} color={OVERLAY_INK} />
         )}
-        <Text style={{ color: "#ffffff", fontSize: 11, fontWeight: "600" }} numberOfLines={1}>
+        <Text
+          style={{ color: OVERLAY_INK, fontSize: 11, fontWeight: "600" }}
+          numberOfLines={1}
+        >
           {preparing
             ? t("components.music.ChangePlaylistArtwork.loadingFile")
             : upload.isPending

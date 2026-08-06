@@ -16,7 +16,8 @@
 import React, { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { useT } from "@/i18n";
-import { EMERALD, EMERALD_BADGE, RADIUS } from "@/theme/tokens";
+import { AA_LARGE, ON_DARK, preferredOn } from "@/theme/contrast";
+import { EMERALD, RADIUS } from "@/theme/tokens";
 import { useTheme } from "@/theme/provider";
 import { GhostIconButton, Icon, BottomSheet, type IconName } from "@/ui";
 import { remoteTransferTo } from "@/remote/channel";
@@ -34,6 +35,15 @@ import type { OverlaySlot } from "@/features/shell/slots";
  * still reads in the label the server composes.
  */
 const DEVICE_ICON: IconName = "cast";
+
+/**
+ * The strip keeps its emerald identity in both schemes (web parity:
+ * `bg-emerald-600 text-white`), so the ink is resolved against EMERALD rather
+ * than taken from the token palette. Bold 12px on emerald-600 lands at ~3.8:1
+ * - above the non-text bar, below AA for body copy; deepening the emerald
+ * would be an identity change, so the brand ink stands.
+ */
+const STRIP_INK = preferredOn(EMERALD, ON_DARK, AA_LARGE);
 
 const useFallbackLabel = (): string => useT()("components.music.DevicePicker.deviceFallback");
 
@@ -58,7 +68,7 @@ const DeviceRow = ({
   hint?: string | null;
   first?: boolean;
 }) => {
-  const { tokens } = useTheme();
+  const { tokens, ink } = useTheme();
   return (
     <Pressable
       accessibilityRole="button"
@@ -83,14 +93,14 @@ const DeviceRow = ({
           {label}
         </Text>
         {hint ? (
-          <Text style={{ color: EMERALD_BADGE, fontSize: 11 }}>{hint}</Text>
+          <Text style={{ color: ink.sync, fontSize: 11 }}>{hint}</Text>
         ) : null}
       </View>
       {checked ? (
         <Icon name="check" size={18} color={tokens.primary} />
       ) : online ? (
         <View
-          style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: EMERALD_BADGE }}
+          style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: ink.sync }}
         />
       ) : null}
     </Pressable>
@@ -203,7 +213,7 @@ export const DevicePickerSheet = ({ visible, onClose }: DevicePickerSheetProps) 
  * are the active device, emerald when another device plays.
  */
 export const CastButton = () => {
-  const { tokens } = useTheme();
+  const { tokens, ink } = useTheme();
   const t = useT();
   const fallback = useFallbackLabel();
   const role = useRemoteStore((s) => s.role);
@@ -218,7 +228,7 @@ export const CastButton = () => {
       ? tokens.mutedForeground
       : role === "active"
         ? tokens.primary
-        : EMERALD_BADGE;
+        : ink.sync;
 
   return (
     <>
@@ -269,8 +279,11 @@ export const ControllerStrip = () => {
           opacity: pressed ? 0.85 : 1,
         })}
       >
-        <Icon name="cast" size={14} color="#ffffff" />
-        <Text numberOfLines={1} style={{ color: "#ffffff", fontSize: 12, fontWeight: "700", flex: 1 }}>
+        <Icon name="cast" size={14} color={STRIP_INK} />
+        <Text
+          numberOfLines={1}
+          style={{ color: STRIP_INK, fontSize: 12, fontWeight: "700", flex: 1 }}
+        >
           {t("components.music.DevicePicker.playingOn", {
             device: deviceDisplayLabel(activeDevice, fallback),
           })}

@@ -83,6 +83,17 @@ export const darkTokens: ThemeTokens = {
   ring: hsl(240, 4.9, 83.9),
 };
 
+/** Resolved scheme name. Declared here so pure modules need no React import. */
+export type ResolvedScheme = "light" | "dark";
+
+/**
+ * The ONE place a scheme turns into a palette. Everything that needs tokens
+ * outside React (the navigation theme, the translucent wash helpers, tests)
+ * goes through this rather than reaching for a palette by name.
+ */
+export const tokensFor = (scheme: ResolvedScheme): ThemeTokens =>
+  scheme === "dark" ? darkTokens : lightTokens;
+
 /** Base corner radius (px). Pills and play buttons are fully round. */
 export const RADIUS = 8;
 
@@ -96,13 +107,30 @@ export const MUSIC_ACCENT = "#4B1E6D";
 export const LIKED_ACCENT = "#7e22ce";
 /** Liked artwork gradient: violet-700 -> purple-700 -> indigo-900. */
 export const LIKED_GRADIENT = ["#6d28d9", "#7e22ce", "#312e81"] as const;
-/** Spotify-sync markers and the "Playing on X" controller strip. */
+/**
+ * Spotify-sync markers and the "Playing on X" controller strip. Both are
+ * FILLS: as ink on the light page emerald-500 is ~2.5:1, so anything drawing
+ * the marker as text, a glyph or a dot takes `statusInkFor(scheme).sync`
+ * instead (theme/scheme.ts).
+ */
 export const EMERALD = "#059669"; // emerald-600 (strip background)
 export const EMERALD_BADGE = "#10b981"; // emerald-500 (badge tint)
 /** Song accent extraction fallback (FR-66). */
 export const ACCENT_FALLBACK = "#FF5555";
 /** Hero accent fallback. */
 export const HERO_FALLBACK = "#222222";
+/**
+ * Artists-hub spotlight banner gradient: fuchsia-700 -> violet-700 ->
+ * indigo-800 (stands in when the artist has no banner photo).
+ */
+export const SPOTLIGHT_GRADIENT = ["#a21caf", "#6d28d9", "#3730a3"] as const;
+
+/**
+ * Pure black, the base of every scrim and shadow. Scrims are deliberately
+ * scheme-INDEPENDENT: they darken photos and identity gradients, which are
+ * the same in both schemes, and their on-color comes from `onColor`.
+ */
+export const SCRIM_BASE = "#000000";
 
 // ---------------------------------------------------------------------------
 // Mix and radio kind gradients (client-owned; the server `gradient` field is

@@ -9,11 +9,16 @@ import React, { useEffect, useState } from "react";
 import { Pressable, View } from "react-native";
 import { Image } from "expo-image";
 import { useT } from "@/i18n";
+import { AA_LARGE, ON_DARK, preferredOn } from "@/theme/contrast";
 import { useTheme } from "@/theme/provider";
 import { RADIUS } from "@/theme/tokens";
-import { Icon } from "@/ui";
+import { Icon, photoScrim } from "@/ui";
 
 const ADVANCE_MS = 6000;
+
+/** The chevrons float on arbitrary photos, so they carry their own scrim. */
+const CHEVRON_SCRIM = photoScrim(0.45);
+const CHEVRON_INK = preferredOn(CHEVRON_SCRIM, ON_DARK, AA_LARGE);
 
 export interface ArtistGalleryProps {
   urls: string[];
@@ -82,11 +87,11 @@ export const ArtistGallery = ({ urls }: ArtistGalleryProps) => {
                 borderRadius: 18,
                 alignItems: "center",
                 justifyContent: "center",
-                backgroundColor: "rgba(0, 0, 0, 0.45)",
+                backgroundColor: CHEVRON_SCRIM,
                 opacity: pressed ? 0.7 : 1,
               })}
             >
-              <Icon name="chevron-left" size={18} color="#ffffff" />
+              <Icon name="chevron-left" size={18} color={CHEVRON_INK} />
             </Pressable>
             <Pressable
               onPress={() => step(1)}
@@ -99,11 +104,11 @@ export const ArtistGallery = ({ urls }: ArtistGalleryProps) => {
                 borderRadius: 18,
                 alignItems: "center",
                 justifyContent: "center",
-                backgroundColor: "rgba(0, 0, 0, 0.45)",
+                backgroundColor: CHEVRON_SCRIM,
                 opacity: pressed ? 0.7 : 1,
               })}
             >
-              <Icon name="chevron-right" size={18} color="#ffffff" />
+              <Icon name="chevron-right" size={18} color={CHEVRON_INK} />
             </Pressable>
           </View>
         ) : null}

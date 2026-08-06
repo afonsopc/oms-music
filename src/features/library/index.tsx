@@ -13,7 +13,7 @@ import { usePlaylists } from "@/api/queries/playlists";
 import { useContentBottomPadding } from "@/features/shell/metrics";
 import { useT } from "@/i18n";
 import { useTheme } from "@/theme/provider";
-import { EMERALD_BADGE, RADIUS } from "@/theme/tokens";
+import { RADIUS } from "@/theme/tokens";
 import { typeScale } from "@/theme/typography";
 import { ArtworkImage, EmptyState, ErrorState, FilterPills, Icon } from "@/ui";
 import { LIBRARY_ITEM_LIMIT, useLibraryAlbums, useLibraryArtists } from "./queries";
@@ -60,7 +60,7 @@ const QuickLink = ({
 };
 
 const LibraryRowView = ({ row, onPress }: { row: LibraryRow; onPress: () => void }) => {
-  const { tokens } = useTheme();
+  const { tokens, ink } = useTheme();
   return (
     <Pressable
       onPress={onPress}
@@ -96,7 +96,7 @@ const LibraryRowView = ({ row, onPress }: { row: LibraryRow; onPress: () => void
                 width: 8,
                 height: 8,
                 borderRadius: 4,
-                backgroundColor: EMERALD_BADGE,
+                backgroundColor: ink.sync,
               }}
             />
           ) : null}

@@ -62,15 +62,17 @@ export interface SongRowProps {
 }
 
 const DownloadBadge = ({ songId }: { songId: number }) => {
-  const { tokens } = useTheme();
+  // Status glyphs are ink on the page, not fills, so they take the ink
+  // variants: raw `destructive` is ~2:1 on the dark background.
+  const { tokens, ink } = useTheme();
   const reader = getDownloadStatusReader();
   const status = reader.getStatus(songId);
   if (status === "none") return null;
   if (status === "done") {
-    return <Icon name="circle-check" size={14} color={tokens.success} />;
+    return <Icon name="circle-check" size={14} color={ink.success} />;
   }
   if (status === "error") {
-    return <Icon name="download" size={14} color={tokens.destructive} />;
+    return <Icon name="download" size={14} color={ink.destructive} />;
   }
   const progress = reader.getProgress(songId);
   return (
@@ -169,12 +171,18 @@ const SongRowInner = ({
               size={40}
               recyclingKey={String(song.id)}
             />
+            {/*
+              Emphasis order is load bearing: the TITLE carries `foreground`
+              (or `primary` on the current row, which is the same monochrome
+              extreme) at the heavier weight, the artists line drops to
+              `mutedForeground` a size down. Never the other way round.
+            */}
             <View style={{ flex: 1, minWidth: 0 }}>
               <Text
                 style={{
                   color: isCurrent ? tokens.primary : tokens.foreground,
                   fontSize: 14,
-                  fontWeight: "500",
+                  fontWeight: "600",
                 }}
                 numberOfLines={1}
               >

@@ -10,6 +10,7 @@ import { featuredArtists, primaryArtists, withArtists } from "@/domain/format";
 import type { Song, SongArtistEntry } from "@/domain/song";
 import { useT } from "@/i18n";
 import { useTheme } from "@/theme/provider";
+import { modalScrim } from "../uiTheme";
 import { RADIUS } from "@/theme/tokens";
 
 export interface SongCreditsDialogProps {
@@ -62,7 +63,7 @@ const CreditsGroup = ({ label, entries }: { label: string; entries: SongArtistEn
 };
 
 export const SongCreditsDialog = ({ visible, song, onClose }: SongCreditsDialogProps) => {
-  const { tokens } = useTheme();
+  const { tokens, scheme } = useTheme();
   const t = useT();
   if (!visible || (song.artists ?? []).length === 0) return null;
 
@@ -72,7 +73,7 @@ export const SongCreditsDialog = ({ visible, song, onClose }: SongCreditsDialogP
         onPress={onClose}
         style={{
           flex: 1,
-          backgroundColor: "rgba(0, 0, 0, 0.5)",
+          backgroundColor: modalScrim(scheme),
           alignItems: "center",
           justifyContent: "center",
           padding: 24,

@@ -70,7 +70,7 @@ const ArtistManagementRow = React.memo(
     onDelete: () => void;
   }) => {
     const t = useT();
-    const { tokens } = useTheme();
+    const { tokens, ink } = useTheme();
     const image = useMemo(() => artistImageSource(artist, "sm"), [artist]);
     const hasImage = !!(artist.compressed_image_fs_node_id || artist.image_fs_node_id);
     const hasBanner = !!(artist.compressed_banner_fs_node_id || artist.banner_fs_node_id);
@@ -117,7 +117,7 @@ const ArtistManagementRow = React.memo(
           }
           style={{ padding: 6, opacity: deletable ? 1 : 0.35 }}
         >
-          <Icon name="trash" size={17} color={tokens.destructive} />
+          <Icon name="trash" size={17} color={ink.destructive} />
         </Pressable>
       </Pressable>
     );

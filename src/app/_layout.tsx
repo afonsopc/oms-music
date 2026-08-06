@@ -8,7 +8,7 @@
  */
 import "@/boot/wireup";
 import React, { useEffect } from "react";
-import { Stack } from "expo-router";
+import { Stack, ThemeProvider as NavigationThemeProvider } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -21,12 +21,18 @@ import { ThemeProvider, useTheme } from "@/theme/provider";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
+/**
+ * Every navigator in the app sits under ONE react-navigation theme derived
+ * from the tokens. Nested navigators that do not spell out a background
+ * inherit it from here, which is what stops a screen from rendering on the
+ * default LIGHT navigation card while its contents use the dark palette.
+ */
 const RootNavigator = () => {
   const status = useSessionStore((s) => s.status);
-  const { tokens, scheme } = useTheme();
+  const { tokens, scheme, navigationTheme } = useTheme();
   const authed = status === "authed";
   return (
-    <>
+    <NavigationThemeProvider value={navigationTheme}>
       <StatusBar style={scheme === "dark" ? "light" : "dark"} />
       <Stack
         screenOptions={{
@@ -46,7 +52,7 @@ const RootNavigator = () => {
           <Stack.Screen name="(auth)" />
         </Stack.Protected>
       </Stack>
-    </>
+    </NavigationThemeProvider>
   );
 };
 

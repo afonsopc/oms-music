@@ -15,6 +15,7 @@ import { linearGradient } from "./uiTheme";
 import type { ArtworkSource } from "@/domain/artwork";
 import { useT } from "@/i18n";
 import { getCachedAccent, resolveAccent } from "@/theme/accent";
+import { onColor, withAlpha } from "@/theme/contrast";
 import { useTheme } from "@/theme/provider";
 import { HERO_FALLBACK, RADIUS } from "@/theme/tokens";
 import { typeScale } from "@/theme/typography";
@@ -77,6 +78,27 @@ export const Hero = ({
 
   const accent = accentColor ?? (extracted ? extracted[scheme] : HERO_FALLBACK);
 
+  /**
+   * Where the text actually sits decides its color. On an artist backdrop the
+   * scrim is the accent at full strength behind the whole text block, so the
+   * ink has to be derived from that accent - a mid-tone artwork left
+   * `foreground` at roughly 3:1 and made the meta line unreadable. Every other
+   * hero fades to transparent by the time it reaches the text, so the text is
+   * effectively on `background` and the plain foreground token is correct.
+   *
+   * Alphas are baked into the color rather than applied with `opacity` so the
+   * result is a value the contrast helpers can measure - and they are only
+   * spent where there is headroom to spend. There is very little: the text
+   * block sits low in the fade but the accent is still under it, and the
+   * worst case in the sweep (the deep purple section accent at 60% over the
+   * light page) leaves the kind label at 4.65:1 and the meta line at 4.86:1.
+   * A further 5% off either one drops it under AA, so the hierarchy here
+   * leans on size, weight and case rather than on more alpha.
+   */
+  const ink = isArtistBackdrop ? onColor(accent) : tokens.foreground;
+  const kindInk = isArtistBackdrop ? ink : withAlpha(ink, 0.88);
+  const metaInk = isArtistBackdrop ? ink : withAlpha(ink, 0.92);
+
   const minHeight = Math.round(height * (isArtistBackdrop ? 0.42 : 0.36));
   const artSize = 136;
 
@@ -118,17 +140,12 @@ export const Hero = ({
           ) : null
         ) : null}
         <View style={{ gap: 6 }}>
-          <Text
-            style={[
-              typeScale.kindLabel,
-              { color: tokens.foreground, opacity: 0.8 },
-            ]}
-          >
+          <Text style={[typeScale.kindLabel, { color: kindInk }]}>
             {subtitle ?? t(`components.music.Hero.${kind}`)}
           </Text>
           <Text
             style={{
-              color: tokens.foreground,
+              color: ink,
               fontSize: title.length > 24 ? 28 : 34,
               lineHeight: title.length > 24 ? 32 : 38,
               fontWeight: "900",
@@ -148,9 +165,7 @@ export const Hero = ({
               }}
             >
               {typeof meta === "string" ? (
-                <Text style={{ color: tokens.foreground, opacity: 0.85, fontSize: 13 }}>
-                  {meta}
-                </Text>
+                <Text style={{ color: metaInk, fontSize: 13 }}>{meta}</Text>
               ) : (
                 meta
               )}

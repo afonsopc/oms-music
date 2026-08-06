@@ -111,7 +111,7 @@ const PlaylistProgressRow = ({
   };
 }) => {
   const t = useT();
-  const { tokens } = useTheme();
+  const { tokens, ink } = useTheme();
   const done = playlist.queued + playlist.skipped;
   const ratio = playlist.total && playlist.total > 0 ? done / playlist.total : null;
 
@@ -132,7 +132,7 @@ const PlaylistProgressRow = ({
           <Icon
             name={playlist.state === "failed" ? "alert-circle" : "circle-check"}
             size={14}
-            color={playlist.state === "failed" ? tokens.destructive : tokens.mutedForeground}
+            color={playlist.state === "failed" ? ink.destructive : tokens.mutedForeground}
           />
         )}
         <Text numberOfLines={1} style={{ flex: 1, color: tokens.foreground, fontSize: 13 }}>
@@ -171,7 +171,7 @@ const PlaylistProgressRow = ({
 export default function SpotifyImportTab() {
   const t = useT();
   const locale = useLocale();
-  const { tokens } = useTheme();
+  const { tokens, ink } = useTheme();
   const queryClient = useQueryClient();
   const errorMessage = useApiErrorMessage();
 
@@ -355,7 +355,7 @@ export default function SpotifyImportTab() {
         ) : null}
         {previewQuery.error ? (
           <View style={{ padding: 16 }}>
-            <Text style={{ color: tokens.destructive, fontSize: 12 }}>
+            <Text style={{ color: ink.destructive, fontSize: 12 }}>
               {errorMessage(previewQuery.error)}
             </Text>
           </View>

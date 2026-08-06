@@ -38,6 +38,7 @@ import type { Song } from "@/domain/song";
 import type { SongId, UserId } from "@/domain/ids";
 import { useT } from "@/i18n";
 import { useTheme, type ThemeMode } from "@/theme/provider";
+import { LIKED_ACCENT } from "@/theme/tokens";
 import { typeScale } from "@/theme/typography";
 
 const makeSong = (id: number, title: string, artist: string, album: string | null): Song => ({
@@ -202,7 +203,7 @@ export const GalleryScreen = () => {
             title="Obrigado"
             meta="Carlos Paiao · 2024 · 12"
             image={{ kind: "placeholder" }}
-            accentColor="#7e22ce"
+            accentColor={LIKED_ACCENT}
           />
           <Hero kind="artist" title="Ana Moura" image={{ kind: "initials", name: "Ana Moura" }} />
         </Section>

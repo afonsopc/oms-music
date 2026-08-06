@@ -54,7 +54,7 @@ export const AddToPlaylistDialog = ({
   onCreateAndAdd,
   createPending = false,
 }: AddToPlaylistDialogProps) => {
-  const { tokens } = useTheme();
+  const { tokens, ink } = useTheme();
   const t = useT();
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState("");
@@ -156,7 +156,7 @@ export const AddToPlaylistDialog = ({
             {t("components.music.AddToPlaylistDialog.loadingPlaylists")}
           </Text>
         ) : error ? (
-          <Text style={{ color: tokens.destructive, paddingVertical: 16 }}>
+          <Text style={{ color: ink.destructive, paddingVertical: 16 }}>
             {t("components.music.AddToPlaylistDialog.errorLoadingPlaylists")}
           </Text>
         ) : (rows ?? []).length === 0 ? (

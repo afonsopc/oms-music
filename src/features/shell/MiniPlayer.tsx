@@ -14,6 +14,7 @@ import { formatArtists } from "@/domain/format";
 import { imageUrl } from "@/api/mediaUrl";
 import { PLACEHOLDER_ARTWORK } from "@/theme/placeholder";
 import { useTheme } from "@/theme/provider";
+import { SCRIM_BASE } from "@/theme/tokens";
 import { useT } from "@/i18n";
 import { getShellSlots, useShellSlotsVersion } from "./slots";
 import { usePillPlayerState } from "./usePillPlayerState";
@@ -56,7 +57,7 @@ export const MiniPlayer = () => {
         flexDirection: "row",
         alignItems: "center",
         paddingHorizontal: 12,
-        shadowColor: "#000",
+        shadowColor: SCRIM_BASE,
         shadowOpacity: 0.25,
         shadowRadius: 12,
         shadowOffset: { width: 0, height: 6 },

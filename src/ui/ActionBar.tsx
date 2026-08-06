@@ -55,7 +55,7 @@ export const ActionBar = ({
   rightSlot,
   style,
 }: ActionBarProps) => {
-  const { tokens } = useTheme();
+  const { tokens, ink } = useTheme();
   const t = useT();
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -147,7 +147,7 @@ export const ActionBar = ({
         <BottomSheet visible={menuOpen} onClose={() => setMenuOpen(false)}>
           {menuItems.map((item) => {
             const icon = iconForHint(item.icon);
-            const tint = item.destructive ? tokens.destructive : tokens.foreground;
+            const tint = item.destructive ? ink.destructive : tokens.foreground;
             return (
               <Pressable
                 key={item.id}

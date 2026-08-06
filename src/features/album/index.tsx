@@ -22,6 +22,7 @@ import { songArtworkSource } from "@/domain/artwork";
 import { totalDuration } from "@/domain/format";
 import { useT } from "@/i18n";
 import { artistRoute } from "@/lib/routes";
+import { withAlpha } from "@/theme/contrast";
 import { useTheme } from "@/theme/provider";
 import { CollectionScreen } from "@/features/playlist/CollectionScreen";
 import {
@@ -86,12 +87,12 @@ export default function AlbumScreen() {
       )}
       {year != null ? (
         <>
-          <Text style={{ color: tokens.foreground, opacity: 0.5, fontSize: 13 }}>•</Text>
-          <Text style={{ color: tokens.foreground, opacity: 0.85, fontSize: 13 }}>{year}</Text>
+          <Text style={{ color: withAlpha(tokens.foreground, 0.5), fontSize: 13 }}>•</Text>
+          <Text style={{ color: withAlpha(tokens.foreground, 0.85), fontSize: 13 }}>{year}</Text>
         </>
       ) : null}
-      <Text style={{ color: tokens.foreground, opacity: 0.5, fontSize: 13 }}>•</Text>
-      <Text style={{ color: tokens.foreground, opacity: 0.85, fontSize: 13 }}>{countLabel}</Text>
+      <Text style={{ color: withAlpha(tokens.foreground, 0.5), fontSize: 13 }}>•</Text>
+      <Text style={{ color: withAlpha(tokens.foreground, 0.85), fontSize: 13 }}>{countLabel}</Text>
     </>
   );
 

@@ -272,7 +272,7 @@ const FiltersSheet = ({
 
 export default function SongsManagementScreen() {
   const t = useT();
-  const { tokens } = useTheme();
+  const { tokens, ink } = useTheme();
   const bottomPadding = useContentBottomPadding();
   const errorMessage = useApiErrorMessage();
 
@@ -486,7 +486,7 @@ export default function SongsManagementScreen() {
             ) : null}
 
             {deleteError ? (
-              <Text style={{ color: tokens.destructive, fontSize: 13 }}>{deleteError}</Text>
+              <Text style={{ color: ink.destructive, fontSize: 13 }}>{deleteError}</Text>
             ) : null}
 
             <SettingsSection title={t("native.settings.songs.toolsSection")}>

@@ -208,10 +208,10 @@ export const AuthLinkRow = ({
 };
 
 export const AuthError = ({ message }: { message: string | null }) => {
-  const { tokens } = useTheme();
+  const { ink } = useTheme();
   if (!message) return null;
   return (
-    <Text style={{ color: tokens.destructive, fontSize: 14, marginBottom: 12 }}>{message}</Text>
+    <Text style={{ color: ink.destructive, fontSize: 14, marginBottom: 12 }}>{message}</Text>
   );
 };
 

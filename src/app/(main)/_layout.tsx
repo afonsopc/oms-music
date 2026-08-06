@@ -8,14 +8,21 @@ import { View } from "react-native";
 import { Stack } from "expo-router";
 import { OverlayHost } from "@/features/shell/OverlayHost";
 import { useServiceUsagePing } from "@/features/shell/useServiceUsagePing";
+import { useTheme } from "@/theme/provider";
 
 export const unstable_settings = { initialRouteName: "(tabs)" };
 
 export default function MainLayout() {
   useServiceUsagePing();
+  const { tokens } = useTheme();
   return (
-    <View style={{ flex: 1 }}>
-      <Stack screenOptions={{ headerShown: false }} />
+    <View style={{ flex: 1, backgroundColor: tokens.background }}>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: tokens.background },
+        }}
+      />
       <OverlayHost />
     </View>
   );

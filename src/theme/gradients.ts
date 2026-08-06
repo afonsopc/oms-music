@@ -33,3 +33,9 @@ export const artistHeroScrim = (accent: string): [string, string, string] => [
 
 /** Dark scrim over mix-tile photos (dark at BOTH ends so white text reads). */
 export const MIX_TILE_SCRIM = ["#00000099", "#00000033", "#000000bf"] as const;
+
+/**
+ * Bottom-up scrim over the artists-hub spotlight photo: heavy where the
+ * label, the name and the controls sit, clearing by the top edge.
+ */
+export const SPOTLIGHT_SCRIM = ["#000000e6", "#0000008c", "#00000033"] as const;

@@ -46,10 +46,10 @@ const MenuItemRow = ({
   item: SongMenuItem;
   onSelect: (item: SongMenuItem) => void;
 }) => {
-  const { tokens } = useTheme();
+  const { tokens, ink } = useTheme();
   const t = useT();
   const icon = iconForHint(item.icon);
-  const tint = item.destructive ? tokens.destructive : tokens.foreground;
+  const tint = item.destructive ? ink.destructive : tokens.foreground;
   return (
     <Pressable
       onPress={() => onSelect(item)}

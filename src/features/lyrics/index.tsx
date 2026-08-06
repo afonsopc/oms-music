@@ -53,6 +53,7 @@ import {
   usePlaybackView,
   type PlaybackView,
 } from "@/remote/mirror";
+import { withAlpha } from "@/theme/contrast";
 import { useTheme } from "@/theme/provider";
 import { BottomSheet, EmptyState, ErrorState, GhostIconButton, Icon, Skeleton } from "@/ui";
 import { initialTranslationTarget, storeTranslationTarget } from "./targetStore";
@@ -489,7 +490,7 @@ export default function LyricsBody() {
               return (
                 <View key={i} style={{ paddingVertical: 4 }}>
                   <Text
-                    style={{ color: tokens.foreground, opacity: 0.85, fontSize: 16, lineHeight: 23 }}
+                    style={{ color: withAlpha(tokens.foreground, 0.85), fontSize: 16, lineHeight: 23 }}
                   >
                     {translated ?? (line || PLACEHOLDER_DOT)}
                   </Text>

@@ -64,4 +64,12 @@ export {
   TileSkeleton,
   type SkeletonProps,
 } from "./skeletons";
-export { backgroundVeil, foregroundWash, heavyShadow, linearGradient, softShadow } from "./uiTheme";
+export {
+  backgroundVeil,
+  foregroundWash,
+  heavyShadow,
+  linearGradient,
+  modalScrim,
+  photoScrim,
+  softShadow,
+} from "./uiTheme";

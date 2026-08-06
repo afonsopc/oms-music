@@ -21,7 +21,7 @@ import { useJamStore } from "@/jam/store";
 import { profileRoute } from "@/lib/routes";
 import { artistNamesLine } from "@/social/display";
 import { useTheme } from "@/theme/provider";
-import { EMERALD_BADGE, RADIUS } from "@/theme/tokens";
+import { RADIUS } from "@/theme/tokens";
 import { ArtworkImage, Icon, PlayingBars } from "@/ui";
 
 const PANEL = "components.music.FriendActivityPanel";
@@ -51,7 +51,7 @@ export const openFriendProfile = (handle: string): void => {
 
 export const FriendActivityRow = ({ activity }: { activity: FriendListening }) => {
   const t = useT();
-  const { tokens } = useTheme();
+  const { tokens, ink } = useTheme();
   const myJamId = useJamStore((s) => s.jam?.id ?? null);
   const live = isLiveRow(activity);
   const inMyJam = myJamId !== null && activity.jam_id === myJamId;
@@ -85,7 +85,7 @@ export const FriendActivityRow = ({ activity }: { activity: FriendListening }) =
               borderRadius: 5,
               borderWidth: 2,
               borderColor: tokens.background,
-              backgroundColor: live ? EMERALD_BADGE : tokens.mutedForeground,
+              backgroundColor: live ? ink.sync : tokens.mutedForeground,
             }}
           />
         ) : null}

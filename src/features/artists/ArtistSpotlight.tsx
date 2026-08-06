@@ -2,9 +2,9 @@
  * Artists-hub spotlight banner (FR-36): a full-bleed rounded card for the
  * artist the user plays most, so the page opens on something rather than on
  * the letter A. Backdrop = the artist banner chain; with no photo the fixed
- * fuchsia/violet/indigo gradient stands in. The surface is always dark, so
- * the label, the name and the controls are hard-coded white (they never sit
- * on a themed background).
+ * fuchsia/violet/indigo gradient stands in. The surface is an identity
+ * gradient or a heavy photo scrim, never a themed background, so the ink
+ * comes from `onColor` rather than from the token palette.
  */
 import React from "react";
 import { ActivityIndicator, Pressable, Text, useWindowDimensions, View } from "react-native";
@@ -12,10 +12,14 @@ import { Image } from "expo-image";
 import type { ArtistOverview } from "@/domain/artist";
 import { artistBannerSource } from "@/domain/artwork";
 import { useT } from "@/i18n";
-import { RADIUS } from "@/theme/tokens";
+import { AA_LARGE, ON_DARK, onColor, preferredOn, withAlpha } from "@/theme/contrast";
+import { SPOTLIGHT_SCRIM } from "@/theme/gradients";
+import { RADIUS, SPOTLIGHT_GRADIENT } from "@/theme/tokens";
 import { artworkSourceUri, GhostIconButton, Icon, linearGradient } from "@/ui";
 
-const SPOTLIGHT_GRADIENT = ["#a21caf", "#6d28d9", "#3730a3"] as const; // fuchsia-700 violet-700 indigo-800
+/** Both surfaces are dark; the label and meta lines step down from the ink. */
+const PHOTO_INK = preferredOn(SPOTLIGHT_SCRIM[0], ON_DARK, AA_LARGE);
+const GRADIENT_INK = preferredOn(SPOTLIGHT_GRADIENT[1], ON_DARK, AA_LARGE);
 
 export interface ArtistSpotlightProps {
   spotlight: NonNullable<ArtistOverview["spotlight"]>;
@@ -41,6 +45,13 @@ export const ArtistSpotlight = ({
   const backdrop = artworkSourceUri(artistBannerSource(artist));
   const minHeight = Math.round(height * 0.34);
   const nameSize = artist.name.length > 18 ? 34 : 44;
+
+  const ink = backdrop ? PHOTO_INK : GRADIENT_INK;
+  const labelInk = withAlpha(ink, 0.75);
+  const metaInk = withAlpha(ink, 0.85);
+  const separatorInk = withAlpha(ink, 0.6);
+  // The play FAB inverts: the ink becomes the disc, the disc's on-color the glyph.
+  const fabGlyph = onColor(ink);
 
   return (
     <View
@@ -68,20 +79,15 @@ export const ArtistSpotlight = ({
           right: 0,
           bottom: 0,
           experimental_backgroundImage: backdrop
-            ? // Dark enough at the bottom for white text over any photo.
-              linearGradient(
-                "to top",
-                "rgba(0, 0, 0, 0.9)",
-                "rgba(0, 0, 0, 0.55)",
-                "rgba(0, 0, 0, 0.2)",
-              )
+            ? // Dark enough at the bottom for the ink to read over any photo.
+              linearGradient("to top", ...SPOTLIGHT_SCRIM)
             : linearGradient("135deg", ...SPOTLIGHT_GRADIENT),
         }}
       />
       <View style={{ padding: 20, gap: 10 }}>
         <Text
           style={{
-            color: "rgba(255, 255, 255, 0.75)",
+            color: labelInk,
             fontSize: 12,
             fontWeight: "600",
             textTransform: "uppercase",
@@ -93,7 +99,7 @@ export const ArtistSpotlight = ({
         <Pressable onPress={onOpenArtist} accessibilityRole="link" hitSlop={4}>
           <Text
             style={{
-              color: "#ffffff",
+              color: ink,
               fontSize: nameSize,
               lineHeight: nameSize * 1.05,
               fontWeight: "900",
@@ -105,17 +111,17 @@ export const ArtistSpotlight = ({
           </Text>
         </Pressable>
         <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
-          <Text style={{ color: "rgba(255, 255, 255, 0.85)", fontSize: 13 }}>
+          <Text style={{ color: metaInk, fontSize: 13 }}>
             {t("components.music.Artists.songsCount", { count: spotlight.songs_count })}
           </Text>
-          <Text style={{ color: "rgba(255, 255, 255, 0.6)", fontSize: 13 }}>•</Text>
-          <Text style={{ color: "rgba(255, 255, 255, 0.85)", fontSize: 13 }}>
+          <Text style={{ color: separatorInk, fontSize: 13 }}>•</Text>
+          <Text style={{ color: metaInk, fontSize: 13 }}>
             {t("components.music.Artists.albumsCount", { count: spotlight.albums_count })}
           </Text>
           {spotlight.play_count > 0 ? (
             <>
-              <Text style={{ color: "rgba(255, 255, 255, 0.6)", fontSize: 13 }}>•</Text>
-              <Text style={{ color: "rgba(255, 255, 255, 0.85)", fontSize: 13 }}>
+              <Text style={{ color: separatorInk, fontSize: 13 }}>•</Text>
+              <Text style={{ color: metaInk, fontSize: 13 }}>
                 {t("components.music.Artists.playsCount", { count: spotlight.play_count })}
               </Text>
             </>
@@ -131,28 +137,28 @@ export const ArtistSpotlight = ({
               width: 48,
               height: 48,
               borderRadius: 24,
-              backgroundColor: "#ffffff",
+              backgroundColor: ink,
               alignItems: "center",
               justifyContent: "center",
               transform: [{ scale: pressed ? 0.96 : 1 }],
             })}
           >
             {isLoading ? (
-              <ActivityIndicator color="#000000" />
+              <ActivityIndicator color={fabGlyph} />
             ) : (
-              <Icon name="play" size={20} color="#000000" filled />
+              <Icon name="play" size={20} color={fabGlyph} filled />
             )}
           </Pressable>
           <GhostIconButton
             icon="shuffle"
-            color="#ffffff"
+            color={ink}
             disabled={isLoading}
             onPress={onShuffle}
             accessibilityLabel={t("components.music.Artists.shuffleSpotlight")}
           />
           <GhostIconButton
             icon="radio"
-            color="#ffffff"
+            color={ink}
             onPress={onStartRadio}
             accessibilityLabel={t("components.music.Artists.radioSpotlight")}
           />

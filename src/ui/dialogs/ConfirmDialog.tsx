@@ -7,6 +7,7 @@ import React from "react";
 import { ActivityIndicator, Modal, Pressable, Text, View } from "react-native";
 import { useT } from "@/i18n";
 import { useTheme } from "@/theme/provider";
+import { modalScrim } from "../uiTheme";
 import { RADIUS } from "@/theme/tokens";
 
 export interface ConfirmDialogProps {
@@ -32,7 +33,7 @@ export const ConfirmDialog = ({
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) => {
-  const { tokens } = useTheme();
+  const { tokens, scheme } = useTheme();
   const t = useT();
   if (!visible) return null;
 
@@ -42,7 +43,7 @@ export const ConfirmDialog = ({
         onPress={onCancel}
         style={{
           flex: 1,
-          backgroundColor: "rgba(0, 0, 0, 0.5)",
+          backgroundColor: modalScrim(scheme),
           alignItems: "center",
           justifyContent: "center",
           padding: 24,

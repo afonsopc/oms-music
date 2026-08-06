@@ -106,11 +106,11 @@ export const NoteLine = ({
   text: string;
   tone?: "muted" | "error";
 }) => {
-  const { tokens } = useTheme();
+  const { tokens, ink } = useTheme();
   return (
     <Text
       style={{
-        color: tone === "error" ? tokens.destructive : tokens.mutedForeground,
+        color: tone === "error" ? ink.destructive : tokens.mutedForeground,
         fontSize: 12,
         lineHeight: 17,
         marginTop: 8,

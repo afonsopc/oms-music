@@ -32,7 +32,7 @@ const SessionRow = ({
 }) => {
   const t = useT();
   const locale = useLocale();
-  const { tokens } = useTheme();
+  const { tokens, ink } = useTheme();
   const rename = useRenameSession();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(session.name);
@@ -176,7 +176,7 @@ const SessionRow = ({
             {rename.isPending ? <ActivityIndicator color={tokens.foreground} /> : null}
           </View>
           {error ? (
-            <Text style={{ color: tokens.destructive, fontSize: 12 }}>{error}</Text>
+            <Text style={{ color: ink.destructive, fontSize: 12 }}>{error}</Text>
           ) : null}
         </View>
       ) : null}

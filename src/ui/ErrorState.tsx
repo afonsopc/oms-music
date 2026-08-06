@@ -16,13 +16,13 @@ export interface ErrorStateProps {
 }
 
 export const ErrorState = ({ text, onRetry, retryLabel, style }: ErrorStateProps) => {
-  const { tokens } = useTheme();
+  const { tokens, ink } = useTheme();
   const t = useT();
   return (
     <View style={[{ alignItems: "center", gap: 12, paddingVertical: 40, paddingHorizontal: 24 }, style]}>
-      <Icon name="alert-circle" size={28} color={tokens.destructive} />
+      <Icon name="alert-circle" size={28} color={ink.destructive} />
       <Text
-        style={{ color: tokens.destructive, fontSize: 14, textAlign: "center", lineHeight: 20 }}
+        style={{ color: ink.destructive, fontSize: 14, textAlign: "center", lineHeight: 20 }}
       >
         {text ?? t("native.common.unknownError")}
       </Text>

@@ -6,9 +6,19 @@
  */
 import React from "react";
 import { Stack } from "expo-router";
+import { useTheme } from "@/theme/provider";
 
 export const unstable_settings = { initialRouteName: "now-playing" };
 
 export default function PlayerLayout() {
-  return <Stack screenOptions={{ headerShown: false, animation: "none" }} />;
+  const { tokens } = useTheme();
+  return (
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        animation: "none",
+        contentStyle: { backgroundColor: tokens.background },
+      }}
+    />
+  );
 }

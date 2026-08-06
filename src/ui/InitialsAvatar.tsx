@@ -5,6 +5,7 @@
  */
 import React from "react";
 import { Text, View, type StyleProp, type ViewStyle } from "react-native";
+import { onColor } from "@/theme/contrast";
 
 const initialsOf = (name: string): string =>
   name
@@ -28,30 +29,36 @@ export interface InitialsAvatarProps {
   style?: StyleProp<ViewStyle>;
 }
 
-export const InitialsAvatar = ({ name, size, style }: InitialsAvatarProps) => (
-  <View
-    accessible={false}
-    style={[
-      {
-        width: size,
-        height: size,
-        borderRadius: size / 2,
-        alignItems: "center",
-        justifyContent: "center",
-        backgroundColor: `hsl(${hueOf(name)}, 45%, 42%)`,
-      },
-      style,
-    ]}
-  >
-    <Text
-      style={{
-        color: "#ffffff",
-        fontWeight: "600",
-        fontSize: Math.max(12, Math.round(size * 0.32)),
-      }}
-      numberOfLines={1}
+export const InitialsAvatar = ({ name, size, style }: InitialsAvatarProps) => {
+  // The hue disc is deterministic per name, so its on-color is too: yellows
+  // and greens at 45%/42% still land dark enough for white, but the check is
+  // cheap and it is the same rule every other identity surface follows.
+  const disc = `hsl(${hueOf(name)}, 45%, 42%)`;
+  return (
+    <View
+      accessible={false}
+      style={[
+        {
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: disc,
+        },
+        style,
+      ]}
     >
-      {initialsOf(name) || "?"}
-    </Text>
-  </View>
-);
+      <Text
+        style={{
+          color: onColor(disc),
+          fontWeight: "600",
+          fontSize: Math.max(12, Math.round(size * 0.32)),
+        }}
+        numberOfLines={1}
+      >
+        {initialsOf(name) || "?"}
+      </Text>
+    </View>
+  );
+};

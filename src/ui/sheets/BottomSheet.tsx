@@ -24,6 +24,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "@/theme/provider";
+import { modalScrim } from "../uiTheme";
 
 export interface BottomSheetProps {
   visible: boolean;
@@ -42,7 +43,7 @@ export const BottomSheet = ({
   maxHeightRatio = 0.8,
   scroll = true,
 }: BottomSheetProps) => {
-  const { tokens } = useTheme();
+  const { tokens, scheme } = useTheme();
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
   const [slide] = useState(() => new Animated.Value(0));
@@ -69,7 +70,7 @@ export const BottomSheet = ({
       >
         <Pressable
           onPress={onClose}
-          style={{ flex: 1, backgroundColor: "rgba(0, 0, 0, 0.5)", justifyContent: "flex-end" }}
+          style={{ flex: 1, backgroundColor: modalScrim(scheme), justifyContent: "flex-end" }}
         >
           <Pressable onPress={() => {}} style={{ maxHeight: height * maxHeightRatio }}>
             <Animated.View

@@ -12,6 +12,8 @@ import { Image } from "expo-image";
 import { Icon, type IconName } from "./icons";
 import { foregroundWash, linearGradient } from "./uiTheme";
 import type { MixKind } from "@/domain/mixes";
+import { AA_LARGE, ON_DARK, preferredOn } from "@/theme/contrast";
+import { MIX_TILE_SCRIM } from "@/theme/gradients";
 import { useTheme } from "@/theme/provider";
 import { MIX_KIND_GRADIENTS, RADIUS } from "@/theme/tokens";
 import { typeScale } from "@/theme/typography";
@@ -50,6 +52,15 @@ export interface MixTileArtworkProps {
 /** The gradient square alone (also used as a Hero artworkSlot). */
 export const MixTileArtwork = ({ kind, stamp, artworkUri, size, icon }: MixTileArtworkProps) => {
   const gradient = MIX_KIND_GRADIENTS[kind];
+  // Over a photo the surface is the scrim (dark at both ends by design); with
+  // no photo it is the kind gradient's middle stop. The stamp is display type
+  // (weight 900, 16-30px) so the large-text threshold is the right bar, and
+  // white clears it on all four kind gradients.
+  const ink = preferredOn(
+    artworkUri ? MIX_TILE_SCRIM[2] : gradient.colors[1],
+    ON_DARK,
+    AA_LARGE,
+  );
   return (
     <View
       style={{
@@ -78,20 +89,15 @@ export const MixTileArtwork = ({ kind, stamp, artworkUri, size, icon }: MixTileA
               left: 0,
               right: 0,
               bottom: 0,
-              experimental_backgroundImage: linearGradient(
-                "to bottom",
-                "rgba(0, 0, 0, 0.6)",
-                "rgba(0, 0, 0, 0.2)",
-                "rgba(0, 0, 0, 0.75)",
-              ),
+              experimental_backgroundImage: linearGradient("to bottom", ...MIX_TILE_SCRIM),
             }}
           />
         </>
       ) : null}
-      <Icon name={icon ?? gradient.icon} size={24} color="#ffffff" />
+      <Icon name={icon ?? gradient.icon} size={24} color={ink} />
       <Text
         style={{
-          color: "#ffffff",
+          color: ink,
           fontWeight: "900",
           textTransform: "uppercase",
           letterSpacing: -0.4,
