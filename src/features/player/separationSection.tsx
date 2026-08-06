@@ -36,6 +36,7 @@ import type { Song } from "@/domain/song";
 import { useT } from "@/i18n";
 import { getPlayerEngine } from "@/player/register";
 import { usePlayerStore } from "@/player/store";
+import { switchColors } from "@/theme/switchColors";
 import { useTheme } from "@/theme/provider";
 import {
   dbFromFraction,
@@ -187,7 +188,7 @@ export const SeparationSection = ({ song, disabled }: { song: Song; disabled: bo
           value={separationEnabled}
           disabled={disabled}
           accessibilityLabel={t(`${K}.separation`)}
-          trackColor={{ true: tokens.primary }}
+          {...switchColors(tokens)}
           onValueChange={(on) => getPlayerEngine().setSeparationEnabledUserAction(on)}
         />
       }
@@ -317,7 +318,7 @@ export const EqualizerSection = ({ disabled }: { disabled: boolean }) => {
           value={eqEnabled}
           disabled={disabled}
           accessibilityLabel={t(`${K}.equalizer`)}
-          trackColor={{ true: tokens.primary }}
+          {...switchColors(tokens)}
           onValueChange={(on) => getPlayerEngine().setEqEnabled(on)}
         />
       }

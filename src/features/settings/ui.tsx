@@ -19,6 +19,7 @@ import {
 } from "react-native";
 import { isApiError } from "@/domain/api";
 import { useT } from "@/i18n";
+import { switchColors } from "@/theme/switchColors";
 import { useTheme } from "@/theme/provider";
 import { statusInkFor } from "@/theme/scheme";
 import { RADIUS } from "@/theme/tokens";
@@ -158,7 +159,7 @@ export const SwitchRow = ({
           value={value}
           onValueChange={onValueChange}
           disabled={disabled}
-          trackColor={{ true: tokens.primary }}
+          {...switchColors(tokens)}
         />
       }
     />

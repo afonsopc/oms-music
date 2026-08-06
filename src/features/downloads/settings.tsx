@@ -14,6 +14,7 @@ import { storageUsage } from "@/downloads/manager";
 import { updateDownloadSettings, useDownloadSettings } from "@/downloads/settings";
 import { useContentBottomPadding } from "@/features/shell/metrics";
 import { useT } from "@/i18n";
+import { switchColors } from "@/theme/switchColors";
 import { useTheme } from "@/theme/provider";
 import { RADIUS } from "@/theme/tokens";
 import { formatBytes } from "./format";
@@ -73,7 +74,7 @@ const ToggleRow = ({
       <Switch
         value={value}
         onValueChange={onValueChange}
-        trackColor={{ true: tokens.primary }}
+        {...switchColors(tokens)}
       />
     </View>
   );

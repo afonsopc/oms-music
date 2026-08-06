@@ -5,8 +5,16 @@
  * The value is a 0..1 fraction. While dragging, the parent must render the
  * DRAG value, not the store value, so the thumb does not fight the 4 Hz
  * position ticks: `onSlide` reports every move, `onCommit` fires once on
- * release (the seek/volume write). A tap anywhere on the track commits that
- * position directly.
+ * release (the seek/volume write).
+ *
+ * The responder is claimed ONLY once the gesture is clearly horizontal, and
+ * never on touch-down. Claiming on touch-down cost us two real bugs on device:
+ * a sheet full of sliders could not be scrolled at all unless the drag happened
+ * to start on a button (every slider ate the touch before the ScrollView saw
+ * it), and merely resting a finger near the left edge of an EQ row wrote the
+ * minimum, which is how all three bands silently became -12 dB. The trade is
+ * that a bare tap no longer jumps the value; a deliberate drag still grabs the
+ * thumb wherever the finger is.
  */
 import React, { useEffect, useRef, useState } from "react";
 import { PanResponder, View, type LayoutChangeEvent } from "react-native";
@@ -26,6 +34,9 @@ export interface SliderProps {
 }
 
 const clamp01 = (value: number): number => (value < 0 ? 0 : value > 1 ? 1 : value);
+
+/** Horizontal travel before the track steals the gesture from a scroll view. */
+const DRAG_SLOP = 6;
 
 export const Slider = ({
   value,
@@ -58,8 +69,11 @@ export const Slider = ({
   // the whole gesture.
   // eslint-disable-next-line react-hooks/refs
   const responder = PanResponder.create({
-    onStartShouldSetPanResponder: () => !handlersRef.current.disabled,
-    onMoveShouldSetPanResponder: () => !handlersRef.current.disabled,
+    onStartShouldSetPanResponder: () => false,
+    onMoveShouldSetPanResponder: (_event, gesture) =>
+      !handlersRef.current.disabled &&
+      Math.abs(gesture.dx) > DRAG_SLOP &&
+      Math.abs(gesture.dx) > Math.abs(gesture.dy),
     onPanResponderTerminationRequest: () => false,
     onPanResponderGrant: (event) => {
       const { pageX, locationX } = event.nativeEvent;
