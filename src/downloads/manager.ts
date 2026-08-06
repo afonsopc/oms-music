@@ -570,3 +570,22 @@ export const listErroredSongKeys = (): SongKey[] => {
   for (const row of repo.listFilesByStatus(active.db, "error")) keys.add(row.song_key);
   return [...keys];
 };
+
+/**
+ * Cache a downloaded playlist's identity so it can still be listed with no
+ * network (schema v2). Called from the playlist screen while online; the row
+ * is dropped when the collection is turned off.
+ */
+export const rememberOfflinePlaylist = (row: repo.OfflinePlaylistRow): void => {
+  if (!active) return;
+  repo.upsertOfflinePlaylist(active.db, row);
+};
+
+export const forgetOfflinePlaylist = (id: number): void => {
+  if (!active) return;
+  repo.deleteOfflinePlaylist(active.db, id);
+};
+
+/** Downloaded playlists, name and artwork included, for the offline resolver. */
+export const downloadedPlaylists = (): repo.OfflinePlaylistRow[] =>
+  active ? repo.listOfflinePlaylists(active.db) : [];

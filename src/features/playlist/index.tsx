@@ -25,6 +25,7 @@ import { keys } from "@/api/queryKeys";
 import type { SongMenuItem } from "@/contracts/songMenu";
 import { playlistArtworkSource } from "@/domain/artwork";
 import { splitDuration, totalDuration } from "@/domain/format";
+import { useOfflinePlaylistIdentity } from "@/downloads/collections";
 import type { PlaylistId } from "@/domain/ids";
 import { isLikedMirror, isSystemPlaylist, type PlaylistSong } from "@/domain/playlist";
 import type { Song } from "@/domain/song";
@@ -78,6 +79,15 @@ const PlaylistBody = ({ playlistId }: { playlistId: PlaylistId }) => {
 
   const rows = useMemo(() => songsQuery.data?.pages.flat() ?? [], [songsQuery.data]);
   const songs = useMemo(() => rows.map((r) => r.song), [rows]);
+
+  // Cache the identity while the network still answers, so a downloaded
+  // playlist can be listed offline instead of vanishing from the library.
+  useOfflinePlaylistIdentity(
+    playlist?.id ?? null,
+    playlist?.name ?? null,
+    playlist?.artwork_fs_node_id ?? null,
+    songs.length,
+  );
 
   const meta = useMemo(() => {
     const count = songs.length;

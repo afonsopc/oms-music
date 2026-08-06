@@ -851,7 +851,8 @@
       "cancel": "Cancel",
       "ok": "OK",
       "loading": "Loading...",
-      "rateLimited": "Too many requests - try again in {seconds} s"
+      "rateLimited": "Too many requests - try again in {seconds} s",
+      "offlineBanner": "You are offline. Showing your downloads."
     },
     "auth": {
       "errors": {

@@ -25,6 +25,8 @@ import {
   normalizeSongKey,
   removeDownload,
   removeOfflineCollection,
+  rememberOfflinePlaylist,
+  forgetOfflinePlaylist,
 } from "./manager";
 import { NOTICE_KEYS, notifyDownloadNotice } from "./notices";
 import { getMixedStatus } from "./status";
@@ -163,4 +165,33 @@ export const useOfflineCollectionSync = (
 /** Test/lifecycle hygiene: drops the session-scoped membership map. */
 export const resetCollectionMembership = (): void => {
   membership.clear();
+};
+
+/**
+ * Caches a downloaded playlist's name and artwork (schema v2) so it can be
+ * listed offline. Runs on the playlist screen while the data is fresh from the
+ * network; a playlist that is not an offline collection is forgotten instead,
+ * which also covers the user turning the download off.
+ */
+export const useOfflinePlaylistIdentity = (
+  playlistId: number | null | undefined,
+  name: string | null | undefined,
+  artworkFsNodeId: string | null | undefined,
+  songCount: number,
+): void => {
+  const offline = playlistId != null && isOfflineCollectionKey(String(playlistId));
+  useEffect(() => {
+    if (playlistId == null) return;
+    if (!offline) {
+      forgetOfflinePlaylist(playlistId);
+      return;
+    }
+    if (!name) return;
+    rememberOfflinePlaylist({
+      id: playlistId,
+      name,
+      artwork_fs_node_id: artworkFsNodeId ?? null,
+      song_count: songCount,
+    });
+  }, [playlistId, offline, name, artworkFsNodeId, songCount]);
 };

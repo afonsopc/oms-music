@@ -851,7 +851,8 @@
       "cancel": "Atcelt",
       "ok": "Labi",
       "loading": "Notiek ielāde...",
-      "rateLimited": "Pārāk daudz pieprasījumu - mēģiniet vēlreiz pēc {seconds} s"
+      "rateLimited": "Pārāk daudz pieprasījumu - mēģiniet vēlreiz pēc {seconds} s",
+      "offlineBanner": "Tu esi bezsaistē. Rāda tavus lejupielādētos failus."
     },
     "auth": {
       "errors": {

@@ -16,6 +16,7 @@ import { ARTISTS_PAGE_SIZE } from "@/api/endpoints/artists";
 import type { AlbumSummary } from "@/domain/album";
 import type { Artist } from "@/domain/artist";
 import type { Lyrics } from "@/domain/lyrics";
+import type { Playlist } from "@/domain/playlist";
 import type { Song } from "@/domain/song";
 import {
   applyPageWindow,
@@ -30,7 +31,7 @@ import {
   type ArtistRoleFilter,
   type OfflineSongQuery,
 } from "./library";
-import { getStoredLyrics, listDownloadedSongs } from "./manager";
+import { downloadedPlaylists, getStoredLyrics, listDownloadedSongs } from "./manager";
 
 /** Thrown when the downloaded library cannot answer a query at all. */
 export class OfflineUnavailableError extends Error {
@@ -168,5 +169,30 @@ export const registerOfflineLibrary = (): void => {
   registerOfflineResolver("albums", offlineAlbumsResolver);
   registerOfflineResolver("artists", offlineArtistsResolver);
   registerOfflineResolver("lyrics", offlineLyricsResolver);
+  registerOfflineResolver("playlists", offlinePlaylistsResolver);
   setOfflineNowProvider(isOffline);
+};
+
+/**
+ * listPlaylists() offline: the playlists whose collection is downloaded, from
+ * the schema v2 cache. Fields the cache cannot know are filled with values a
+ * playlist row renders happily without, and `source_kind` stays "manual" so no
+ * screen offers a sync action that cannot run without a network.
+ */
+export const offlinePlaylistsResolver = async (): Promise<Playlist[]> => {
+  const rows = downloadedPlaylists();
+  const now = new Date(0).toISOString();
+  return rows.map((row) => ({
+    id: row.id as Playlist["id"],
+    created_at: now,
+    updated_at: now,
+    name: row.name,
+    user_id: "" as Playlist["user_id"],
+    artwork_fs_node_id: (row.artwork_fs_node_id ?? null) as Playlist["artwork_fs_node_id"],
+    source_kind: "manual",
+    source_provider: null,
+    source_url: null,
+    source_external_id: null,
+    synced_at: null,
+  }));
 };

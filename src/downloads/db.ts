@@ -226,3 +226,42 @@ export const addCollection = (db: SQLiteDatabase, key: string): void => {
 export const removeCollection = (db: SQLiteDatabase, key: string): void => {
   db.runSync("DELETE FROM offline_collections WHERE key = ?", [key]);
 };
+
+// ---------------------------------------------------------------------------
+// offline_playlists (schema v2)
+//
+// offline_collections knows only that playlist 42 is downloaded. Offline that
+// is not enough to draw a row, so the name and artwork are cached here while
+// the network is still up.
+// ---------------------------------------------------------------------------
+
+export interface OfflinePlaylistRow {
+  id: number;
+  name: string;
+  artwork_fs_node_id: string | null;
+  song_count: number;
+}
+
+export const listOfflinePlaylists = (db: SQLiteDatabase): OfflinePlaylistRow[] =>
+  db.getAllSync<OfflinePlaylistRow>(
+    `SELECT id, name, artwork_fs_node_id, song_count
+       FROM offline_playlists
+      ORDER BY name COLLATE NOCASE ASC`,
+  );
+
+export const upsertOfflinePlaylist = (db: SQLiteDatabase, row: OfflinePlaylistRow): void => {
+  db.runSync(
+    `INSERT INTO offline_playlists (id, name, artwork_fs_node_id, song_count, updated_at)
+     VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET
+       name = excluded.name,
+       artwork_fs_node_id = excluded.artwork_fs_node_id,
+       song_count = excluded.song_count,
+       updated_at = excluded.updated_at`,
+    [row.id, row.name, row.artwork_fs_node_id, row.song_count, Date.now()],
+  );
+};
+
+export const deleteOfflinePlaylist = (db: SQLiteDatabase, id: number): void => {
+  db.runSync("DELETE FROM offline_playlists WHERE id = ?", [id]);
+};

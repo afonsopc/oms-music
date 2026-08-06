@@ -7,6 +7,7 @@
 import React from "react";
 import { View } from "react-native";
 import { MiniPlayer } from "./MiniPlayer";
+import { OfflineBanner } from "./OfflineBanner";
 import { useOverlayBottomOffset } from "./metrics";
 import {
   getShellSlots,
@@ -45,15 +46,18 @@ export const OverlayHost = () => {
   const slots = getShellSlots();
 
   return (
-    <View
-      pointerEvents="box-none"
-      style={{ position: "absolute", left: 8, right: 8, bottom }}
-    >
-      {slots.jamBar ? (
-        <JamSwitch jam={slots.jamBar} strip={slots.controllerStrip} />
-      ) : (
-        <PillStack strip={slots.controllerStrip} />
-      )}
-    </View>
+    <>
+      <OfflineBanner />
+      <View
+        pointerEvents="box-none"
+        style={{ position: "absolute", left: 8, right: 8, bottom }}
+      >
+        {slots.jamBar ? (
+          <JamSwitch jam={slots.jamBar} strip={slots.controllerStrip} />
+        ) : (
+          <PillStack strip={slots.controllerStrip} />
+        )}
+      </View>
+    </>
   );
 };

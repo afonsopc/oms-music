@@ -3,7 +3,26 @@
  * Changes go through the WP1 owner as explicit change requests.
  */
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
+
+/**
+ * Migration 2: offline playlist metadata.
+ *
+ * `offline_collections` stores keys and nothing else, so with no network there
+ * was no way to render a downloaded playlist's name or artwork: the library
+ * simply looked empty, which is the opposite of what an offline mode is for.
+ * Rows are written whenever a playlist screen loads online while that playlist
+ * is an offline collection, and dropped when the collection is turned off.
+ */
+export const MIGRATION_OFFLINE_PLAYLISTS = `
+CREATE TABLE IF NOT EXISTS offline_playlists (
+  id                  INTEGER PRIMARY KEY,
+  name                TEXT NOT NULL,
+  artwork_fs_node_id  TEXT,
+  song_count          INTEGER NOT NULL DEFAULT 0,
+  updated_at          INTEGER NOT NULL
+);
+`;
 
 export const DDL = `
 PRAGMA journal_mode = WAL;
@@ -51,4 +70,4 @@ CREATE TABLE IF NOT EXISTS offline_collections (
  * Ordered migrations. Index 0 applies when the stored schema_version is 0
  * (fresh db). Future migrations append; NEVER edit an applied entry.
  */
-export const MIGRATIONS: readonly string[] = [DDL];
+export const MIGRATIONS: readonly string[] = [DDL, MIGRATION_OFFLINE_PLAYLISTS];
