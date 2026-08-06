@@ -27,12 +27,19 @@ export interface TopTileGridProps {
 }
 
 const MAX_ITEMS = 8;
+/** Phones show an even count so the two-column grid never ends ragged. */
+const MAX_ITEMS_NARROW = 6;
 
 export const TopTileGrid = ({ items, style }: TopTileGridProps) => {
   const { tokens, scheme } = useTheme();
   const t = useT();
   const { width } = useWindowDimensions();
-  const columns = width >= 1280 ? 4 : width >= 1024 ? 3 : width >= 640 ? 2 : 1;
+  // A phone used to fall to ONE column, which turned these shortcuts into
+  // eight full-width rows filling the screen before anything else. Two
+  // columns is the phone idiom for this exact control, and six of them leave
+  // room for the rails underneath.
+  const columns = width >= 1280 ? 4 : width >= 1024 ? 3 : 2;
+  const limit = width >= 640 ? MAX_ITEMS : MAX_ITEMS_NARROW;
 
   return (
     <View
@@ -41,14 +48,14 @@ export const TopTileGrid = ({ items, style }: TopTileGridProps) => {
         style,
       ]}
     >
-      {items.slice(0, MAX_ITEMS).map((item) => (
+      {items.slice(0, limit).map((item) => (
         <Pressable
           key={item.key}
           onPress={item.onPress}
           accessibilityRole="button"
           accessibilityLabel={item.title}
           style={({ pressed }) => ({
-            flexBasis: columns === 1 ? "100%" : `${100 / columns - 1}%`,
+            flexBasis: `${100 / columns - 1}%`,
             flexGrow: 1,
             height: 64,
             flexDirection: "row",
