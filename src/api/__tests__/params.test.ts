@@ -28,29 +28,40 @@ describe("deepNullToSentinel", () => {
 });
 
 describe("encodeQuery (bracket DSL)", () => {
-  it("encodes nested filter objects axios-style", () => {
+  it("encodes nested filter objects with percent-encoded brackets", () => {
     const query = encodeQuery({
       search: { title: "x y" },
       exact_search: { artist: "Carlos Paião" },
       modifiers: { page: "1:20", order: "name:asc" },
     });
-    expect(query).toContain("search[title]=x%20y");
-    expect(query).toContain("exact_search[artist]=Carlos%20Pai%C3%A3o");
-    expect(query).toContain("modifiers[page]=1%3A20");
-    expect(query).toContain("modifiers[order]=name%3Aasc");
+    expect(query).toContain("search%5Btitle%5D=x%20y");
+    expect(query).toContain("exact_search%5Bartist%5D=Carlos%20Pai%C3%A3o");
+    expect(query).toContain("modifiers%5Bpage%5D=1%3A20");
+    expect(query).toContain("modifiers%5Border%5D=name%3Aasc");
   });
 
-  it("encodes arrays as key[]=a&key[]=b", () => {
-    expect(encodeQuery({ ids: [1, 2] })).toBe("ids[]=1&ids[]=2");
+  it("leaves no raw bracket anywhere (iOS re-encodes the whole query over one)", () => {
+    const query = encodeQuery({
+      exact_search: { album: "10000 Gecs" },
+      ids: [1, 2],
+      modifiers: { page: "1:500" },
+    });
+    expect(query).not.toContain("[");
+    expect(query).not.toContain("]");
+    expect(query).toContain("exact_search%5Balbum%5D=10000%20Gecs");
+  });
+
+  it("encodes arrays as key%5B%5D=a&key%5B%5D=b", () => {
+    expect(encodeQuery({ ids: [1, 2] })).toBe("ids%5B%5D=1&ids%5B%5D=2");
   });
 
   it("encodes booleans as strings", () => {
-    expect(encodeQuery({ modifiers: { random: true } })).toBe("modifiers[random]=true");
+    expect(encodeQuery({ modifiers: { random: true } })).toBe("modifiers%5Brandom%5D=true");
   });
 
   it("encodes null values as the sentinel", () => {
     expect(encodeQuery({ exact_search: { album: null } })).toBe(
-      `exact_search[album]=${encodeURIComponent("\b")}`,
+      `exact_search%5Balbum%5D=${encodeURIComponent("\b")}`,
     );
   });
 

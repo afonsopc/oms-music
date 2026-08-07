@@ -5,8 +5,13 @@
  *   one-char string "\b" (backspace); the backend converts it to SQL NULL.
  *   Omitting a key means "no filter / unchanged". FormData and raw payloads
  *   are exempt (the client sends them verbatim).
- * - GET query strings use axios-style bracket encoding: `search[title]=x`,
- *   `modifiers[page]=1:100`, arrays as `key[]=a&key[]=b`.
+ * - GET query strings use axios-style bracket keys: `search[title]=x`,
+ *   `modifiers[page]=1:100`, arrays as `key[]=a&key[]=b`. The brackets are
+ *   percent-encoded (%5B/%5D): raw brackets are invalid URL characters, and
+ *   iOS reacts to ONE invalid character by re-encoding the whole query
+ *   string, turning every already-encoded value into a double-encoded
+ *   literal ("10000%2520Gecs") that matches nothing server-side. Rails
+ *   parses both forms identically.
  */
 
 export const NULL_SENTINEL = "\b";
@@ -54,21 +59,14 @@ const appendPairs = (pairs: [string, string][], keyPath: string, value: unknown)
 };
 
 /**
- * Encodes params into a query string (no leading "?"). Bracket characters in
- * key paths stay literal (Rails parses either form; this matches axios).
+ * Encodes params into a query string (no leading "?"). Everything is
+ * percent-encoded, brackets included - see the header note on why a raw
+ * bracket corrupts every other value on iOS.
  */
 export const encodeQuery = (params: Record<string, unknown>): string => {
   const pairs: [string, string][] = [];
   for (const [key, value] of Object.entries(params)) appendPairs(pairs, key, value);
-  return pairs
-    .map(([k, v]) => {
-      const encodedKey = k
-        .split(/([[\]])/)
-        .map((part) => (part === "[" || part === "]" ? part : encodeComponent(part)))
-        .join("");
-      return `${encodedKey}=${encodeComponent(v)}`;
-    })
-    .join("&");
+  return pairs.map(([k, v]) => `${encodeComponent(k)}=${encodeComponent(v)}`).join("&");
 };
 
 /** Builds the `modifiers[page]` value; pages are 1-based, SIZE capped at 500. */
