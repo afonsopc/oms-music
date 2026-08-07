@@ -17,6 +17,7 @@
  *     boot-while-online and on every reconnect (FR-89).
  */
 import { useSyncExternalStore } from "react";
+import { Platform } from "react-native";
 import NetInfo from "@react-native-community/netinfo";
 import { setLocalFileIndex } from "@/contracts/localSource";
 import {
@@ -137,6 +138,11 @@ const resolveUserId = (): UserId | null => {
 };
 
 const syncManagerToSession = (): void => {
+  // The downloads stack is expo-sqlite + expo-file-system, neither of which
+  // has a browser build here: on web the manager simply never starts, every
+  // read degrades (empty downloads, inert LocalFileIndex) and playback
+  // streams - which is what a browser tab should do anyway.
+  if (Platform.OS === "web") return;
   const userId = resolveUserId();
   if (!userId) {
     if (currentUserId()) stopManager();

@@ -12,8 +12,7 @@
  * or turning liked-sync off DELETES the local copies immediately.
  */
 import React, { useMemo, useState } from "react";
-import { ActivityIndicator, Modal, Text, View } from "react-native";
-import { WebView } from "react-native-webview";
+import { ActivityIndicator, Text, View } from "react-native";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   triggerSpotifySync,
@@ -21,7 +20,7 @@ import {
 } from "@/api/endpoints/spotifySync";
 import { useSpotifySyncPreview, useSpotifySyncStatus } from "@/api/queries/spotifySync";
 import { invalidationTargets, keys } from "@/api/queryKeys";
-import { buildLinkUrl, oauthErrorKey, parseOAuthCallback } from "@/auth/oauth";
+import { LinkSheet } from "./linkSheet";
 import { formatDateTime } from "@/lib/dates";
 import {
   GhostButton,
@@ -38,65 +37,6 @@ import { RADIUS } from "@/theme/tokens";
 import { ArtworkImage, ConfirmDialog, Icon } from "@/ui";
 
 const SYNC_KEY = "components.music.Settings.SpotifySync";
-
-const LinkWebView = ({
-  visible,
-  onDone,
-}: {
-  visible: boolean;
-  /** `errorKey` is set when the callback carried `?error=<code>`. */
-  onDone: (errorKey?: string) => void;
-}) => {
-  const { tokens } = useTheme();
-  const t = useT();
-  if (!visible) return null;
-  return (
-    <Modal visible animationType="slide" presentationStyle="pageSheet" onRequestClose={() => onDone()}>
-      <View style={{ flex: 1, backgroundColor: tokens.background }}>
-        <View
-          style={{
-            flexDirection: "row",
-            justifyContent: "flex-end",
-            padding: 12,
-            borderBottomWidth: 1,
-            borderBottomColor: tokens.border,
-          }}
-        >
-          <GhostButton label={t("native.common.cancel")} compact onPress={() => onDone()} />
-        </View>
-        <WebView
-          source={{ uri: buildLinkUrl("spotify") }}
-          incognito
-          onShouldStartLoadWithRequest={(request) => handleCallback(request.url, onDone)}
-          onNavigationStateChange={(state) => {
-            // Android often reports only the FINAL url of a redirect chain,
-            // and the backend callback IS a redirect.
-            handleCallback(state.url, onDone);
-          }}
-        />
-      </View>
-    </Modal>
-  );
-};
-
-/**
- * Consumes the linking callback. The backend always lands on the hardcoded
- * https callback and we are already signed in, so the ticket it carries is for
- * a session this app does not need and is deliberately ignored.
- *
- * What must NOT be ignored is `?error=`: Spotify linking is gated on the
- * admin-set `users.allowed_to_use_spotify` flag (Spotify Dev Mode allowlists
- * every address by hand), and `IdentitiesController#link` refuses with
- * `?error=spotify_not_allowlisted` (`identities_controller.rb:27-33`) before
- * the provider is ever reached. Closing the sheet silently on that made the
- * button look broken; now the refusal is explained.
- */
-const handleCallback = (url: string, onDone: (errorKey?: string) => void): boolean => {
-  const result = parseOAuthCallback(url);
-  if (result === null) return true;
-  onDone(result.kind === "error" ? oauthErrorKey(result.error) : undefined);
-  return false;
-};
 
 const PlaylistProgressRow = ({
   playlist,
@@ -271,7 +211,7 @@ export default function SpotifyImportTab() {
             />
           </View>
         </SettingsSection>
-        <LinkWebView
+        <LinkSheet
           visible={linking}
           onDone={(errorKey) => {
             setLinking(false);
