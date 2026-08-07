@@ -14,19 +14,26 @@ import React from "react";
 import { Pressable, ScrollView, Text, useWindowDimensions, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import NowPlayingBody from "@/features/player";
+import NowPlayingBody, { useSongAccent } from "@/features/player";
+import { AboutArtistCard } from "@/features/player/aboutArtistCard";
 import { LyricsCard } from "@/features/lyrics/card";
 import { useT } from "@/i18n";
+import { usePlaybackView } from "@/remote/mirror";
+import { playerGradient } from "@/theme/gradients";
 import { useTheme } from "@/theme/provider";
 import { Icon } from "@/ui";
 import { ChevronDownGlyph } from "./glyphs";
 
 export const NowPlayingScroll = () => {
   const { height } = useWindowDimensions();
-  const { tokens } = useTheme();
+  const { tokens, scheme } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const t = useT();
+
+  const song = usePlaybackView((v) => v.song);
+  const accent = useSongAccent(song);
+  const [accentDark, accentBright] = playerGradient(accent, scheme);
 
   // The sheet presentation already insets the top; now playing is composed
   // for a full viewport.
@@ -35,7 +42,13 @@ export const NowPlayingScroll = () => {
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: tokens.background }}
-      contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
+      // ONE gradient across the whole content - body, lyrics card, queue,
+      // artist card - accent up top fading into the page background, so the
+      // old hard cut at the viewport edge cannot exist.
+      contentContainerStyle={{
+        paddingBottom: insets.bottom + 24,
+        experimental_backgroundImage: `linear-gradient(to bottom, ${accentBright} 0%, ${accentDark} 55%, ${tokens.background} 90%)`,
+      }}
       showsVerticalScrollIndicator={false}
     >
       <View style={{ height: viewport }}>
@@ -44,30 +57,31 @@ export const NowPlayingScroll = () => {
 
       <LyricsCard />
 
-      {/* The queue kept its full-screen route; this row is how you reach it
-          now that the pager pages are gone. */}
+      {/* The queue kept its full-screen route; this compact button is how
+          you reach it now that the pager pages are gone. */}
       <Pressable
         onPress={() => router.push("/(player)/queue")}
         accessibilityRole="button"
         style={({ pressed }) => ({
-          marginHorizontal: 16,
-          marginTop: 12,
-          borderRadius: 14,
+          alignSelf: "center",
+          marginTop: 16,
+          borderRadius: 999,
           backgroundColor: tokens.secondary,
-          paddingHorizontal: 20,
-          paddingVertical: 16,
+          paddingHorizontal: 22,
+          paddingVertical: 10,
           flexDirection: "row",
           alignItems: "center",
-          gap: 12,
+          gap: 8,
           opacity: pressed ? 0.7 : 1,
         })}
       >
-        <Icon name="list-music" size={18} color={tokens.foreground} />
-        <Text style={{ flex: 1, color: tokens.foreground, fontSize: 15, fontWeight: "700" }}>
+        <Icon name="list-music" size={16} color={tokens.foreground} />
+        <Text style={{ color: tokens.foreground, fontSize: 14, fontWeight: "700" }}>
           {t("components.music.NowPlayingSheet.queue")}
         </Text>
-        <Icon name="chevron-right" size={18} color={tokens.mutedForeground} />
       </Pressable>
+
+      <AboutArtistCard />
     </ScrollView>
   );
 };

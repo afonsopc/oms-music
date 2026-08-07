@@ -65,6 +65,9 @@ const PlaylistBody = ({ playlistId }: { playlistId: PlaylistId }) => {
   const router = useRouter();
   const qc = useQueryClient();
   const [confirmDelete, setConfirmDelete] = useState(false);
+  // Drag handles only on request (the ellipsis menu): always-on reorder made
+  // every row wear a grip nobody was using.
+  const [reorderMode, setReorderMode] = useState(false);
 
   const playlistQuery = usePlaylist(playlistId);
   const songsQuery = usePlaylistSongsInfinite(playlistId);
@@ -174,8 +177,18 @@ const PlaylistBody = ({ playlistId }: { playlistId: PlaylistId }) => {
     [songs, playlistId, qc, reorderMutation],
   );
 
+  const canReorder = !system && fullyLoaded && songs.length > 1;
+
   const menuItems = useMemo<ActionBarMenuItem[]>(() => {
     const items: ActionBarMenuItem[] = [];
+    if (canReorder) {
+      items.push({
+        id: "reorder",
+        label: t(reorderMode ? "native.playlist.reorderDone" : "native.playlist.reorder"),
+        icon: reorderMode ? "check" : "grip-vertical",
+        onPress: () => setReorderMode((v) => !v),
+      });
+    }
     if (system) {
       items.push({
         id: "copy",
@@ -196,7 +209,7 @@ const PlaylistBody = ({ playlistId }: { playlistId: PlaylistId }) => {
       onPress: () => setConfirmDelete(true),
     });
     return items;
-  }, [system, copyMutation, playlistId, router, t]);
+  }, [system, copyMutation, playlistId, router, t, canReorder, reorderMode]);
 
   if (playlistQuery.isError) {
     return (
@@ -249,7 +262,7 @@ const PlaylistBody = ({ playlistId }: { playlistId: PlaylistId }) => {
         addedAtFor={addedAtFor}
         surface="playlist"
         extraActionsFor={system ? undefined : extraActionsFor}
-        onReorder={!system && fullyLoaded && songs.length > 1 ? handleReorder : undefined}
+        onReorder={canReorder && reorderMode ? handleReorder : undefined}
         menuItems={menuItems}
         collectionKey={String(playlistId)}
         hasMore={songsQuery.hasNextPage}

@@ -30,11 +30,15 @@ import { useContentBottomPadding, useContentTopPadding } from "@/features/shell/
 import { useT } from "@/i18n";
 import { useTheme } from "@/theme/provider";
 import { RADIUS } from "@/theme/tokens";
+import { typeScale } from "@/theme/typography";
 import { ArtworkImage, EmptyState, Icon } from "@/ui";
 import { formatBytes } from "./format";
 
-const ROW_ARTWORK = 48;
-const ROW_HEIGHT = 64;
+// Row recipe SHARED with the library list (features/library LibraryRowView):
+// 44 artwork, 24 side padding, 14/500 title over 12 subtitle - the two
+// screens sit two tabs apart and were wearing different uniforms.
+const ROW_ARTWORK = 44;
+const ROW_HEIGHT = 60;
 /** Same dwell as the floating notice host (boot/notices). */
 const NOTICE_VISIBLE_MS = 4200;
 
@@ -62,7 +66,15 @@ const DownloadedRow = ({
   const { tokens } = useTheme();
   const t = useT();
   return (
-    <View style={{ flexDirection: "row", alignItems: "center", height: ROW_HEIGHT, gap: 12 }}>
+    <View
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        height: ROW_HEIGHT,
+        gap: 12,
+        paddingHorizontal: 24,
+      }}
+    >
       <Pressable
         onPress={onPlay}
         accessibilityRole="button"
@@ -86,12 +98,12 @@ const DownloadedRow = ({
         />
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text
-            style={{ color: tokens.foreground, fontSize: 15, fontWeight: "600" }}
+            style={{ color: tokens.foreground, fontSize: 14, fontWeight: "500" }}
             numberOfLines={1}
           >
             {song.title}
           </Text>
-          <Text style={{ color: tokens.mutedForeground, fontSize: 13 }} numberOfLines={1}>
+          <Text style={{ color: tokens.mutedForeground, fontSize: 12 }} numberOfLines={1}>
             {formatArtists(song) || t("components.music.SongRow.unknownArtist")}
           </Text>
         </View>
@@ -189,11 +201,21 @@ export default function DownloadsScreen() {
   );
 
   const header = (
-    <View style={{ gap: 12, paddingBottom: 8 }}>
-      <Text style={{ color: tokens.foreground, fontSize: 28, fontWeight: "800" }}>
+    <View style={{ gap: 12, paddingBottom: 12 }}>
+      <Text
+        style={[typeScale.sectionHeader, { color: tokens.foreground, paddingHorizontal: 24 }]}
+      >
         {t("native.shell.tabDownloads")}
       </Text>
-      <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: 8,
+          paddingHorizontal: 24,
+        }}
+      >
         {offline ? (
           <View
             style={{
@@ -232,6 +254,7 @@ export default function DownloadsScreen() {
             borderColor: tokens.border,
             borderRadius: RADIUS,
             padding: 10,
+            marginHorizontal: 24,
           }}
         >
           <Text style={{ color: tokens.foreground, fontSize: 13 }}>{t(notice.key)}</Text>
@@ -239,7 +262,7 @@ export default function DownloadsScreen() {
       ) : null}
 
       {inFlight.length > 0 ? (
-        <View style={{ gap: 6, paddingTop: 4 }}>
+        <View style={{ gap: 6, paddingTop: 4, paddingHorizontal: 24 }}>
           <Text style={{ color: tokens.mutedForeground, fontSize: 13, fontWeight: "600" }}>
             {t("native.downloads.inFlightTitle")}
           </Text>
@@ -284,7 +307,7 @@ export default function DownloadsScreen() {
   return (
     <FlatList
       style={{ flex: 1, backgroundColor: tokens.background }}
-      contentContainerStyle={{ padding: 16, paddingTop: topPadding, paddingBottom: bottomPadding }}
+      contentContainerStyle={{ paddingTop: topPadding, paddingBottom: bottomPadding }}
       data={songs}
       keyExtractor={(item) => String(item.id)}
       renderItem={renderItem}

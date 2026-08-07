@@ -1061,7 +1061,9 @@
       "volume": "Skaļums",
       "progress": "Atskaņošanas gaita",
       "upNext": "Nākamās",
-      "eqNeedsLocal": "Ekvalaizeram dziesma ir vajadzīga šajā ierīcē - lejupielādē to, un tas sāks darboties."
+      "eqNeedsLocal": "Ekvalaizeram dziesma ir vajadzīga šajā ierīcē - lejupielādē to, un tas sāks darboties.",
+      "aboutArtist": "Par mākslinieku",
+      "listeners": "{count} klausītāji"
     },
     "settings": {
       "hub": {
@@ -1161,6 +1163,10 @@
       "goodMorning": "Labrīt",
       "goodAfternoon": "Labdien",
       "goodEvening": "Labvakar"
+    },
+    "playlist": {
+      "reorder": "Pārkārtot dziesmas",
+      "reorderDone": "Pabeigt pārkārtošanu"
     }
   }
 }

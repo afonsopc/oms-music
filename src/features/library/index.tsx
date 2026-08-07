@@ -8,7 +8,6 @@
 import React, { useMemo, useState } from "react";
 import { FlatList, Pressable, Text, TextInput, View } from "react-native";
 import { useRouter } from "expo-router";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { usePlaylists } from "@/api/queries/playlists";
 import { useContentBottomPadding, useContentTopPadding } from "@/features/shell/metrics";
 import { useT } from "@/i18n";
@@ -27,7 +26,7 @@ const QuickLink = ({
   label,
   onPress,
 }: {
-  icon: "heart" | "download" | "user";
+  icon: "heart" | "download" | "user" | "settings";
   label: string;
   onPress: () => void;
 }) => {
@@ -122,7 +121,6 @@ export default function LibraryScreen() {
   const t = useT();
   const router = useRouter();
   const { tokens } = useTheme();
-  const insets = useSafeAreaInsets();
   const bottomPadding = useContentBottomPadding();
   const topPadding = useContentTopPadding();
 
@@ -186,7 +184,10 @@ export default function LibraryScreen() {
   ];
 
   const header = (
-    <View style={{ gap: 16, paddingTop: insets.top + 12, paddingBottom: 12 }}>
+    // No inset here: the list's contentContainer already carries the safe
+    // area, and stacking both is where the huge blank band above the title
+    // came from.
+    <View style={{ gap: 16, paddingBottom: 12 }}>
       <Text
         style={[typeScale.sectionHeader, { color: tokens.foreground, paddingHorizontal: 24 }]}
       >
@@ -212,7 +213,7 @@ export default function LibraryScreen() {
           onPress={() => router.push("/(main)/(tabs)/downloads")}
         />
         <QuickLink
-          icon="user"
+          icon="settings"
           label={t("native.library.settings")}
           onPress={() => router.push("/(main)/settings")}
         />

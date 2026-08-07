@@ -34,7 +34,6 @@ import { useT } from "@/i18n";
 import { songAlbumRoute, songArtistRoute } from "@/lib/routes";
 import { usePlaybackView } from "@/remote/mirror";
 import { getCachedAccent, resolveAccent } from "@/theme/accent";
-import { playerGradient } from "@/theme/gradients";
 import { useTheme } from "@/theme/provider";
 import { ACCENT_FALLBACK } from "@/theme/tokens";
 import {
@@ -155,7 +154,7 @@ export const useSongAccent = (song: Song | null): string => {
 
 export default function NowPlayingBody() {
   const t = useT();
-  const { tokens, scheme } = useTheme();
+  const { tokens } = useTheme();
   const router = useRouter();
   const { width, height } = useWindowDimensions();
   useShellSlotsVersion();
@@ -170,9 +169,6 @@ export default function NowPlayingBody() {
   const toggleLike = useToggleLike();
   const [menuOpen, setMenuOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-
-  const accent = useSongAccent(song);
-  const [gradientTop, gradientBottom] = playerGradient(accent, scheme);
 
   // Links leave the player entirely: an album or a radio opened from here
   // belongs on the (main) stack, not stacked as a second sheet over the one
@@ -203,12 +199,10 @@ export default function NowPlayingBody() {
   const artworkSize = Math.min(width - 64, Math.round(height * 0.42));
 
   return (
-    <View
-      style={{
-        flex: 1,
-        experimental_backgroundImage: `linear-gradient(to bottom, ${gradientTop}, ${gradientBottom})`,
-      }}
-    >
+    // Transparent on purpose: the (player) scroll paints ONE continuous
+    // accent gradient across body + lyrics card + queue, so there is no seam
+    // where the viewport ends (the old per-body gradient cut to black there).
+    <View style={{ flex: 1 }}>
       <View style={{ flex: 1, paddingHorizontal: 24, paddingBottom: 8 }}>
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
           <ArtworkImage

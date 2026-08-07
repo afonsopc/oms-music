@@ -1061,7 +1061,9 @@
       "volume": "Volume",
       "progress": "Playback progress",
       "upNext": "Up next",
-      "eqNeedsLocal": "EQ needs the song on this device - download it and it kicks in."
+      "eqNeedsLocal": "EQ needs the song on this device - download it and it kicks in.",
+      "aboutArtist": "About the artist",
+      "listeners": "{count} listeners"
     },
     "settings": {
       "hub": {
@@ -1161,6 +1163,10 @@
       "goodMorning": "Good morning",
       "goodAfternoon": "Good afternoon",
       "goodEvening": "Good evening"
+    },
+    "playlist": {
+      "reorder": "Reorder songs",
+      "reorderDone": "Done reordering"
     }
   }
 }

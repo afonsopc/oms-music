@@ -1061,7 +1061,9 @@
       "volume": "Volume",
       "progress": "Progresso da reprodução",
       "upNext": "A seguir",
-      "eqNeedsLocal": "O equalizador precisa da música no dispositivo - transfere-a e ele passa a actuar."
+      "eqNeedsLocal": "O equalizador precisa da música no dispositivo - transfere-a e ele passa a actuar.",
+      "aboutArtist": "Sobre o artista",
+      "listeners": "{count} ouvintes"
     },
     "settings": {
       "hub": {
@@ -1161,6 +1163,10 @@
       "goodMorning": "Bom dia",
       "goodAfternoon": "Boa tarde",
       "goodEvening": "Boa noite"
+    },
+    "playlist": {
+      "reorder": "Reordenar músicas",
+      "reorderDone": "Concluir reordenação"
     }
   }
 }
