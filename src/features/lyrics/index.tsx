@@ -30,6 +30,11 @@ import {
   type LayoutChangeEvent,
 } from "react-native";
 import { useIsFocused } from "expo-router";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
 import { useLyrics, useLyricsTranslation } from "@/api/queries/lyrics";
 import { queryClient } from "@/api/queryClient";
 import { keys } from "@/api/queryKeys";
@@ -69,6 +74,47 @@ const PLACEHOLDER_DOT = "·";
 type SyncRun =
   | { songId: SongId; phase: "running" }
   | { songId: SongId; phase: "done"; ok: boolean };
+
+/**
+ * A synced line whose emphasis GLIDES: every line renders at the active font
+ * size and the inactive ones shrink via transform, so activation animates
+ * scale + opacity without changing layout - the measured heights the
+ * auto-center math depends on stay constant per line.
+ */
+const SyncedLineText = ({
+  active,
+  color,
+  children,
+}: {
+  active: boolean;
+  color: string;
+  children: React.ReactNode;
+}) => {
+  const p = useSharedValue(active ? 1 : 0);
+  useEffect(() => {
+    p.value = withTiming(active ? 1 : 0, { duration: 220 });
+  }, [active, p]);
+  const style = useAnimatedStyle(() => ({
+    opacity: 0.55 + 0.45 * p.value,
+    transform: [{ scale: 0.87 + 0.13 * p.value }],
+  }));
+  return (
+    <Animated.Text
+      style={[
+        style,
+        {
+          color,
+          fontSize: 19,
+          lineHeight: 26,
+          fontWeight: "700",
+          transformOrigin: "left center",
+        },
+      ]}
+    >
+      {children}
+    </Animated.Text>
+  );
+};
 
 export default function LyricsBody() {
   const t = useT();
@@ -448,25 +494,9 @@ export default function LyricsBody() {
                   accessibilityLabel={t(`${K}.seekTo`, { line: primary || "" })}
                   style={{ paddingVertical: 5 }}
                 >
-                  <Text
-                    style={
-                      active
-                        ? {
-                            color: tokens.foreground,
-                            fontSize: 19,
-                            lineHeight: 26,
-                            fontWeight: "700",
-                          }
-                        : {
-                            color: tokens.foreground,
-                            opacity: 0.6,
-                            fontSize: 16,
-                            lineHeight: 23,
-                          }
-                    }
-                  >
+                  <SyncedLineText active={active} color={tokens.foreground}>
                     {primary || PLACEHOLDER_DOT}
-                  </Text>
+                  </SyncedLineText>
                   {secondary ? (
                     <Text
                       style={{

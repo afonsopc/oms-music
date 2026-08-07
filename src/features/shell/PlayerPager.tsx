@@ -11,8 +11,9 @@
  *    reference screenshots.
  */
 import React from "react";
-import { Pressable, ScrollView, Text, useWindowDimensions, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { useRouter } from "expo-router";
+import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import NowPlayingBody, { useSongAccent } from "@/features/player";
 import { AboutArtistCard } from "@/features/player/aboutArtistCard";
@@ -39,18 +40,26 @@ export const NowPlayingScroll = () => {
   // for a full viewport.
   const viewport = Math.max(1, height - insets.bottom);
 
+  const gradientCss = `linear-gradient(to bottom, ${accentBright} 0%, ${accentDark} 55%, ${tokens.background} 90%)`;
+
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: tokens.background }}
-      // ONE gradient across the whole content - body, lyrics card, queue,
-      // artist card - accent up top fading into the page background, so the
-      // old hard cut at the viewport edge cannot exist.
-      contentContainerStyle={{
-        paddingBottom: insets.bottom + 24,
-        experimental_backgroundImage: `linear-gradient(to bottom, ${accentBright} 0%, ${accentDark} 55%, ${tokens.background} 90%)`,
-      }}
+      contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
       showsVerticalScrollIndicator={false}
     >
+      {/* ONE gradient across the whole content - body, lyrics card, queue,
+          artist card - accent up top fading into the page background, so the
+          old hard cut at the viewport edge cannot exist. Keyed by its own
+          colours: a song change CROSSFADES the new accent over the old one
+          instead of snapping. */}
+      <Animated.View
+        key={gradientCss}
+        entering={FadeIn.duration(450)}
+        exiting={FadeOut.duration(450)}
+        pointerEvents="none"
+        style={[StyleSheet.absoluteFill, { experimental_backgroundImage: gradientCss }]}
+      />
       <View style={{ height: viewport }}>
         <NowPlayingBody />
       </View>
