@@ -1156,6 +1156,11 @@
     },
     "lyrics": {
       "cardTitle": "Lyrics"
+    },
+    "home": {
+      "goodMorning": "Good morning",
+      "goodAfternoon": "Good afternoon",
+      "goodEvening": "Good evening"
     }
   }
 }

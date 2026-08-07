@@ -41,6 +41,15 @@ import { useFriendsStripActive, useFriendsStripSlot } from "./friendsSlot";
 
 type HomeFilter = "all" | "playlists" | "albums" | "artists";
 
+/** Spotify-style time-of-day greeting key; evening covers the night hours. */
+export const greetingKey = (
+  hour: number,
+): "native.home.goodMorning" | "native.home.goodAfternoon" | "native.home.goodEvening" => {
+  if (hour >= 6 && hour < 13) return "native.home.goodMorning";
+  if (hour >= 13 && hour < 20) return "native.home.goodAfternoon";
+  return "native.home.goodEvening";
+};
+
 const nodeArtwork = (nodeId: string | null | undefined): ArtworkSource =>
   nodeId ? { kind: "node", nodeId } : { kind: "placeholder" };
 
@@ -125,7 +134,7 @@ export default function HomeScreen() {
       <Text
         style={[typeScale.sectionHeader, { color: tokens.foreground, paddingHorizontal: 24 }]}
       >
-        {t("components.music.Sidebar.discover")}
+        {t(greetingKey(new Date().getHours()))}
       </Text>
 
       <FilterPills
