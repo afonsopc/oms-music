@@ -18,7 +18,8 @@ import { getPlaybackInterceptor } from "@/contracts/playbackInterceptor";
 import { getStemFileProvider } from "@/contracts/stemFiles";
 import { getStemMixer } from "@/contracts/stemMixer";
 import * as ops from "./queueOps";
-import { stemPairNodeIds, wantedNodeId } from "./modes";
+import { getLocalFileIndex } from "@/contracts/localSource";
+import { localKindsForMode, stemPairNodeIds, wantedNodeId } from "./modes";
 import { resolveSources, resolveStemSource, type MainSourceCandidate } from "./sources";
 import { PresignedResolver } from "./resolver";
 import { RecoveryTracker } from "./recovery";
@@ -572,14 +573,28 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
   /**
    * The EQ passthrough source (gainLaw.PASSTHROUGH_GAIN): outside custom
    * mode, an enabled EQ still needs the mixer graph, which only reads local
-   * files - so the currently LOADED main file qualifies exactly when the
-   * ladder picked a local candidate. Streams stay un-equalized (the cog says
-   * why via `eqActive`).
+   * files. Two ways a song has one:
+   *
+   *  - the ladder loaded a local candidate as the MAIN file (a download);
+   *  - the main is STREAMING but a local copy is resident (a user download
+   *    that landed later, or the play cache) - then the mixer plays the copy
+   *    while the stream stays the muted clock, exactly the stems shape.
+   *
+   * A song with neither stays un-equalized and the cog says why (`eqActive`).
    */
   private passthroughUri(): string | null {
     if (!playerStore.getState().eqEnabled) return null;
     const main = this.loadedMain;
-    return main && main.kind === "local" ? main.uri : null;
+    if (main && main.kind === "local") return main.uri;
+    const song = ops.currentSongOf(this.q);
+    if (!song || song.audio_url) return null; // jam: ephemeral URL, no files
+    const index = getLocalFileIndex();
+    const key = toSongKey(song.id);
+    for (const kind of localKindsForMode(song, playerStore.getState().playbackMode)) {
+      const uri = index.get(key, kind);
+      if (uri) return uri;
+    }
+    return null;
   }
 
   /**

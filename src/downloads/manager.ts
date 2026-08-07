@@ -131,6 +131,10 @@ export const startManager = (userId: UserId): void => {
     session.artworkNodes.add(stored.songKey, stored.song);
   }
 
+  // Stale play-cache entries go BEFORE hydration, so the re-attach loop
+  // below never resumes a transfer the purge just deleted.
+  purgeStaleCache(session);
+
   const progressDbSteps = new Map<string, number>();
 
   session.scheduler = new TransferScheduler({
@@ -244,8 +248,15 @@ export const stopManager = (): void => {
 // Reads (sync, FR-82)
 // ---------------------------------------------------------------------------
 
-export const getStatusFor = (id: number | string): SongDownloadStatus =>
-  active ? getMixedStatus(normalizeSongKey(id)) : "none";
+export const getStatusFor = (id: number | string): SongDownloadStatus => {
+  if (!active) return "none";
+  const songKey = normalizeSongKey(id);
+  // Orphan mixed files (the play cache) must not light the "downloaded"
+  // badge or flip the song menu to "remove": only a song the USER downloaded
+  // (dl_songs row) reports a status.
+  if (!active.songs.has(songKey)) return "none";
+  return getMixedStatus(songKey);
+};
 
 export const getProgressFor = (id: number | string): number =>
   active ? getMixedProgress(normalizeSongKey(id)) : 0;
@@ -482,6 +493,72 @@ export const downloadSong = async (song: Song, opts?: DownloadOpts): Promise<voi
         usesCompressedNode: false,
       });
     }
+  }
+};
+
+/** How long an unplayed cache entry survives (freshness via touchFile). */
+const PLAY_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * Play cache (owner request 2026-08-08): every song that starts playing gets
+ * its mixed file onto disk in the ORPHAN tier - dl_files row, deliberately NO
+ * dl_songs row, the exact shape downloadStemsForPlayback established. That
+ * keeps it invisible to the Downloads screen, the offline library and the
+ * repair walk, while the LocalFileIndex serves it to the source ladder (next
+ * play is local) and to the EQ passthrough (the equalizer works on streamed
+ * songs the moment the file lands). A later REAL download just writes the
+ * dl_songs row and finds the file already done - promotion costs nothing.
+ *
+ * Silent by design: a WiFi-only refusal or any failure simply means no cache
+ * this time; a background optimization never raises a notice.
+ */
+export const cachePlayback = async (song: Song): Promise<void> => {
+  const session = active;
+  if (!session || session.closed) return;
+  if (song.jam_song) return; // Jam guard: ephemeral URLs, never persisted.
+  const mixedNode = song.compressed_audio_fs_node_id || song.audio_fs_node_id;
+  if (!mixedNode) return;
+
+  const songKey = toSongKey(song.id);
+  if (getKindStatus(songKey, "mixed")?.status === "done") {
+    // Already resident. For a cache orphan, replaying is what keeps it alive
+    // past the purge; a real download's clock is irrelevant.
+    if (!session.songs.has(songKey)) repo.touchFile(session.db, songKey, "mixed");
+    return;
+  }
+
+  try {
+    await wifiGate();
+  } catch (error) {
+    if (isWifiRefusedError(error)) return;
+    throw error;
+  }
+  if (session.closed) return;
+
+  enqueueKind(session, song, songKey, "mixed", mixedNode, {
+    usesCompressedNode: mixedNode === song.compressed_audio_fs_node_id,
+  });
+};
+
+/**
+ * Deletes cache-tier audio (orphan mixed rows) not played for
+ * PLAY_CACHE_TTL_MS. Runs at session start, before hydration re-attaches
+ * transfers. User downloads (dl_songs row) are never touched.
+ */
+const purgeStaleCache = (session: ActiveSession): void => {
+  const cutoff = Date.now() - PLAY_CACHE_TTL_MS;
+  for (const row of repo.listAllFiles(session.db)) {
+    if (row.kind !== "mixed" && row.kind !== "mixed_original") continue;
+    if (session.songs.has(row.song_key)) continue;
+    if (row.updated_at >= cutoff) continue;
+    try {
+      const uri = row.local_uri ?? new File(session.dir, row.filename).uri;
+      const file = new File(uri);
+      if (file.exists) file.delete();
+    } catch {
+      // The file is already gone; the row still goes.
+    }
+    repo.deleteFile(session.db, row.song_key, row.kind);
   }
 };
 

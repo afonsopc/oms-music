@@ -698,6 +698,29 @@ describe("EQ passthrough", () => {
     ctx.engine.dispose();
   });
 
+  it("a streaming main with a resident local copy blends the COPY (play cache shape)", async () => {
+    const ctx = setup();
+    const song = makeSong(1);
+    urlFor(ctx, song);
+    ctx.engine.setQueue([song]);
+    await flush();
+    ctx.player.emitLoaded(200);
+    expect(ctx.player.uri?.startsWith("http://cdn/1")).toBe(true);
+
+    // The cache landed AFTER the stream started: the index knows the file.
+    installLocalMains([1]);
+    ctx.engine.setEqEnabled(true);
+    await flush();
+
+    // The stream stays loaded as the muted clock; the mixer eats the copy.
+    expect(ctx.player.uri?.startsWith("http://cdn/1")).toBe(true);
+    expect(ctx.player.stemsOn).toBe(true);
+    expect(ctx.player.stemPassthrough).toBe(true);
+    expect(ctx.player.stemPair).toEqual({ vocals: LOCAL_1, instrumental: LOCAL_1 });
+    expect(playerStore.getState().eqActive).toBe(true);
+    ctx.engine.dispose();
+  });
+
   it("disabling the EQ releases the passthrough and restores the main gain", async () => {
     installLocalMains([1]);
     const ctx = setup();

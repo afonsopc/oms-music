@@ -202,6 +202,18 @@ export const deleteFile = (db: SQLiteDatabase, songKey: SongKey, kind: DownloadK
   db.runSync("DELETE FROM dl_files WHERE song_key = ? AND kind = ?", [songKey, kind]);
 };
 
+/**
+ * Freshness clock for the PLAY CACHE tier (orphan dl_files rows, no dl_songs
+ * row): replaying a cached song bumps updated_at so the 7 day purge keeps
+ * what the listener actually returns to.
+ */
+export const touchFile = (db: SQLiteDatabase, songKey: SongKey, kind: DownloadKind): void => {
+  db.runSync(
+    "UPDATE dl_files SET updated_at = ? WHERE song_key = ? AND kind = ?",
+    [Date.now(), songKey, kind],
+  );
+};
+
 export const deleteFilesForSong = (db: SQLiteDatabase, songKey: SongKey): void => {
   db.runSync("DELETE FROM dl_files WHERE song_key = ?", [songKey]);
 };

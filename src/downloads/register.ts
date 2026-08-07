@@ -26,7 +26,8 @@ import {
 } from "@/contracts/songMenu";
 import { registerLogoutTask, useSessionStore } from "@/auth/session";
 import { kvGet, kvSet } from "@/db/kv";
-import type { UserId } from "@/domain/ids";
+import { toSongKey, type UserId } from "@/domain/ids";
+import type { Song } from "@/domain/song";
 import { registerOfflineCollections } from "@/features/playlist/offlineCollections";
 import { registerShellProvider } from "@/features/shell/slots";
 import { setDownloadStatusReader } from "@/ui/downloadStatus";
@@ -37,7 +38,9 @@ import {
   toggleOfflineCollection,
 } from "./collections";
 import { DownloadStatusProvider, downloadsApi } from "./context";
+import { getPlayerEngine } from "@/player/register";
 import {
+  cachePlayback,
   currentUserId,
   getProgressFor,
   getStatusFor,
@@ -223,6 +226,30 @@ export const registerDownloads = (): void => {
     })
     .catch(() => undefined);
   NetInfo.addEventListener((state) => handleNetworkState(!!state.isConnected));
+
+  // Play cache (owner request 2026-08-08): every song that starts playing
+  // caches its mixed file (manager.cachePlayback - orphan tier, silent, 7 day
+  // TTL). The residency watcher below then pokes the engine ONCE when the
+  // current song's audio becomes local, so the EQ passthrough can engage mid
+  // play without waiting for a track change.
+  let mainWasResident = false;
+  const currentMainResident = (): boolean => {
+    const song = getPlayerEngine().getCurrentSong();
+    if (!song) return false;
+    const key = toSongKey(song.id);
+    return !!(localUriFor(key, "mixed") ?? localUriFor(key, "mixed_original"));
+  };
+  getPlayerEngine().on("songChanged", (payload) => {
+    const song = (payload as { song: Song | null } | undefined)?.song ?? null;
+    mainWasResident = currentMainResident();
+    if (!song) return;
+    void cachePlayback(song).catch(() => undefined);
+  });
+  subscribeDownloadStatus(() => {
+    const resident = currentMainResident();
+    if (resident && !mainWasResident) getPlayerEngine().retryStemBlend();
+    mainWasResident = resident;
+  });
 };
 
 // Importing the module registers (wireup imports every register.ts).
