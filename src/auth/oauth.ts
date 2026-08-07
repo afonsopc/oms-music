@@ -26,6 +26,7 @@ export {
   parseOAuthCallback,
   OAUTH_CALLBACK_PREFIX,
   OAUTH_ERROR_KEYS,
+  OAUTH_NATIVE_CALLBACK,
 } from "./oauthCallback";
 export type {
   OAuthCallbackResult,
@@ -34,8 +35,13 @@ export type {
   OAuthProvider,
 } from "./oauthCallback";
 
+/**
+ * `native=1` rides the OmniAuth round trip and makes the backend answer on
+ * `omsmusic://oauth/callback` (OAUTH_NATIVE_CALLBACK) instead of the website,
+ * which is what lets the system-browser session close itself.
+ */
 export const buildOAuthUrl = (provider: OAuthProvider, mode: OAuthMode): string =>
-  `${API_BASE_URL}/auth/${provider}?mode=${mode}`;
+  `${API_BASE_URL}/auth/${provider}?mode=${mode}&native=1`;
 
 /**
  * Spotify linking while signed in passes the raw session token: the web mints

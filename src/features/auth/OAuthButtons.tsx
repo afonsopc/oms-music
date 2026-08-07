@@ -1,45 +1,35 @@
 /**
- * OAuth sign-in buttons (FR-12, P1). react-native-webview is installed, so
- * the WebView interception flow is live: the button opens
- * `/auth/<provider>?mode=<signin|signup>` in a modal WebView and the hardcoded
- * `https://omelhorsite.pt/account/oauth/callback` redirect is intercepted
- * (there is no custom-scheme redirect server-side and adding one would need a
- * backend change). The extracted ticket is exchanged through
- * `POST /sessions/adopt` within its 2 minute TTL, then handed to the shared
- * `establishSession` path so OAuth lands exactly like a password login.
- * Failures come back as `?error=<code>` and map to the catalog through
- * OAUTH_ERROR_KEYS; an adopt that arrives too late maps to a "took too long"
- * message rather than a generic one.
+ * OAuth sign-in buttons (FR-12). The provider round trip runs in the SYSTEM
+ * browser - ASWebAuthenticationSession on iOS, Custom Tabs on Android - via
+ * `expo-web-browser`'s openAuthSessionAsync:
  *
- * Interception runs on BOTH `onShouldStartLoadWithRequest` and
- * `onNavigationStateChange`: Android does not reliably fire the former for a
- * server-side 302, and the backend callback IS a redirect. `parseOAuthCallback`
- * matches on host plus normalised path rather than a literal prefix, because
- * the apex rewrites `/account/oauth/callback` to
- * `/<locale>/account/oauth/callback/` and Android often reports only that final
- * URL.
+ *  - cookies are the browser's own, so a user already signed into Google or
+ *    GitHub just taps "continue" instead of re-entering credentials;
+ *  - Google ALLOWS this surface (it blocks embedded webviews with
+ *    `disallowed_useragent`), which is what put the Google button back;
+ *  - the OS sheet is the trusted UI for auth - an in-app webview asking for
+ *    a Google password is indistinguishable from a phishing page.
  *
- * Which providers appear, and WHY Google does not, is decided by
- * `oauthProvidersFor` in auth/oauthCallback.ts - the reasoning is recorded
- * there because it is a contract fact, not a styling choice.
- *
- * The sheet only ever opens from a tap here, which is what stands in for the
- * web client's `oauth_pending` marker: a callback URL cannot be replayed into
- * the app because nothing else can navigate this WebView.
- *
- * The WebView runs `incognito`: the provider round trip needs its own cookie
- * jar, but nothing about it may persist (native auth is bearer-token only).
+ * The flow: `/auth/<provider>?mode=<mode>&native=1` -> provider -> backend
+ * callback -> redirect to `omsmusic://oauth/callback?ticket=...` (the backend
+ * answers native flows on the app scheme), which the session watches for and
+ * hands back here. The ticket is exchanged through POST /sessions/adopt
+ * within its 2 minute TTL, then handed to the shared `establishSession` path
+ * so OAuth lands exactly like a password login. Failures come back as
+ * `?error=<code>` and map to the catalog through OAUTH_ERROR_KEYS; a cancel
+ * or dismissal of the sheet is not an error and shows nothing.
  */
-import React, { useRef, useState } from "react";
-import { ActivityIndicator, Modal, Pressable, Text, View } from "react-native";
-import { WebView } from "react-native-webview";
+import React, { useState } from "react";
+import { ActivityIndicator, Pressable, Text, View } from "react-native";
+import * as WebBrowser from "expo-web-browser";
 import { authErrorMessage, classifyAdoptError } from "@/auth/authErrors";
 import {
   buildOAuthUrl,
   oauthErrorKey,
   oauthProvidersFor,
-  OAUTH_ERROR_KEYS,
   parseOAuthCallback,
+  OAUTH_ERROR_KEYS,
+  OAUTH_NATIVE_CALLBACK,
   type OAuthMode,
   type OAuthProvider,
 } from "@/auth/oauth";
@@ -106,58 +96,42 @@ const ProviderButton = ({
 export default function OAuthButtons({ mode = "signin" }: { mode?: OAuthMode }) {
   const t = useT();
   const { tokens } = useTheme();
-  const [provider, setProvider] = useState<OAuthProvider | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  /**
-   * One callback per opened sheet. It is a flag, not the URL: the same
-   * outcome reaches us under two spellings (the pre-redirect
-   * `/account/oauth/callback?...` and the locale-prefixed, trailing-slashed
-   * one the apex 302s to), so comparing URLs would let a ticket be adopted
-   * twice.
-   */
-  const handled = useRef(false);
 
   if (!OAUTH_ENABLED) return null;
 
-  const close = (): void => setProvider(null);
-
-  /**
-   * Runs on EVERY navigation inside the WebView. Non-callback URLs load
-   * normally; the callback is consumed here and never rendered.
-   *
-   * Android does not always fire onShouldStartLoadWithRequest for a server
-   * side 302 (and the backend callback IS a redirect), so the same function
-   * also runs from onNavigationStateChange.
-   */
-  const handleRequest = (url: string): boolean => {
-    const result = parseOAuthCallback(url);
-    if (result === null) return true;
-    if (handled.current) return false;
-    handled.current = true;
-    close();
-    if (result.kind === "error") {
-      setError(t(oauthErrorKey(result.error)));
-      return false;
-    }
-    if (result.kind === "token") {
-      // Legacy branch, unreachable from this app and refused on purpose; see
-      // OAuthCallbackResult in auth/oauthCallback.ts.
-      setError(t(OAUTH_ERROR_KEYS.oauth_failed));
-      return false;
-    }
+  const start = async (provider: OAuthProvider): Promise<void> => {
+    if (busy) return;
     setBusy(true);
     setError(null);
-    void adoptOAuthTicket(result.ticket)
-      .then(() => {
-        // Success: the session store flips to authed and the root layout's
-        // guards unmount this screen.
-      })
-      .catch((e: unknown) => {
+    try {
+      const result = await WebBrowser.openAuthSessionAsync(
+        buildOAuthUrl(provider, mode),
+        OAUTH_NATIVE_CALLBACK,
+      );
+      // "cancel"/"dismiss": the user closed the sheet - not an error.
+      if (result.type !== "success") return;
+      const parsed = parseOAuthCallback(result.url);
+      if (parsed === null || parsed.kind === "token") {
+        // An unknown shape, or the legacy raw-token branch this app refuses
+        // on purpose (adopting a token straight out of a URL is a session
+        // fixation primitive).
+        setError(t(OAUTH_ERROR_KEYS.oauth_failed));
+        return;
+      }
+      if (parsed.kind === "error") {
+        setError(t(oauthErrorKey(parsed.error)));
+        return;
+      }
+      await adoptOAuthTicket(parsed.ticket).catch((e: unknown) => {
         setError(authErrorMessage(classifyAdoptError(e), t));
-      })
-      .finally(() => setBusy(false));
-    return false;
+      });
+      // Success: the session store flips to authed and the root layout's
+      // guards unmount this screen.
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -169,52 +143,10 @@ export default function OAuthButtons({ mode = "signin" }: { mode?: OAuthMode }) 
           key={entry}
           label={t(PROVIDER_LABEL_KEYS[entry])}
           disabled={busy}
-          onPress={() => {
-            setError(null);
-            handled.current = false;
-            setProvider(entry);
-          }}
+          onPress={() => void start(entry)}
         />
       ))}
       {busy ? <ActivityIndicator size="small" color={tokens.foreground} /> : null}
-      <Modal
-        visible={provider !== null}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={close}
-      >
-        <View style={{ flex: 1, backgroundColor: tokens.background }}>
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-              paddingHorizontal: 16,
-              paddingVertical: 12,
-              borderBottomWidth: 1,
-              borderBottomColor: tokens.border,
-            }}
-          >
-            <Text style={{ color: tokens.foreground, fontSize: 16, fontWeight: "700" }}>
-              {t("native.auth.oauth.sheetTitle")}
-            </Text>
-            <Pressable accessibilityRole="button" onPress={close} hitSlop={8}>
-              <Text style={{ color: tokens.foreground, fontSize: 15, fontWeight: "600" }}>
-                {t("native.common.cancel")}
-              </Text>
-            </Pressable>
-          </View>
-          {provider ? (
-            <WebView
-              source={{ uri: buildOAuthUrl(provider, mode) }}
-              incognito
-              sharedCookiesEnabled={false}
-              onShouldStartLoadWithRequest={(request) => handleRequest(request.url)}
-              onNavigationStateChange={(state) => handleRequest(state.url)}
-            />
-          ) : null}
-        </View>
-      </Modal>
     </View>
   );
 }

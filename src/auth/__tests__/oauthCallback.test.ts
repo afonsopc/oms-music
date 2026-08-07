@@ -122,14 +122,33 @@ describe("oauthErrorKey", () => {
 });
 
 describe("oauthProvidersFor", () => {
-  it("never offers Google, which refuses embedded user agents", () => {
-    for (const mode of ["signin", "signup", "link"] as const) {
-      expect(oauthProvidersFor(mode)).not.toContain("google_oauth2");
-    }
+  it("offers Google now that the flow runs in the system browser", () => {
+    expect(oauthProvidersFor("signin")).toContain("google_oauth2");
+    expect(oauthProvidersFor("signup")).toContain("google_oauth2");
   });
 
   it("drops Spotify from signup, where the Dev Mode allowlist blocks it", () => {
-    expect(oauthProvidersFor("signup")).toEqual(["github"]);
-    expect(oauthProvidersFor("signin")).toEqual(["github", "spotify"]);
+    expect(oauthProvidersFor("signup")).toEqual(["google_oauth2", "github"]);
+    expect(oauthProvidersFor("signin")).toEqual(["google_oauth2", "github", "spotify"]);
+  });
+});
+
+describe("native scheme callback (system-browser flow)", () => {
+  it("recognizes the omsmusic:// return target", () => {
+    expect(isOAuthCallbackUrl("omsmusic://oauth/callback?ticket=abc")).toBe(true);
+    expect(isOAuthCallbackUrl("omsmusic://oauth/callback/?error=internal")).toBe(true);
+    expect(isOAuthCallbackUrl("omsmusic://oauth/callback")).toBe(true);
+    expect(isOAuthCallbackUrl("omsmusic://other/callback?ticket=abc")).toBe(false);
+  });
+
+  it("parses ticket and error from the scheme URL", () => {
+    expect(parseOAuthCallback("omsmusic://oauth/callback?ticket=t123")).toEqual({
+      kind: "ticket",
+      ticket: "t123",
+    });
+    expect(parseOAuthCallback("omsmusic://oauth/callback?error=account_not_found")).toEqual({
+      kind: "error",
+      error: "account_not_found",
+    });
   });
 });

@@ -31,6 +31,14 @@
 /** Kept for callers that only need the canonical target. */
 export const OAUTH_CALLBACK_PREFIX = "https://omelhorsite.pt/account/oauth/callback";
 
+/**
+ * The backend's native return target (IdentitiesController::NATIVE_CALLBACK):
+ * when the flow starts with `?native=1`, the callback redirects HERE instead
+ * of the website, which is what lets ASWebAuthenticationSession / Custom Tabs
+ * close themselves and hand the ticket to the app.
+ */
+export const OAUTH_NATIVE_CALLBACK = "omsmusic://oauth/callback";
+
 const CALLBACK_HOSTS = new Set(["omelhorsite.pt", "www.omelhorsite.pt"]);
 const CALLBACK_PATH = "account/oauth/callback";
 /** The three locales the static export prefixes paths with. */
@@ -112,7 +120,10 @@ const parseQuery = (query: string): Map<string, string> => {
 
 /** True when `url` is the OAuth return target in any of its rendered forms. */
 export const isOAuthCallbackUrl = (url: string): boolean => {
-  const match = url.trim().match(/^https:\/\/([^/?#]+)([^?#]*)/i);
+  const trimmed = url.trim();
+  // The native scheme form the system-browser flow completes on.
+  if (/^omsmusic:\/\/oauth\/callback\/?([?#]|$)/i.test(trimmed)) return true;
+  const match = trimmed.match(/^https:\/\/([^/?#]+)([^?#]*)/i);
   if (!match) return false;
   const host = match[1].toLowerCase().replace(/:443$/, "");
   if (!CALLBACK_HOSTS.has(host)) return false;
@@ -147,29 +158,11 @@ export const parseOAuthCallback = (url: string): OAuthCallbackResult => {
 /**
  * Which providers the app offers, per mode.
  *
- * GOOGLE IS DELIBERATELY ABSENT, and it is not a styling decision: Google
- * blocks OAuth in embedded user agents and answers `disallowed_useragent`
- * (https://developers.google.com/identity/protocols/oauth2/policies), which is
- * exactly what a `react-native-webview` sheet is. The two escapes both need
- * something this stack does not have yet:
- *
- *  - a system browser session (`expo-web-browser`'s `openAuthSessionAsync`,
- *    already a dependency) hands control to ASWebAuthenticationSession /
- *    Custom Tabs, which Google accepts. But it can only hand the result BACK
- *    through a callback URL the app owns, and iOS matches that callback by
- *    CUSTOM SCHEME only. The backend's return target is hardcoded to
- *    `https://omelhorsite.pt/account/oauth/callback` with no per-request
- *    `redirect_uri`, so the session would open Google, succeed, and then hang
- *    on the website with the app unable to read the ticket;
- *  - a universal link would work, but `omelhorsite.pt` serves no
- *    apple-app-site-association today, and claiming `/account/oauth/callback`
- *    would hijack that path for the WEB client too.
- *
- * The shippable fix is the one the design doc already records: a tiny bounce
- * page on the apex that forwards `?ticket=` to `omsmusic://oauth`, paired with
- * `openAuthSessionAsync`. That is a frontend deploy, not an app change, so
- * Google stays hidden until it lands. Everything below `/sessions/adopt` is
- * provider agnostic, so turning it on is a one line change here.
+ * Google is ON now that the flow runs in the system browser: the backend
+ * answers `?native=1` flows on the omsmusic:// scheme
+ * (IdentitiesController::NATIVE_CALLBACK), so ASWebAuthenticationSession /
+ * Custom Tabs - which Google accepts, unlike embedded webviews
+ * (`disallowed_useragent`) - can complete and hand the ticket back.
  *
  * Spotify is dropped from `signup` for the same reason the web drops it
  * (`frontend/components/account/authentication/OAuthButtons.tsx:34-39`): the
@@ -177,4 +170,6 @@ export const parseOAuthCallback = (url: string): OAuthCallbackResult => {
  * allowlist cannot complete the round trip at all.
  */
 export const oauthProvidersFor = (mode: OAuthMode): OAuthProvider[] =>
-  mode === "signup" ? ["github"] : ["github", "spotify"];
+  mode === "signup"
+    ? ["google_oauth2", "github"]
+    : ["google_oauth2", "github", "spotify"];
