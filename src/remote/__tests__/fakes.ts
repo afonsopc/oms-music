@@ -297,6 +297,7 @@ export class FakeLocalState implements LocalPlaybackState {
       stemPhase: "off",
       stemProgress: 0,
       stemMixerAvailable: false,
+      eqActive: false,
       sleepTimer: null,
       failedSongKeys: new Set(),
       ...initial,

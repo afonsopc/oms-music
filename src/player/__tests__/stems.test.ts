@@ -5,6 +5,7 @@
  *   (b) a stem mode must never publish `separation_enabled: false`.
  */
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import { setLocalFileIndex } from "@/contracts/localSource";
 import {
   setStemFileProvider,
   type StemFileProvider,
@@ -635,5 +636,143 @@ describe("separation state: no self-contradictory publish", () => {
     expect(playerStore.getState().playbackMode).toBe("instrumental");
     expect(playerStore.getState().separationEnabled).toBe(true);
     engine.dispose();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// EQ passthrough (gainLaw.PASSTHROUGH_GAIN): outside custom mode an enabled
+// EQ routes the LOCAL main file through the mixer on both nodes, so the EQ
+// colours any downloaded song - no stems, no mode hop.
+// ---------------------------------------------------------------------------
+
+describe("EQ passthrough", () => {
+  const LOCAL_1 = "file:///downloads/1_mixed.mp3";
+  const LOCAL_2 = "file:///downloads/2_mixed.mp3";
+
+  const installLocalMains = (ids: number[]): void => {
+    const uris = new Map(ids.map((id) => [String(id), `file:///downloads/${id}_mixed.mp3`]));
+    setLocalFileIndex({
+      get: (songKey, kind) => (kind === "mixed" ? (uris.get(String(songKey)) ?? null) : null),
+      getArtworkByNodeId: () => null,
+    });
+  };
+
+  afterEach(() => {
+    setLocalFileIndex({ get: () => null, getArtworkByNodeId: () => null });
+  });
+
+  it("enabling the EQ blends the local main into itself at passthrough gains", async () => {
+    installLocalMains([1]);
+    const ctx = setup();
+    ctx.engine.setQueue([makeSong(1)]);
+    await flush();
+    ctx.player.emitLoaded(200);
+
+    ctx.engine.setEqEnabled(true);
+    await flush();
+
+    expect(ctx.player.stemsOn).toBe(true);
+    expect(ctx.player.stemPassthrough).toBe(true);
+    expect(ctx.player.stemPair).toEqual({ vocals: LOCAL_1, instrumental: LOCAL_1 });
+    expect(ctx.player.volume).toBe(0); // the main player is the muted clock
+    // Invisible to the custom-blend UI; only eqActive reports it.
+    expect(playerStore.getState().stemPhase).toBe("off");
+    expect(playerStore.getState().eqActive).toBe(true);
+    expect(playerStore.getState().playbackMode).toBe("original");
+    ctx.engine.dispose();
+  });
+
+  it("a streamed song stays inert and eqActive says so", async () => {
+    const ctx = setup();
+    const song = makeSong(1);
+    urlFor(ctx, song);
+    ctx.engine.setQueue([song]);
+    await flush();
+    ctx.player.emitLoaded(200);
+
+    ctx.engine.setEqEnabled(true);
+    await flush();
+
+    expect(ctx.player.stemsOn).toBe(false);
+    expect(playerStore.getState().eqActive).toBe(false);
+    ctx.engine.dispose();
+  });
+
+  it("disabling the EQ releases the passthrough and restores the main gain", async () => {
+    installLocalMains([1]);
+    const ctx = setup();
+    ctx.engine.setQueue([makeSong(1)]);
+    await flush();
+    ctx.player.emitLoaded(200);
+    ctx.engine.setEqEnabled(true);
+    await flush();
+    expect(ctx.player.stemsOn).toBe(true);
+
+    ctx.engine.setEqEnabled(false);
+    await flush();
+
+    expect(ctx.player.stemsOn).toBe(false);
+    expect(ctx.player.volume).toBe(1); // mainGain = device volume again
+    expect(playerStore.getState().eqActive).toBe(false);
+    ctx.engine.dispose();
+  });
+
+  it("custom mode outranks the passthrough: real stems, not the degenerate pair", async () => {
+    installLocalMains([1]);
+    provider.resident.add("1");
+    const ctx = setup();
+    ctx.engine.setQueue([separatedSong(1)]);
+    await flush();
+    ctx.player.emitLoaded(200);
+    ctx.engine.setEqEnabled(true);
+    await flush();
+    expect(ctx.player.stemPassthrough).toBe(true);
+
+    ctx.engine.setPlaybackMode("custom");
+    await flush();
+
+    expect(ctx.player.stemsOn).toBe(true);
+    expect(ctx.player.stemPassthrough).toBe(false);
+    expect(ctx.player.stemPair).toEqual({ vocals: VOCALS, instrumental: INSTRUMENTAL });
+    expect(playerStore.getState().stemPhase).toBe("active");
+    expect(playerStore.getState().eqActive).toBe(true);
+    ctx.engine.dispose();
+  });
+
+  it("a track change re-arms the passthrough on the next local song", async () => {
+    installLocalMains([1, 2]);
+    const ctx = setup();
+    ctx.engine.setQueue([makeSong(1), makeSong(2)]);
+    await flush();
+    ctx.player.emitLoaded(200);
+    ctx.engine.setEqEnabled(true);
+    await flush();
+    expect(ctx.player.stemPair?.vocals).toBe(LOCAL_1);
+
+    ctx.engine.next();
+    await flush();
+
+    expect(ctx.player.stemsOn).toBe(true);
+    expect(ctx.player.stemPassthrough).toBe(true);
+    expect(ctx.player.stemPair).toEqual({ vocals: LOCAL_2, instrumental: LOCAL_2 });
+    expect(playerStore.getState().eqActive).toBe(true);
+    ctx.engine.dispose();
+  });
+
+  it("an unopenable file fails SILENTLY - no stem error in original mode", async () => {
+    installLocalMains([1]);
+    const ctx = setup();
+    ctx.engine.setQueue([makeSong(1)]);
+    await flush();
+    ctx.player.emitLoaded(200);
+
+    ctx.player.stemPrepareError = "unreadable";
+    ctx.engine.setEqEnabled(true);
+    await flush();
+
+    expect(ctx.player.stemsOn).toBe(false);
+    expect(playerStore.getState().stemPhase).toBe("off");
+    expect(playerStore.getState().eqActive).toBe(false);
+    ctx.engine.dispose();
   });
 });

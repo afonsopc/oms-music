@@ -1058,10 +1058,10 @@
       "eqHigh": "Treble",
       "eqReset": "Reset",
       "eqOff": "Turn the equalizer on to shape the sound.",
-      "eqCustomOnly": "The equalizer shapes the custom blend, so pick Custom blend to hear it.",
       "volume": "Volume",
       "progress": "Playback progress",
-      "upNext": "Up next"
+      "upNext": "Up next",
+      "eqNeedsLocal": "EQ needs the song on this device - download it and it kicks in."
     },
     "settings": {
       "hub": {

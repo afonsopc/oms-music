@@ -50,6 +50,12 @@ export interface PlayerStoreState {
   stemProgress: number;
   /** Capability read: whether a stem mixer exists in this build at all. */
   stemMixerAvailable: boolean;
+  /**
+   * True while the mixer graph (stems OR the EQ passthrough) is live, i.e.
+   * while the EQ actually colours the audio. The cog uses it to say WHY a
+   * non-flat EQ is having no effect (streamed song with no local file).
+   */
+  eqActive: boolean;
   sleepTimer: { minutes: number; endsAt: number } | { endOfSong: true } | null;
   failedSongKeys: ReadonlySet<SongKey>;
 }
@@ -78,6 +84,7 @@ export const initialPlayerState: PlayerStoreState = {
   stemPhase: "off",
   stemProgress: 0,
   stemMixerAvailable: false,
+  eqActive: false,
   sleepTimer: null,
   failedSongKeys: new Set<SongKey>(),
 };

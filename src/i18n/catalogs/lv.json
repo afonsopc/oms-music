@@ -1058,10 +1058,10 @@
       "eqHigh": "Augšas",
       "eqReset": "Atiestatīt",
       "eqOff": "Ieslēdz ekvalaizeru, lai veidotu skanējumu.",
-      "eqCustomOnly": "Ekvalaizers veido pielāgoto miksējumu, tāpēc izvēlies Pielāgots miksējums, lai to dzirdētu.",
       "volume": "Skaļums",
       "progress": "Atskaņošanas gaita",
-      "upNext": "Nākamās"
+      "upNext": "Nākamās",
+      "eqNeedsLocal": "Ekvalaizeram dziesma ir vajadzīga šajā ierīcē - lejupielādē to, un tas sāks darboties."
     },
     "settings": {
       "hub": {

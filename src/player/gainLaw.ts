@@ -69,6 +69,14 @@ export const clampStemGains = (gains: StemGains): StemGains => ({
 export const eqIsFlat = (bands: EqBands): boolean =>
   clampEqDb(bands.low) === 0 && clampEqDb(bands.mid) === 0 && clampEqDb(bands.high) === 0;
 
+/**
+ * EQ passthrough (FR-70 extension): to equalize a song with no stems, the
+ * mixer is loaded with the MAIN local file on both player nodes. Two copies
+ * of the same signal sum to +6 dB, so each node plays at 0.5 - the sum is
+ * bit-identical to the original at unity.
+ */
+export const PASSTHROUGH_GAIN = 0.5;
+
 export interface GainLawInput {
   /** The device's own output volume, 0..1 (never adopted from the cable). */
   masterVolume: number;

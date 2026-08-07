@@ -102,6 +102,8 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
   private stemGen = 0;
   /** The pair currently loaded in the mixer; a re-sync to it is a no-op. */
   private engagedStems: { vocals: string; instrumental: string } | null = null;
+  /** The main source actually handed to the player (EQ passthrough gate). */
+  private loadedMain: { kind: "jam" | "local" | "network"; uri: string } | null = null;
   private prevPlaying = false;
   private lastPositionEmitAt = 0;
   private readonly statusUnsub: () => void;
@@ -451,6 +453,7 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
     this.releaseStemBlend("off");
     this.player.pause();
     this.player.replace(null);
+    this.loadedMain = null;
     playerStore.setState({ playing: false, buffering: false });
   }
 
@@ -511,8 +514,12 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
   }
 
   setEqEnabled(on: boolean): void {
+    const prev = playerStore.getState().eqEnabled;
     playerStore.setState({ eqEnabled: on }); // session-only, NEVER persisted
     this.pushEqualizer();
+    // Turning the EQ on/off is what engages/releases the passthrough blend
+    // outside custom mode; inside custom mode the sync is a cheap no-op.
+    if (prev !== on) this.syncStemMode();
   }
 
   // ----- custom blend (DESIGN 16.1 amendment 2026-08-03) -------------------
@@ -558,7 +565,21 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
       this.engagedStems = null;
       this.player.releaseStems?.();
     }
+    if (playerStore.getState().eqActive) playerStore.setState({ eqActive: false });
     this.setStemState(phase);
+  }
+
+  /**
+   * The EQ passthrough source (gainLaw.PASSTHROUGH_GAIN): outside custom
+   * mode, an enabled EQ still needs the mixer graph, which only reads local
+   * files - so the currently LOADED main file qualifies exactly when the
+   * ladder picked a local candidate. Streams stay un-equalized (the cog says
+   * why via `eqActive`).
+   */
+  private passthroughUri(): string | null {
+    if (!playerStore.getState().eqEnabled) return null;
+    const main = this.loadedMain;
+    return main && main.kind === "local" ? main.uri : null;
   }
 
   /**
@@ -576,6 +597,17 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
 
     const song = this.stemBlendTarget();
     if (!song) {
+      // Not blending stems - but an enabled EQ may still want the mixer as a
+      // passthrough over the loaded local main file.
+      const uri = available ? this.passthroughUri() : null;
+      if (uri) {
+        if (this.engagedStems?.vocals === uri && this.engagedStems?.instrumental === uri) {
+          this.pushEqualizer();
+          return;
+        }
+        void this.engageStemBlend(gen, uri, uri, { passthrough: true });
+        return;
+      }
       this.releaseStemBlend("off");
       return;
     }
@@ -627,10 +659,11 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
     gen: number,
     vocals: string,
     instrumental: string,
+    opts?: { passthrough?: boolean },
   ): Promise<void> {
     const replaceStems = this.player.replaceStems;
     if (!replaceStems) {
-      this.releaseStemBlend("unsupported");
+      this.releaseStemBlend(opts?.passthrough ? "off" : "unsupported");
       return;
     }
     // `engagedStems` tracks a CONFIRMED live blend only: the adapter drops
@@ -641,11 +674,13 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
       // The adapter mutes the main player and starts both stems aligned to
       // its clock and play state, so position and play state survive the
       // swap the same way swapSourcePreservingPosition preserves them.
-      await replaceStems.call(this.player, vocals, instrumental);
+      await replaceStems.call(this.player, vocals, instrumental, opts);
     } catch {
       if (gen !== this.stemGen) return;
       this.engagedStems = null;
-      this.setStemState("failed");
+      // A passthrough the mixer cannot open (exotic codec) fails SILENTLY:
+      // the plain mix keeps playing, only the custom blend surfaces errors.
+      this.setStemState(opts?.passthrough ? "off" : "failed");
       return;
     }
     if (gen !== this.stemGen) {
@@ -657,7 +692,10 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
     this.pushStemGains();
     this.pushEqualizer();
     this.player.setRate(this.platformRate(playerStore.getState().rate));
-    this.setStemState("active");
+    // The passthrough is invisible to the blend UI: the phase stays "off"
+    // and only `eqActive` reports that the EQ is now audible.
+    this.setStemState(opts?.passthrough ? "off" : "active");
+    playerStore.setState({ eqActive: true });
   }
 
   /** Live gain writes; remembered by the adapter while the stems are off. */
@@ -734,6 +772,7 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
       this.releaseStemBlend("off");
       this.player.pause();
       this.player.replace(null);
+      this.loadedMain = null;
       playerStore.setState({ buffering: false, position: 0, duration: 0 });
       this.emit("songChanged", { song: null });
       this.deps.onLockScreenUpdate?.(null);
@@ -754,6 +793,7 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
         this.releaseStemBlend("off");
         this.player.pause();
         this.player.replace(null);
+        this.loadedMain = null;
         playerStore.setState({ buffering: false });
         this.emit("songChanged", { song });
         return;
@@ -850,6 +890,7 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
 
     this.lastErrorKey = null;
     this.player.replace(uri);
+    this.loadedMain = { kind: candidate.kind, uri };
     load.replaced = true;
     this.player.setRate(this.platformRate(playerStore.getState().rate));
     if (autoplay) {

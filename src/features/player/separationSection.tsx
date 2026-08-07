@@ -273,8 +273,8 @@ export const EqualizerSection = ({ disabled }: { disabled: boolean }) => {
   const eqLow = usePlayerStore((s) => s.eqLow);
   const eqMid = usePlayerStore((s) => s.eqMid);
   const eqHigh = usePlayerStore((s) => s.eqHigh);
-  const playbackMode = usePlayerStore((s) => s.playbackMode);
   const stemMixerAvailable = usePlayerStore((s) => s.stemMixerAvailable);
+  const eqActive = usePlayerStore((s) => s.eqActive);
 
   const values: EqBands = { low: eqLow, mid: eqMid, high: eqHigh };
   const flat = eqLow === 0 && eqMid === 0 && eqHigh === 0;
@@ -294,18 +294,11 @@ export const EqualizerSection = ({ disabled }: { disabled: boolean }) => {
           onChange={(fraction) => {
             const engine = getPlayerEngine();
             // Touching a band IS turning the EQ on, now that there is no
-            // separate switch to leave it stranded in the off position.
+            // separate switch to leave it stranded in the off position. The
+            // engine routes the audio through the mixer graph by itself
+            // (stems in custom mode, the passthrough otherwise) - the mode
+            // chip no longer hops to "custom" under the user's finger.
             if (!eqEnabled) engine.setEqEnabled(true);
-            // The EQ lives in the stem mixer's graph, and the mixer only
-            // produces audio for the custom blend: adjusted from Original the
-            // bands moved on screen and changed NOTHING audible. Hop into the
-            // blend - at the default 1/1 gains it sounds like the original and
-            // original<->custom keeps the same main file, so nothing restarts.
-            // From Instrumental/Vocals the hop would change what plays, so the
-            // note below explains instead.
-            if (playbackMode === "original" && stemMixerAvailable) {
-              engine.setPlaybackMode("custom");
-            }
             engine.setEqBand(band, dbFromFraction(fraction));
           }}
         />
@@ -319,16 +312,19 @@ export const EqualizerSection = ({ disabled }: { disabled: boolean }) => {
           onPress={() => {
             const engine = getPlayerEngine();
             for (const band of EQ_BANDS) engine.setEqBand(band, 0);
+            // Flat EQ = off: also releases the passthrough graph.
+            engine.setEqEnabled(false);
           }}
         />
       </View>
 
-      {/* The EQ lives in the mixer's chain, and the mixer only produces audio
-          for the custom blend - saying so beats a knob that does nothing. */}
+      {/* The EQ needs the mixer graph, and the graph reads local files only:
+          when a streamed song leaves it silent, say so instead of letting the
+          sliders lie. */}
       {!stemMixerAvailable ? (
         <NoteLine text={t(`${K}.modeCustomUnavailable`)} />
-      ) : playbackMode !== "custom" ? (
-        <NoteLine text={t(`${K}.eqCustomOnly`)} />
+      ) : eqEnabled && !flat && !eqActive ? (
+        <NoteLine text={t(`${K}.eqNeedsLocal`)} />
       ) : null}
     </Section>
   );

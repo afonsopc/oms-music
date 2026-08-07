@@ -81,6 +81,8 @@ export class FakeAudioPlayer implements AudioAdapter {
   /** Held open until release(); the test drives it like a real prepare. */
   stemPrepareGate: (() => void)[] | null = null;
   stemsOn = false;
+  /** True while the blend is the EQ passthrough (main file on both nodes). */
+  stemPassthrough = false;
   stemPair: { vocals: string; instrumental: string } | null = null;
   stemGains: StemGains = { vocal: 1, instrumental: 1 };
   eqBands: EqBands = { low: 0, mid: 0, high: 0 };
@@ -159,7 +161,11 @@ export class FakeAudioPlayer implements AudioAdapter {
     return this.stemMixerAvailable;
   }
 
-  async replaceStems(vocalsUri: string, instrumentalUri: string): Promise<void> {
+  async replaceStems(
+    vocalsUri: string,
+    instrumentalUri: string,
+    opts?: { passthrough?: boolean },
+  ): Promise<void> {
     if (!this.stemMixerAvailable) throw new Error("Stem mixer unavailable");
     this.releaseStems();
     if (this.stemPrepareGate) {
@@ -167,6 +173,7 @@ export class FakeAudioPlayer implements AudioAdapter {
     }
     if (this.stemPrepareError) throw new Error(this.stemPrepareError);
     this.stemsOn = true;
+    this.stemPassthrough = !!opts?.passthrough;
     this.stemPair = { vocals: vocalsUri, instrumental: instrumentalUri };
     this.stemLog.push(`prepare:${vocalsUri}+${instrumentalUri}`);
     this.applyGains();
@@ -191,6 +198,7 @@ export class FakeAudioPlayer implements AudioAdapter {
   releaseStems(): void {
     if (!this.stemsOn) return;
     this.stemsOn = false;
+    this.stemPassthrough = false;
     this.stemPair = null;
     this.mixerPlaying = false;
     this.stemLog.push("release");

@@ -1058,10 +1058,10 @@
       "eqHigh": "Agudos",
       "eqReset": "Repor",
       "eqOff": "Liga o equalizador para moldares o som.",
-      "eqCustomOnly": "O equalizador molda a mistura personalizada, por isso escolhe Mistura personalizada para o ouvires.",
       "volume": "Volume",
       "progress": "Progresso da reprodução",
-      "upNext": "A seguir"
+      "upNext": "A seguir",
+      "eqNeedsLocal": "O equalizador precisa da música no dispositivo - transfere-a e ele passa a actuar."
     },
     "settings": {
       "hub": {

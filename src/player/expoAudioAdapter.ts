@@ -25,7 +25,7 @@ import { createAudioPlayer } from "expo-audio";
 import type { AudioPlayer, AudioStatus } from "expo-audio";
 import { getStemMixer } from "@/contracts/stemMixer";
 import type { EqBands, StemGains } from "@/domain/playback";
-import { clampEqBands, clampStemGains, clampUnit, gainLaw } from "./gainLaw";
+import { clampEqBands, clampStemGains, clampUnit, gainLaw, PASSTHROUGH_GAIN } from "./gainLaw";
 import type { AudioAdapter, AudioAdapterStatus, LockScreenMetadata } from "./types";
 
 const STATUS_INTERVAL_MS = 250;
@@ -58,6 +58,8 @@ export const createExpoAudioAdapter = (): AudioAdapter => {
   // Blend state. Gains and bands are remembered while the stems are OFF so
   // entering custom mode never plays one tick at the wrong level.
   let stemsOn = false;
+  /** EQ-only blend: both nodes carry the MAIN file at PASSTHROUGH_GAIN. */
+  let passthrough = false;
   let masterVolume = 1;
   let gains: StemGains = { vocal: 1, instrumental: 1 };
   let bands: EqBands = { low: 0, mid: 0, high: 0 };
@@ -76,11 +78,13 @@ export const createExpoAudioAdapter = (): AudioAdapter => {
     });
     player.volume = law.mainGain;
     if (stemsOn) {
-      getStemMixer().setGains({
-        vocal: law.vocal,
-        instrumental: law.instrumental,
-        master: law.master,
-      });
+      getStemMixer().setGains(
+        passthrough
+          ? // Same file on both nodes: the user's stem volumes must NOT
+            // apply, or the "original" would quietly play at vocal+inst.
+            { vocal: PASSTHROUGH_GAIN, instrumental: PASSTHROUGH_GAIN, master: law.master }
+          : { vocal: law.vocal, instrumental: law.instrumental, master: law.master },
+      );
     }
   };
 
@@ -92,6 +96,7 @@ export const createExpoAudioAdapter = (): AudioAdapter => {
   const releaseStems = (): void => {
     if (!stemsOn) return;
     stemsOn = false;
+    passthrough = false;
     mixerPlaying = false;
     try {
       getStemMixer().release();
@@ -209,7 +214,11 @@ export const createExpoAudioAdapter = (): AudioAdapter => {
     supportsStems(): boolean {
       return getStemMixer().isAvailable();
     },
-    async replaceStems(vocalsUri: string, instrumentalUri: string): Promise<void> {
+    async replaceStems(
+      vocalsUri: string,
+      instrumentalUri: string,
+      opts?: { passthrough?: boolean },
+    ): Promise<void> {
       const mixer = getStemMixer();
       if (!mixer.isAvailable()) throw new Error("Stem mixer unavailable");
       // Drop any previous blend first: prepare() must never leave two graphs.
@@ -218,6 +227,7 @@ export const createExpoAudioAdapter = (): AudioAdapter => {
       // plain mix rather than playing a half mix.
       await mixer.prepare(vocalsUri, instrumentalUri);
       stemsOn = true;
+      passthrough = !!opts?.passthrough;
       applyGains(); // mutes the original in the same tick the stems start
       applyEq();
       mixer.setRate(rate);
