@@ -1162,7 +1162,8 @@
     "home": {
       "goodMorning": "Bom dia",
       "goodAfternoon": "Boa tarde",
-      "goodEvening": "Boa noite"
+      "goodEvening": "Boa noite",
+      "recentlyPlayed": "Ouvido recentemente"
     },
     "playlist": {
       "reorder": "Reordenar músicas",

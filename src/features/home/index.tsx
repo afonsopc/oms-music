@@ -1,14 +1,23 @@
 /**
- * Home / Discover (FR-23..29), ported from the web `Home` component.
+ * Home (FR-23..29), rewritten mobile-first (owner request 2026-08-08):
  *
- * Five parallel queries feed the screen; every section collapses silently
- * when its query settles empty (there is no Home empty state). The filter
- * pills are LOCAL state only: switching a pill shows/hides sections and
- * never refetches (FR-23).
+ *  - time-of-day greeting, then the filter pills (Spotify's top-of-home
+ *    idiom); pills only show/hide sections, never refetch (FR-23);
+ *  - QUICK GRID: Gostadas first, then the albums you actually played last,
+ *    playlists filling the empty cells - one thumb-reach block of "what you
+ *    came here to press";
+ *  - rails, in listening order: mixes made for you, recently played (the
+ *    albums beyond the grid), your artists, discovery (random albums), your
+ *    playlists;
+ *  - the friends strip stays LAST: worth a glance, not worth pushing your
+ *    own library off screen;
+ *  - every section fades in with a small stagger (entering animations), and
+ *    each collapses silently when its query settles empty.
  */
 import React, { useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 import { useRouter } from "expo-router";
+import Animated, { FadeInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useMixes } from "@/api/queries/mixes";
 import { useRecentAlbums, useTopArtists } from "@/api/queries/playEvents";
@@ -40,6 +49,13 @@ import {
 import { useFriendsStripActive, useFriendsStripSlot } from "./friendsSlot";
 
 type HomeFilter = "all" | "playlists" | "albums" | "artists";
+
+/** Grid cells on a phone (2 columns x 3 rows), Gostadas included. */
+const QUICK_GRID_ITEMS = 6;
+/** Recents the grid absorbs; the rest feed the "recently played" rail. */
+const QUICK_GRID_RECENTS = 5;
+/** One fetch feeds grid + rail. */
+const RECENT_ALBUMS_LIMIT = 12;
 
 /** Spotify-style time-of-day greeting key; evening covers the night hours. */
 export const greetingKey = (
@@ -74,6 +90,13 @@ const RailSkeletons = ({ count = 6 }: { count?: number }) => (
   </>
 );
 
+/** Sections cascade in: each mounts with a slightly later fade-up. */
+const Section = ({ order, children }: { order: number; children: React.ReactNode }) => (
+  <Animated.View entering={FadeInDown.duration(300).delay(order * 50)}>
+    {children}
+  </Animated.View>
+);
+
 export default function HomeScreen() {
   const t = useT();
   const router = useRouter();
@@ -82,7 +105,7 @@ export default function HomeScreen() {
   const bottomPadding = useContentBottomPadding();
   const [filter, setFilter] = useState<HomeFilter>("all");
 
-  const recentAlbumsQuery = useRecentAlbums(8);
+  const recentAlbumsQuery = useRecentAlbums(RECENT_ALBUMS_LIMIT);
   const mixesQuery = useMixes();
   const playlistsQuery = usePlaylists({ page: "1:20" });
   const recommendationsQuery = useRandomAlbums(10);
@@ -94,23 +117,34 @@ export default function HomeScreen() {
   const topArtists = topArtistsQuery.data ?? [];
   const mixes = mixesQuery.data ?? [];
 
-  // Top tiles fall back to the first 8 playlists when there is no play
-  // history; with neither the whole section is hidden (FR-24).
-  const topItems: TopTileItem[] =
-    recentAlbums.length > 0
-      ? recentAlbums.map((album, i) => ({
-          key: `recent-${i}-${album.album ?? "null"}`,
-          title: album.album || t("components.music.Home.unknownAlbum"),
-          artwork: nodeArtwork(album.artwork_fs_node_id),
-          onPress: () =>
-            router.push(albumRoute(artistRouteSegment(album.artist), album.album)),
-        }))
-      : playlists.slice(0, 8).map((playlist) => ({
-          key: `playlist-${playlist.id}`,
-          title: playlist.name,
-          artwork: playlistArtworkSource(playlist),
-          onPress: () => router.push(playlistRoute(playlist.id)),
-        }));
+  // ----- quick grid: Gostadas + last-played albums + playlists as filler ----
+  const quickItems: TopTileItem[] = [
+    {
+      key: "liked",
+      title: t("components.music.Sidebar.liked"),
+      artwork: { kind: "likedHeart" },
+      onPress: () => router.push("/(main)/liked"),
+    },
+    ...recentAlbums.slice(0, QUICK_GRID_RECENTS).map((album, i): TopTileItem => ({
+      key: `recent-${i}-${album.album ?? "null"}`,
+      title: album.album || t("components.music.Home.unknownAlbum"),
+      artwork: nodeArtwork(album.artwork_fs_node_id),
+      onPress: () =>
+        router.push(albumRoute(artistRouteSegment(album.artist), album.album)),
+    })),
+  ];
+  for (const playlist of playlists) {
+    if (quickItems.length >= QUICK_GRID_ITEMS) break;
+    quickItems.push({
+      key: `playlist-${playlist.id}`,
+      title: playlist.name,
+      artwork: playlistArtworkSource(playlist),
+      onPress: () => router.push(playlistRoute(playlist.id)),
+    });
+  }
+
+  // The rail carries what the grid could not.
+  const railRecents = recentAlbums.slice(QUICK_GRID_RECENTS);
 
   const showSection = (kind: "playlists" | "albums" | "artists"): boolean =>
     filter === "all" || filter === kind;
@@ -144,121 +178,152 @@ export default function HomeScreen() {
       />
 
       {filter === "all" ? (
-        recentAlbumsQuery.isLoading ? (
+        recentAlbumsQuery.isLoading && playlistsQuery.isLoading ? (
           <View style={{ gap: 8, paddingHorizontal: 24 }}>
-            {Array.from({ length: 4 }, (_, i) => (
+            {Array.from({ length: 3 }, (_, i) => (
               <Skeleton key={i} height={64} />
             ))}
           </View>
-        ) : topItems.length > 0 ? (
-          <TopTileGrid items={topItems} />
-        ) : null
+        ) : (
+          <Section order={0}>
+            <TopTileGrid items={quickItems} />
+          </Section>
+        )
       ) : null}
 
       {filter === "all" && (mixesQuery.isLoading || mixes.length > 0) ? (
-        <Rail title={t("components.music.Home.madeForYou")}>
-          {mixesQuery.isLoading ? (
-            <RailSkeletons />
-          ) : (
-            mixes.map((mix) => {
-              const title = mixTitle(mix, t);
-              return (
-                <MixTile
-                  key={mix.slug}
-                  kind={mix.kind}
-                  title={title}
-                  description={mixDescription(mix, t)}
-                  stamp={mixStampText(mix, title)}
-                  artworkUri={
-                    mix.artist ? artworkSourceUri(artistImageSource(mix.artist, "sm")) : null
-                  }
-                  onPress={() => router.push(mixRoute(mix.slug))}
-                />
-              );
-            })
-          )}
-        </Rail>
+        <Section order={1}>
+          <Rail title={t("components.music.Home.madeForYou")}>
+            {mixesQuery.isLoading ? (
+              <RailSkeletons />
+            ) : (
+              mixes.map((mix) => {
+                const title = mixTitle(mix, t);
+                return (
+                  <MixTile
+                    key={mix.slug}
+                    kind={mix.kind}
+                    title={title}
+                    description={mixDescription(mix, t)}
+                    stamp={mixStampText(mix, title)}
+                    artworkUri={
+                      mix.artist ? artworkSourceUri(artistImageSource(mix.artist, "sm")) : null
+                    }
+                    onPress={() => router.push(mixRoute(mix.slug))}
+                  />
+                );
+              })
+            )}
+          </Rail>
+        </Section>
       ) : null}
 
-      {showSection("albums") &&
-      (recommendationsQuery.isLoading || recommendations.length > 0) ? (
-        <Rail title={t("components.music.Home.recommendationsToday")}>
-          {recommendationsQuery.isLoading ? (
-            <RailSkeletons />
-          ) : (
-            recommendations.map((album, i) => (
+      {showSection("albums") && railRecents.length > 0 ? (
+        <Section order={2}>
+          <Rail title={t("native.home.recentlyPlayed")}>
+            {railRecents.map((album, i) => (
               <Tile
-                key={`album-${i}-${album.name ?? "null"}`}
-                title={album.name || t("components.music.Home.unknownAlbum")}
+                key={`recent-rail-${i}-${album.album ?? "null"}`}
+                title={album.album || t("components.music.Home.unknownAlbum")}
                 subtitle={
                   artistDisplayName(album.artist) ?? t("components.music.Home.unknownArtist")
                 }
                 artwork={nodeArtwork(album.artwork_fs_node_id)}
                 onPress={() =>
-                  router.push(
-                    albumRoute(album.artist_slug ?? artistRouteSegment(album.artist), album.name),
-                  )
+                  router.push(albumRoute(artistRouteSegment(album.artist), album.album))
                 }
               />
-            ))
-          )}
-        </Rail>
-      ) : null}
-
-      {showSection("playlists") && (playlistsQuery.isLoading || playlists.length > 0) ? (
-        <Rail
-          title={t("components.music.Home.yourPlaylists")}
-          showAllLabel={t("components.music.Home.showAll")}
-          onShowAll={() => router.push("/(main)/playlists")}
-        >
-          {playlistsQuery.isLoading ? (
-            <RailSkeletons />
-          ) : (
-            playlists.map((playlist) => (
-              <Tile
-                key={playlist.id}
-                title={playlist.name}
-                subtitle={t("components.music.Home.playlistSubtitle")}
-                artwork={playlistArtworkSource(playlist)}
-                onPress={() => router.push(playlistRoute(playlist.id))}
-              />
-            ))
-          )}
-        </Rail>
+            ))}
+          </Rail>
+        </Section>
       ) : null}
 
       {showSection("artists") && topArtists.length > 0 ? (
-        <Rail
-          title={t("components.music.Home.yourArtists")}
-          showAllLabel={t("components.music.Home.showAll")}
-          onShowAll={() => router.push("/(main)/artists")}
-        >
-          {topArtists.map((row, i) => {
-            const name =
-              artistDisplayName(row.artist) ?? t("components.music.Home.unknownArtist");
-            const segment = artistRouteSegment(row.artist) ?? "null";
-            return (
-              <Tile
-                key={`top-artist-${i}-${name}`}
-                title={name}
-                subtitle={t("components.music.Home.artistSubtitle")}
-                shape="circle"
-                artwork={
-                  typeof row.artist === "object"
-                    ? artistImageSource(row.artist, "sm")
-                    : { kind: "initials", name }
-                }
-                onPress={() => router.push(artistRoute(segment))}
-              />
-            );
-          })}
-        </Rail>
+        <Section order={3}>
+          <Rail
+            title={t("components.music.Home.yourArtists")}
+            showAllLabel={t("components.music.Home.showAll")}
+            onShowAll={() => router.push("/(main)/artists")}
+          >
+            {topArtists.map((row, i) => {
+              const name =
+                artistDisplayName(row.artist) ?? t("components.music.Home.unknownArtist");
+              const segment = artistRouteSegment(row.artist) ?? "null";
+              return (
+                <Tile
+                  key={`top-artist-${i}-${name}`}
+                  title={name}
+                  subtitle={t("components.music.Home.artistSubtitle")}
+                  shape="circle"
+                  artwork={
+                    typeof row.artist === "object"
+                      ? artistImageSource(row.artist, "sm")
+                      : { kind: "initials", name }
+                  }
+                  onPress={() => router.push(artistRoute(segment))}
+                />
+              );
+            })}
+          </Rail>
+        </Section>
       ) : null}
 
-      {/* Social LAST. What friends are playing is worth a glance, but it was
-          sitting between the shortcuts and the first rail, pushing the actual
-          listening surfaces off a phone screen. */}
-      {filter === "all" ? <FriendsStrip /> : null}
+      {showSection("albums") &&
+      (recommendationsQuery.isLoading || recommendations.length > 0) ? (
+        <Section order={4}>
+          <Rail title={t("components.music.Home.recommendationsToday")}>
+            {recommendationsQuery.isLoading ? (
+              <RailSkeletons />
+            ) : (
+              recommendations.map((album, i) => (
+                <Tile
+                  key={`album-${i}-${album.name ?? "null"}`}
+                  title={album.name || t("components.music.Home.unknownAlbum")}
+                  subtitle={
+                    artistDisplayName(album.artist) ?? t("components.music.Home.unknownArtist")
+                  }
+                  artwork={nodeArtwork(album.artwork_fs_node_id)}
+                  onPress={() =>
+                    router.push(
+                      albumRoute(album.artist_slug ?? artistRouteSegment(album.artist), album.name),
+                    )
+                  }
+                />
+              ))
+            )}
+          </Rail>
+        </Section>
+      ) : null}
+
+      {showSection("playlists") && (playlistsQuery.isLoading || playlists.length > 0) ? (
+        <Section order={5}>
+          <Rail
+            title={t("components.music.Home.yourPlaylists")}
+            showAllLabel={t("components.music.Home.showAll")}
+            onShowAll={() => router.push("/(main)/playlists")}
+          >
+            {playlistsQuery.isLoading ? (
+              <RailSkeletons />
+            ) : (
+              playlists.map((playlist) => (
+                <Tile
+                  key={playlist.id}
+                  title={playlist.name}
+                  subtitle={t("components.music.Home.playlistSubtitle")}
+                  artwork={playlistArtworkSource(playlist)}
+                  onPress={() => router.push(playlistRoute(playlist.id))}
+                />
+              ))
+            )}
+          </Rail>
+        </Section>
+      ) : null}
+
+      {filter === "all" ? (
+        <Section order={6}>
+          <FriendsStrip />
+        </Section>
+      ) : null}
     </ScrollView>
   );
 }

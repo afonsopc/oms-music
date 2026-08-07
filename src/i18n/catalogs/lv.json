@@ -1162,7 +1162,8 @@
     "home": {
       "goodMorning": "Labrīt",
       "goodAfternoon": "Labdien",
-      "goodEvening": "Labvakar"
+      "goodEvening": "Labvakar",
+      "recentlyPlayed": "Nesen atskaņotais"
     },
     "playlist": {
       "reorder": "Pārkārtot dziesmas",
