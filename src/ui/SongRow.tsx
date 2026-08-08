@@ -7,6 +7,7 @@
  */
 import React, { memo, useState } from "react";
 import { Pressable, Text, useWindowDimensions, View } from "react-native";
+import { cardPressRole } from "./a11y";
 import { ArtworkImage } from "./ArtworkImage";
 import { getDownloadStatusReader } from "./downloadStatus";
 import { Icon } from "./icons";
@@ -127,7 +128,7 @@ const SongRowInner = ({
       <Pressable
         onPress={onPlay}
         onLongPress={() => setMenuOpen(true)}
-        accessibilityRole="button"
+        accessibilityRole={cardPressRole}
         accessibilityLabel={song.title}
         style={({ pressed }) => ({
           height: SONG_ROW_HEIGHT,

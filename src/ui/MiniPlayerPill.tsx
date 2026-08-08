@@ -14,6 +14,7 @@ import {
   type StyleProp,
   type ViewStyle,
 } from "react-native";
+import { cardPressRole } from "./a11y";
 import { ArtworkImage } from "./ArtworkImage";
 import { Icon } from "./icons";
 import { backgroundVeil, heavyShadow } from "./uiTheme";
@@ -59,7 +60,7 @@ export const MiniPlayerPill = ({
   return (
     <Pressable
       onPress={onPress}
-      accessibilityRole="button"
+      accessibilityRole={cardPressRole}
       accessibilityLabel={title}
       style={[
         {

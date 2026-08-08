@@ -123,6 +123,9 @@ export const isOAuthCallbackUrl = (url: string): boolean => {
   const trimmed = url.trim();
   // The native scheme form the system-browser flow completes on.
   if (/^omsmusic:\/\/oauth\/callback\/?([?#]|$)/i.test(trimmed)) return true;
+  // The web popup form: the app's OWN origin + /oauth/callback (the backend
+  // only sends loopback origins here; client-side we just recognise the path).
+  if (/^https?:\/\/[^/?#]+\/oauth\/callback\/?([?#]|$)/i.test(trimmed)) return true;
   const match = trimmed.match(/^https:\/\/([^/?#]+)([^?#]*)/i);
   if (!match) return false;
   const host = match[1].toLowerCase().replace(/:443$/, "");

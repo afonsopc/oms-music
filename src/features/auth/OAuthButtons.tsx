@@ -27,9 +27,9 @@ import {
   buildOAuthUrl,
   oauthErrorKey,
   oauthProvidersFor,
+  oauthReturnUrl,
   parseOAuthCallback,
   OAUTH_ERROR_KEYS,
-  OAUTH_NATIVE_CALLBACK,
   type OAuthMode,
   type OAuthProvider,
 } from "@/auth/oauth";
@@ -108,7 +108,7 @@ export default function OAuthButtons({ mode = "signin" }: { mode?: OAuthMode }) 
     try {
       const result = await WebBrowser.openAuthSessionAsync(
         buildOAuthUrl(provider, mode),
-        OAUTH_NATIVE_CALLBACK,
+        oauthReturnUrl(),
       );
       // "cancel"/"dismiss": the user closed the sheet - not an error.
       if (result.type !== "success") return;

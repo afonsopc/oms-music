@@ -151,4 +151,13 @@ describe("native scheme callback (system-browser flow)", () => {
       error: "account_not_found",
     });
   });
+
+  it("recognizes the web popup return on the app's own origin", () => {
+    expect(isOAuthCallbackUrl("http://localhost:8081/oauth/callback?ticket=abc")).toBe(true);
+    expect(parseOAuthCallback("http://localhost:8081/oauth/callback?ticket=t9")).toEqual({
+      kind: "ticket",
+      ticket: "t9",
+    });
+    expect(isOAuthCallbackUrl("http://localhost:8081/other/path?ticket=abc")).toBe(false);
+  });
 });

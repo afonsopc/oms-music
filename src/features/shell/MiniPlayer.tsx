@@ -9,6 +9,7 @@ import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { getTransport } from "@/contracts/transport";
+import { cardPressRole } from "@/ui/a11y";
 import { songArtworkSource } from "@/domain/artwork";
 import { formatArtists } from "@/domain/format";
 import { imageUrl } from "@/api/mediaUrl";
@@ -44,7 +45,7 @@ export const MiniPlayer = () => {
 
   return (
     <Pressable
-      accessibilityRole="button"
+      accessibilityRole={cardPressRole}
       accessibilityLabel={t("components.music.BottomBar.openPlayer")}
       onPress={() => router.push("/(player)/now-playing")}
       style={{

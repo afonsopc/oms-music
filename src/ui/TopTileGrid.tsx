@@ -5,6 +5,7 @@
  */
 import React from "react";
 import { Pressable, Text, useWindowDimensions, View, type StyleProp, type ViewStyle } from "react-native";
+import { cardPressRole } from "./a11y";
 import { ArtworkImage } from "./ArtworkImage";
 import { PlayFab } from "./buttons";
 import { foregroundWash } from "./uiTheme";
@@ -52,7 +53,7 @@ export const TopTileGrid = ({ items, style }: TopTileGridProps) => {
         <Pressable
           key={item.key}
           onPress={item.onPress}
-          accessibilityRole="button"
+          accessibilityRole={cardPressRole}
           accessibilityLabel={item.title}
           style={({ pressed }) => ({
             flexBasis: `${100 / columns - 1}%`,

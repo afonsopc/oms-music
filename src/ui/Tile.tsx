@@ -6,6 +6,7 @@
  */
 import React from "react";
 import { Pressable, Text, View, type StyleProp, type ViewStyle } from "react-native";
+import { cardPressRole } from "./a11y";
 import { ArtworkImage } from "./ArtworkImage";
 import { PlayFab } from "./buttons";
 import { foregroundWash, heavyShadow } from "./uiTheme";
@@ -45,7 +46,7 @@ export const Tile = ({
   return (
     <Pressable
       onPress={onPress}
-      accessibilityRole="button"
+      accessibilityRole={cardPressRole}
       accessibilityLabel={title}
       style={({ pressed }) => [
         {

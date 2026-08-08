@@ -15,7 +15,9 @@
  * ./passkeys, wired to the platform authenticator and to all four
  * /webauthn_credentials endpoints.
  */
+import { Platform } from "react-native";
 import { API_BASE_URL, request } from "@/api/client";
+import { OAUTH_NATIVE_CALLBACK } from "./oauthCallback";
 import type { OAuthMode, OAuthProvider } from "./oauthCallback";
 import { getToken } from "./token";
 
@@ -36,12 +38,24 @@ export type {
 } from "./oauthCallback";
 
 /**
- * `native=1` rides the OmniAuth round trip and makes the backend answer on
- * `omsmusic://oauth/callback` (OAUTH_NATIVE_CALLBACK) instead of the website,
- * which is what lets the system-browser session close itself.
+ * The return-target flag rides the OmniAuth round trip:
+ *  - native: `native=1` makes the backend answer on `omsmusic://oauth/callback`
+ *    (OAUTH_NATIVE_CALLBACK), which closes the system-browser session;
+ *  - web: `app_origin=<origin>` makes it answer on `<origin>/oauth/callback`,
+ *    the app's own route, where maybeCompleteAuthSession() hands the popup's
+ *    URL back to the opener (backend only honours LOOPBACK origins).
  */
-export const buildOAuthUrl = (provider: OAuthProvider, mode: OAuthMode): string =>
-  `${API_BASE_URL}/auth/${provider}?mode=${mode}&native=1`;
+export const buildOAuthUrl = (provider: OAuthProvider, mode: OAuthMode): string => {
+  if (Platform.OS === "web") {
+    const origin = encodeURIComponent(window.location.origin);
+    return `${API_BASE_URL}/auth/${provider}?mode=${mode}&app_origin=${origin}`;
+  }
+  return `${API_BASE_URL}/auth/${provider}?mode=${mode}&native=1`;
+};
+
+/** Where the provider round trip must land for THIS platform. */
+export const oauthReturnUrl = (): string =>
+  Platform.OS === "web" ? `${window.location.origin}/oauth/callback` : OAUTH_NATIVE_CALLBACK;
 
 /**
  * Spotify linking while signed in passes the raw session token: the web mints
