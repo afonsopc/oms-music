@@ -11,7 +11,15 @@
  *    reference screenshots.
  */
 import React from "react";
-import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import {
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { useRouter } from "expo-router";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -42,8 +50,30 @@ export const NowPlayingScroll = () => {
 
   const gradientCss = `linear-gradient(to bottom, ${accentBright} 0%, ${accentDark} 55%, ${tokens.background} 90%)`;
 
+  // On native the sheet dismisses with a drag; a browser has no such gesture,
+  // so without this chevron the page was a room with no door. A direct load
+  // of /now-playing has no history to pop - Home is the door then.
+  const close = (): void => {
+    if (router.canGoBack()) router.back();
+    else router.replace("/(main)/(tabs)/home");
+  };
+  const webClose =
+    Platform.OS === "web" ? (
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={t("native.common.close")}
+        hitSlop={12}
+        onPress={close}
+        style={{ position: "absolute", top: 10, left: 12, zIndex: 10, padding: 6 }}
+      >
+        <ChevronDownGlyph color={tokens.foreground} size={26} />
+      </Pressable>
+    ) : null;
+
   return (
-    <ScrollView
+    <View style={{ flex: 1 }}>
+      {webClose}
+      <ScrollView
       style={{ flex: 1, backgroundColor: tokens.background }}
       contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
       showsVerticalScrollIndicator={false}
@@ -91,7 +121,8 @@ export const NowPlayingScroll = () => {
       </Pressable>
 
       <AboutArtistCard />
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 };
 
@@ -100,6 +131,12 @@ export const PlayerSubpage = ({ children }: { children: React.ReactNode }) => {
   const { tokens } = useTheme();
   const router = useRouter();
   const t = useT();
+  // Deep-loaded on web (refresh on /lyrics), there is no stack to pop: the
+  // now-playing screen is where "back down" lands then.
+  const back = (): void => {
+    if (router.canGoBack()) router.back();
+    else router.replace("/(player)/now-playing");
+  };
   return (
     <View style={{ flex: 1, backgroundColor: tokens.background }}>
       <View style={{ alignItems: "flex-start", paddingHorizontal: 12, paddingTop: 10 }}>
@@ -107,7 +144,7 @@ export const PlayerSubpage = ({ children }: { children: React.ReactNode }) => {
           accessibilityRole="button"
           accessibilityLabel={t("native.common.close")}
           hitSlop={12}
-          onPress={() => router.back()}
+          onPress={back}
           style={{ padding: 6 }}
         >
           <ChevronDownGlyph color={tokens.mutedForeground} size={26} />
