@@ -8,6 +8,7 @@
  * change moves every surface at once, and a grep for hex codes under src/
  * stays honest.
  */
+import { Platform, type ViewStyle } from "react-native";
 import { withAlpha } from "@/theme/contrast";
 import { type ResolvedScheme, SCRIM_BASE, tokensFor } from "@/theme/tokens";
 
@@ -53,8 +54,19 @@ export const softShadow = {
   elevation: 3,
 } as const;
 
-/** CSS-string linear gradient for `experimental_backgroundImage`. */
+/** CSS-string linear gradient for `gradientBackground`. */
 export const linearGradient = (
   direction: string,
   ...stops: readonly string[]
 ): string => `linear-gradient(${direction}, ${stops.join(", ")})`;
+
+/**
+ * Cross-platform CSS gradient background. Native RN paints gradients via the
+ * `experimental_backgroundImage` style; react-native-web knows nothing of it
+ * (the mixes and the liked heart rendered with NO background in a browser)
+ * and wants the real CSS `backgroundImage` instead.
+ */
+export const gradientBackground = (css: string): ViewStyle =>
+  Platform.OS === "web"
+    ? ({ backgroundImage: css } as unknown as ViewStyle)
+    : ({ experimental_backgroundImage: css } as unknown as ViewStyle);

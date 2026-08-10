@@ -15,7 +15,7 @@ import { useT } from "@/i18n";
 import { AA_LARGE, ON_DARK, onColor, preferredOn, withAlpha } from "@/theme/contrast";
 import { SPOTLIGHT_SCRIM } from "@/theme/gradients";
 import { RADIUS, SPOTLIGHT_GRADIENT } from "@/theme/tokens";
-import { artworkSourceUri, GhostIconButton, Icon, linearGradient } from "@/ui";
+import { artworkSourceUri, GhostIconButton, gradientBackground, Icon, linearGradient } from "@/ui";
 
 /** Both surfaces are dark; the label and meta lines step down from the ink. */
 const PHOTO_INK = preferredOn(SPOTLIGHT_SCRIM[0], ON_DARK, AA_LARGE);
@@ -78,10 +78,12 @@ export const ArtistSpotlight = ({
           left: 0,
           right: 0,
           bottom: 0,
-          experimental_backgroundImage: backdrop
-            ? // Dark enough at the bottom for the ink to read over any photo.
-              linearGradient("to top", ...SPOTLIGHT_SCRIM)
-            : linearGradient("135deg", ...SPOTLIGHT_GRADIENT),
+          ...gradientBackground(
+            backdrop
+              ? // Dark enough at the bottom for the ink to read over any photo.
+                linearGradient("to top", ...SPOTLIGHT_SCRIM)
+              : linearGradient("135deg", ...SPOTLIGHT_GRADIENT),
+          ),
         }}
       />
       <View style={{ padding: 20, gap: 10 }}>

@@ -58,6 +58,7 @@ import { registerCoreSongMenuSlots } from "@/features/home/register";
 import { registerJamSurfaces } from "@/features/jam/register";
 import { registerAddToPlaylistHost } from "@/features/playlists/register";
 import { registerRadioSongMenuSlots } from "@/features/radios/register";
+import { registerLibraryWarmup } from "@/api/warmup";
 import { getJamManager } from "@/jam/channel";
 import { registerPlayerEngine } from "@/player/register";
 import { getPlaybackChannel } from "@/remote/channel";
@@ -143,6 +144,10 @@ export const wireUp = (): void => {
   registerCoreSongMenuSlots();
   registerRadioSongMenuSlots();
   gateSeparationSlotOnController();
+
+  // 8. Local-first warm-up: after sign-in, sweep the library into the query
+  // cache (and its disk snapshot) so taps land on local data.
+  registerLibraryWarmup();
 
   if (__DEV__) logSeamReport();
 };

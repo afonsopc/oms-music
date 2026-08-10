@@ -7,7 +7,7 @@
 import React from "react";
 import { View, type StyleProp, type ViewStyle } from "react-native";
 import { Icon } from "./icons";
-import { linearGradient } from "./uiTheme";
+import { gradientBackground, linearGradient } from "./uiTheme";
 import { AA_LARGE, ON_DARK, preferredOn } from "@/theme/contrast";
 import { LIKED_GRADIENT, RADIUS } from "@/theme/tokens";
 
@@ -31,7 +31,7 @@ export const LikedArtwork = ({ size, borderRadius = RADIUS, style }: LikedArtwor
         overflow: "hidden",
         alignItems: "center",
         justifyContent: "center",
-        experimental_backgroundImage: linearGradient("135deg", ...LIKED_GRADIENT),
+        ...gradientBackground(linearGradient("135deg", ...LIKED_GRADIENT)),
       },
       style,
     ]}

@@ -13,7 +13,7 @@
  * sources are cached by fs node id (`cacheKey`), never by URL.
  */
 import React, { useState } from "react";
-import type { StyleProp } from "react-native";
+import { Platform, type StyleProp } from "react-native";
 import { Image, type ImageStyle } from "expo-image";
 import { InitialsAvatar } from "./InitialsAvatar";
 import { LikedArtwork } from "./LikedArtwork";
@@ -85,7 +85,17 @@ const resolveArtwork = (
 
   if (isOfflineNow()) return { kind: "placeholder" };
   if (externalUrl) return { kind: "network", uri: externalUrl };
-  if (node) return { kind: "network", uri: imageUrl(node), cacheKey: node };
+  if (node) {
+    // cacheKey is NATIVE-only on purpose: on web it makes expo-image fetch
+    // the bytes itself, and that fetch dies on CORS at the storage redirect
+    // (every tile fell to the placeholder photo). The plain <img> path has
+    // no CORS to clear.
+    return {
+      kind: "network",
+      uri: imageUrl(node),
+      cacheKey: Platform.OS === "web" ? undefined : node,
+    };
+  }
   return { kind: "placeholder" };
 };
 

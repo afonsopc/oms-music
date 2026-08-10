@@ -12,7 +12,7 @@ import { Image } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ArtworkImage, artworkSourceUri } from "./ArtworkImage";
 import { InitialsAvatar } from "./InitialsAvatar";
-import { linearGradient } from "./uiTheme";
+import { gradientBackground, linearGradient } from "./uiTheme";
 import type { ArtworkSource } from "@/domain/artwork";
 import { useT } from "@/i18n";
 import { getCachedAccent, resolveAccent } from "@/theme/accent";
@@ -122,9 +122,11 @@ export const Hero = ({
           left: 0,
           right: 0,
           bottom: 0,
-          experimental_backgroundImage: isArtistBackdrop
-            ? linearGradient("to top", `${accent} 0%`, `${accent}cc 25%`, "transparent 90%")
-            : linearGradient("to bottom", accent, "transparent"),
+          ...gradientBackground(
+            isArtistBackdrop
+              ? linearGradient("to top", `${accent} 0%`, `${accent}cc 25%`, "transparent 90%")
+              : linearGradient("to bottom", accent, "transparent"),
+          ),
         }}
       />
       {/* The gradient and any backdrop bleed to the very top on purpose, but

@@ -67,6 +67,7 @@ export {
 export {
   backgroundVeil,
   foregroundWash,
+  gradientBackground,
   heavyShadow,
   linearGradient,
   modalScrim,

@@ -30,7 +30,7 @@ import { useT } from "@/i18n";
 import { usePlaybackView } from "@/remote/mirror";
 import { playerGradient } from "@/theme/gradients";
 import { useTheme } from "@/theme/provider";
-import { Icon } from "@/ui";
+import { gradientBackground, Icon } from "@/ui";
 import { ChevronDownGlyph } from "./glyphs";
 
 export const NowPlayingScroll = () => {
@@ -88,7 +88,7 @@ export const NowPlayingScroll = () => {
         entering={FadeIn.duration(450)}
         exiting={FadeOut.duration(450)}
         pointerEvents="none"
-        style={[StyleSheet.absoluteFill, { experimental_backgroundImage: gradientCss }]}
+        style={[StyleSheet.absoluteFill, gradientBackground(gradientCss)]}
       />
       <View style={{ height: viewport }}>
         <NowPlayingBody />

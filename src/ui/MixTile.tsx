@@ -10,7 +10,7 @@ import React from "react";
 import { Pressable, Text, View, type StyleProp, type ViewStyle } from "react-native";
 import { Image } from "expo-image";
 import { Icon, type IconName } from "./icons";
-import { foregroundWash, linearGradient } from "./uiTheme";
+import { foregroundWash, gradientBackground, linearGradient } from "./uiTheme";
 import type { MixKind } from "@/domain/mixes";
 import { AA_LARGE, ON_DARK, preferredOn } from "@/theme/contrast";
 import { MIX_TILE_SCRIM } from "@/theme/gradients";
@@ -70,7 +70,7 @@ export const MixTileArtwork = ({ kind, stamp, artworkUri, size, icon }: MixTileA
         overflow: "hidden",
         padding: 12,
         justifyContent: "space-between",
-        experimental_backgroundImage: linearGradient("135deg", ...gradient.colors),
+        ...gradientBackground(linearGradient("135deg", ...gradient.colors)),
       }}
     >
       {artworkUri ? (
@@ -89,7 +89,7 @@ export const MixTileArtwork = ({ kind, stamp, artworkUri, size, icon }: MixTileA
               left: 0,
               right: 0,
               bottom: 0,
-              experimental_backgroundImage: linearGradient("to bottom", ...MIX_TILE_SCRIM),
+              ...gradientBackground(linearGradient("to bottom", ...MIX_TILE_SCRIM)),
             }}
           />
         </>
