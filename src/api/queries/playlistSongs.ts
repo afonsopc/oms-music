@@ -48,14 +48,37 @@ export const useSongMemberships = (songId: SongId | null, enabled = true) => {
   });
 };
 
+/**
+ * Optimistic MEMBERSHIP (local-first): the checkmark in the add-to-playlist
+ * sheet flips the moment it is tapped. Only the membership set is guessed -
+ * the join ROW needs the server's id and position, so the pages refresh via
+ * the settled invalidation instead of a fabricated row.
+ */
 export const useAddPlaylistSong = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ playlistId, songId }: { playlistId: PlaylistId; songId: SongId }) =>
       addPlaylistSong(playlistId, songId),
-    onSuccess: (row) => {
-      void qc.invalidateQueries({ queryKey: keys.playlistSongs(row.playlist_id) });
-      void qc.invalidateQueries({ queryKey: keys.songMembership(row.song_id) });
+    onMutate: async ({ playlistId, songId }) => {
+      const key = keys.songMembership(songId);
+      await qc.cancelQueries({ queryKey: key });
+      const previous = qc.getQueryData<PlaylistSong[]>(key);
+      if (previous && !previous.some((row) => row.playlist_id === playlistId)) {
+        // id 0 marks the placeholder; nothing keys rows by join id here, and
+        // the settled invalidation replaces it with the real row.
+        qc.setQueryData<PlaylistSong[]>(key, [
+          ...previous,
+          { ...previous[0], id: 0, playlist_id: playlistId, song_id: songId } as PlaylistSong,
+        ]);
+      }
+      return { previous };
+    },
+    onError: (_error, { songId }, context) => {
+      if (context?.previous) qc.setQueryData(keys.songMembership(songId), context.previous);
+    },
+    onSettled: (_row, _error, { playlistId, songId }) => {
+      void qc.invalidateQueries({ queryKey: keys.playlistSongs(playlistId) });
+      void qc.invalidateQueries({ queryKey: keys.songMembership(songId) });
     },
   });
 };

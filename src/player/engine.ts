@@ -41,6 +41,10 @@ import type {
 const PREFETCH_WINDOW_S = 30;
 /** Store position slice cadence: 4 Hz max (FR-6 no-interrupt discipline). */
 const POSITION_EMIT_MS = 250;
+
+/** ~6 statuses at the 4 Hz cadence before the stall watchdog nudges. */
+const STALL_TICKS = 6;
+const STALL_NUDGE_MIN_MS = 4_000;
 /** expo-audio rate ceiling on both mobile platforms. */
 const PLATFORM_MAX_RATE = 2;
 
@@ -107,6 +111,9 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
   private loadedMain: { kind: "jam" | "local" | "network"; uri: string } | null = null;
   private prevPlaying = false;
   private lastPositionEmitAt = 0;
+  /** Stall watchdog (owner report 2026-08-10): consecutive wedged statuses. */
+  private stallTicks = 0;
+  private lastStallNudgeAt = 0;
   private readonly statusUnsub: () => void;
   /** The mixer's failure channel; inert (a no-op) without a native mixer. */
   private readonly stemStatusUnsub: () => void;
@@ -1115,11 +1122,15 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
     }
 
     // Play-state flips: mirror + detect external pauses (interruptions,
-    // native lock-screen pause) so recovery never force-resumes them.
+    // native lock-screen pause) so recovery never force-resumes them. A stop
+    // WHILE BUFFERING is not an interruption - it is a slow network draining
+    // the buffer - and treating it as one is what made playback "give up"
+    // permanently on bad connections (owner report 2026-08-10): keep the
+    // intent, and the stall watchdog below restarts the player.
     if (s.playing !== this.prevPlaying) {
       this.prevPlaying = s.playing;
       playerStore.setState({ playing: s.playing });
-      if (!s.playing && this.intendedPlay && load?.audible) {
+      if (!s.playing && this.intendedPlay && load?.audible && !s.isBuffering) {
         this.intendedPlay = false; // interruption: never auto-resume
       }
       this.emit("playStateChanged", { playing: s.playing });
@@ -1134,6 +1145,24 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
     const loadInFlight = !!load && load.gen === this.transitionGen && !load.replaced;
     if (!loadInFlight && playerStore.getState().buffering !== s.isBuffering) {
       playerStore.setState({ buffering: s.isBuffering });
+    }
+
+    // Stall watchdog (owner report 2026-08-10): loaded, not playing, not
+    // buffering, while the engine INTENDS play - a wedged native player.
+    // The user's manual fix was "seek, then it plays"; do exactly that,
+    // automatically, at most once per few seconds.
+    if (s.isLoaded && this.intendedPlay && !s.playing && !s.isBuffering && !loadInFlight) {
+      this.stallTicks++;
+      const at = this.now();
+      if (this.stallTicks >= STALL_TICKS && at - this.lastStallNudgeAt >= STALL_NUDGE_MIN_MS) {
+        this.stallTicks = 0;
+        this.lastStallNudgeAt = at;
+        void this.seekWithRetry(s.currentTime).then(() => {
+          if (this.intendedPlay) this.player.play();
+        });
+      }
+    } else {
+      this.stallTicks = 0;
     }
 
     // Listen accumulator (FR-62): forward deltas only; jam songs skipped.

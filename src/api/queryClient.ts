@@ -14,7 +14,14 @@ import { ApiError } from "@/domain/api";
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 25_000,
+      // Local-first (owner request 2026-08-10): the library is the USER'S
+      // data and changes slowly - render what we have, revalidate quietly.
+      // 5 min staleness kills the refetch-per-navigation churn; a 7 day
+      // gcTime keeps unmounted screens' data alive (the default 5 min GC is
+      // what made "come back later" show spinners), and matches the disk
+      // snapshot's max age (persistCache.ts).
+      staleTime: 5 * 60 * 1000,
+      gcTime: 7 * 24 * 60 * 60 * 1000,
       retry: false,
       refetchOnWindowFocus: false,
       refetchOnReconnect: false,

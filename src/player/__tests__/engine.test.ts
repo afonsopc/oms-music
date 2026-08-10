@@ -544,3 +544,121 @@ describe("logout wipe (FR-10)", () => {
     ctx.engine.dispose();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Stall watchdog (owner report 2026-08-10): "às vezes pára do nada; para dar
+// play preciso de dar seek". A wedged native player - loaded, not playing,
+// not buffering, while the engine intends play - gets the user's manual fix
+// (seek to current position, then play) automatically.
+// ---------------------------------------------------------------------------
+
+describe("stall watchdog", () => {
+  const wedgedSetup = () => {
+    resetPlayerStore();
+    setPlaybackInterceptor(null);
+    let t = 0;
+    const ctx = makeEngineDeps({ now: () => t });
+    const engine = new PlayerEngineImpl(ctx.deps);
+    return { engine, ...ctx, advance: (ms: number) => (t += ms) };
+  };
+
+  it("a play the native player swallows is retried with a seek", async () => {
+    const ctx = wedgedSetup();
+    const song = makeSong(1);
+    urlFor(ctx, song);
+    ctx.engine.setQueue([song]);
+    await flush();
+    ctx.player.emitLoaded(200);
+    ctx.player.currentTime = 30;
+    ctx.engine.pause();
+    ctx.player.emitStatus();
+
+    // The user taps play; the native player accepts and does NOTHING.
+    ctx.player.ignorePlay = true;
+    ctx.engine.play();
+    await flush();
+    const seeksBefore = ctx.player.seekLog.length;
+
+    ctx.advance(10_000);
+    for (let i = 0; i < 6; i++) ctx.player.emitStatus();
+    await flush();
+
+    // The nudge: seek to the current position, then play again.
+    expect(ctx.player.seekLog.length).toBeGreaterThan(seeksBefore);
+    expect(ctx.player.seekLog.at(-1)).toBe(30);
+    expect(ctx.player.playCalls).toBeGreaterThanOrEqual(2);
+    ctx.engine.dispose();
+  });
+
+  it("needs several consecutive wedged statuses - one blip never nudges", async () => {
+    const ctx = wedgedSetup();
+    const song = makeSong(1);
+    urlFor(ctx, song);
+    ctx.engine.setQueue([song]);
+    await flush();
+    ctx.player.emitLoaded(200);
+    ctx.engine.pause();
+    ctx.player.emitStatus();
+
+    ctx.player.ignorePlay = true;
+    ctx.engine.play();
+    await flush();
+    const seeksBefore = ctx.player.seekLog.length;
+
+    ctx.advance(10_000);
+    for (let i = 0; i < 3; i++) ctx.player.emitStatus();
+    await flush();
+
+    expect(ctx.player.seekLog.length).toBe(seeksBefore);
+    ctx.engine.dispose();
+  });
+
+  it("a buffering stop keeps the intent and recovers once the buffer is dry", async () => {
+    const ctx = wedgedSetup();
+    const song = makeSong(1);
+    urlFor(ctx, song);
+    ctx.engine.setQueue([song]);
+    await flush();
+    ctx.player.emitLoaded(200);
+    ctx.player.currentTime = 42;
+    ctx.player.emitStatus(); // audible playing
+
+    // Slow network: playback stops WHILE buffering - NOT an interruption.
+    ctx.player.playing = false;
+    ctx.player.buffering = true;
+    ctx.player.emitStatus();
+
+    // The buffer refills but the player stays parked: the watchdog kicks it.
+    ctx.player.buffering = false;
+    ctx.player.ignorePlay = true;
+    ctx.advance(10_000);
+    for (let i = 0; i < 6; i++) ctx.player.emitStatus();
+    await flush();
+
+    expect(ctx.player.seekLog.at(-1)).toBe(42);
+    ctx.engine.dispose();
+  });
+
+  it("a REAL interruption (pause with no buffering) is never fought", async () => {
+    const ctx = wedgedSetup();
+    const song = makeSong(1);
+    urlFor(ctx, song);
+    ctx.engine.setQueue([song]);
+    await flush();
+    ctx.player.emitLoaded(200);
+    ctx.player.emitStatus(); // audible playing
+
+    // Phone call / lock-screen pause: stops clean, no buffering.
+    ctx.player.playing = false;
+    ctx.player.emitStatus();
+    const seeksBefore = ctx.player.seekLog.length;
+
+    ctx.advance(10_000);
+    for (let i = 0; i < 10; i++) ctx.player.emitStatus();
+    await flush();
+
+    expect(ctx.player.seekLog.length).toBe(seeksBefore);
+    expect(ctx.player.playing).toBe(false);
+    ctx.engine.dispose();
+  });
+});

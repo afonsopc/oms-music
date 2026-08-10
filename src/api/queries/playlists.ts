@@ -17,6 +17,7 @@ import { useAuthReady } from "@/auth/guard";
 import { withOfflineFallback } from "@/contracts/offlineFallback";
 import { rankByMatch } from "@/domain/rank";
 import type { PlaylistId, SongId } from "@/domain/ids";
+import type { Playlist } from "@/domain/playlist";
 
 const listPlaylistsWithFallback = withOfflineFallback(listPlaylists, "playlists");
 
@@ -71,6 +72,7 @@ export const useCreatePlaylist = () => {
   });
 };
 
+/** Optimistic rename (local-first): the new name paints everywhere at once. */
 export const useUpdatePlaylist = () => {
   const qc = useQueryClient();
   return useMutation({
@@ -81,18 +83,65 @@ export const useUpdatePlaylist = () => {
       id: PlaylistId;
       body: { name?: string; artwork_fs_node_id?: string | null };
     }) => updatePlaylist(id, body),
+    onMutate: async ({ id, body }) => {
+      await qc.cancelQueries({ queryKey: keys.playlists.all });
+      const detailKey = keys.playlists.detail(id);
+      const previousDetail = qc.getQueryData<Playlist>(detailKey);
+      if (previousDetail) qc.setQueryData(detailKey, { ...previousDetail, ...body });
+      const previousLists = qc.getQueriesData<Playlist[]>({
+        queryKey: [...keys.playlists.all, "list"],
+      });
+      for (const [key, list] of previousLists) {
+        if (!list) continue;
+        qc.setQueryData(
+          key,
+          list.map((p) => (p.id === id ? { ...p, ...body } : p)),
+        );
+      }
+      return { previousDetail, previousLists };
+    },
+    onError: (_error, { id }, context) => {
+      if (context?.previousDetail) {
+        qc.setQueryData(keys.playlists.detail(id), context.previousDetail);
+      }
+      for (const [key, list] of context?.previousLists ?? []) {
+        qc.setQueryData(key, list);
+      }
+    },
     onSuccess: (playlist) => {
       qc.setQueryData(keys.playlists.detail(playlist.id), playlist);
+    },
+    onSettled: () => {
       void qc.invalidateQueries({ queryKey: keys.playlists.all });
     },
   });
 };
 
+/** Optimistic delete (local-first): the row leaves the library instantly. */
 export const useDeletePlaylist = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: PlaylistId) => deletePlaylist(id),
-    onSuccess: () => {
+    onMutate: async (id) => {
+      await qc.cancelQueries({ queryKey: keys.playlists.all });
+      const previousLists = qc.getQueriesData<Playlist[]>({
+        queryKey: [...keys.playlists.all, "list"],
+      });
+      for (const [key, list] of previousLists) {
+        if (!list) continue;
+        qc.setQueryData(
+          key,
+          list.filter((p) => p.id !== id),
+        );
+      }
+      return { previousLists };
+    },
+    onError: (_error, _id, context) => {
+      for (const [key, list] of context?.previousLists ?? []) {
+        qc.setQueryData(key, list);
+      }
+    },
+    onSettled: () => {
       void qc.invalidateQueries({ queryKey: keys.playlists.all });
     },
   });

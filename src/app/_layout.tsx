@@ -13,6 +13,7 @@ import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { QueryClientProvider } from "@tanstack/react-query";
+import { hydrateQueryCache, startQueryCachePersistence } from "@/api/persistCache";
 import { queryClient, wireQueryClient } from "@/api/queryClient";
 import { useSessionStore } from "@/auth/session";
 import { SessionGate } from "@/features/shell/SessionGate";
@@ -67,6 +68,10 @@ const RootNavigator = () => {
 export default function RootLayout() {
   useEffect(() => {
     wireQueryClient();
+    // Local-first boot: yesterday's library renders in the FIRST frame the
+    // authed screens mount; the network only revalidates it afterwards.
+    hydrateQueryCache();
+    startQueryCachePersistence();
   }, []);
 
   return (

@@ -120,8 +120,18 @@ export class FakeAudioPlayer implements AudioAdapter {
     this.applyGains();
   }
 
+  /** Models a WEDGED native player: play() lands but never starts (stall). */
+  ignorePlay = false;
+  /** Every play() attempt, wedged or not (watchdog assertions). */
+  playCalls = 0;
+
   play(): void {
     if (this.uri === null) return;
+    this.playCalls++;
+    if (this.ignorePlay) {
+      this.emitStatus();
+      return;
+    }
     this.playing = true;
     if (this.stemsOn) this.mixerPlaying = true;
     this.emitStatus();

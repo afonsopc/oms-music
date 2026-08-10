@@ -233,11 +233,16 @@ export const registerDownloads = (): void => {
     .catch(() => undefined);
   NetInfo.addEventListener((state) => handleNetworkState(!!state.isConnected));
 
-  // Play cache (owner request 2026-08-08): every song that starts playing
+  // Play cache (owner request 2026-08-08): every song that KEEPS playing
   // caches its mixed file (manager.cachePlayback - orphan tier, silent, 7 day
-  // TTL). The residency watcher below then pokes the engine ONCE when the
-  // current song's audio becomes local, so the EQ passthrough can engage mid
-  // play without waiting for a track change.
+  // TTL). The download starts 8s in, NOT at once: on a slow connection an
+  // immediate download competes with the live stream for the same bytes
+  // (owner report 2026-08-10, "pára do nada"), and skipped songs never get
+  // cached at all. The residency watcher below then pokes the engine ONCE
+  // when the current song's audio becomes local, so the EQ passthrough can
+  // engage mid play without waiting for a track change.
+  const CACHE_DELAY_MS = 8_000;
+  let cacheTimer: ReturnType<typeof setTimeout> | null = null;
   let mainWasResident = false;
   const currentMainResident = (): boolean => {
     const song = getPlayerEngine().getCurrentSong();
@@ -248,8 +253,15 @@ export const registerDownloads = (): void => {
   getPlayerEngine().on("songChanged", (payload) => {
     const song = (payload as { song: Song | null } | undefined)?.song ?? null;
     mainWasResident = currentMainResident();
+    if (cacheTimer) {
+      clearTimeout(cacheTimer);
+      cacheTimer = null;
+    }
     if (!song) return;
-    void cachePlayback(song).catch(() => undefined);
+    cacheTimer = setTimeout(() => {
+      cacheTimer = null;
+      void cachePlayback(song).catch(() => undefined);
+    }, CACHE_DELAY_MS);
   });
   subscribeDownloadStatus(() => {
     const resident = currentMainResident();
