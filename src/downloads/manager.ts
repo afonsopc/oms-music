@@ -209,7 +209,21 @@ export const startManager = (userId: UserId): void => {
   for (const row of repo.listAllFiles(db)) {
     if (row.status === "done") {
       setKindStatus(row.song_key, row.kind, "done", 1);
-      if (row.local_uri) session.localIndex.set(indexKey(row.song_key, row.kind), row.local_uri);
+      // NEVER trust the stored absolute local_uri: iOS moves the app
+      // container on every install/update, so it points at the PREVIOUS
+      // container and every "downloaded" song silently fell through the
+      // ladder to the network stream (owner report 2026-08-11). The
+      // filename resolved against the CURRENT directory is the truth; a
+      // file that is genuinely gone stays out of the index and repair
+      // re-downloads it.
+      try {
+        const file = new File(session.dir, row.filename);
+        if (file.exists) {
+          session.localIndex.set(indexKey(row.song_key, row.kind), file.uri);
+        }
+      } catch {
+        // Unreadable entry: treat as not resident.
+      }
     } else if (row.status === "error") {
       setKindStatus(row.song_key, row.kind, "error", 0);
     } else {
@@ -552,7 +566,7 @@ const purgeStaleCache = (session: ActiveSession): void => {
     if (session.songs.has(row.song_key)) continue;
     if (row.updated_at >= cutoff) continue;
     try {
-      const uri = row.local_uri ?? new File(session.dir, row.filename).uri;
+      const uri = new File(session.dir, row.filename).uri;
       const file = new File(uri);
       if (file.exists) file.delete();
     } catch {
@@ -599,7 +613,7 @@ export const removeDownload = async (id: number | string): Promise<void> => {
   const songKey = normalizeSongKey(id);
   session.scheduler.cancelSong(songKey);
   for (const row of repo.listFilesForSong(session.db, songKey)) {
-    const uri = row.local_uri ?? new File(session.dir, row.filename).uri;
+    const uri = new File(session.dir, row.filename).uri;
     try {
       const file = new File(uri);
       if (file.exists) file.delete();
@@ -625,7 +639,7 @@ export const verifySongFiles = (songKey: SongKey): void => {
   if (!session) return;
   for (const row of repo.listFilesForSong(session.db, songKey)) {
     if (row.status !== "done") continue;
-    const uri = row.local_uri ?? new File(session.dir, row.filename).uri;
+    const uri = new File(session.dir, row.filename).uri;
     let exists = false;
     try {
       exists = new File(uri).exists;
