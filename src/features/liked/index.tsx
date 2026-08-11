@@ -11,6 +11,7 @@ import React, { useMemo, useState } from "react";
 import { ActivityIndicator, useWindowDimensions, View } from "react-native";
 import { useLikedIds, useLikedInfinite } from "@/api/queries/likedSongs";
 import { getTransport } from "@/contracts/transport";
+import { recordRecentCollection } from "@/lib/recentCollections";
 import type { Song } from "@/domain/song";
 import { useContentBottomPadding } from "@/features/shell/metrics";
 import { useT } from "@/i18n";
@@ -75,11 +76,17 @@ export default function LikedScreen() {
     );
   }
 
+  const markRecent = (): void => {
+    recordRecentCollection({ kind: "liked", key: "liked", title, artworkNodeId: null });
+  };
+
   const play = (index: number): void => {
+    markRecent();
     getTransport().setQueue(songs, index, { shuffle: false });
   };
 
   const shuffle = (): void => {
+    markRecent();
     getTransport().setQueue(songs, undefined, { shuffle: true });
   };
 

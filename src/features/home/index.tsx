@@ -1,11 +1,11 @@
 /**
- * Home (FR-23..29), rewritten mobile-first (owner request 2026-08-08):
+ * Home (FR-23..29), rewritten mobile-first (owner requests 2026-08-08/11):
  *
- *  - time-of-day greeting, then the filter pills (Spotify's top-of-home
- *    idiom); pills only show/hide sections, never refetch (FR-23);
- *  - QUICK GRID: Gostadas first, then the albums you actually played last,
- *    playlists filling the empty cells - one thumb-reach block of "what you
- *    came here to press";
+ *  - the filter pills ARE the header (Spotify's top-of-home idiom); pills
+ *    only show/hide sections, never refetch (FR-23);
+ *  - QUICK GRID (2x4): Gostadas first, then what was ACTUALLY played last -
+ *    local recently-played collections (lib/recentCollections) merged with
+ *    the server's recent albums - playlists padding leftover cells;
  *  - rails, in listening order: mixes made for you, recently played (the
  *    albums beyond the grid), your artists, discovery (random albums), your
  *    playlists;
@@ -14,8 +14,8 @@
  *  - every section fades in with a small stagger (entering animations), and
  *    each collapses silently when its query settles empty.
  */
-import React, { useState } from "react";
-import { ScrollView, Text, View } from "react-native";
+import React, { useMemo, useState, useSyncExternalStore } from "react";
+import { ScrollView, View } from "react-native";
 import { useRouter } from "expo-router";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -34,7 +34,6 @@ import { useT } from "@/i18n";
 import { mixDescription, mixStampText, mixTitle } from "@/i18n/mixLabels";
 import { albumRoute, artistRoute, mixRoute, playlistRoute } from "@/lib/routes";
 import { useTheme } from "@/theme/provider";
-import { typeScale } from "@/theme/typography";
 import {
   artworkSourceUri,
   FilterPills,
@@ -46,25 +45,17 @@ import {
   TopTileGrid,
   type TopTileItem,
 } from "@/ui";
+import { getRecentCollections, subscribeRecentCollections } from "@/lib/recentCollections";
 import { useFriendsStripActive, useFriendsStripSlot } from "./friendsSlot";
 
 type HomeFilter = "all" | "playlists" | "albums" | "artists";
 
-/** Grid cells on a phone (2 columns x 3 rows), Gostadas included. */
-const QUICK_GRID_ITEMS = 6;
+/** Grid cells on a phone (2 columns x 4 rows, Spotify-shaped), Gostadas included. */
+const QUICK_GRID_ITEMS = 8;
 /** Recents the grid absorbs; the rest feed the "recently played" rail. */
-const QUICK_GRID_RECENTS = 5;
+const QUICK_GRID_RECENTS = 7;
 /** One fetch feeds grid + rail. */
 const RECENT_ALBUMS_LIMIT = 12;
-
-/** Spotify-style time-of-day greeting key; evening covers the night hours. */
-export const greetingKey = (
-  hour: number,
-): "native.home.goodMorning" | "native.home.goodAfternoon" | "native.home.goodEvening" => {
-  if (hour >= 6 && hour < 13) return "native.home.goodMorning";
-  if (hour >= 13 && hour < 20) return "native.home.goodAfternoon";
-  return "native.home.goodEvening";
-};
 
 const nodeArtwork = (nodeId: string | null | undefined): ArtworkSource =>
   nodeId ? { kind: "node", nodeId } : { kind: "placeholder" };
@@ -111,13 +102,67 @@ export default function HomeScreen() {
   const recommendationsQuery = useRandomAlbums(10);
   const topArtistsQuery = useTopArtists("30d", 10);
 
-  const recentAlbums = recentAlbumsQuery.data ?? [];
+  const recentAlbums = useMemo(() => recentAlbumsQuery.data ?? [], [recentAlbumsQuery.data]);
   const playlists = playlistsQuery.data ?? [];
   const recommendations = recommendationsQuery.data ?? [];
   const topArtists = topArtistsQuery.data ?? [];
   const mixes = mixesQuery.data ?? [];
 
-  // ----- quick grid: Gostadas + last-played albums + playlists as filler ----
+  // ----- quick grid: Gostadas + what was ACTUALLY played last --------------
+  // Two recency sources merged: the LOCAL record of collections a queue was
+  // started from (playlists, albums, mixes, liked - the server knows nothing
+  // about collection context) and the server's recent ALBUMS (which cover
+  // other devices). Deduped, newest first; playlists pad any leftover cells.
+  const localRecents = useSyncExternalStore(
+    subscribeRecentCollections,
+    getRecentCollections,
+    getRecentCollections,
+  );
+
+  const recentTiles = useMemo(() => {
+    const out: { at: number; item: TopTileItem }[] = [];
+    const seen = new Set<string>();
+    for (const entry of localRecents) {
+      if (entry.kind === "liked" || entry.kind === "radio") continue;
+      const id = `${entry.kind}:${entry.key}`;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      const artwork: ArtworkSource = entry.artworkNodeId
+        ? { kind: "node", nodeId: entry.artworkNodeId }
+        : entry.artworkUrl
+          ? { kind: "external", url: entry.artworkUrl }
+          : { kind: "placeholder" };
+      const onPress = (): void => {
+        if (entry.kind === "playlist") {
+          router.push(playlistRoute(Number(entry.key)));
+        } else if (entry.kind === "album") {
+          const split = entry.key.indexOf("::");
+          router.push(albumRoute(entry.key.slice(0, split), entry.key.slice(split + 2)));
+        } else if (entry.kind === "mix") {
+          router.push(mixRoute(entry.key));
+        }
+      };
+      out.push({ at: entry.at, item: { key: id, title: entry.title, artwork, onPress } });
+    }
+    for (const album of recentAlbums) {
+      const segment = artistRouteSegment(album.artist) ?? "null";
+      const id = `album:${segment}::${album.album ?? "null"}`;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      out.push({
+        at: Date.parse(album.last_played_at) || 0,
+        item: {
+          key: id,
+          title: album.album || t("components.music.Home.unknownAlbum"),
+          artwork: nodeArtwork(album.artwork_fs_node_id),
+          onPress: () => router.push(albumRoute(segment, album.album)),
+        },
+      });
+    }
+    out.sort((a, b) => b.at - a.at);
+    return out.map((x) => x.item);
+  }, [localRecents, recentAlbums, router, t]);
+
   const quickItems: TopTileItem[] = [
     {
       key: "liked",
@@ -125,26 +170,22 @@ export default function HomeScreen() {
       artwork: { kind: "likedHeart" },
       onPress: () => router.push("/(main)/liked"),
     },
-    ...recentAlbums.slice(0, QUICK_GRID_RECENTS).map((album, i): TopTileItem => ({
-      key: `recent-${i}-${album.album ?? "null"}`,
-      title: album.album || t("components.music.Home.unknownAlbum"),
-      artwork: nodeArtwork(album.artwork_fs_node_id),
-      onPress: () =>
-        router.push(albumRoute(artistRouteSegment(album.artist), album.album)),
-    })),
+    ...recentTiles.slice(0, QUICK_GRID_RECENTS),
   ];
   for (const playlist of playlists) {
     if (quickItems.length >= QUICK_GRID_ITEMS) break;
+    if (quickItems.some((item) => item.key === `playlist:${playlist.id}`)) continue;
     quickItems.push({
-      key: `playlist-${playlist.id}`,
+      key: `playlist:${playlist.id}`,
       title: playlist.name,
       artwork: playlistArtworkSource(playlist),
       onPress: () => router.push(playlistRoute(playlist.id)),
     });
   }
 
-  // The rail carries what the grid could not.
-  const railRecents = recentAlbums.slice(QUICK_GRID_RECENTS);
+  // The rail keeps the full server-side recents (a bit of overlap with the
+  // grid is the Spotify shape too).
+  const railRecents = recentAlbums;
 
   const showSection = (kind: "playlists" | "albums" | "artists"): boolean =>
     filter === "all" || filter === kind;
@@ -165,12 +206,8 @@ export default function HomeScreen() {
         gap: 28,
       }}
     >
-      <Text
-        style={[typeScale.sectionHeader, { color: tokens.foreground, paddingHorizontal: 24 }]}
-      >
-        {t(greetingKey(new Date().getHours()))}
-      </Text>
-
+      {/* Spotify's top-of-home: the pills ARE the header - the screen opens
+          straight on the quick grid (owner screenshot 2026-08-11). */}
       <FilterPills
         pills={pills}
         activeKey={filter}

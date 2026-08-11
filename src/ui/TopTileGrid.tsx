@@ -29,7 +29,7 @@ export interface TopTileGridProps {
 
 const MAX_ITEMS = 8;
 /** Phones show an even count so the two-column grid never ends ragged. */
-const MAX_ITEMS_NARROW = 6;
+const MAX_ITEMS_NARROW = 8;
 
 export const TopTileGrid = ({ items, style }: TopTileGridProps) => {
   const { tokens, scheme } = useTheme();
@@ -37,7 +37,7 @@ export const TopTileGrid = ({ items, style }: TopTileGridProps) => {
   const { width } = useWindowDimensions();
   // A phone used to fall to ONE column, which turned these shortcuts into
   // eight full-width rows filling the screen before anything else. Two
-  // columns is the phone idiom for this exact control, and six of them leave
+  // columns is the phone idiom for this exact control, and eight of them leave
   // room for the rails underneath.
   const columns = width >= 1280 ? 4 : width >= 1024 ? 3 : 2;
   const limit = width >= 640 ? MAX_ITEMS : MAX_ITEMS_NARROW;

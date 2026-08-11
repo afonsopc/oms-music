@@ -15,6 +15,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ActivityIndicator, FlatList, useWindowDimensions, View } from "react-native";
 import { useLikedIds } from "@/api/queries/likedSongs";
 import { getTransport } from "@/contracts/transport";
+import { recordRecentCollection, type RecentCollection } from "@/lib/recentCollections";
 import type { SongMenuItem } from "@/contracts/songMenu";
 import type { ArtworkSource } from "@/domain/artwork";
 import type { Song } from "@/domain/song";
@@ -81,6 +82,11 @@ export interface CollectionScreenProps {
   hasMore?: boolean;
   isLoadingMore?: boolean;
   onLoadMore?: () => void;
+  /**
+   * Identity recorded into the local recently-played-collections store the
+   * moment any play starts here (home quick grid, owner request 2026-08-11).
+   */
+  recentEntry?: Omit<RecentCollection, "at">;
 }
 
 export const CollectionScreen = ({
@@ -116,6 +122,7 @@ export const CollectionScreen = ({
   hasMore = false,
   isLoadingMore = false,
   onLoadMore,
+  recentEntry,
 }: CollectionScreenProps) => {
   const t = useT();
   const { height } = useWindowDimensions();
@@ -150,25 +157,33 @@ export const CollectionScreen = ({
   const isPlayingThisCollection =
     playing && currentSongId != null && visibleSongs.some((s) => s.id === currentSongId);
 
+  // Any play from this screen marks the collection as recently played.
+  const markRecent = useCallback(() => {
+    if (recentEntry) recordRecentCollection(recentEntry);
+  }, [recentEntry]);
+
   const handlePlay = useCallback(() => {
     if (visibleSongs.length === 0) return;
     if (isPlayingThisCollection) {
       getTransport().toggle();
       return;
     }
+    markRecent();
     getTransport().setQueue(visibleSongs, 0);
-  }, [visibleSongs, isPlayingThisCollection]);
+  }, [visibleSongs, isPlayingThisCollection, markRecent]);
 
   const handleShuffle = useCallback(() => {
     if (visibleSongs.length === 0) return;
+    markRecent();
     getTransport().setQueue(visibleSongs, undefined, { shuffle: true });
-  }, [visibleSongs]);
+  }, [visibleSongs, markRecent]);
 
   const handleRowPlay = useCallback(
     (_song: Song, index: number) => {
+      markRecent();
       getTransport().setQueue(visibleSongs, index);
     },
-    [visibleSongs],
+    [visibleSongs, markRecent],
   );
 
   const handleToggleOffline = useCallback(() => {

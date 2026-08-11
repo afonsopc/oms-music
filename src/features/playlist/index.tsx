@@ -265,6 +265,16 @@ const PlaylistBody = ({ playlistId }: { playlistId: PlaylistId }) => {
         onReorder={canReorder && reorderMode ? handleReorder : undefined}
         menuItems={menuItems}
         collectionKey={String(playlistId)}
+        recentEntry={
+          playlist
+            ? {
+                kind: "playlist",
+                key: String(playlistId),
+                title: playlist.name,
+                artworkNodeId: playlist.artwork_fs_node_id ?? null,
+              }
+            : undefined
+        }
         hasMore={songsQuery.hasNextPage}
         isLoadingMore={songsQuery.isFetchingNextPage}
         onLoadMore={() => void songsQuery.fetchNextPage()}

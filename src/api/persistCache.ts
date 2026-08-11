@@ -23,9 +23,29 @@ import { kvGet, kvRemove, kvSet } from "@/db/kv";
 import { queryClient } from "./queryClient";
 
 /** Bump to throw every existing snapshot away (persisted shape change). */
-const VERSION = 1;
+const VERSION = 2;
 const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
-const WRITE_DEBOUNCE_MS = 3_000;
+const WRITE_DEBOUNCE_MS = 5_000;
+
+/**
+ * Only the LIGHT list queries persist - the ones that paint the first screen
+ * (library rosters, playlists, rails, liked ids). Persisting everything made
+ * the snapshot grow to megabytes once the warm-up filled every playlist's
+ * song pages, and the SYNCHRONOUS JSON.parse of that at boot is exactly the
+ * splash-screen hang the owner reported (2026-08-11). The heavy caches are
+ * rebuilt by the warm sweep seconds after launch instead.
+ */
+const PERSIST_PREFIXES: readonly (readonly string[])[] = [
+  ["playlists", "list"],
+  ["albums", "list"],
+  ["artists", "list"],
+  ["liked", "ids"],
+  ["mixes", "list"],
+  ["playEvents"],
+];
+
+const shouldPersist = (queryKey: readonly unknown[]): boolean =>
+  PERSIST_PREFIXES.some((prefix) => prefix.every((seg, i) => queryKey[i] === seg));
 
 /** Same memo the downloads manager keeps (downloads/register.ts). */
 const LAST_USER_KV_KEY = "oms-music.downloads.last-user-id";
@@ -64,7 +84,8 @@ const write = (): void => {
   if (!key) return;
   try {
     const state = dehydrate(queryClient, {
-      shouldDehydrateQuery: (query) => query.state.status === "success",
+      shouldDehydrateQuery: (query) =>
+        query.state.status === "success" && shouldPersist(query.queryKey),
     });
     kvSet(key, JSON.stringify({ version: VERSION, at: Date.now(), state }));
   } catch {

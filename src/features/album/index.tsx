@@ -115,6 +115,19 @@ export default function AlbumScreen() {
       surface="album"
       collectionKey={collectionKey}
       highlightTitle={highlight}
+      recentEntry={
+        album
+          ? {
+              kind: "album",
+              key: `${albumPrimary?.slug ?? artistSegment ?? "null"}::${album}`,
+              title: album,
+              artworkNodeId:
+                firstSong?.compressed_artwork_fs_node_id ??
+                firstSong?.artwork_fs_node_id ??
+                null,
+            }
+          : undefined
+      }
     />
   );
 }

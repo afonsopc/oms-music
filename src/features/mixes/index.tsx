@@ -73,6 +73,11 @@ export default function MixScreen() {
       accentColor={artistUri ? undefined : mix ? MIX_KIND_GRADIENTS[mix.kind].accent : undefined}
       accentKey={artistUri ? `mix:${slug}` : undefined}
       extractionUri={artistUri}
+      recentEntry={
+        mix
+          ? { kind: "mix", key: slug, title, artworkNodeId: null, artworkUrl: artistUri }
+          : undefined
+      }
       songs={songs}
       isLoading={mixQuery.isLoading}
       isError={mixQuery.isError && !rotatedAway}
