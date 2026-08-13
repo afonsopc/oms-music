@@ -3,7 +3,7 @@
  * Changes go through the WP1 owner as explicit change requests.
  */
 
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 /**
  * Migration 2: offline playlist metadata.
@@ -67,7 +67,23 @@ CREATE TABLE IF NOT EXISTS offline_collections (
 `;
 
 /**
+ * Migration 3: the source identity of an offline playlist.
+ *
+ * The offline resolver rebuilt every playlist as a bare manual one, which
+ * erased `source_external_id` - and with it the liked-MIRROR detection, so
+ * "Liked Songs (Spotify)" fell to the placeholder photo whenever a list was
+ * served from this cache (owner report 2026-08-13).
+ */
+export const MIGRATION_OFFLINE_PLAYLIST_SOURCE = `
+ALTER TABLE offline_playlists ADD COLUMN source_external_id TEXT;
+`;
+
+/**
  * Ordered migrations. Index 0 applies when the stored schema_version is 0
  * (fresh db). Future migrations append; NEVER edit an applied entry.
  */
-export const MIGRATIONS: readonly string[] = [DDL, MIGRATION_OFFLINE_PLAYLISTS];
+export const MIGRATIONS: readonly string[] = [
+  DDL,
+  MIGRATION_OFFLINE_PLAYLISTS,
+  MIGRATION_OFFLINE_PLAYLIST_SOURCE,
+];

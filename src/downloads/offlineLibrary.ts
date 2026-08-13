@@ -192,7 +192,8 @@ export const offlinePlaylistsResolver = async (): Promise<Playlist[]> => {
     source_kind: "manual",
     source_provider: null,
     source_url: null,
-    source_external_id: null,
+    // Preserved so the liked-MIRROR keeps its heart tile offline (v3).
+    source_external_id: (row.source_external_id ?? null) as Playlist["source_external_id"],
     synced_at: null,
   }));
 };

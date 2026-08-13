@@ -18,6 +18,10 @@ export interface RecentCollection {
   artworkNodeId: string | null;
   /** External artwork URL (mix artist photos); node wins when both exist. */
   artworkUrl?: string | null;
+  /** Liked-heart tile art (the Gostadas screen and the Spotify liked MIRROR
+   *  playlist, which has no artwork node and must never fall to the
+   *  placeholder photo). Wins over node/url. */
+  heart?: boolean;
   at: number;
 }
 

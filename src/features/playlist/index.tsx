@@ -90,6 +90,7 @@ const PlaylistBody = ({ playlistId }: { playlistId: PlaylistId }) => {
     playlist?.name ?? null,
     playlist?.artwork_fs_node_id ?? null,
     songs.length,
+    playlist?.source_external_id ?? null,
   );
 
   const meta = useMemo(() => {
@@ -272,6 +273,7 @@ const PlaylistBody = ({ playlistId }: { playlistId: PlaylistId }) => {
                 key: String(playlistId),
                 title: playlist.name,
                 artworkNodeId: playlist.artwork_fs_node_id ?? null,
+                heart: likedMirror,
               }
             : undefined
         }

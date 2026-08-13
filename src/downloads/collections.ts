@@ -178,6 +178,7 @@ export const useOfflinePlaylistIdentity = (
   name: string | null | undefined,
   artworkFsNodeId: string | null | undefined,
   songCount: number,
+  sourceExternalId: string | null = null,
 ): void => {
   const offline = playlistId != null && isOfflineCollectionKey(String(playlistId));
   useEffect(() => {
@@ -192,6 +193,7 @@ export const useOfflinePlaylistIdentity = (
       name,
       artwork_fs_node_id: artworkFsNodeId ?? null,
       song_count: songCount,
+      source_external_id: sourceExternalId,
     });
-  }, [playlistId, offline, name, artworkFsNodeId, songCount]);
+  }, [playlistId, offline, name, artworkFsNodeId, songCount, sourceExternalId]);
 };

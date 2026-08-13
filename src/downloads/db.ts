@@ -252,25 +252,28 @@ export interface OfflinePlaylistRow {
   name: string;
   artwork_fs_node_id: string | null;
   song_count: number;
+  /** Preserves the liked-mirror detection (schema v3). */
+  source_external_id: string | null;
 }
 
 export const listOfflinePlaylists = (db: SQLiteDatabase): OfflinePlaylistRow[] =>
   db.getAllSync<OfflinePlaylistRow>(
-    `SELECT id, name, artwork_fs_node_id, song_count
+    `SELECT id, name, artwork_fs_node_id, song_count, source_external_id
        FROM offline_playlists
       ORDER BY name COLLATE NOCASE ASC`,
   );
 
 export const upsertOfflinePlaylist = (db: SQLiteDatabase, row: OfflinePlaylistRow): void => {
   db.runSync(
-    `INSERT INTO offline_playlists (id, name, artwork_fs_node_id, song_count, updated_at)
-     VALUES (?, ?, ?, ?, ?)
+    `INSERT INTO offline_playlists (id, name, artwork_fs_node_id, song_count, source_external_id, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?)
      ON CONFLICT(id) DO UPDATE SET
        name = excluded.name,
        artwork_fs_node_id = excluded.artwork_fs_node_id,
        song_count = excluded.song_count,
+       source_external_id = excluded.source_external_id,
        updated_at = excluded.updated_at`,
-    [row.id, row.name, row.artwork_fs_node_id, row.song_count, Date.now()],
+    [row.id, row.name, row.artwork_fs_node_id, row.song_count, row.source_external_id, Date.now()],
   );
 };
 

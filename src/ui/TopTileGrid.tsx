@@ -64,12 +64,12 @@ export const TopTileGrid = ({ items, style }: TopTileGridProps) => {
             gap: 12,
             borderRadius: RADIUS,
             overflow: "hidden",
-            backgroundColor: foregroundWash(scheme, pressed ? 0.1 : 0.05),
+            backgroundColor: foregroundWash(scheme, pressed ? 0.14 : 0.08),
           })}
         >
           <ArtworkImage source={item.artwork} size={64} shape="square" />
           <Text
-            style={{ flex: 1, color: tokens.foreground, fontSize: 14, fontWeight: "700" }}
+            style={{ flex: 1, color: tokens.foreground, fontSize: 15, fontWeight: "600" }}
             numberOfLines={2}
           >
             {item.title}

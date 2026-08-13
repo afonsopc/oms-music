@@ -77,7 +77,7 @@ export default function LikedScreen() {
   }
 
   const markRecent = (): void => {
-    recordRecentCollection({ kind: "liked", key: "liked", title, artworkNodeId: null });
+    recordRecentCollection({ kind: "liked", key: "liked", title, artworkNodeId: null, heart: true });
   };
 
   const play = (index: number): void => {

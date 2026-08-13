@@ -15,7 +15,7 @@
  *    each collapses silently when its query settles empty.
  */
 import React, { useMemo, useState, useSyncExternalStore } from "react";
-import { ScrollView, View } from "react-native";
+import { Pressable, ScrollView, View } from "react-native";
 import { useRouter } from "expo-router";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -35,6 +35,7 @@ import { mixDescription, mixStampText, mixTitle } from "@/i18n/mixLabels";
 import { albumRoute, artistRoute, mixRoute, playlistRoute } from "@/lib/routes";
 import { useTheme } from "@/theme/provider";
 import {
+  ArtworkImage,
   artworkSourceUri,
   FilterPills,
   MixTile,
@@ -45,6 +46,8 @@ import {
   TopTileGrid,
   type TopTileItem,
 } from "@/ui";
+import { avatarUrl } from "@/api/mediaUrl";
+import { useSessionStore } from "@/auth/session";
 import { getRecentCollections, subscribeRecentCollections } from "@/lib/recentCollections";
 import { useFriendsStripActive, useFriendsStripSlot } from "./friendsSlot";
 
@@ -95,6 +98,7 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const bottomPadding = useContentBottomPadding();
   const [filter, setFilter] = useState<HomeFilter>("all");
+  const userId = useSessionStore((s) => s.user?.id ?? s.session?.user_id ?? null);
 
   const recentAlbumsQuery = useRecentAlbums(RECENT_ALBUMS_LIMIT);
   const mixesQuery = useMixes();
@@ -127,11 +131,13 @@ export default function HomeScreen() {
       const id = `${entry.kind}:${entry.key}`;
       if (seen.has(id)) continue;
       seen.add(id);
-      const artwork: ArtworkSource = entry.artworkNodeId
-        ? { kind: "node", nodeId: entry.artworkNodeId }
-        : entry.artworkUrl
-          ? { kind: "external", url: entry.artworkUrl }
-          : { kind: "placeholder" };
+      const artwork: ArtworkSource = entry.heart
+        ? { kind: "likedHeart" }
+        : entry.artworkNodeId
+          ? { kind: "node", nodeId: entry.artworkNodeId }
+          : entry.artworkUrl
+            ? { kind: "external", url: entry.artworkUrl }
+            : { kind: "placeholder" };
       const onPress = (): void => {
         if (entry.kind === "playlist") {
           router.push(playlistRoute(Number(entry.key)));
@@ -206,13 +212,28 @@ export default function HomeScreen() {
         gap: 28,
       }}
     >
-      {/* Spotify's top-of-home: the pills ARE the header - the screen opens
-          straight on the quick grid (owner screenshot 2026-08-11). */}
-      <FilterPills
-        pills={pills}
-        activeKey={filter}
-        onChange={(key) => setFilter(key as HomeFilter)}
-      />
+      {/* Spotify's top-of-home: avatar + pills ARE the header - the screen
+          opens straight on the quick grid (owner screenshots 2026-08-11/13). */}
+      <View style={{ flexDirection: "row", alignItems: "center" }}>
+        {userId ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t("native.library.settings")}
+            hitSlop={8}
+            onPress={() => router.push("/(main)/settings")}
+            style={({ pressed }) => ({ paddingLeft: 24, opacity: pressed ? 0.7 : 1 })}
+          >
+            <ArtworkImage uri={avatarUrl(userId)} size={34} shape="circle" />
+          </Pressable>
+        ) : null}
+        <View style={{ flex: 1 }}>
+          <FilterPills
+            pills={pills}
+            activeKey={filter}
+            onChange={(key) => setFilter(key as HomeFilter)}
+          />
+        </View>
+      </View>
 
       {filter === "all" ? (
         recentAlbumsQuery.isLoading && playlistsQuery.isLoading ? (
