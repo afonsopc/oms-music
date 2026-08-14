@@ -36,6 +36,7 @@ import { useRemoteStore } from "@/remote/store";
 import { useTheme } from "@/theme/provider";
 import { ArtworkImage, GhostIconButton, PlayFab } from "@/ui";
 import { CinemaOverlay, openCinema } from "@/features/player/cinema";
+import { PlayerSettingsSheet } from "@/features/player/settingsSheet";
 import { Slider } from "@/features/player/Slider";
 import type { RightPanelTenant } from "./rightPanelModel";
 
@@ -129,6 +130,7 @@ export const DesktopTransportBar = ({
   useShellSlotsVersion();
 
   const song = usePlaybackView((v) => v.song);
+  const [playbackSettingsOpen, setPlaybackSettingsOpen] = useState(false);
   const playing = usePlaybackView((v) => v.playing);
   const buffering = usePlaybackView((v) => v.buffering);
   const shuffle = usePlaybackView((v) => v.shuffle);
@@ -208,8 +210,9 @@ export const DesktopTransportBar = ({
       </View>
 
       {/* Center: transport + scrub, capped so it never sprawls edge to edge
-          on an ultrawide (the audit's space-between complaint). */}
-      <View style={{ flex: 2, maxWidth: 640, gap: 2 }}>
+          on an ultrawide (the audit's space-between complaint). gap 0: the
+          buttons' own hit padding already separates them from the scrub. */}
+      <View style={{ flex: 2, maxWidth: 640, gap: 0 }}>
         <View
           style={{
             flexDirection: "row",
@@ -324,6 +327,17 @@ export const DesktopTransportBar = ({
             the old disc icon pushed the MOBILE modal player over the
             desktop shell, which fit nothing. The overlay renders above the
             grid while this bar stays visible and in charge. */}
+        {/* A porta das configs de playback (velocidade, vocal/instrumental,
+            EQ, sleep timer): o cog do player mobile, aqui como botao da
+            barra - sem ele o desktop nao tinha COMO chegar a estas opcoes
+            (feedback do dono 2026-08-14). */}
+        <GhostIconButton
+          icon="audio-waveform"
+          size={17}
+          disabled={!song}
+          accessibilityLabel={t("components.music.Settings.PlaybackPage.title")}
+          onPress={() => setPlaybackSettingsOpen(true)}
+        />
         <GhostIconButton
           icon="maximize"
           size={18}
@@ -335,6 +349,11 @@ export const DesktopTransportBar = ({
       {/* Mounted here because the bar exists at every desktop width; the
           overlay positions itself against the window, not this row. */}
       <CinemaOverlay />
+      <PlayerSettingsSheet
+        visible={playbackSettingsOpen}
+        onClose={() => setPlaybackSettingsOpen(false)}
+        song={song}
+      />
     </View>
   );
 };

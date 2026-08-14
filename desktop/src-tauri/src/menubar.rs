@@ -124,7 +124,14 @@ pub fn init<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
             }
         }
         "shell_miniplayer" => {
-            let _ = miniplayer::miniplayer_toggle(app.clone());
+            // O NSPanel do mini-player e AppKit: criar/promover a janela fora
+            // do main thread ABORTA o processo (crash reportado pelo dono ao
+            // usar exactamente este item de menu). run_on_main_thread e
+            // gratis quando ja la estamos e salva-nos quando nao.
+            let handle = app.clone();
+            let _ = app.run_on_main_thread(move || {
+                let _ = miniplayer::miniplayer_toggle(handle.clone());
+            });
         }
         _ => {}
     });

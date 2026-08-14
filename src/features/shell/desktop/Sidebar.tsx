@@ -227,15 +227,17 @@ export const DesktopSidebar = ({ collapsed, onToggleCollapsed }: DesktopSidebarP
     [filter, playlistsQuery.data, artistsQuery.data, albumsQuery.data, search, labels],
   );
 
-  // Pinned ABOVE whatever the chips chose (owner request): only the search
-  // text may hide Liked Songs, through the same predicate as every row.
+  // Pinned above the list, but ONLY where a playlist belongs: Tudo and
+  // Playlists. A "playlist Gostadas" no meio dos artistas ou dos albuns e
+  // ruido, nao ancora (feedback do dono 2026-08-14).
   const likedRow = useMemo(
     () => likedLibraryRow(t("components.music.Sidebar.liked"), labels.playlistKind),
     [t, labels],
   );
+  const wantsLiked = filter === "all" || filter === "playlists";
   const data = useMemo(
-    () => (rowMatchesSearch(likedRow, search) ? [likedRow, ...rows] : rows),
-    [likedRow, rows, search],
+    () => (wantsLiked && rowMatchesSearch(likedRow, search) ? [likedRow, ...rows] : rows),
+    [wantsLiked, likedRow, rows, search],
   );
 
   const isLoading =
@@ -270,7 +272,9 @@ export const DesktopSidebar = ({ collapsed, onToggleCollapsed }: DesktopSidebarP
   );
 
   return (
-    <View style={{ flex: 1, paddingHorizontal: collapsed ? 6 : 10, paddingVertical: 10, gap: 4 }}>
+    // paddingBottom 0: a lista rola ate BATER no limite do cartao (feedback
+    // do dono); so o topo respira.
+    <View style={{ flex: 1, paddingHorizontal: collapsed ? 6 : 10, paddingTop: 10, gap: 4 }}>
       <View style={{ gap: 2 }}>
         {NAV_ITEMS.map((item) => (
           <NavRow

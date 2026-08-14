@@ -250,14 +250,16 @@ export default function LibraryScreen() {
 
   // Pinned ABOVE whatever the pills chose (owner request 2026-08-14): the
   // quick links are gone - Liked Songs lives at the top of the list itself,
-  // on every pill, hidden only by a search text it does not match.
+  // on Tudo and Playlists only (a playlist pinned amid artists or albums is
+  // noise, owner feedback 2026-08-14), hidden by a non-matching search.
   const likedRow = useMemo(
     () => likedLibraryRow(t("components.music.Sidebar.liked"), labels.playlistKind),
     [t, labels],
   );
+  const wantsLiked = filter === "all" || filter === "playlists";
   const data = useMemo(
-    () => (rowMatchesSearch(likedRow, search) ? [likedRow, ...rows] : rows),
-    [likedRow, rows, search],
+    () => (wantsLiked && rowMatchesSearch(likedRow, search) ? [likedRow, ...rows] : rows),
+    [wantsLiked, likedRow, rows, search],
   );
 
   // Only the queries feeding the active pill count; the disabled ones sit

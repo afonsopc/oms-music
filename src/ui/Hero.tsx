@@ -45,6 +45,130 @@ export interface HeroProps {
   style?: StyleProp<ViewStyle>;
 }
 
+interface HeroContentProps {
+  desktopRow: boolean;
+  insetsTop: number;
+  containerWidth: number;
+  artSize: number;
+  artistAvatarFallback: boolean;
+  isArtistBackdrop: boolean;
+  image: ArtworkSource | null;
+  artworkSlot?: React.ReactNode;
+  title: string;
+  kindLine: string;
+  meta?: React.ReactNode;
+  titleType: { fontSize: number; lineHeight: number };
+  ink: string;
+  kindInk: string;
+  metaInk: string;
+  metaSize: number;
+}
+
+/**
+ * The hero's content in its two arrangements. MOBILE keeps the shipped
+ * vertical stack (artwork above the title, frozen below 900px). The DESKTOP
+ * shell lays it out like Spotify's playlist header (owner screenshots
+ * 2026-08-14): artwork on the LEFT, and to its right a bottom-aligned column
+ * of kind line, display title and meta - the title beside the artwork, never
+ * under it, so a 96px display face reads as a header instead of a wall.
+ */
+const HeroContent = ({
+  desktopRow,
+  insetsTop,
+  containerWidth,
+  artSize,
+  artistAvatarFallback,
+  isArtistBackdrop,
+  image,
+  artworkSlot,
+  title,
+  kindLine,
+  meta,
+  titleType,
+  ink,
+  kindInk,
+  metaInk,
+  metaSize,
+}: HeroContentProps) => {
+  // Spotify scales the cover with the pane: ~18% of the width, clamped so a
+  // narrow pane still shows a real cover and an ultrawide does not poster it.
+  const rowArtSize = Math.round(Math.min(232, Math.max(160, containerWidth * 0.18)));
+  const size = desktopRow ? rowArtSize : artSize;
+
+  const artwork = artistAvatarFallback ? (
+    image && image.kind !== "initials" ? (
+      <ArtworkImage source={image} size={size} shape="circle" />
+    ) : (
+      <InitialsAvatar name={title} size={size} />
+    )
+  ) : !isArtistBackdrop ? (
+    artworkSlot ? (
+      <View style={{ width: size, height: size }}>{artworkSlot}</View>
+    ) : image ? (
+      <ArtworkImage source={image} size={size} borderRadius={RADIUS + 4} />
+    ) : null
+  ) : null;
+
+  const textBlock = (
+    <View style={{ gap: 6, flexShrink: 1, minWidth: 0, flexGrow: desktopRow ? 1 : 0 }}>
+      <Text style={[typeScale.kindLabel, { color: kindInk }]}>{kindLine}</Text>
+      <Text
+        style={{
+          color: ink,
+          fontSize: titleType.fontSize,
+          lineHeight: titleType.lineHeight,
+          fontWeight: "900",
+          letterSpacing: -0.5,
+        }}
+        numberOfLines={desktopRow ? 2 : 3}
+      >
+        {title}
+      </Text>
+      {meta ? (
+        <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
+          {typeof meta === "string" ? (
+            <Text style={{ color: metaInk, fontSize: metaSize }}>{meta}</Text>
+          ) : (
+            meta
+          )}
+        </View>
+      ) : null}
+    </View>
+  );
+
+  if (desktopRow) {
+    return (
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "flex-end",
+          gap: 24,
+          paddingHorizontal: 24,
+          paddingTop: insetsTop + 24,
+          paddingBottom: 20,
+        }}
+      >
+        {artwork}
+        {textBlock}
+      </View>
+    );
+  }
+
+  return (
+    <View
+      style={{
+        paddingHorizontal: 24,
+        paddingTop: insetsTop + 24,
+        paddingBottom: 12,
+        gap: 16,
+      }}
+    >
+      {artwork}
+      {textBlock}
+    </View>
+  );
+};
+
 export const Hero = ({
   kind,
   title,
@@ -181,63 +305,24 @@ export const Hero = ({
           hero is the shared header of every collection screen, so without the
           inset the artwork of playlists, albums, mixes and radios all sat
           under the island. */}
-      <View
-        style={{
-          paddingHorizontal: 24,
-          paddingTop: insets.top + 24,
-          paddingBottom: 12,
-          gap: 16,
-        }}
-      >
-        {artistAvatarFallback ? (
-          image && image.kind !== "initials" ? (
-            <ArtworkImage source={image} size={artSize} shape="circle" />
-          ) : (
-            <InitialsAvatar name={title} size={artSize} />
-          )
-        ) : !isArtistBackdrop ? (
-          artworkSlot ? (
-            <View style={{ width: artSize, height: artSize }}>{artworkSlot}</View>
-          ) : image ? (
-            <ArtworkImage source={image} size={artSize} borderRadius={RADIUS + 4} />
-          ) : null
-        ) : null}
-        <View style={{ gap: 6 }}>
-          <Text style={[typeScale.kindLabel, { color: kindInk }]}>
-            {subtitle ?? t(`components.music.Hero.${kind}`)}
-          </Text>
-          <Text
-            style={{
-              color: ink,
-              fontSize: titleType.fontSize,
-              lineHeight: titleType.lineHeight,
-              fontWeight: "900",
-              letterSpacing: -0.5,
-            }}
-            numberOfLines={3}
-          >
-            {title}
-          </Text>
-          {meta ? (
-            <View
-              style={{
-                flexDirection: "row",
-                flexWrap: "wrap",
-                alignItems: "center",
-                gap: 8,
-              }}
-            >
-              {typeof meta === "string" ? (
-                // One step up on desktop: 13px under a 72/96px display title
-                // read as fine print on a monitor. Mobile keeps 13.
-                <Text style={{ color: metaInk, fontSize: desktopShell ? 14 : 13 }}>{meta}</Text>
-              ) : (
-                meta
-              )}
-            </View>
-          ) : null}
-        </View>
-      </View>
+      <HeroContent
+        desktopRow={desktopShell && !isArtistBackdrop}
+        insetsTop={insets.top}
+        containerWidth={containerWidth}
+        artSize={artSize}
+        artistAvatarFallback={artistAvatarFallback}
+        isArtistBackdrop={isArtistBackdrop}
+        image={image ?? null}
+        artworkSlot={artworkSlot}
+        title={title}
+        kindLine={subtitle ?? t(`components.music.Hero.${kind}`)}
+        meta={meta}
+        titleType={titleType}
+        ink={ink}
+        kindInk={kindInk}
+        metaInk={metaInk}
+        metaSize={desktopShell ? 14 : 13}
+      />
     </View>
   );
 };
