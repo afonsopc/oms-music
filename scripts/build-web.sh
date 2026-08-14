@@ -90,7 +90,12 @@ while IFS='|' read -r rule src dest; do
   [ -n "$rule" ] || continue
   [ -f "$DIST/$src" ] || fail "shell dinâmico em falta: ${DIST}/${src} (a rota mudou?)"
   mv "$DIST/$src" "$DIST/$dest"
-  printf '%s /%s 200\n' "$rule" "$dest" >> "$REDIRECTS"
+  # Alvo SEM .html: com a extensao no alvo, o pretty-URL do Pages responde
+  # com um 308 de normalizacao em vez de reescrever, e o URL real do
+  # artista/album perde-se antes de o router cliente o poder resolver
+  # (observado no primeiro staging, 2026-08-14). O Pages mapeia o caminho
+  # sem extensao para o .html internamente.
+  printf '%s /%s 200\n' "$rule" "${dest%.html}" >> "$REDIRECTS"
 done <<'EOF'
 /artist/:artist|artist/[artist].html|artist/__dynamic.html
 /album/:artist/:album|album/[artist]/[album].html|album/__dynamic.html
