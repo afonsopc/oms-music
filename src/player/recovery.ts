@@ -12,6 +12,15 @@ import type { SongKey } from "@/domain/ids";
 
 export const FAILURE_TOAST_THROTTLE_MS = 3000;
 
+/**
+ * How long a recovered song must play audibly before it EARNS a fresh
+ * recovery attempt. Long enough that a play-for-a-second-then-die stream
+ * still marks failed and advances (no infinite recover loop), short enough
+ * that the second presigned-URL expiry hours into a repeat-one session gets
+ * an in-place recovery instead of a skip.
+ */
+export const PROVEN_AUDIBLE_MS = 10_000;
+
 /** i18n key for the throttled toast; already in all three catalogs. */
 export const SONG_UNAVAILABLE_TOAST_KEY =
   "components.music.MusicProvider.songUnavailableSkipped";
@@ -30,6 +39,7 @@ export const setPlayerToastHandler = (handler: PlayerToastHandler): void => {
 export class RecoveryTracker {
   private readonly failed = new Set<SongKey>();
   private recoveryAttemptSongKey: SongKey | null = null;
+  private recoveryAttemptAt = 0;
   private lastToastAt = 0;
   private onFailedSetChanged: ((keys: ReadonlySet<SongKey>) => void) | null = null;
 
@@ -46,6 +56,7 @@ export class RecoveryTracker {
   beginRecoveryAttempt(songKey: SongKey): boolean {
     if (this.recoveryAttemptSongKey === songKey) return false;
     this.recoveryAttemptSongKey = songKey;
+    this.recoveryAttemptAt = this.now();
     return true;
   }
 
@@ -59,6 +70,20 @@ export class RecoveryTracker {
       this.lastToastAt = at;
       toastHandler(SONG_UNAVAILABLE_TOAST_KEY);
     }
+  }
+
+  /**
+   * Proven audible: after PROVEN_AUDIBLE_MS of playback the recovery worked,
+   * so the song has EARNED a fresh attempt for its next failure. Without
+   * this, the marker made recovery a once-per-song affair - the second
+   * presigned-URL expiry hours later (long session, repeat-one) skipped the
+   * song instead of re-minting a URL. The time gate keeps the flip side: a
+   * stream that plays for a second and dies again still marks failed.
+   */
+  noteAudible(songKey: SongKey): void {
+    if (this.recoveryAttemptSongKey !== songKey) return;
+    if (this.now() - this.recoveryAttemptAt < PROVEN_AUDIBLE_MS) return;
+    this.recoveryAttemptSongKey = null;
   }
 
   /** A song that audibly plays is proven good again. */

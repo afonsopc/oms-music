@@ -51,14 +51,6 @@ export class WifiRefusedError extends Error {
 export const isWifiRefusedError = (e: unknown): e is WifiRefusedError =>
   e instanceof WifiRefusedError;
 
-export interface InFlightRow {
-  songKey: SongKey;
-  title: string;
-  artistsLine: Song | null;
-  status: "queued" | "downloading";
-  progress: number;
-}
-
 interface ActiveSession {
   userId: UserId;
   db: SQLiteDatabase;
@@ -698,3 +690,20 @@ export const forgetOfflinePlaylist = (id: number): void => {
 /** Downloaded playlists, name and artwork included, for the offline resolver. */
 export const downloadedPlaylists = (): repo.OfflinePlaylistRow[] =>
   active ? repo.listOfflinePlaylists(active.db) : [];
+
+/** Persisted membership of an offline collection (schema v4). */
+export const rememberCollectionMembership = (
+  collectionKey: string,
+  songKeys: readonly SongKey[],
+): void => {
+  if (!active) return;
+  repo.replaceCollectionSongs(active.db, collectionKey, songKeys);
+};
+
+export const collectionSongKeys = (collectionKey: string): SongKey[] =>
+  active ? repo.listCollectionSongKeys(active.db, collectionKey) : [];
+
+export const forgetCollectionMembership = (collectionKey: string): void => {
+  if (!active) return;
+  repo.deleteCollectionSongs(active.db, collectionKey);
+};

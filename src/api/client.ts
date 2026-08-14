@@ -81,7 +81,11 @@ export async function request<T>(
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), opts.timeoutMs ?? DEFAULT_TIMEOUT_MS);
 
+  // The timeout stays armed across the BODY read too: a server that sends
+  // headers and then stalls the body would otherwise hang this promise
+  // forever, and a hung resolveDataUrl is a permanent player spinner.
   let response: Response;
+  let text: string;
   try {
     response = await fetch(url, {
       method,
@@ -90,19 +94,19 @@ export async function request<T>(
       signal: controller.signal,
       cache: "no-store",
     });
+
+    if (response.status === 204) return undefined as T;
+
+    if (response.status === 304) {
+      // The client sends no validators; if the native stack still surfaces a
+      // 304, the query layer resolves it with the previous data (DESIGN 5.6).
+      throw new ApiError(304, "Not modified");
+    }
+
+    text = await response.text();
   } finally {
     clearTimeout(timeout);
   }
-
-  if (response.status === 204) return undefined as T;
-
-  if (response.status === 304) {
-    // The client sends no validators; if the native stack still surfaces a
-    // 304, the query layer resolves it with the previous data (DESIGN 5.6).
-    throw new ApiError(304, "Not modified");
-  }
-
-  const text = await response.text();
   let parsed: unknown = undefined;
   if (text) {
     try {

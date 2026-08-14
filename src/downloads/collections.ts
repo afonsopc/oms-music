@@ -19,16 +19,19 @@ import { useEffect } from "react";
 import {
   addOfflineCollection,
   downloadSong,
+  forgetCollectionMembership,
   isOfflineCollectionKey,
   isStarted,
   isWifiRefusedError,
   normalizeSongKey,
+  rememberCollectionMembership,
   removeDownload,
   removeOfflineCollection,
   rememberOfflinePlaylist,
   forgetOfflinePlaylist,
 } from "./manager";
 import { NOTICE_KEYS, notifyDownloadNotice } from "./notices";
+import { isOffline } from "./offlineLibrary";
 import { getMixedStatus } from "./status";
 import type { SongKey } from "@/domain/ids";
 import type { Song } from "@/domain/song";
@@ -50,9 +53,13 @@ export const subscribeCollections = (cb: () => void): (() => void) => {
 
 export const isOfflineCollection = (key: string): boolean => isOfflineCollectionKey(key);
 
-/** Records the songs a collection currently holds (removal safety net). */
+/** Records the songs a collection currently holds (removal safety net).
+ *  Offline collections ALSO persist the membership (schema v4) so a cold
+ *  offline boot can rebuild the playlist screen from disk. */
 export const rememberCollectionSongs = (key: string, songs: readonly Song[]): void => {
-  membership.set(key, new Set(songs.map((s) => normalizeSongKey(s.id))));
+  const songKeys = songs.map((s) => normalizeSongKey(s.id));
+  membership.set(key, new Set(songKeys));
+  if (isOfflineCollectionKey(key)) rememberCollectionMembership(key, songKeys);
 };
 
 /** True when some OTHER offline collection still needs this song. */
@@ -96,6 +103,7 @@ export const toggleOfflineCollection = async (
 
   if (turningOn) {
     addOfflineCollection(key);
+    rememberCollectionMembership(key, songs.map((s) => normalizeSongKey(s.id)));
     notify();
     await downloadSongsSequentially(songs);
     notify();
@@ -103,6 +111,7 @@ export const toggleOfflineCollection = async (
   }
 
   removeOfflineCollection(key);
+  forgetCollectionMembership(key);
   notify();
   for (const song of songs) {
     const songKey = normalizeSongKey(song.id);
@@ -127,6 +136,9 @@ export const syncOfflineCollection = async (
 ): Promise<void> => {
   rememberCollectionSongs(key, songs);
   if (!isOfflineCollectionKey(key) || syncing.has(key)) return;
+  // Effective-offline covers the GO OFFLINE override too: the silent pass
+  // must not fire doomed (or unwanted) transfers; repair catches up later.
+  if (isOffline()) return;
   syncing.add(key);
   try {
     for (const song of songs) {

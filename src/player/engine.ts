@@ -45,6 +45,24 @@ const POSITION_EMIT_MS = 250;
 /** ~6 statuses at the 4 Hz cadence before the stall watchdog nudges. */
 const STALL_TICKS = 6;
 const STALL_NUDGE_MIN_MS = 4_000;
+/**
+ * A playing->stopped flip this soon after a buffering status is a buffer
+ * DRAIN the 4 Hz sampler half-missed, not an external pause: keep the
+ * intent so the watchdogs can recover it. Clearing intent on such a flip
+ * was the silent permanent stop of the 2026-08-10 report.
+ */
+const RECENT_BUFFER_WINDOW_MS = 3_000;
+/**
+ * Wall-clock stuck checker, deliberately independent of the status pump:
+ * during an indefinite AVPlayer stall iOS emits NO statuses and NO error,
+ * so a status-driven watchdog never runs. This one always does.
+ */
+const STUCK_CHECK_INTERVAL_MS = 5_000;
+/** Meant-to-be-audible but silent for this long -> stream error ladder. */
+const STUCK_SILENT_MS = 20_000;
+/** Same, while a resolve+replace is still in flight (2 x 20 s client
+ *  timeout + margin; a hung transport must not spin forever). */
+const STUCK_LOAD_MS = 50_000;
 /** expo-audio rate ceiling on both mobile platforms. */
 const PLATFORM_MAX_RATE = 2;
 
@@ -106,7 +124,19 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
    */
   private stemGen = 0;
   /** The pair currently loaded in the mixer; a re-sync to it is a no-op. */
-  private engagedStems: { vocals: string; instrumental: string } | null = null;
+  private engagedStems: { vocals: string; instrumental: string; passthrough: boolean } | null =
+    null;
+  /**
+   * Serialized engage pipeline: the adapter tears the LIVE graph down at the
+   * start of every replaceStems, so two engages racing (mode churn, the
+   * residency poke landing mid-prepare) could end with the main muted and no
+   * mixer - total silence. Every engage queues behind the previous one.
+   */
+  private engageChain: Promise<void> = Promise.resolve();
+  /** True from just before replaceStems until it settles: the mixer failure
+   *  channel must not be deaf during exactly the prepare window. */
+  private engageInFlight = false;
+  private engageInFlightPassthrough = false;
   /** The main source actually handed to the player (EQ passthrough gate). */
   private loadedMain: { kind: "jam" | "local" | "network"; uri: string } | null = null;
   private prevPlaying = false;
@@ -114,6 +144,12 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
   /** Stall watchdog (owner report 2026-08-10): consecutive wedged statuses. */
   private stallTicks = 0;
   private lastStallNudgeAt = 0;
+  /** Last time a status reported isBuffering (RECENT_BUFFER_WINDOW_MS).
+   *  -Infinity, not 0: "never buffered" must read as long-ago on any clock. */
+  private lastBufferingAt = Number.NEGATIVE_INFINITY;
+  /** Wall-clock stuck checker state (see STUCK_CHECK_INTERVAL_MS). */
+  private stuckSince: number | null = null;
+  private readonly stuckTimer: ReturnType<typeof setInterval> | null = null;
   private readonly statusUnsub: () => void;
   /** The mixer's failure channel; inert (a no-op) without a native mixer. */
   private readonly stemStatusUnsub: () => void;
@@ -148,10 +184,26 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
     // mixer BEFORE it builds the engine (it does; that ordering is also what
     // seeds `stemMixerAvailable`).
     this.stemStatusUnsub = getStemMixer().onStatus((s) => {
-      if (s.error === null || !this.engagedStems) return;
+      if (s.error === null) return;
+      // `engageInFlight` matters as much as a confirmed blend: an error
+      // emitted between prepare and confirmation used to be swallowed
+      // (engagedStems is null exactly then) and the dead mixer got confirmed
+      // behind a muted main. Bumping stemGen makes the pending confirmation
+      // stale, and its cleanup releases the adapter.
+      const engaged = this.engagedStems;
+      if (!engaged && !this.engageInFlight) return;
+      const passthrough = engaged ? engaged.passthrough : this.engageInFlightPassthrough;
       this.stemGen++; // anything still provisioning for this blend is stale
-      this.releaseStemBlend("failed");
+      // A passthrough failure never surfaces the custom-blend UI: the plain
+      // mix recovers by itself and only the EQ silently disengages.
+      this.releaseStemBlend(passthrough ? "off" : "failed");
     });
+
+    // Wall-clock stuck checker. `unref` exists under bun/node (tests) and
+    // keeps the process exit clean; React Native has no such method.
+    const timer = setInterval(() => this.checkStuckPlayback(), STUCK_CHECK_INTERVAL_MS);
+    (timer as unknown as { unref?: () => void }).unref?.();
+    this.stuckTimer = timer;
   }
 
   /**
@@ -350,7 +402,10 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
   }
 
   toggle(): void {
-    if (this.player.playing) this.pause();
+    // On INTENT, not the native readback: during a wedged/buffering load the
+    // player reports playing:false, so a readback-based toggle re-asserted
+    // play forever and the user had no way to cancel a stuck spinner.
+    if (this.intendedPlay || this.player.playing) this.pause();
     else this.play();
   }
 
@@ -371,8 +426,11 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
 
   seek(seconds: number): void {
     const target = Math.max(0, seconds);
-    if (this.player.duration > 0) {
-      this.seekWithRetry(target);
+    // While a load is in flight the player still holds the OUTGOING source:
+    // seeking it discards the user's scrub (the new source starts at 0).
+    // Park the target in pendingSeek instead; it applies when metadata lands.
+    if (!this.loadInFlight() && this.player.duration > 0) {
+      void this.seekWithRetry(target);
     } else {
       this.pendingSeek = target;
     }
@@ -677,12 +735,32 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
       });
   }
 
-  private async engageStemBlend(
+  /**
+   * Every engage QUEUES behind the previous one (see `engageChain`): the
+   * adapter's replaceStems tears the live graph down before preparing the
+   * new one, so two engages in flight at once could interleave into a muted
+   * main with no mixer (silence) or a wedged blend playing the plain mix.
+   */
+  private engageStemBlend(
     gen: number,
     vocals: string,
     instrumental: string,
     opts?: { passthrough?: boolean },
   ): Promise<void> {
+    const run = () => this.doEngageStemBlend(gen, vocals, instrumental, opts);
+    this.engageChain = this.engageChain.then(run, run);
+    return this.engageChain;
+  }
+
+  private async doEngageStemBlend(
+    gen: number,
+    vocals: string,
+    instrumental: string,
+    opts?: { passthrough?: boolean },
+  ): Promise<void> {
+    // Queued behind a slow prepare: re-check staleness at START, not just
+    // at the end - a newer sync may have run while this one waited.
+    if (this.disposed || gen !== this.stemGen) return;
     const replaceStems = this.player.replaceStems;
     if (!replaceStems) {
       this.releaseStemBlend(opts?.passthrough ? "off" : "unsupported");
@@ -692,25 +770,35 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
     // the previous one inside replaceStems, so holding the old pair across
     // the await would let a concurrent sync skip a re-engage it needs.
     this.engagedStems = null;
+    this.engageInFlight = true;
+    this.engageInFlightPassthrough = !!opts?.passthrough;
     try {
       // The adapter mutes the main player and starts both stems aligned to
       // its clock and play state, so position and play state survive the
       // swap the same way swapSourcePreservingPosition preserves them.
       await replaceStems.call(this.player, vocals, instrumental, opts);
     } catch {
+      this.engageInFlight = false;
       if (gen !== this.stemGen) return;
       this.engagedStems = null;
+      // replaceStems can fail AFTER muting the main (setRate/seek/play on a
+      // bad native session): restore the gain law so the plain mix is
+      // audible again instead of leaving a dead muted graph behind.
+      this.player.releaseStems?.();
       // A passthrough the mixer cannot open (exotic codec) fails SILENTLY:
       // the plain mix keeps playing, only the custom blend surfaces errors.
       this.setStemState(opts?.passthrough ? "off" : "failed");
       return;
     }
+    this.engageInFlight = false;
     if (gen !== this.stemGen) {
-      // A newer sync (mode change, skip, stems deleted) won the race: undo.
+      // A newer sync (mode change, skip, stems deleted, mixer error) won:
+      // undo. Safe to release unconditionally BECAUSE engages serialize -
+      // no newer engage can own the graph while this one is settling.
       this.player.releaseStems?.();
       return;
     }
-    this.engagedStems = { vocals, instrumental };
+    this.engagedStems = { vocals, instrumental, passthrough: !!opts?.passthrough };
     this.pushStemGains();
     this.pushEqualizer();
     this.player.setRate(this.platformRate(playerStore.getState().rate));
@@ -761,6 +849,7 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
 
   dispose(): void {
     this.disposed = true;
+    if (this.stuckTimer !== null) clearInterval(this.stuckTimer);
     this.stemGen++;
     this.releaseStemBlend("off");
     this.statusUnsub();
@@ -865,6 +954,9 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
       replaced: false,
     };
     this.lastErrorKey = null;
+    // Every load starts its stuck-clock afresh: silence accumulated while
+    // the PREVIOUS song buffered must not count against this one.
+    this.stuckSince = null;
     if (candidates.length === 0) {
       this.markSongFailedAndAdvance(key);
       return;
@@ -911,17 +1003,37 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
     }
 
     this.lastErrorKey = null;
-    this.player.replace(uri);
-    this.loadedMain = { kind: candidate.kind, uri };
-    load.replaced = true;
-    this.player.setRate(this.platformRate(playerStore.getState().rate));
-    if (autoplay) {
-      this.intendedPlay = true;
-      this.player.play();
+    try {
+      this.player.replace(uri);
+      this.loadedMain = { kind: candidate.kind, uri };
+      load.replaced = true;
+      this.player.setRate(this.platformRate(playerStore.getState().rate));
+      // The LIVE intent, not just the flag captured when the transition
+      // began: a pause issued during the resolve round-trip must win, not
+      // be overridden by music starting seconds after the user said stop.
+      if (autoplay && this.intendedPlay) {
+        this.player.play();
+      } else if (!this.intendedPlay) {
+        // A paused load emits at most one status on iOS, and that one
+        // reports isBuffering for a just-attached network item: nothing
+        // else would ever clear the spinner beginLoad raised.
+        playerStore.setState({ buffering: false });
+      }
+      // The muted clock is in place: bring the blend back if custom mode
+      // wants one for this song (track change, mode swap, recovery reload).
+      this.syncStemMode();
+    } catch {
+      // replace()/setRate() can throw synchronously (released native object,
+      // bridge error). Swallowed by the `void` call sites, that left
+      // buffering:true behind a loadInFlight gate forever: ladder instead.
+      if (gen !== this.transitionGen || this.loadingSongKey !== load.songKey) return;
+      if (load.index < load.candidates.length - 1) {
+        load.index++;
+        void this.loadCandidate(gen, autoplay, fresh);
+        return;
+      }
+      this.markSongFailedAndAdvance(load.songKey);
     }
-    // The muted clock is in place: bring the blend back if custom mode wants
-    // one for this song (track change, mode swap, recovery reload).
-    this.syncStemMode();
   }
 
   /** Mode switches and stem reconciliation preserve position + play state. */
@@ -929,7 +1041,11 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
     const song = ops.currentSongOf(this.q);
     if (!song) return;
     const wasPlaying = this.player.playing || this.intendedPlay;
-    const position = this.player.currentTime;
+    // During a resolve window the player clock still belongs to the OUTGOING
+    // song: sampling it would carry the previous song's position into the
+    // new one as a pendingSeek. The load's own pendingSeek (or 0 for a fresh
+    // start) is the truth of where the incoming song should begin.
+    const position = this.loadInFlight() ? (this.pendingSeek ?? 0) : this.player.currentTime;
     this.player.pause();
     this.pendingSeek = position > 0 ? position : null;
     this.intendedPlay = wasPlaying;
@@ -972,8 +1088,10 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
         return;
       }
       this.intendedPlay = true;
-      void this.seekWithRetry(0).then(() => {
-        if (this.intendedPlay) this.player.play();
+      void this.seekWithRetry(0).then((landed) => {
+        // play() against a player parked at the end is a documented no-op;
+        // when the rewind failed, leave it to the watchdog's 0-nudge.
+        if (landed && this.intendedPlay) this.player.play();
       });
       return;
     }
@@ -1006,8 +1124,11 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
         return;
       }
       this.intendedPlay = true;
-      void this.seekWithRetry(0).then(() => {
-        if (this.intendedPlay) this.player.play();
+      void this.seekWithRetry(0).then((landed) => {
+        // A failed rewind leaves the player parked at the end, where play()
+        // is a no-op: the stall watchdog's 0-nudge picks it up instead of
+        // this call pretending it worked.
+        if (landed && this.intendedPlay) this.player.play();
       });
       return;
     }
@@ -1057,19 +1178,27 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
     playerStore.setState({ buffering: false });
     this.recovery.markFailed(failedKey); // throttled toast lives inside
     const st = this.q;
-    let index = st.queueIndex + 1;
-    if (index >= st.queueOrder.length) {
-      if (this.loopMode() !== "all") return;
-      index = 0;
+    const len = st.queueOrder.length;
+    // Scan FORWARD past already-failed entries to the first playable song,
+    // bounded by one full pass. Halting on the immediate neighbor silently
+    // stopped playback when one bad song sat next in the queue while
+    // perfectly playable ones waited right behind it.
+    let index = st.queueIndex;
+    for (let step = 0; step < len; step++) {
+      index++;
+      if (index >= len) {
+        if (this.loopMode() !== "all") return;
+        index = 0;
+      }
+      if (index === st.queueIndex) return; // full circle: nothing playable
+      const upcoming = st.queue[st.queueOrder[index]!];
+      if (!upcoming) return;
+      if (this.recovery.hasFailed(toSongKey(upcoming.id))) continue;
+      this.q = ops.setQueueIndex(st, index);
+      this.syncQueue();
+      this.handleSongTransition("auto");
+      return;
     }
-    if (index === st.queueIndex) return;
-    const upcoming = st.queue[st.queueOrder[index]!];
-    // Stop the chain when the next entry already failed: advancing would
-    // just loop the failure chain through a dead queue.
-    if (upcoming && this.recovery.hasFailed(toSongKey(upcoming.id))) return;
-    this.q = ops.setQueueIndex(st, index);
-    this.syncQueue();
-    this.handleSongTransition("auto");
   }
 
   // ----- status pump --------------------------------------------------------
@@ -1077,8 +1206,19 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
   private onStatus(s: AudioAdapterStatus): void {
     if (this.disposed) return;
     const load = this.currentLoad;
+    // While a load is in flight and its candidate has not been handed to
+    // the player yet, every status still describes the OUTGOING source
+    // (see CurrentLoad.replaced). Errors, finishes, seeks and buffering
+    // mirrors must all ignore those - they belong to an abandoned source.
+    const loadInFlight = this.loadInFlight();
+    if (s.isBuffering) this.lastBufferingAt = this.now();
 
     if (s.error) {
+      // A stale async error from the outgoing source (network drop surfacing
+      // seconds late) must not be attributed to the NEW load: it burned the
+      // new song's single recovery attempt and could skip it before it was
+      // ever tried.
+      if (loadInFlight) return;
       const errorKey = `${this.transitionGen}:${load?.index ?? -1}`;
       if (this.lastErrorKey !== errorKey) {
         this.lastErrorKey = errorKey;
@@ -1088,6 +1228,10 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
     }
 
     if (s.didJustFinish) {
+      // Same staleness rule: a finish from the outgoing source during the
+      // resolve window would advance the queue a SECOND time and skip the
+      // song the user just selected.
+      if (loadInFlight) return;
       this.prevPlaying = s.playing;
       playerStore.setState({ playing: s.playing, buffering: false });
       this.handleEnded();
@@ -1112,9 +1256,17 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
     }
 
     // Audible acceptance: the candidate is good; the song is proven again.
-    if (s.playing && s.isLoaded && !s.isBuffering) {
+    // Gated on the source actually being THIS load's (replaced): a stale
+    // playing status from the outgoing source must not vouch for a
+    // candidate the player never touched.
+    if (s.playing && s.isLoaded && !s.isBuffering && !loadInFlight) {
       const song = ops.currentSongOf(this.q);
-      if (song) this.recovery.clearFailed(toSongKey(song.id));
+      if (song) {
+        const key = toSongKey(song.id);
+        this.recovery.clearFailed(key);
+        // Proven audible: re-arm the once-per-song recovery attempt.
+        this.recovery.noteAudible(key);
+      }
       if (load && !load.audible && load.gen === this.transitionGen) {
         load.audible = true;
         this.emit("audiblePlaying", { songKey: load.songKey });
@@ -1126,38 +1278,51 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
     // WHILE BUFFERING is not an interruption - it is a slow network draining
     // the buffer - and treating it as one is what made playback "give up"
     // permanently on bad connections (owner report 2026-08-10): keep the
-    // intent, and the stall watchdog below restarts the player.
+    // intent, and the stall watchdog below restarts the player. The recent-
+    // buffering window covers the drain the 4 Hz sampler half-missed: a
+    // flip that lands moments after ANY buffering status is still a stall.
     if (s.playing !== this.prevPlaying) {
       this.prevPlaying = s.playing;
       playerStore.setState({ playing: s.playing });
-      if (!s.playing && this.intendedPlay && load?.audible && !s.isBuffering) {
+      if (
+        !s.playing &&
+        this.intendedPlay &&
+        load?.audible &&
+        !s.isBuffering &&
+        this.now() - this.lastBufferingAt > RECENT_BUFFER_WINDOW_MS
+      ) {
         this.intendedPlay = false; // interruption: never auto-resume
       }
       this.emit("playStateChanged", { playing: s.playing });
       this.deps.onLockScreenUpdate?.(ops.currentSongOf(this.q));
     }
 
-    // While a load is in flight and its candidate has not been handed to the
-    // player yet, every status still describes the OUTGOING (paused, fully
-    // buffered) source, whose `isBuffering: false` would clear the flag
-    // beginLoad just raised. The web keeps `buffering` true from reloadSrc
-    // until `canplay`, i.e. across exactly this resolve + first-byte window.
-    const loadInFlight = !!load && load.gen === this.transitionGen && !load.replaced;
-    if (!loadInFlight && playerStore.getState().buffering !== s.isBuffering) {
-      playerStore.setState({ buffering: s.isBuffering });
+    // While a load is in flight, every status still describes the OUTGOING
+    // (paused, fully buffered) source, whose `isBuffering: false` would
+    // clear the flag beginLoad just raised. The web keeps `buffering` true
+    // from reloadSrc until `canplay`, i.e. across exactly this resolve +
+    // first-byte window. A player NOT meant to be audible is never
+    // "buffering" either: a paused network item reports isBuffering on its
+    // one readyToPlay status and then goes silent, which pinned the spinner.
+    const mirroredBuffering = s.isBuffering && this.intendedPlay;
+    if (!loadInFlight && playerStore.getState().buffering !== mirroredBuffering) {
+      playerStore.setState({ buffering: mirroredBuffering });
     }
 
     // Stall watchdog (owner report 2026-08-10): loaded, not playing, not
     // buffering, while the engine INTENDS play - a wedged native player.
     // The user's manual fix was "seek, then it plays"; do exactly that,
-    // automatically, at most once per few seconds.
+    // automatically, at most once per few seconds. A player parked AT THE
+    // END (repeat-one whose rewind failed) is nudged to 0, not back to the
+    // end it is stuck at.
     if (s.isLoaded && this.intendedPlay && !s.playing && !s.isBuffering && !loadInFlight) {
       this.stallTicks++;
       const at = this.now();
       if (this.stallTicks >= STALL_TICKS && at - this.lastStallNudgeAt >= STALL_NUDGE_MIN_MS) {
         this.stallTicks = 0;
         this.lastStallNudgeAt = at;
-        void this.seekWithRetry(s.currentTime).then(() => {
+        const target = s.duration > 0 && s.currentTime >= s.duration - 1 ? 0 : s.currentTime;
+        void this.seekWithRetry(target).then(() => {
           if (this.intendedPlay) this.player.play();
         });
       }
@@ -1224,13 +1389,52 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
     return clamp(rate, 0.25, PLATFORM_MAX_RATE);
   }
 
-  /** Resolves once the seek has landed (or all three attempts failed). */
-  private seekWithRetry(seconds: number): Promise<void> {
-    return this.player
-      .seekTo(seconds)
-      .catch(() => this.player.seekTo(seconds))
-      .catch(() => this.player.seekTo(seconds))
-      .catch(() => undefined);
+  /** True while a begun load has not handed its candidate to the player. */
+  private loadInFlight(): boolean {
+    const load = this.currentLoad;
+    return !!load && load.gen === this.transitionGen && !load.replaced;
+  }
+
+  /**
+   * The wall-clock stuck checker (STUCK_CHECK_INTERVAL_MS). The status
+   * watchdog above needs statuses; iOS emits NONE during an indefinite
+   * AVPlayer stall (and no error either), so "meant to be audible but
+   * silent for too long" is measured here on wall time and escalated into
+   * the existing stream-error ladder: fresh presigned URL at the current
+   * position, then mark-and-advance. Also covers the hung-resolve case
+   * (loadInFlight) with a longer allowance.
+   */
+  private checkStuckPlayback(): void {
+    if (this.disposed) return;
+    const inFlight = this.loadInFlight();
+    const silent =
+      this.intendedPlay && !this.player.playing && (this.player.hasSource || inFlight);
+    if (!silent) {
+      this.stuckSince = null;
+      return;
+    }
+    const at = this.now();
+    if (this.stuckSince === null) {
+      this.stuckSince = at;
+      return;
+    }
+    if (at - this.stuckSince < (inFlight ? STUCK_LOAD_MS : STUCK_SILENT_MS)) return;
+    this.stuckSince = null;
+    this.handleStreamError();
+  }
+
+  /** Resolves TRUE once the seek has landed, FALSE when all three attempts
+   *  failed - repeat-one must not play() a player still parked at the end. */
+  private async seekWithRetry(seconds: number): Promise<boolean> {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        await this.player.seekTo(seconds);
+        return true;
+      } catch {
+        // Next attempt; the final failure reports false.
+      }
+    }
+    return false;
   }
 
   private syncQueue(): void {

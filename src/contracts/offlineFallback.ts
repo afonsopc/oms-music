@@ -10,6 +10,7 @@ export type OfflineFallbackKey =
   | "albums"
   | "artists"
   | "playlists"
+  | "playlistSongs"
   | "liked"
   | "lyrics";
 

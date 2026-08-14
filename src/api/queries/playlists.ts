@@ -20,6 +20,8 @@ import type { PlaylistId, SongId } from "@/domain/ids";
 import type { Playlist } from "@/domain/playlist";
 
 const listPlaylistsWithFallback = withOfflineFallback(listPlaylists, "playlists");
+// Same key: the resolver dispatches a single id arg as the detail lookup.
+const getPlaylistWithFallback = withOfflineFallback(getPlaylist, "playlists");
 
 export const usePlaylists = (opts: { page?: `${number}:${number}`; enabled?: boolean } = {}) => {
   const authReady = useAuthReady();
@@ -56,7 +58,7 @@ export const usePlaylist = (id: PlaylistId | null) => {
   const key = id != null ? keys.playlists.detail(id) : ["playlists", "detail", "none"];
   return useQuery({
     queryKey: key,
-    queryFn: guardedQueryFn(key, () => getPlaylist(id as PlaylistId)),
+    queryFn: guardedQueryFn(key, () => getPlaylistWithFallback(id as PlaylistId)),
     enabled: authReady && id != null,
   });
 };

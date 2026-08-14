@@ -3,7 +3,7 @@
  * Changes go through the WP1 owner as explicit change requests.
  */
 
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 /**
  * Migration 2: offline playlist metadata.
@@ -79,6 +79,24 @@ ALTER TABLE offline_playlists ADD COLUMN source_external_id TEXT;
 `;
 
 /**
+ * Migration 4: persisted membership of offline collections.
+ *
+ * Membership lived in a session-scoped Map filled as collection screens were
+ * seen ONLINE, so a cold boot in airplane mode knew that playlist 42 was
+ * downloaded but not which songs it holds: the playlist screen erred even
+ * though every file sat on disk. Rows are replaced whenever a collection
+ * screen loads its songs and dropped when the collection is turned off.
+ */
+export const MIGRATION_OFFLINE_COLLECTION_SONGS = `
+CREATE TABLE IF NOT EXISTS offline_collection_songs (
+  collection_key TEXT NOT NULL,
+  song_key       TEXT NOT NULL,
+  position       INTEGER NOT NULL,
+  PRIMARY KEY (collection_key, song_key)
+);
+`;
+
+/**
  * Ordered migrations. Index 0 applies when the stored schema_version is 0
  * (fresh db). Future migrations append; NEVER edit an applied entry.
  */
@@ -86,4 +104,5 @@ export const MIGRATIONS: readonly string[] = [
   DDL,
   MIGRATION_OFFLINE_PLAYLISTS,
   MIGRATION_OFFLINE_PLAYLIST_SOURCE,
+  MIGRATION_OFFLINE_COLLECTION_SONGS,
 ];

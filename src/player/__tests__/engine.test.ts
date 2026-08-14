@@ -208,9 +208,11 @@ describe("recovery ladder (FR-61)", () => {
     ctx.player.tick(1);
     ctx.player.emitError("boom"); // recovery attempt
     await flush();
+    // A second failure within the proving window (PROVEN_AUDIBLE_MS) still
+    // marks + advances - the brief resume does not re-arm the recovery.
     ctx.player.emitLoaded(200);
     ctx.player.tick(1);
-    ctx.player.emitError("boom again"); // second failure: mark + advance
+    ctx.player.emitError("boom again");
     await flush();
     expect(playerStore.getState().failedSongKeys.has(toSongKey(1))).toBe(true);
     expect(playerStore.getState().queueIndex).toBe(1);
@@ -254,6 +256,34 @@ describe("recovery ladder (FR-61)", () => {
     ctx.player.tick(1);
     expect(playerStore.getState().failedSongKeys.has(toSongKey(1))).toBe(false);
     ctx.engine.dispose();
+  });
+
+  it("audible play past the proving window RE-ARMS the in-place recovery", async () => {
+    resetPlayerStore();
+    setPlaybackInterceptor(null);
+    let t = 0;
+    const ctx = makeEngineDeps({ now: () => t });
+    const engine = new PlayerEngineImpl(ctx.deps);
+    const s1 = makeSong(1);
+    ctx.resolver.control.urls.set(`compressed-${s1.id}`, `http://cdn/${s1.id}`);
+    engine.setQueue([s1]);
+    await flush();
+    ctx.player.emitLoaded(200);
+    ctx.player.tick(1);
+    ctx.player.emitError("expired once");
+    await flush();
+    // Recovered and audibly playing WELL past the proving window (a long
+    // repeat-one session between two presigned expiries)...
+    ctx.player.emitLoaded(200);
+    t += 15_000;
+    ctx.player.tick(1);
+    const callsBefore = ctx.resolver.control.calls.length;
+    // ...so the SECOND expiry gets a fresh in-place recovery, not a skip.
+    ctx.player.emitError("expired again");
+    await flush();
+    expect(ctx.resolver.control.calls.length).toBe(callsBefore + 1);
+    expect(playerStore.getState().failedSongKeys.has(toSongKey(1))).toBe(false);
+    engine.dispose();
   });
 
   it("URL resolve failure (both attempts) marks and advances immediately", async () => {

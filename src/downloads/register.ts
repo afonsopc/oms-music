@@ -51,7 +51,13 @@ import {
   startManager,
   stopManager,
 } from "./manager";
-import { registerOfflineLibrary, setOnlineState } from "./offlineLibrary";
+import {
+  hydrateManualOffline,
+  isManualOffline,
+  registerOfflineLibrary,
+  setOnlineState,
+  subscribeManualOffline,
+} from "./offlineLibrary";
 import { runRepairPass } from "./repair";
 import { getDownloadSettings, subscribeDownloadSettings } from "./settings";
 import { getStatusVersion, subscribeDownloadStatus } from "./status";
@@ -151,10 +157,11 @@ const syncManagerToSession = (): void => {
   if (currentUserId() === userId) return;
   startManager(userId);
   // Boot (or account switch) while online: heal whatever the last run left
-  // behind - process-death losses, missing stems, unfetched lyrics.
+  // behind - process-death losses, missing stems, unfetched lyrics. The GO
+  // OFFLINE override means "touch nothing", repair included.
   void NetInfo.fetch()
     .then((state) => {
-      if (state.isConnected) void runRepairPass();
+      if (state.isConnected && !isManualOffline()) void runRepairPass();
     })
     .catch(() => undefined);
 };
@@ -163,7 +170,7 @@ let wasConnected = true;
 
 const handleNetworkState = (connected: boolean): void => {
   setOnlineState(connected);
-  if (connected && !wasConnected) {
+  if (connected && !wasConnected && !isManualOffline()) {
     void runRepairPass();
   }
   wasConnected = connected;
@@ -223,6 +230,9 @@ export const registerDownloads = (): void => {
   startCollectionAutoSync();
 
   useSessionStore.subscribe(syncManagerToSession);
+  // BEFORE the first NetInfo event: a persisted GO OFFLINE must never let
+  // the boot flash online (and kick repairs) first.
+  hydrateManualOffline();
   syncManagerToSession();
 
   void NetInfo.fetch()
@@ -232,6 +242,12 @@ export const registerDownloads = (): void => {
     })
     .catch(() => undefined);
   NetInfo.addEventListener((state) => handleNetworkState(!!state.isConnected));
+
+  // Mirror of the reconnect path: flipping GO OFFLINE back off while the
+  // network is up owes the library the repair pass the flag suppressed.
+  subscribeManualOffline(() => {
+    if (!isManualOffline() && wasConnected) void runRepairPass();
+  });
 
   // Play cache (owner request 2026-08-08): every song that KEEPS playing
   // caches its mixed file (manager.cachePlayback - orphan tier, silent, 7 day
@@ -260,12 +276,20 @@ export const registerDownloads = (): void => {
     if (!song) return;
     cacheTimer = setTimeout(() => {
       cacheTimer = null;
+      // Checked at FIRE time, not arm time: a controller stint (the engine
+      // holds no source; this device is not the one playing) and the GO
+      // OFFLINE override both cancel the cache, not just delay it.
+      if (isManualOffline()) return;
+      if (!getPlayerEngine().hasLoadedSource()) return;
       void cachePlayback(song).catch(() => undefined);
     }, CACHE_DELAY_MS);
   });
   subscribeDownloadStatus(() => {
     const resident = currentMainResident();
-    if (resident && !mainWasResident) getPlayerEngine().retryStemBlend();
+    // hasLoadedSource: a silent controller must never prepare a mixer graph.
+    if (resident && !mainWasResident && getPlayerEngine().hasLoadedSource()) {
+      getPlayerEngine().retryStemBlend();
+    }
     mainWasResident = resident;
   });
 };

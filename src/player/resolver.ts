@@ -21,6 +21,23 @@ export class PresignedResolver {
   private readonly inFlight = new Map<FsNodeId, Promise<string>>();
   private prefetched: PrefetchedUrl | null = null;
   private prefetchInFlightSongKey: SongKey | null = null;
+  /**
+   * Async completions carry the epoch they started under and write nothing
+   * when it moved on. Without this, a slow resolve superseded by
+   * invalidate()/fresh re-cached its doomed URL with a fresh timestamp, and
+   * a resolve outliving reset() leaked one session's presigned URL into the
+   * next account's cache.
+   */
+  private epoch = 0;
+  private readonly nodeEpoch = new Map<FsNodeId, number>();
+
+  private epochOf(nodeId: FsNodeId): number {
+    return this.nodeEpoch.get(nodeId) ?? 0;
+  }
+
+  private bumpNodeEpoch(nodeId: FsNodeId): void {
+    this.nodeEpoch.set(nodeId, this.epochOf(nodeId) + 1);
+  }
 
   constructor(
     private readonly resolveDataUrl: (nodeId: FsNodeId) => Promise<string>,
@@ -36,6 +53,7 @@ export class PresignedResolver {
     if (opts?.fresh) {
       this.cache.delete(nodeId);
       this.inFlight.delete(nodeId);
+      this.bumpNodeEpoch(nodeId);
     } else {
       const cached = this.cache.get(nodeId);
       if (cached && this.now() - cached.resolvedAt < URL_REUSE_WINDOW_MS) {
@@ -44,10 +62,14 @@ export class PresignedResolver {
       const pending = this.inFlight.get(nodeId);
       if (pending) return pending;
     }
+    const epoch = this.epoch;
+    const nodeEp = this.epochOf(nodeId);
     const attempt = this.resolveDataUrl(nodeId).catch(() => this.resolveDataUrl(nodeId));
     const wrapped = attempt
       .then((url) => {
-        this.cache.set(nodeId, { url, resolvedAt: this.now() });
+        if (epoch === this.epoch && nodeEp === this.epochOf(nodeId)) {
+          this.cache.set(nodeId, { url, resolvedAt: this.now() });
+        }
         return url;
       })
       .finally(() => {
@@ -60,6 +82,7 @@ export class PresignedResolver {
   /** Invalidate a node's cached URL (stream error recovery). */
   invalidate(nodeId: FsNodeId): void {
     this.cache.delete(nodeId);
+    this.bumpNodeEpoch(nodeId);
   }
 
   /**
@@ -78,8 +101,11 @@ export class PresignedResolver {
     }
     if (this.prefetchInFlightSongKey === songKey) return;
     this.prefetchInFlightSongKey = songKey;
+    const epoch = this.epoch;
+    const nodeEp = this.epochOf(nodeId);
     void this.resolveDataUrl(nodeId)
       .then((url) => {
+        if (epoch !== this.epoch || nodeEp !== this.epochOf(nodeId)) return;
         this.prefetched = { songKey, nodeId, url, resolvedAt: this.now() };
       })
       .catch(() => undefined)
@@ -116,6 +142,8 @@ export class PresignedResolver {
    * PREVIOUS session's token and must never survive an account switch.
    */
   reset(): void {
+    this.epoch++;
+    this.nodeEpoch.clear();
     this.cache.clear();
     this.inFlight.clear();
     this.prefetched = null;

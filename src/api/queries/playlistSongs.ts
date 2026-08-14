@@ -17,8 +17,14 @@ import {
 import { keys } from "../queryKeys";
 import { guardedQueryFn } from "./common";
 import { useAuthReady } from "@/auth/guard";
+import { withOfflineFallback } from "@/contracts/offlineFallback";
 import type { PlaylistId, SongId } from "@/domain/ids";
 import type { PlaylistSong } from "@/domain/playlist";
+
+const listPlaylistSongsPageWithFallback = withOfflineFallback(
+  listPlaylistSongsPage,
+  "playlistSongs",
+);
 
 export const usePlaylistSongsInfinite = (playlistId: PlaylistId | null) => {
   const authReady = useAuthReady();
@@ -28,7 +34,7 @@ export const usePlaylistSongsInfinite = (playlistId: PlaylistId | null) => {
     queryKey: key,
     queryFn: ({ pageParam }) =>
       guardedQueryFn(key, () =>
-        listPlaylistSongsPage(playlistId as PlaylistId, pageParam),
+        listPlaylistSongsPageWithFallback(playlistId as PlaylistId, pageParam),
       )(),
     initialPageParam: 1,
     getNextPageParam: (lastPage, _all, lastPageParam) =>

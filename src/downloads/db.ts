@@ -280,3 +280,43 @@ export const upsertOfflinePlaylist = (db: SQLiteDatabase, row: OfflinePlaylistRo
 export const deleteOfflinePlaylist = (db: SQLiteDatabase, id: number): void => {
   db.runSync("DELETE FROM offline_playlists WHERE id = ?", [id]);
 };
+
+// ---------------------------------------------------------------------------
+// offline_collection_songs (schema v4)
+//
+// The persisted half of the session membership map: which songs an offline
+// collection holds, in screen order, so a cold OFFLINE boot can rebuild the
+// playlist screen from disk instead of erring on a network fetch.
+// ---------------------------------------------------------------------------
+
+/** Full replace: the screen's fresh song list IS the membership. */
+export const replaceCollectionSongs = (
+  db: SQLiteDatabase,
+  collectionKey: string,
+  songKeys: readonly SongKey[],
+): void => {
+  db.withTransactionSync(() => {
+    db.runSync("DELETE FROM offline_collection_songs WHERE collection_key = ?", [collectionKey]);
+    songKeys.forEach((songKey, i) => {
+      db.runSync(
+        `INSERT INTO offline_collection_songs (collection_key, song_key, position)
+         VALUES (?, ?, ?)
+         ON CONFLICT(collection_key, song_key) DO UPDATE SET position = excluded.position`,
+        [collectionKey, songKey, i],
+      );
+    });
+  });
+};
+
+export const listCollectionSongKeys = (db: SQLiteDatabase, collectionKey: string): SongKey[] =>
+  db
+    .getAllSync<{ song_key: SongKey }>(
+      `SELECT song_key FROM offline_collection_songs
+        WHERE collection_key = ? ORDER BY position ASC`,
+      [collectionKey],
+    )
+    .map((row) => row.song_key);
+
+export const deleteCollectionSongs = (db: SQLiteDatabase, collectionKey: string): void => {
+  db.runSync("DELETE FROM offline_collection_songs WHERE collection_key = ?", [collectionKey]);
+};
