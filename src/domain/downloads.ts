@@ -19,6 +19,13 @@ export interface DownloadEntry {
   error: string | null;
   created_at: number;
   updated_at: number;
+  /**
+   * Schema v6, the probationary flag of the EVICTABLE tier. 1 = written by
+   * the predictive prefetcher and never played, so eviction takes it before
+   * anything the user actually heard; 0 = played (cachePlayback) or pinned
+   * (a dl_songs row exists, in which case eviction ignores the row entirely).
+   */
+  predicted: number;
 }
 
 /** FR-81 tri-state: never fetched / confirmed none / cached. */

@@ -19,9 +19,22 @@ interface TauriEventPayload {
   payload: unknown;
 }
 
+/**
+ * `window.__TAURI__.core.Channel`. Tauri's own docs say the EVENT system "is
+ * not designed for low latency or high throughput situations" and that
+ * channels are what Tauri itself uses for download progress - which is
+ * exactly what the cache emits, so `cache_subscribe` takes one of these and
+ * never an event name.
+ */
+export interface TauriChannel<T> {
+  onmessage: (message: T) => void;
+}
+
 export interface TauriGlobals {
   core: {
     invoke: (command: string, args?: Record<string, unknown>) => Promise<unknown>;
+    /** Absent on shells older than the cache work; probe before using. */
+    Channel?: new <T>() => TauriChannel<T>;
   };
   event: {
     listen: (
@@ -45,3 +58,55 @@ export const getTauriGlobals = (): TauriGlobals | null => {
 
 /** True only inside the desktop shell's webview. */
 export const isDesktopShell = (): boolean => getTauriGlobals() !== null;
+
+/**
+ * Opens ONE long-lived channel, or null when this shell predates them. The
+ * caller owns the returned object: it must be handed to `invoke` as a command
+ * argument, which is how Rust learns where to post.
+ */
+export const newTauriChannel = <T>(
+  onMessage: (message: T) => void,
+): TauriChannel<T> | null => {
+  const ctor = getTauriGlobals()?.core.Channel;
+  if (typeof ctor !== "function") return null;
+  const channel = new ctor<T>();
+  channel.onmessage = onMessage;
+  return channel;
+};
+
+// ---------------------------------------------------------------------------
+// Shell capabilities
+// ---------------------------------------------------------------------------
+
+/**
+ * What the shell tells the bundle about itself, injected by the Rust side
+ * (`lib.rs` build_main_window -> `initialization_script`) BEFORE the bundle is
+ * parsed.
+ *
+ * The timing is the whole point, not a detail: `downloads/register.ts` runs at
+ * IMPORT time and cannot await an `invoke`, so "does this shell have a local
+ * media store?" has to have a synchronous answer available before the first
+ * module body executes. A global set by an initialization script is the only
+ * mechanism that is.
+ *
+ * On Linux the shell answers `false` on purpose (WebKit bug 146351: WebKitGTK
+ * cannot play media from a custom URI scheme at all), and the desktop fork
+ * then behaves exactly like a plain browser tab: it streams.
+ */
+export interface DesktopCapabilities {
+  cacheAvailable: boolean;
+  /** Protocol origin, e.g. `omscache://localhost`. Rust builds it, never JS:
+   *  the form differs per platform (`http://omscache.localhost` on Windows). */
+  cacheOrigin: string;
+}
+
+export const desktopCapabilities = (): DesktopCapabilities | null => {
+  const candidate = (globalThis as { __OMS_DESKTOP__?: unknown }).__OMS_DESKTOP__;
+  if (!candidate || typeof candidate !== "object") return null;
+  const { cacheAvailable, cacheOrigin } = candidate as {
+    cacheAvailable?: unknown;
+    cacheOrigin?: unknown;
+  };
+  if (typeof cacheAvailable !== "boolean" || typeof cacheOrigin !== "string") return null;
+  return { cacheAvailable, cacheOrigin };
+};

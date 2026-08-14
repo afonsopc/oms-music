@@ -39,6 +39,10 @@
 // module's body: downloads FIRST so its provider is the outermost one.
 import "@/downloads/register";
 import "@/separation/register";
+// Predictive prefetch installs its platform host over the downloads manager,
+// so it imports AFTER downloads. No React, no provider, no slot: it only
+// binds the driver's seams (see prefetch/driver.ts).
+import "@/prefetch/register";
 
 import {
   getRegisteredSongMenuSlots,
@@ -47,11 +51,13 @@ import {
   SONG_MENU_SLOT_ORDER,
   type SongMenuSlotHook,
 } from "@/contracts/songMenu";
+import { registerLastUserMemo } from "@/auth/lastUser";
 import { getStemMixer } from "@/contracts/stemMixer";
 import { getStemFileProvider } from "@/contracts/stemFiles";
 import { getTransport } from "@/contracts/transport";
 import { DownloadStatusProvider } from "@/downloads/context";
 import { stemFileProvider } from "@/downloads/stemProvision";
+import { getDownloadsSurface } from "@/downloads/surface";
 import { getShellSlots, registerShellProvider } from "@/features/shell/slots";
 import { registerDeviceSurfaces } from "@/features/devices/register";
 import { registerCoreSongMenuSlots } from "@/features/home/register";
@@ -120,7 +126,15 @@ export const wireUp = (): void => {
   if (wired) return;
   wired = true;
 
-  // 0. Notice handlers first, so anything the registrations below emit (a jam
+  // 0a. The last-user memo, before ANYTHING reads it. The persisted query
+  // cache (api/persistCache), the downloads manager and the desktop cache
+  // session all key on it, and until this call existed it was written only
+  // below downloads/register's web early-return - so on web and on the
+  // desktop shell it was never written at all and the whole disk-persisted
+  // query cache was silently dead.
+  registerLastUserMemo();
+
+  // 0b. Notice handlers, so anything the registrations below emit (a jam
   // resumed on boot, a repair pass refusal) reaches the user instead of the
   // console. The host component itself joins the provider stack in step 6.
   registerNoticeHandlers();
@@ -250,6 +264,20 @@ export const seamReport = (): SeamCheck[] => {
         missingMenuSlots.length === 0
           ? `${menu.size} registered`
           : `missing: ${missingMenuSlots.join(", ")}`,
+    },
+    {
+      // The local store, and with it the predictive prefetch driver's host:
+      // both are installed by the same registrar on each platform (native
+      // downloads/register + prefetch/register, desktop downloads/desktop).
+      //
+      // Always `ok`, because "no local store" is the CORRECT state in a plain
+      // browser tab - it streams, and a predictive tier would have nothing to
+      // prefetch into. The detail is what carries the information.
+      seam: "downloadsSurface + prefetch (policy driver host)",
+      ok: true,
+      detail: getDownloadsSurface().available()
+        ? "manager-backed (native) or Rust-backed (Tauri shell)"
+        : "inert default (plain web: streams, no predictive tier)",
     },
     {
       seam: "notice host (player/downloads/jam/remote messages)",

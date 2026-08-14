@@ -18,6 +18,7 @@
  * fs node id outside of it), so nothing here can persist an expired URL.
  */
 import { dehydrate, hydrate } from "@tanstack/react-query";
+import { lastUserId } from "@/auth/lastUser";
 import { registerLogoutTask } from "@/auth/session";
 import { kvGet, kvRemove, kvSet } from "@/db/kv";
 import { queryClient } from "./queryClient";
@@ -50,13 +51,27 @@ const PERSIST_PREFIXES: readonly (readonly string[])[] = [
 const shouldPersist = (queryKey: readonly unknown[]): boolean =>
   PERSIST_PREFIXES.some((prefix) => prefix.every((seg, i) => queryKey[i] === seg));
 
-/** Same memo the downloads manager keeps (downloads/register.ts). */
-const LAST_USER_KV_KEY = "oms-music.downloads.last-user-id";
-
+/**
+ * The memo now lives in auth/lastUser.ts, written on EVERY platform.
+ *
+ * It used to be written only by downloads/register.ts, below that module's
+ * web early-return, so on web and inside the Tauri shell this function always
+ * answered null - hydrate and write both returned at their first line and the
+ * whole persisted cache was inert. That is why the fix is a one-import change
+ * here and a win for plain `music.omelhorsite.pt` as much as for the desktop
+ * shell.
+ */
 const snapshotKey = (): string | null => {
-  const userId = kvGet(LAST_USER_KV_KEY);
+  const userId = lastUserId();
   return userId ? `oms-music.query-cache.${userId}` : null;
 };
+
+/**
+ * @internal Exported for the regression test that proves the key is non-null
+ * after a sign-in on web - the exact condition that was silently false and
+ * turned this whole module into dead code there.
+ */
+export const snapshotKeyForTests = (): string | null => snapshotKey();
 
 interface Snapshot {
   version: number;

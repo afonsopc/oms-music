@@ -117,7 +117,12 @@ export const listFilesByStatus = (
 ): DownloadEntry[] =>
   db.getAllSync<DownloadEntry>("SELECT * FROM dl_files WHERE status = ?", [status]);
 
-/** Creates (or resets) a transfer row in `queued` state. */
+/**
+ * Creates (or resets) a transfer row in `queued` state.
+ *
+ * `predicted` defaults to false so every pre-existing call site keeps its
+ * exact behaviour: only the predictive prefetcher passes true.
+ */
 export const upsertQueuedFile = (
   db: SQLiteDatabase,
   args: {
@@ -126,20 +131,44 @@ export const upsertQueuedFile = (
     nodeId: FsNodeId;
     siblingNodeId: FsNodeId | null;
     filename: string;
+    predicted?: boolean;
   },
 ): void => {
   const now = Date.now();
+  const predicted = args.predicted ? 1 : 0;
   db.runSync(
     `INSERT INTO dl_files
        (song_key, kind, status, node_id, sibling_node_id, filename,
-        local_uri, progress, size_bytes, savable, error, created_at, updated_at)
-     VALUES (?, ?, 'queued', ?, ?, ?, NULL, 0, 0, NULL, NULL, ?, ?)
+        local_uri, progress, size_bytes, savable, error, predicted, created_at, updated_at)
+     VALUES (?, ?, 'queued', ?, ?, ?, NULL, 0, 0, NULL, NULL, ?, ?, ?)
      ON CONFLICT(song_key, kind) DO UPDATE SET
        status = 'queued', node_id = excluded.node_id,
        sibling_node_id = excluded.sibling_node_id, filename = excluded.filename,
        local_uri = NULL, progress = 0, size_bytes = 0, savable = NULL,
-       error = NULL, updated_at = excluded.updated_at`,
-    [args.songKey, args.kind, args.nodeId, args.siblingNodeId, args.filename, now, now],
+       error = NULL, predicted = excluded.predicted, updated_at = excluded.updated_at`,
+    [
+      args.songKey,
+      args.kind,
+      args.nodeId,
+      args.siblingNodeId,
+      args.filename,
+      predicted,
+      now,
+      now,
+    ],
+  );
+};
+
+/** Flips the probationary flag directly (repair / manual promotion). */
+export const setPredicted = (
+  db: SQLiteDatabase,
+  songKey: SongKey,
+  kind: DownloadKind,
+  predicted: boolean,
+): void => {
+  db.runSync(
+    "UPDATE dl_files SET predicted = ? WHERE song_key = ? AND kind = ?",
+    [predicted ? 1 : 0, songKey, kind],
   );
 };
 
@@ -213,6 +242,38 @@ export const touchFile = (db: SQLiteDatabase, songKey: SongKey, kind: DownloadKi
     [Date.now(), songKey, kind],
   );
 };
+
+/**
+ * touchFile + promotion out of the probationary tier, in ONE statement.
+ *
+ * This single UPDATE is the whole admission-control story: a predicted row
+ * only stops being evicted-first when the user ACTUALLY played the song, and
+ * cachePlayback is the exact point where we already knew that and were
+ * already writing to the row. No counters, no sketch, no second table.
+ */
+export const touchAndPromote = (
+  db: SQLiteDatabase,
+  songKey: SongKey,
+  kind: DownloadKind,
+): void => {
+  db.runSync(
+    "UPDATE dl_files SET updated_at = ?, predicted = 0 WHERE song_key = ? AND kind = ?",
+    [Date.now(), songKey, kind],
+  );
+};
+
+/**
+ * Eviction candidates, worst-first. Evictable = a done file whose song has NO
+ * dl_songs row, so "pinned" stays derived from the one table that already
+ * decides what the Downloads screen shows.
+ */
+export const listEvictableFiles = (db: SQLiteDatabase): DownloadEntry[] =>
+  db.getAllSync<DownloadEntry>(
+    `SELECT f.* FROM dl_files f
+      WHERE f.status = 'done'
+        AND f.song_key NOT IN (SELECT song_key FROM dl_songs)
+      ORDER BY f.predicted DESC, f.updated_at ASC`,
+  );
 
 export const deleteFilesForSong = (db: SQLiteDatabase, songKey: SongKey): void => {
   db.runSync("DELETE FROM dl_files WHERE song_key = ?", [songKey]);

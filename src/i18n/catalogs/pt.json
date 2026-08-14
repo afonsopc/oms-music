@@ -1042,7 +1042,15 @@
       "includeStemsDetail": "Transfere também as vozes e o instrumental quando existem. Ocupa cerca do dobro do espaço.",
       "onlyDownloadedTitle": "Mostrar só descarregadas",
       "onlyDownloadedDetail": "As playlists e os álbuns mostram só músicas descarregadas e a reordenação manual fica desativada.",
-      "storageUsed": "{size} usados neste dispositivo"
+      "storageUsed": "{size} usados neste dispositivo",
+      "predictiveTitle": "Descarregar à frente",
+      "predictiveDetail": "Vai buscando a música seguinte e a linha que estás a ver, para tocar sem esperar. Fica na cache temporária, nunca nas tuas transferências.",
+      "predictiveWifiTitle": "Antecipar só por WiFi",
+      "predictiveWifiDetail": "Ligado por omissão: adivinhar mal em dados móveis gasta megabytes que nunca pediste.",
+      "cacheTitle": "Cache temporária",
+      "cacheDetail": "{size} de {budget}. Limpa-se do mais antigo primeiro; as tuas transferências ficam intactas.",
+      "cachePurge": "Limpar cache",
+      "cachePurged": "{size} libertados"
     },
     "player": {
       "audioSettings": "Definições de áudio",
@@ -1207,12 +1215,17 @@
       "files": "Ficheiros",
       "storage": "Espaço",
       "legendDownloads": "Transferências {size}",
-      "legendCache": "Cache de reprodução {size}",
+      "legendCache": "Cache temporária {size}",
       "offlinePlaylists": "Playlists offline",
       "noOfflinePlaylists": "Ainda nenhuma playlist offline - activa na página de qualquer playlist.",
       "rowDetail": "Espaço, modo offline, playlists guardadas",
       "serverStorage": "Armazenamento de música",
-      "serverStorageUsed": "{used} de {limit} utilizados"
+      "serverStorageUsed": "{used} de {limit} utilizados",
+      "cacheTitle": "Cache temporária",
+      "cacheDetail": "{files} ficheiros, {size} de {budget}",
+      "cachePurge": "Limpar",
+      "cacheWaste": "Antecipação: {written} descarregados, {wasted} descartados sem tocar ({percent}%)",
+      "cacheEmpty": "Ainda sem nada em cache."
     }
   }
 }

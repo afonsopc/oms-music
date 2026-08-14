@@ -7,10 +7,22 @@ declare module "bun:test" {
   export type TestFn = () => void | Promise<void>;
 
   export function describe(label: string, fn: () => void): void;
-  export function it(label: string, fn: TestFn): void;
-  export function test(label: string, fn: TestFn): void;
+  /** The optional third argument is a per-case timeout in milliseconds; the
+   *  default is 5 s, which a case that waits on real throttle timers exceeds. */
+  export function it(label: string, fn: TestFn, timeoutMs?: number): void;
+  export function test(label: string, fn: TestFn, timeoutMs?: number): void;
   export function beforeEach(fn: TestFn): void;
   export function afterEach(fn: TestFn): void;
+
+  /**
+   * Module mocking. Only `mock.module` is declared: it is what lets a pure
+   * bun test import an app module whose graph reaches react-native, whose
+   * Flow-typed entry point bun cannot parse.
+   */
+  export interface ModuleMocker {
+    module(specifier: string, factory: () => unknown): void;
+  }
+  export const mock: ModuleMocker;
 
   /**
    * The assertion set, generic over what a matcher hands back: `void` for the

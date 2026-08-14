@@ -89,7 +89,17 @@ const resolveArtwork = (
     // cacheKey is NATIVE-only on purpose: on web it makes expo-image fetch
     // the bytes itself, and that fetch dies on CORS at the storage redirect
     // (every tile fell to the placeholder photo). The plain <img> path has
-    // no CORS to clear.
+    // no CORS to clear, and on the Tauri desktop shell the caching layer is
+    // the browser's own HTTP cache plus the omscache:// protocol for pinned
+    // art (getArtworkByNodeId, already tried above) - not expo-image. Do NOT
+    // "fix" this by enabling cacheKey on web.
+    //
+    // The key is the raw MEDIA ID, and that is a contract, not a detail:
+    // api/artworkPrefetch re-keys every warmed cover under exactly this id
+    // (expo-image otherwise files prefetched bytes under the URL, which
+    // nothing reads and which a token rotation invalidates anyway). If this
+    // line ever stops passing `node`, the whole warm sweep silently stops
+    // producing hits - which is precisely the bug it was written to fix.
     return {
       kind: "network",
       uri: imageUrl(node),

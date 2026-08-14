@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "main",
-  "description": "Superficie minima (plano F5): eventos + comandos proprios do shell, estado de janela e updater. Sem plugin fs de todo - o audio fica no webview e os bytes vem da rede, portanto o scope de ficheiros mais pequeno possivel e nenhum. Downloads offline (F6) reabrem esta discussao com um glob restrito a $APPDATA/downloads. O miniplayer vive numa capability propria sem updater: uma injeccao nesse contexto nao deve conseguir sequer accionar o download de updates.",
+  "description": "Superficie minima (plano F5): eventos + comandos proprios do shell, estado de janela e updater. Sem plugin fs de todo, sem plugin sql e sem plugin http - os downloads offline chegaram e NAO reabriram esta discussao: o indice SQLite, o cliente HTTP e o disco vivem todos em Rust (src/cache/), e o webview so ve URLs omscache:// e comandos da app. ATENCAO ao que este ficheiro NAO faz: comandos da app nao passam por esta ACL de todo (so os de plugins e que passam, e so ha verificacao de comandos da app quando o crate traz um manifesto em src-tauri/permissions/, que aqui nao existe), portanto listar ou nao listar os cache_* aqui nao muda nada. O que limita mesmo a superficie e o guarda em codigo (cache::commands::guard): todos os cache_* exigem webview.label() == 'main' e recusam qualquer outra janela. O miniplayer vive numa capability propria sem updater e, pelo mesmo guarda, tambem nao consegue abrir, reapontar nem apagar a cache: uma injeccao nesse contexto nao deve conseguir accionar downloads, redireccionar o token para outro host, nem destruir a biblioteca offline.",
   "windows": ["main"],
   "permissions": [
     "core:default",

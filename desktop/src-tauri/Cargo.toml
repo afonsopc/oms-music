@@ -23,8 +23,10 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 # tray-icon: o tray nativo do core (plano 3.5); image-png para carregar o
-# icone do tray a partir dos bytes gerados por `tauri icon`.
-tauri = { version = "2", features = ["tray-icon", "image-png"] }
+# icone do tray a partir dos bytes gerados por `tauri icon`. A feature
+# "specta" existe por causa do cache_subscribe: sem ela o tauri::ipc::Channel
+# nao implementa specta::Type e o comando nao entra no collect_commands!.
+tauri = { version = "2", features = ["tray-icon", "image-png", "specta"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 # Obrigatorio (plano 3.5): dois lancamentos disputariam o dispositivo de audio.
@@ -47,6 +49,54 @@ souvlaki = "0.8"
 specta = "=2.0.0-rc.22"
 specta-typescript = "0.0.9"
 tauri-specta = { version = "=2.0.0-rc.21", features = ["derive", "typescript"] }
+
+# ---------------------------------------------------------------------------
+# Camada local-first (cache/): indice SQLite + transferencias + protocolo de
+# media. Tudo isto e dependencia SO do shell desktop; o package.json da app
+# continua intocado, como manda o plano.
+# ---------------------------------------------------------------------------
+
+# O indice. NUNCA tauri-plugin-sql: esse poe a base em app_config_dir (que
+# diverge de app_data_dir em Linux), nao poe pragma nenhuma (sem WAL, sem
+# busy_timeout, sem foreign_keys) e abre uma thread do SO por ligacao do pool.
+# Aqui e uma ligacao unica atras de um Mutex, com as pragmas certas a mao.
+# default-features = false porque o default arrasta o shim sqlite-wasm-rs, que
+# nao serve para nada num binario nativo; "bundled" compila o SQLite connosco,
+# por isso a versao do SQLite deixa de depender do que a maquina do
+# utilizador traz.
+rusqlite = { version = "0.40.2", default-features = false, features = ["bundled"] }
+# Migracoes por PRAGMA user_version, sem tabela de migracoes - a mesma
+# disciplina do src/db/schema.ts do lado movel: lista ordenada, entradas ja
+# aplicadas nunca se editam.
+rusqlite_migration = "2.6.0"
+# Escrita em streaming das transferencias (BufWriter sobre tokio::fs) e o
+# semaforo que segura a concorrencia em 3, igual ao TRANSFER_CONCURRENCY do
+# movel. O runtime e o do proprio Tauri (tauri::async_runtime).
+tokio = { version = "1.53.1", features = ["fs", "io-util", "sync", "macros", "rt", "time"] }
+# StreamExt sobre o corpo do reqwest: os bytes vao para o disco a medida que
+# chegam, nunca por um Vec inteiro em memoria.
+futures-util = "0.3.34"
+# Parser do header Range. Escrever isto a mao e como se acaba com um 206 que
+# mente no Content-Range e um <audio> que nao faz seek.
+http-range = "0.1.5"
+# Descodificacao dos caminhos do omscache:// ANTES da validacao (senao um
+# %2e%2e%2f passa pelo regex e chega ao disco).
+percent-encoding = "2.3.2"
+# O cliente HTTP das transferencias. A versao e as features sao um DECALQUE do
+# que o tauri-plugin-updater ja declara (reqwest 0.13, rustls-no-provider),
+# porque o objectivo aqui e nao existir um segundo reqwest nem um segundo
+# stack de TLS na arvore - o problema de unificacao de features de
+# plugins-workspace#2491. Nota: passar pelo tauri-plugin-http (que era o
+# caminho obvio para reutilizar o reqwest de outra pessoa) faria exactamente o
+# contrario, porque esse plugin ainda esta no reqwest 0.12 e trazia um
+# segundo. Declarar o reqwest a direito, na versao do updater, deixa UM so.
+# O webview continua sem qualquer permissao HTTP: isto e um cliente de Rust.
+reqwest = { version = "0.13", default-features = false, features = ["stream", "rustls-no-provider", "http2"] }
+# O provider de criptografia do rustls. O `rustls-no-provider` do reqwest nao
+# instala nenhum, e o updater so instala o dele quando faz o primeiro pedido -
+# que pode nunca acontecer antes do primeiro download de media. Instalamos o
+# mesmo (ring) no arranque da sessao, com a mesma guarda `get_default()`.
+rustls = { version = "0.23", default-features = false, features = ["ring"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 # NSPanel a serio para o mini-player (plano 3.5): flutuante, nao rouba foco,

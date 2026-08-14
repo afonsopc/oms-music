@@ -94,24 +94,47 @@ export const subscribeDownloadStatus = (cb: () => void): (() => void) => {
   };
 };
 
+/**
+ * `silent` writes the map WITHOUT touching either channel.
+ *
+ * It exists for rows that cannot light anything: an orphan `mixed` file (the
+ * play cache and the predictive tier) is invisible to `getStatusFor`, to
+ * `listDownloadedSongs` and to `listInFlight` by construction, so its
+ * queued -> downloading -> done triple re-rendered every mounted badge, the
+ * whole collection screen and the downloads overview to produce byte-identical
+ * output. Predictive prefetch turned that from "twice per played song" into
+ * "on every scroll settle and every track change", which is precisely the
+ * render storm the 2026-08-14 freeze rules exist to prevent.
+ *
+ * The MAP is still written - `enqueueKind`'s dedup, `localUriFor` and the
+ * eviction bookkeeping all read it - and only the notify is dropped. Deciding
+ * WHICH rows qualify is the manager's job (it owns the pinned/orphan
+ * question); this module only offers the switch.
+ */
 export const setKindStatus = (
   songKey: SongKey,
   kind: DownloadKind,
   status: DownloadFileStatus,
   progress = 0,
+  silent = false,
 ): void => {
   const key = statusKey(songKey, kind);
   const prev = statuses.get(key);
   statuses.set(key, { status, progress });
+  if (silent) return;
   // Coarse bump ONLY on a status transition (none->queued->downloading->
   // done/error); a same-status progress sample feeds the progress channel.
   if (!prev || prev.status !== status) notifyCoarse();
   else notifyProgress();
 };
 
-export const clearKindStatus = (songKey: SongKey, kind: DownloadKind): void => {
+export const clearKindStatus = (
+  songKey: SongKey,
+  kind: DownloadKind,
+  silent = false,
+): void => {
   statuses.delete(statusKey(songKey, kind));
-  notifyCoarse();
+  if (!silent) notifyCoarse();
 };
 
 export const clearSongStatuses = (songKey: SongKey): void => {

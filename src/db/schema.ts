@@ -3,7 +3,7 @@
  * Changes go through the WP1 owner as explicit change requests.
  */
 
-export const SCHEMA_VERSION = 5;
+export const SCHEMA_VERSION = 6;
 
 /**
  * Migration 2: offline playlist metadata.
@@ -167,6 +167,32 @@ CREATE TABLE IF NOT EXISTS offline_collection_songs (
 `;
 
 /**
+ * Migration 6: the probationary flag of the evictable tier.
+ *
+ * The orphan dl_files rows (a file with NO dl_songs row) already WERE the play
+ * cache: invisible to the Downloads screen, to the row badges and to the
+ * repair walk, TTL-purged at 7 days, promoted for free the moment a real
+ * download writes the dl_songs row. Predictive prefetch reuses that tier
+ * wholesale rather than inventing a second one.
+ *
+ * What it adds is rows the user may never listen to. A plain LRU over both
+ * would let one fast scroll through a 200 row playlist evict the songs the
+ * user actually played, which is the classic one-hit-wonder pollution every
+ * naive cache suffers. `predicted = 1` marks a row as probationary: eviction
+ * takes it FIRST, always, and only real playback (cachePlayback ->
+ * touchAndPromote) clears the flag. That is the cheap half of W-TinyLFU, one
+ * column and one ORDER BY, and it is what makes aggressive prefetch safe.
+ *
+ * The partial index matches the eviction query exactly (status = 'done'), so
+ * the sweep never scans queued/error rows it can do nothing with.
+ */
+export const MIGRATION_PREDICTED_FLAG = `
+ALTER TABLE dl_files ADD COLUMN predicted INTEGER NOT NULL DEFAULT 0;
+CREATE INDEX IF NOT EXISTS idx_dl_files_evict
+  ON dl_files (predicted, updated_at) WHERE status = 'done';
+`;
+
+/**
  * Ordered migrations. Index 0 applies when the stored schema_version is 0
  * (fresh db). Future migrations append; NEVER edit an applied entry.
  */
@@ -176,4 +202,5 @@ export const MIGRATIONS: readonly string[] = [
   MIGRATION_OFFLINE_PLAYLIST_SOURCE,
   MIGRATION_OFFLINE_COLLECTION_SONGS,
   MIGRATION_MEDIA_ID_WIPE,
+  MIGRATION_PREDICTED_FLAG,
 ];

@@ -85,6 +85,41 @@ export class TransferScheduler {
     this.pump();
   }
 
+  /**
+   * Cancels ONE (song, kind) transfer.
+   *
+   * `cancelSong` cannot be reused for the predictive supersede: a song may
+   * simultaneously carry a predictive `mixed` fetch and an EXPLICIT download
+   * of another kind (artwork, a stem), and killing the user's download to
+   * chase a scroll position would be indefensible.
+   */
+  cancelKind(songKey: SongKey, kind: DownloadKind): void {
+    const key = entryKey(songKey, kind);
+    this.queue = this.queue.filter((e) => {
+      if (entryKey(e.req.songKey, e.req.kind) !== key) return true;
+      this.events.onCancelled(e.req);
+      return false;
+    });
+    const running = this.running.get(key);
+    if (running) running.abort.abort();
+  }
+
+  /**
+   * Read-only view of everything queued or running here, for the predictive
+   * driver's preemption gate (it needs to know whether any EXPLICIT transfer
+   * is in flight, which it decides by looking up dl_songs per song key).
+   */
+  entries(): readonly { songKey: SongKey; kind: DownloadKind }[] {
+    const out: { songKey: SongKey; kind: DownloadKind }[] = [];
+    for (const entry of this.running.values()) {
+      out.push({ songKey: entry.req.songKey, kind: entry.req.kind });
+    }
+    for (const entry of this.queue) {
+      out.push({ songKey: entry.req.songKey, kind: entry.req.kind });
+    }
+    return out;
+  }
+
   cancelSong(songKey: SongKey): void {
     this.queue = this.queue.filter((e) => {
       if (e.req.songKey !== songKey) return true;

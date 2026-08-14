@@ -62,6 +62,284 @@ async miniplayerSetSize(size: MiniplayerSize) : Promise<Result<null, string>> {
  */
 async miniplayerGetSize() : Promise<MiniplayerSize> {
     return await TAURI_INVOKE("miniplayer_get_size");
+},
+/**
+ * Abre (ou recria) a sessao de um utilizador.
+ * 
+ * `api_base` e `token` sao parametros e nao configuracao lida de disco: o
+ * Rust nunca guarda credenciais, so as tem em memoria enquanto a sessao vive.
+ * (O desenho original nao os listava; sem eles o Rust nao consegue construir
+ * `/media/:id/data?token=` e nao ha transferencia nenhuma.)
+ */
+async cacheOpen(userId: string, apiBase: string, token: string | null) : Promise<Result<CacheOpen, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("cache_open", { userId, apiBase, token }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async cacheClose() : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("cache_close") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Renova as credenciais sem fechar a sessao (rotacao de token). Sem isto, um
+ * token expirado transformava todas as transferencias seguintes em erros ate
+ * ao proximo login.
+ */
+async cacheSetAuth(apiBase: string, token: string | null) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("cache_set_auth", { apiBase, token }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * UM canal de longa duracao para todo o estado e progresso. Chamado uma vez
+ * pelo fork JS. Canal, nunca `emit`: a propria documentacao do Tauri diz que
+ * o sistema de eventos nao foi desenhado para debito alto e que os canais sao
+ * o que o Tauri usa internamente para progresso de downloads.
+ */
+async cacheSubscribe(onEvent: TAURI_CHANNEL<CacheEvent>) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("cache_subscribe", { onEvent }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Download explicito: escreve a linha em `songs` (e e ESSA linha que torna a
+ * musica pinada) e mete cada `(kind, media_id)` na fila.
+ * 
+ * ASSINCRONO com o corpo em `spawn_blocking`, e nao por elegancia: um comando
+ * sincrono do Tauri corre na thread principal, e `collections.ts` chama isto
+ * UMA VEZ POR MUSICA - sincronizar uma coleccao de 250 faz 250 invocacoes que
+ * disputam `session.db` com tres transferencias vivas, tudo na thread que
+ * desenha a janela. E exactamente a classe "trabalho de disco sincrono num
+ * caminho quente" que as regras de 2026-08-14 proibem.
+ */
+async cacheDownload(songKey: string, songJson: string, wants: Want[]) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("cache_download", { songKey, songJson, wants }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * O tier PREDITIVO: mesma forma orfa do cache de reproducao - linha em
+ * `files`, deliberadamente SEM linha em `songs` - mas com `predicted = 1`,
+ * para o despejo a levar antes de qualquer coisa que o utilizador tenha
+ * ouvido mesmo.
+ * 
+ * Recusa-se sozinho em tres casos, todos baratos e locais: ha transferencias
+ * explicitas em voo (o preditivo fica suspenso, nunca em fila com
+ * prioridade), ja ha um palpite em voo (ha no maximo UM), ou o tecto de
+ * desperdicio da sessao esgotou.
+ */
+async cachePredict(songKey: string, mediaId: string) : Promise<Result<boolean, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("cache_predict", { songKey, mediaId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Cancelamento POR KIND, nunca por musica: a mesma musica pode ter um
+ * download explicito de outro kind a decorrer.
+ */
+async cacheCancel(songKey: string, kind: Kind) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("cache_cancel", { songKey, kind }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * A promocao do desktop (o `touchAndPromote` do movel). Uma linha probatoria
+ * que o utilizador tocou mesmo deixa de o ser.
+ */
+async cachePromote(songKey: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("cache_promote", { songKey }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Apaga todos os kinds de uma musica e a linha de `songs`. A partir daqui a
+ * musica deixa de ser pinada; se ficarem bytes, ficam como orfaos - que e o
+ * tier despejavel, e o despejo trata deles.
+ * 
+ * Assincrono: percorre todas as linhas e faz um `remove_file` por kind, e
+ * isso nao pode acontecer na thread da janela.
+ */
+async cacheRemoveSong(songKey: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("cache_remove_song", { songKey }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Os blobs `song_json` guardados, para os resolvers offline. Devolvidos como
+ * texto: as derivacoes puras que os filtram e ordenam ja existem em
+ * `src/downloads/library.ts` e nao vale a pena duplicar nenhuma em Rust.
+ * 
+ * Assincrono: desserializa a biblioteca inteira, e uma biblioteca grande e
+ * muitos megabytes de texto a atravessar a thread da janela.
+ */
+async cacheListSongs() : Promise<Result<string[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("cache_list_songs") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Hidrata o `LocalFileIndex` do lado JS na abertura. Assincrono: corre na
+ * abertura E a cada debounce de 4 s do fork JS.
+ */
+async cacheListFiles() : Promise<Result<FileEntry[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("cache_list_files") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Contabilidade por SUM em SQL. Nunca uma caminhada no disco: uma caminhada
+ * sincrona num caminho quente e o que o relatorio de 2026-08-14 proibiu.
+ */
+async cacheUsage() : Promise<Result<CacheUsage, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("cache_usage") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async cacheCollectionsList() : Promise<Result<string[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("cache_collections_list") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async cacheCollectionsAdd(key: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("cache_collections_add", { key }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async cacheCollectionsRemove(key: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("cache_collections_remove", { key }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Membros persistidos de uma coleccao offline. Sem isto, um arranque a frio
+ * em modo de voo sabe que a playlist esta descarregada mas nao sabe QUAIS
+ * musicas ela tem - foi esse o bug do lado movel na migracao 4.
+ */
+async cacheCollectionsSetSongs(key: string, songKeys: string[]) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("cache_collections_set_songs", { key, songKeys }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async cacheCollectionsSongs(key: string) : Promise<Result<string[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("cache_collections_songs", { key }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async cachePlaylistsList() : Promise<Result<OfflinePlaylist[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("cache_playlists_list") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async cachePlaylistsUpsert(playlist: OfflinePlaylist) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("cache_playlists_upsert", { playlist }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async cachePlaylistsRemove(id: number) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("cache_playlists_remove", { id }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async cacheLyricsGet(songKey: string) : Promise<Result<StoredLyrics | null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("cache_lyrics_get", { songKey }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async cacheLyricsSet(songKey: string, lyricsState: string, lyricsJson: string | null) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("cache_lyrics_set", { songKey, lyricsState, lyricsJson }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async cacheSetBudget(bytes: number) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("cache_set_budget", { bytes }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Esvazia o tier despejavel INTEIRO. O pinado nao e tocado: o utilizador
+ * escolheu-o e limpar cache nunca deve apagar a biblioteca offline.
+ * 
+ * Assincrono: `evict::sweep` faz duas varreduras completas da tabela e um
+ * numero ilimitado de `remove_file` sobre um tier de 10 GiB. Na thread da
+ * janela isso era a app congelada durante todo o esvaziamento.
+ */
+async cachePurge() : Promise<Result<CacheUsage, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("cache_purge") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
 }
 }
 
@@ -82,6 +360,41 @@ shellCommand: "shell-command"
 
 /** user-defined types **/
 
+/**
+ * O que atravessa o IPC. Duas variantes e mais nada: acrescentar uma terceira
+ * obrigaria o lado JS a decidir alguma coisa, e ele nao deve decidir nada.
+ */
+export type CacheEvent = 
+/**
+ * Emitido SO numa transicao de estado. Espelha o notifyCoarse do
+ * status.ts.
+ */
+{ type: "status"; songKey: string; kind: Kind; status: FileStatus; progress: number } | 
+/**
+ * No maximo um por segundo POR (musica, kind) enquanto os bytes andam.
+ */
+{ type: "progress"; songKey: string; kind: Kind; progress: number }
+export type CacheOpen = { 
+/**
+ * `false` em Linux (bug 146351 do WebKit). O fork JS nao se instala e a
+ * app comporta-se como a web pura.
+ */
+available: boolean; origin: string; budgetBytes: number }
+export type CacheUsage = { pinnedBytes: number; pinnedFiles: number; evictableBytes: number; evictableFiles: number }
+/**
+ * A linha como o JS a ve. Sem caminhos: o `LocalFileIndex` do fork desktop
+ * monta `${origem}/k/${songKey}_${kind}` a partir daqui.
+ */
+export type FileEntry = { songKey: string; kind: Kind; status: FileStatus; mediaId: string; bytes: number; progress: number; predicted: boolean; updatedAt: number }
+/**
+ * Estados de uma linha de `files`. Mesmos quatro do movel.
+ */
+export type FileStatus = "queued" | "downloading" | "done" | "error"
+/**
+ * As cinco especies de bytes por musica. Mesmos nomes que o DownloadKind do
+ * movel, porque as duas metades da app falam a mesma lingua.
+ */
+export type Kind = "mixed" | "mixed_original" | "artwork" | "vocal" | "instrumental"
 /**
  * Espelho 1:1 do RemoteCommand de src/player/lockScreen.ts. O serde emite
  * `{"kind":"play"}`, `{"kind":"seek","seconds":42}` etc.; qualquer renomeacao
@@ -112,11 +425,22 @@ export type MiniplayerSize =
  * duracao, que o Now Playing quer para desenhar a barra de progresso.
  */
 export type NowPlaying = { title: string; artist: string; albumTitle: string; artworkUrl: string | null; durationS: number | null }
+export type OfflinePlaylist = { id: number; name: string; artworkMediaId: string | null; songCount: number; sourceExternalId: string | null; updatedAt: number }
 /**
  * Accoes de shell que nao sao transporte: o bridge da app escuta este
  * evento e traduz em navegacao/UI (modo cinema, definicoes).
  */
 export type ShellCommand = { type: "cinema" } | { type: "settings" }
+/**
+ * Tri-estado das letras (nunca pedidas / confirmado que nao ha / em cache),
+ * igual ao movel: sem ele, uma musica sem letra era pedida outra vez a cada
+ * abertura.
+ */
+export type StoredLyrics = { state: string; json: string | null }
+/**
+ * Um pedido de bytes dentro de um download explicito.
+ */
+export type Want = { kind: Kind; mediaId: string }
 
 /** tauri-specta globals **/
 

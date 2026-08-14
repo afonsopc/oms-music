@@ -1042,7 +1042,15 @@
       "includeStemsDetail": "Lejupielādē arī vokālu un instrumentālo versiju, ja tās pastāv. Aizņem apmēram divreiz vairāk vietas.",
       "onlyDownloadedTitle": "Rādīt tikai lejupielādētās",
       "onlyDownloadedDetail": "Atskaņošanas sarakstos un albumos redzamas tikai lejupielādētās dziesmas, un manuāla pārkārtošana ir atspējota.",
-      "storageUsed": "{size} izmantoti šajā ierīcē"
+      "storageUsed": "{size} izmantoti šajā ierīcē",
+      "predictiveTitle": "Lejupielādēt uz priekšu",
+      "predictiveDetail": "Klusi sagatavo nākamo dziesmu un to, ko tu skaties sarakstā, lai atskaņošana sāktos uzreiz. Nonāk pagaidu kešā, nevis lejupielādēs.",
+      "predictiveWifiTitle": "Iepriekš tikai WiFi tīklā",
+      "predictiveWifiDetail": "Pēc noklusējuma ieslēgts: kļūdains minējums mobilajos datos maksā megabaitus, ko neviens neprasīja.",
+      "cacheTitle": "Pagaidu kešs",
+      "cacheDetail": "{size} no {budget}. Tīra vecāko vispirms; lejupielādes netiek aiztiktas.",
+      "cachePurge": "Notīrīt kešu",
+      "cachePurged": "Atbrīvoti {size}"
     },
     "player": {
       "audioSettings": "Skaņas iestatījumi",
@@ -1207,12 +1215,17 @@
       "files": "Faili",
       "storage": "Vieta",
       "legendDownloads": "Lejupielādes {size}",
-      "legendCache": "Atskaņošanas kešs {size}",
+      "legendCache": "Pagaidu kešs {size}",
       "offlinePlaylists": "Bezsaistes atskaņošanas saraksti",
       "noOfflinePlaylists": "Vēl neviens saraksts nav bezsaistē - ieslēdz to saraksta lapā.",
       "rowDetail": "Vieta, bezsaiste, saglabātie saraksti",
       "serverStorage": "Mūzikas krātuve",
-      "serverStorageUsed": "Izmantoti {used} no {limit}"
+      "serverStorageUsed": "Izmantoti {used} no {limit}",
+      "cacheTitle": "Pagaidu kešs",
+      "cacheDetail": "{files} faili, {size} no {budget}",
+      "cachePurge": "Notīrīt",
+      "cacheWaste": "Iepriekš: {written} ielādēti, {wasted} atmesti neatskaņoti ({percent}%)",
+      "cacheEmpty": "Kešā vēl nekā nav."
     }
   }
 }

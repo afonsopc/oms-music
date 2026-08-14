@@ -46,6 +46,9 @@ import {
   type SongRowColumn,
 } from "@/ui";
 import { useContentBottomPadding } from "@/features/shell/metrics";
+import { reportListGeometry, setPrefetchCollection } from "@/prefetch/driver";
+import { toPrefetchSong } from "@/prefetch/types";
+import { toSongKey } from "@/domain/ids";
 import {
   readCollectionViewMode,
   writeCollectionViewMode,
@@ -268,11 +271,62 @@ export const CollectionScreen = ({
   const heroThreshold = desktopShell
     ? Math.max(0, measuredHeaderHeight - DESKTOP_STICKY_BAR_HEIGHT)
     : Math.round(height * (kind === "artist" ? 0.42 : 0.36)) - 60;
+  /**
+   * Predictive prefetch, half one: publish the roster.
+   *
+   * `songs` is the raw prop, never `visibleSongs`, so flipping the
+   * show-only-downloaded filter does not republish a list the prefetcher
+   * would then chase.
+   */
+  const prefetchKey = collectionKey ?? accentKey ?? `${kind}:${title}`;
+  useEffect(() => {
+    setPrefetchCollection({
+      key: prefetchKey,
+      songs: songs.map((song) => toPrefetchSong(song, toSongKey(song.id))),
+    });
+  }, [prefetchKey, songs]);
+
+  /**
+   * The CANCEL half of the prefetch API, and deliberately its OWN effect with
+   * an empty dep array: leaving the screen must abandon its wants, but a
+   * cleanup that also ran on every roster republish would cancel the very
+   * transfer it just asked for (UICollectionViewDataSourcePrefetching's
+   * cancelPrefetchingForItemsAt is the half home-grown prefetchers forget,
+   * and firing it too OFTEN is the other way to get it wrong).
+   */
+  useEffect(() => () => setPrefetchCollection(null), []);
+
+  /**
+   * Predictive prefetch, half two: geometry, from INSIDE the callback that
+   * already runs on scroll.
+   *
+   * This writes a MODULE variable and resets one timer. It renders nothing,
+   * subscribes nothing and allocates one small object per scroll frame; the
+   * row-index arithmetic is the same one the deep-link scroll below already
+   * does, so no measurement and no new list callback is added. In particular
+   * `onViewableItemsChanged` is NOT used: threading anything new through
+   * SongTable would touch renderItem's dep array and re-render every mounted
+   * row, which is the exact class of change the 2026-08-14 freeze report
+   * forbids.
+   *
+   * `visibleSongs.length` is a dependency rather than a render-time ref
+   * write: the identity of this callback then changes only when the list
+   * actually grows or the downloaded filter flips (never per frame), and
+   * SongTable folds it into a memo that no row subscribes to.
+   */
+  const rowCount = visibleSongs.length;
   const handleScrollOffset = useCallback(
     (offsetY: number) => {
       setStickyVisible(offsetY > heroThreshold);
+      reportListGeometry({
+        offsetY,
+        headerHeight: measuredHeaderHeight,
+        rowHeight: songRowHeight(compact),
+        viewportHeight: height,
+        rowCount,
+      });
     },
-    [heroThreshold],
+    [heroThreshold, measuredHeaderHeight, compact, height, rowCount],
   );
 
   // FR-44 (P2): scroll the highlighted row into view once songs land. The

@@ -1042,7 +1042,15 @@
       "includeStemsDetail": "Also downloads the vocals and the instrumental when they exist. Uses about twice the storage.",
       "onlyDownloadedTitle": "Show downloaded only",
       "onlyDownloadedDetail": "Playlists and albums list only downloaded songs, and manual reordering is disabled.",
-      "storageUsed": "{size} used on this device"
+      "storageUsed": "{size} used on this device",
+      "predictiveTitle": "Download ahead",
+      "predictiveDetail": "Quietly fetches the next track and the row you are looking at, so tapping plays instantly. It lands in the temporary cache, never in your downloads.",
+      "predictiveWifiTitle": "Ahead-of-time only over WiFi",
+      "predictiveWifiDetail": "On by default: guessing wrong on mobile data costs you bytes you never asked for.",
+      "cacheTitle": "Temporary cache",
+      "cacheDetail": "{size} of {budget}. Cleared oldest first; your downloads are never touched.",
+      "cachePurge": "Clear cache",
+      "cachePurged": "{size} freed"
     },
     "player": {
       "audioSettings": "Audio settings",
@@ -1207,12 +1215,17 @@
       "files": "Files",
       "storage": "Storage",
       "legendDownloads": "Downloads {size}",
-      "legendCache": "Play cache {size}",
+      "legendCache": "Temporary cache {size}",
       "offlinePlaylists": "Offline playlists",
       "noOfflinePlaylists": "No playlist is kept offline yet - toggle it on any playlist page.",
       "rowDetail": "Storage, offline mode, kept playlists",
       "serverStorage": "Music storage",
-      "serverStorageUsed": "{used} of {limit} used"
+      "serverStorageUsed": "{used} of {limit} used",
+      "cacheTitle": "Temporary cache",
+      "cacheDetail": "{files} files, {size} of {budget}",
+      "cachePurge": "Clear",
+      "cacheWaste": "Ahead-of-time: {written} fetched, {wasted} dropped unplayed ({percent}%)",
+      "cacheEmpty": "Nothing cached yet."
     }
   }
 }

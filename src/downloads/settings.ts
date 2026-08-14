@@ -10,6 +10,18 @@ export interface DownloadSettings {
   wifiOnly: boolean;
   includeStems: boolean;
   showOnlyDownloaded: boolean;
+  /** Master switch for the predictive tier (owner request 2026-08-14). */
+  predictiveEnabled: boolean;
+  /**
+   * Stricter than `wifiOnly`, and deliberately defaulted the OTHER way:
+   * guessing wrong on cellular for a background guess costs the user money
+   * for bytes they never asked for, while guessing wrong on an EXPLICIT
+   * download only costs them bytes they did ask for. The predictive gate
+   * reads `wifiOnly || predictiveWifiOnly`, so turning either on is enough.
+   */
+  predictiveWifiOnly: boolean;
+  /** null = the computed clamp(0.10 * free, 512 MiB, 2 GiB) default. */
+  evictableBudgetBytes: number | null;
 }
 
 const KV_KEY = "oms-music.download-settings";
@@ -18,6 +30,9 @@ const DEFAULTS: DownloadSettings = {
   wifiOnly: false,
   includeStems: true,
   showOnlyDownloaded: false,
+  predictiveEnabled: true,
+  predictiveWifiOnly: true,
+  evictableBudgetBytes: null,
 };
 
 let settings: DownloadSettings = {

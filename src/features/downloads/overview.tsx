@@ -7,17 +7,12 @@
  * big the 7-day play-cache tier is. Plus the GO OFFLINE switch, which forces
  * the offline resolvers regardless of what NetInfo says.
  */
-import React, { useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import { Platform, ScrollView, Switch, Text, View } from "react-native";
+import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { Platform, Pressable, ScrollView, Switch, Text, View } from "react-native";
 import { formatBytes } from "./format";
+import { readPredictiveTier } from "./predictiveTier";
 import { getMusicStorage, type MusicStorage } from "@/api/endpoints/musicStorage";
-import {
-  downloadedPlaylists,
-  listDownloadedSongs,
-  listInFlight,
-  playCacheUsage,
-  storageUsageFast,
-} from "@/downloads/manager";
+import { getDownloadsSurface } from "@/downloads/surface";
 import {
   isManualOffline,
   setManualOffline,
@@ -141,22 +136,54 @@ export default function DownloadsOverviewScreen() {
   }, []);
 
   // Synchronous reads keyed by the coarse status version, which since the
-  // 2026-08-14 freeze report bumps on TRANSITIONS only. Byte totals come
-  // from SQL SUMs over dl_files.size_bytes - the old disk walk stat()ed
-  // thousands of files on the JS thread per bump.
+  // 2026-08-14 freeze report bumps on TRANSITIONS only. Byte totals come from
+  // SQL SUMs - the old disk walk stat()ed thousands of files on the JS thread
+  // per bump. They go through DownloadsSurface rather than the native manager
+  // so this screen renders real numbers on the Tauri shell too, and its
+  // permanent zeros on a plain browser tab (plano "uma so app", F1).
+  //
+  // `purged` is its own dep because emptying an already-idle tier changes no
+  // status the coarse channel would ever report.
+  const [purged, setPurged] = useState(0);
+  const surface = getDownloadsSurface();
+  // The surface is re-read INSIDE each memo, never captured: a platform can
+  // install its real implementation after the first paint (the desktop fork
+  // registers its provider synchronously but only fills it in once cache_open
+  // resolves), and a captured reference would pin this screen to the inert one.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const songs = useMemo(() => listDownloadedSongs(), [version]);
+  const songs = useMemo(() => getDownloadsSurface().listDownloadedSongs(), [version]);
   // In-flight rows carry the percent, so they alone key on progress too.
+  const inFlight = useMemo(
+    () => getDownloadsSurface().listInFlight(),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [version, progressVersion],
+  );
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const inFlight = useMemo(() => listInFlight(), [version, progressVersion]);
+  const playlists = useMemo(() => getDownloadsSurface().downloadedPlaylists(), [version]);
+  // The evictable tier: the play cache and the predictive tier are the SAME
+  // orphan rows (no stored-song row), which is the whole point of the design -
+  // one cache with two admission reasons, not two caches.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const playlists = useMemo(() => downloadedPlaylists(), [version]);
+  const tier = useMemo(() => readPredictiveTier(), [version, purged]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const cache = useMemo(() => playCacheUsage(), [version]);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const usage = useMemo(() => storageUsageFast(), [version]);
+  const pinned = useMemo(() => getDownloadsSurface().pinnedUsage(), [version, purged]);
 
-  const downloadsBytes = Math.max(0, usage.bytes - cache.bytes);
+  const cache = tier.usage;
+  const [freedBytes, setFreedBytes] = useState<number | null>(null);
+  const onPurge = useCallback(() => {
+    const run = readPredictiveTier().purge;
+    if (!run) return;
+    void run()
+      .then((freed) => setFreedBytes(freed))
+      .catch(() => undefined)
+      .finally(() => setPurged((n) => n + 1));
+  }, []);
+
+  const downloadsBytes = pinned.bytes;
+  const usage = {
+    bytes: pinned.bytes + cache.bytes,
+    files: pinned.files + cache.files,
+  };
 
   return (
     <ScrollView
@@ -222,6 +249,83 @@ export default function DownloadsOverviewScreen() {
       </View>
 
       <StorageBar downloadsBytes={downloadsBytes} cacheBytes={cache.bytes} />
+
+      {/* The evictable tier, stated plainly. It is the one number in this
+          screen the user did not ask for: bytes the app fetched on its own,
+          either because a song played (play cache) or because it guessed the
+          song was next (predictive). Both are deleted oldest-first the moment
+          the budget is exceeded, and pinned downloads are never candidates -
+          so the row can offer a one-tap purge with no confirmation dialog.
+          Absent where there is no local store at all (plain browser tab). */}
+      {surface.available() ? (
+      <View
+        style={{
+          backgroundColor: tokens.secondary,
+          borderRadius: RADIUS,
+          paddingHorizontal: 16,
+          paddingVertical: 12,
+          gap: 8,
+        }}
+      >
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+          <Icon name="cloud-check" size={20} color={tokens.foreground} />
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={{ color: tokens.foreground, fontSize: 15, fontWeight: "600" }}>
+              {t("native.downloadsOverview.cacheTitle")}
+            </Text>
+            {/* A budget this platform cannot compute is simply not drawn:
+                "0 B de 0 B" over a cache that is really holding two gigabytes
+                would be worse than saying nothing at all. */}
+            <Text style={{ color: tokens.mutedForeground, fontSize: 12, marginTop: 2 }}>
+              {cache.files === 0
+                ? t("native.downloadsOverview.cacheEmpty")
+                : t("native.downloadsOverview.cacheDetail", {
+                    files: cache.files,
+                    size: formatBytes(cache.bytes),
+                    budget: tier.budget != null ? formatBytes(tier.budget) : "-",
+                  })}
+            </Text>
+          </View>
+          {tier.purge ? (
+            <Pressable
+              onPress={onPurge}
+              disabled={cache.files === 0}
+              accessibilityRole="button"
+              style={{
+                paddingHorizontal: 12,
+                paddingVertical: 8,
+                borderRadius: RADIUS,
+                backgroundColor: tokens.background,
+                opacity: cache.files === 0 ? 0.4 : 1,
+              }}
+            >
+              <Text style={{ color: tokens.foreground, fontSize: 13, fontWeight: "600" }}>
+                {t("native.downloadsOverview.cachePurge")}
+              </Text>
+            </Pressable>
+          ) : null}
+        </View>
+
+        {/* Waste instrumentation (design section 9): without the ratio there
+            is no way to tell whether the prediction ladder is earning its
+            bytes. Hidden until the tier has actually predicted something. */}
+        {tier.waste && tier.waste.written > 0 ? (
+          <Text style={{ color: tokens.mutedForeground, fontSize: 12 }}>
+            {t("native.downloadsOverview.cacheWaste", {
+              written: formatBytes(tier.waste.written),
+              wasted: formatBytes(tier.waste.evictedUnplayed),
+              percent: Math.round(tier.waste.ratio * 100),
+            })}
+          </Text>
+        ) : null}
+
+        {freedBytes != null ? (
+          <Text style={{ color: tokens.mutedForeground, fontSize: 12 }}>
+            {t("native.downloads.cachePurged", { size: formatBytes(freedBytes) })}
+          </Text>
+        ) : null}
+      </View>
+      ) : null}
 
       {serverStorage ? (
         <View
@@ -307,10 +411,10 @@ export default function DownloadsOverviewScreen() {
             >
               <ArtworkImage
                 source={
-                  playlist.source_external_id === "liked"
+                  playlist.sourceExternalId === "liked"
                     ? { kind: "likedHeart" }
-                    : playlist.artwork_fs_node_id
-                      ? { kind: "node", nodeId: playlist.artwork_fs_node_id }
+                    : playlist.artworkMediaId
+                      ? { kind: "node", nodeId: playlist.artworkMediaId }
                       : { kind: "placeholder" }
                 }
                 size={40}
@@ -323,7 +427,7 @@ export default function DownloadsOverviewScreen() {
                   {playlist.name}
                 </Text>
                 <Text style={{ color: tokens.mutedForeground, fontSize: 12 }}>
-                  {t("native.downloads.songCount", { count: playlist.song_count })}
+                  {t("native.downloads.songCount", { count: playlist.songCount })}
                 </Text>
               </View>
               <Icon name="cloud-check" size={18} color={tokens.primary} />

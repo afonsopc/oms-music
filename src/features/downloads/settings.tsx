@@ -5,12 +5,19 @@
  * through the offline-collections context (they filter to `done` rows and
  * suppress reorder while it is on).
  *
+ * Plus, since 2026-08-14, the predictive tier: `predictiveEnabled` (the master
+ * switch for downloading ahead of the tap) and `predictiveWifiOnly`, which
+ * defaults ON even though `wifiOnly` defaults off. That asymmetry is
+ * deliberate and worth stating: guessing wrong on cellular spends money on
+ * bytes the user never asked for, while an explicit download only spends it on
+ * bytes they did. The gate reads `wifiOnly || predictiveWifiOnly`.
+ *
  * Settings persist in kv-store and are read synchronously by the manager, so
  * a flip takes effect on the very next enqueue.
  */
-import React, { useEffect, useState } from "react";
-import { ScrollView, Switch, Text, View } from "react-native";
-import { storageUsage } from "@/downloads/manager";
+import React, { useCallback, useEffect, useState } from "react";
+import { Pressable, ScrollView, Switch, Text, View } from "react-native";
+import { getDownloadsSurface } from "@/downloads/surface";
 import { updateDownloadSettings, useDownloadSettings } from "@/downloads/settings";
 import { useContentBottomPadding, useContentTopPadding } from "@/features/shell/metrics";
 import { useT } from "@/i18n";
@@ -18,6 +25,7 @@ import { switchColors } from "@/theme/switchColors";
 import { useTheme } from "@/theme/provider";
 import { RADIUS } from "@/theme/tokens";
 import { formatBytes } from "./format";
+import { readPredictiveTier } from "./predictiveTier";
 
 const SettingsCard = ({ children }: { children: React.ReactNode }) => {
   const { tokens } = useTheme();
@@ -90,7 +98,10 @@ export default function DownloadSettingsScreen() {
 
   useEffect(() => {
     let cancelled = false;
-    void storageUsage()
+    // The REAL walk, and the only one in this design: async, off the render
+    // path, and named so it can never be mistaken for the cheap SQL sums.
+    void getDownloadsSurface()
+      .storageUsageSlow()
       .then((result) => {
         if (!cancelled) setUsage(result);
       })
@@ -99,6 +110,21 @@ export default function DownloadSettingsScreen() {
       cancelled = true;
     };
   }, []);
+
+  // The evictable tier's numbers are synchronous SUMs plus one native
+  // free-space property read, so they can sit in render state and be
+  // refreshed on the purge without going anywhere near a disk walk.
+  const [tier, setTier] = useState(() => readPredictiveTier());
+  const [freedBytes, setFreedBytes] = useState<number | null>(null);
+
+  const onPurge = useCallback(() => {
+    const run = tier.purge;
+    if (!run) return;
+    void run()
+      .then((freed) => setFreedBytes(freed))
+      .catch(() => undefined)
+      .finally(() => setTier(readPredictiveTier()));
+  }, [tier.purge]);
 
   return (
     <ScrollView
@@ -130,6 +156,75 @@ export default function DownloadSettingsScreen() {
           onValueChange={(value) => updateDownloadSettings({ showOnlyDownloaded: value })}
         />
       </SettingsCard>
+
+      {/* The predictive tier. Its own card because it is a different promise:
+          nothing here ever joins the offline library, and everything here is
+          deleted the moment the cache budget says so. The WiFi row is nested
+          under the master switch by relevance, not by disabling it: a user who
+          turns prediction off later should find their WiFi choice remembered.
+          Hidden entirely where there is no local store to predict INTO: a
+          plain browser tab streams, so the switches would promise nothing. */}
+      {getDownloadsSurface().available() ? (
+      <SettingsCard>
+        <ToggleRow
+          first
+          label={t("native.downloads.predictiveTitle")}
+          detail={t("native.downloads.predictiveDetail")}
+          value={settings.predictiveEnabled}
+          onValueChange={(value) => updateDownloadSettings({ predictiveEnabled: value })}
+        />
+        <ToggleRow
+          label={t("native.downloads.predictiveWifiTitle")}
+          detail={t("native.downloads.predictiveWifiDetail")}
+          value={settings.predictiveWifiOnly}
+          onValueChange={(value) => updateDownloadSettings({ predictiveWifiOnly: value })}
+        />
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 12,
+            paddingHorizontal: 16,
+            paddingVertical: 14,
+            borderTopWidth: 1,
+            borderTopColor: tokens.border,
+          }}
+        >
+          <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+            <Text style={{ color: tokens.foreground, fontSize: 15 }}>
+              {t("native.downloads.cacheTitle")}
+            </Text>
+            <Text style={{ color: tokens.mutedForeground, fontSize: 12, lineHeight: 17 }}>
+              {t("native.downloads.cacheDetail", {
+                size: formatBytes(tier.usage.bytes),
+                budget: tier.budget != null ? formatBytes(tier.budget) : "-",
+              })}
+            </Text>
+            {freedBytes != null ? (
+              <Text style={{ color: tokens.mutedForeground, fontSize: 12 }}>
+                {t("native.downloads.cachePurged", { size: formatBytes(freedBytes) })}
+              </Text>
+            ) : null}
+          </View>
+          <Pressable
+            onPress={onPurge}
+            disabled={tier.purge == null || tier.usage.files === 0}
+            accessibilityRole="button"
+            style={{
+              paddingHorizontal: 12,
+              paddingVertical: 8,
+              borderRadius: RADIUS,
+              backgroundColor: tokens.secondary,
+              opacity: tier.purge == null || tier.usage.files === 0 ? 0.4 : 1,
+            }}
+          >
+            <Text style={{ color: tokens.foreground, fontSize: 13, fontWeight: "600" }}>
+              {t("native.downloads.cachePurge")}
+            </Text>
+          </Pressable>
+        </View>
+      </SettingsCard>
+      ) : null}
 
       <Text style={{ color: tokens.mutedForeground, fontSize: 13 }}>
         {usage

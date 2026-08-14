@@ -18,9 +18,13 @@
  *  - one run per sign-in, kicked off after the boot screens settle;
  *  - failures are silent: a warm-up is an optimization, never an error.
  */
-import { Image } from "expo-image";
-import { Platform } from "react-native";
 import { useSessionStore } from "@/auth/session";
+import {
+  prefetchArtwork,
+  registerArtworkPrefetch,
+  resetArtworkPrefetch,
+  warmHomeArtwork,
+} from "./artworkPrefetch";
 import { listArtists } from "./endpoints/artists";
 import { listLikedIds } from "./endpoints/likedSongs";
 import { listMixes } from "./endpoints/mixes";
@@ -28,7 +32,6 @@ import { listRecentAlbums, type RecentlyPlayedAlbum } from "./endpoints/playEven
 import { listPlaylists } from "./endpoints/playlists";
 import { listPlaylistSongsPage } from "./endpoints/playlistSongs";
 import { listAlbums, listAlbumSongs } from "./endpoints/songs";
-import { imageUrl } from "./mediaUrl";
 import { pageModifier } from "./params";
 import { keys } from "./queryKeys";
 import { queryClient } from "./queryClient";
@@ -44,19 +47,6 @@ const RECENT_ALBUMS_LIMIT = 12;
 const LIBRARY_LIMIT = 500;
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
-
-const prefetchArtwork = (nodeIds: (string | null | undefined)[]): void => {
-  if (Platform.OS === "web") return; // expo-image web has no prefetch
-  const urls = nodeIds
-    .filter((id): id is string => !!id)
-    .map((id) => imageUrl(id));
-  if (urls.length === 0) return;
-  try {
-    void Image.prefetch(urls);
-  } catch {
-    // Bitmap warming is best-effort.
-  }
-};
 
 const warmLibrary = async (): Promise<void> => {
   const qc = queryClient;
@@ -107,8 +97,14 @@ const warmLibrary = async (): Promise<void> => {
     qc.getQueryData<RecentlyPlayedAlbum[]>(keys.playEvents.recentAlbums(RECENT_ALBUMS_LIMIT)) ??
     [];
 
+  // Bitmaps go through artworkPrefetch, which re-keys them under the MEDIA ID
+  // that ArtworkImage reads. The plain `Image.prefetch(urls)` that used to sit
+  // here filed everything under the URL and therefore produced zero cache hits
+  // (see the header of api/artworkPrefetch.ts). `warmHomeArtwork` also folds
+  // in the mixes rail and the local quick grid, which this sweep never saw.
   prefetchArtwork(playlists.map((p) => p.artwork_media_id));
   prefetchArtwork(recents.map((a) => a.artwork_media_id));
+  warmHomeArtwork();
 
   for (const playlist of playlists) {
     await qc
@@ -137,11 +133,19 @@ let warmedForUser: string | null = null;
 
 /** Called by boot/wireup: one background sweep per sign-in. */
 export const registerLibraryWarmup = (): void => {
+  // The artwork half installs itself here rather than through its own wireup
+  // entry: it has no provider, no slot and no React, and it is only ever
+  // useful once there is a session to warm for.
+  registerArtworkPrefetch();
+
   const maybeWarm = (): void => {
     const state = useSessionStore.getState();
     if (state.status !== "authed") return;
     const userId = state.user?.id ?? state.session?.user_id ?? "unknown";
     if (warmedForUser === userId) return;
+    // A different user's covers have nothing to do with this one's, and the
+    // attempted-set would otherwise suppress every warm on an account switch.
+    if (warmedForUser !== null) resetArtworkPrefetch();
     warmedForUser = userId;
     setTimeout(() => {
       void warmLibrary().catch(() => undefined);

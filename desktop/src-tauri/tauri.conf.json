@@ -14,6 +14,7 @@
     "windows": [
       {
         "label": "main",
+        "create": false,
         "title": "OMS Music",
         "width": 1280,
         "height": 820,
@@ -25,7 +26,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' blob: https:; connect-src 'self' https: wss://backend.omelhorsite.pt; font-src 'self' data:; object-src 'none'; base-uri 'self'"
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https: omscache: http://omscache.localhost; media-src 'self' blob: https: omscache: http://omscache.localhost; connect-src 'self' https: wss://backend.omelhorsite.pt; font-src 'self' data:; object-src 'none'; base-uri 'self'"
     }
   },
   "bundle": {
