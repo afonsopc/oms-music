@@ -1,8 +1,9 @@
 /**
  * 401/fs-404 verification + the global authReady gate (DESIGN.md 5.5).
  *
- * Any 401 from an authed endpoint, and any fs_node 404 while believed-authed,
- * runs ONE single-flight `GET /sessions/mine` probe:
+ * Any 401 from an authed endpoint, and any /media 404 while believed-authed
+ * (the media routes answer 404, never 401, so a dead token looks like a
+ * missing file), runs ONE single-flight `GET /sessions/mine` probe:
  *  - probe succeeds -> transient / genuinely missing file, resume;
  *  - probe 401s -> flip authReady = false FIRST (parks queries, stops the
  *    cable, pauses download enqueues, silences the publisher), then the

@@ -23,7 +23,10 @@ import { kvGet, kvRemove, kvSet } from "@/db/kv";
 import { queryClient } from "./queryClient";
 
 /** Bump to throw every existing snapshot away (persisted shape change). */
-const VERSION = 2;
+// v3: the media-id migration renamed every persisted wire field
+// (*_fs_node_id -> *_media_id); pre-update snapshots would hydrate rows the
+// new readers see as artwork-less and source-less until revalidation.
+const VERSION = 3;
 const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const WRITE_DEBOUNCE_MS = 5_000;
 
