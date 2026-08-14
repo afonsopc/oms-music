@@ -56,7 +56,9 @@ export const TopTileGrid = ({ items, style }: TopTileGridProps) => {
           accessibilityRole={cardPressRole}
           accessibilityLabel={item.title}
           style={({ pressed }) => ({
-            flexBasis: `${100 / columns - 1}%`,
+            // -2%: the 8px gap is ABSOLUTE, and at phone widths 1% (~3.4px) did not
+            // cover it - the second tile wrapped and the grid rendered ONE column.
+            flexBasis: `${100 / columns - 2}%`,
             flexGrow: 1,
             height: 64,
             flexDirection: "row",
