@@ -15,6 +15,7 @@ import { View } from "react-native";
 import { Stack } from "expo-router";
 import { ProfileDrawerHost } from "@/features/home/ProfileDrawer";
 import { DesktopShell } from "@/features/shell/desktop/DesktopShell";
+import { GlobalTabBar } from "@/features/shell/GlobalTabBar";
 import { OverlayHost } from "@/features/shell/OverlayHost";
 import { useServiceUsagePing } from "@/features/shell/useServiceUsagePing";
 import { useTheme } from "@/theme/provider";
@@ -33,6 +34,10 @@ export default function MainLayout() {
             contentStyle: { backgroundColor: tokens.background },
           }}
         />
+        {/* A barra global do nativo (Apple Music idiom): SEMPRE visivel,
+            tabs e pushes, so coberta pelo player modal. Montada ANTES do
+            OverlayHost para a pill do MiniPlayer flutuar por cima dela. */}
+        <GlobalTabBar />
         <OverlayHost />
         {/* Shell-level mount so the tab bar avatar (and Home's header
             avatar) can open the profile drawer from ANY tab. */}

@@ -18,18 +18,69 @@
  * indices in every callback refer to server-side (FR-109).
  */
 import React, { useMemo } from "react";
-import { Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { useLikedIds } from "@/api/queries/likedSongs";
 import { getTransport } from "@/contracts/transport";
 import type { SongMenuItem } from "@/contracts/songMenu";
+import type { LoopMode } from "@/domain/playback";
 import type { Song } from "@/domain/song";
 import { useT } from "@/i18n";
 import { usePlaybackView } from "@/remote/mirror";
 import { useTheme } from "@/theme/provider";
-import { EmptyState, SongTable } from "@/ui";
+import { EmptyState, Icon, SongTable, type IconName } from "@/ui";
+import { foregroundWash } from "@/ui/uiTheme";
 
 const QP = "components.music.QueuePanel";
 const K = "native.player";
+const NP = "components.music.NowPlayingSheet";
+
+/** Web parity (BottomBar.handleLoopModeClick): None -> All -> One -> None. */
+const nextLoopMode = (mode: LoopMode): LoopMode =>
+  mode === "none" ? "all" : mode === "all" ? "one" : "none";
+
+/**
+ * Pill de modo (idioma Apple Music, pedido do dono 2026-08-14): shuffle e
+ * repeat sairam da linha de transporte do player e vivem AQUI, no topo da
+ * fila, como capsulas translucidas - o sitio exacto onde o AM as tem.
+ */
+const ModePill = ({
+  icon,
+  active,
+  label,
+  onPress,
+}: {
+  icon: IconName;
+  active: boolean;
+  label: string;
+  onPress: () => void;
+}) => {
+  const { tokens, scheme } = useTheme();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ selected: active }}
+      onPress={onPress}
+      style={({ pressed }) => ({
+        flex: 1,
+        alignItems: "center",
+        justifyContent: "center",
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: active
+          ? foregroundWash(scheme, 0.28)
+          : foregroundWash(scheme, 0.1),
+        opacity: pressed ? 0.7 : 1,
+      })}
+    >
+      <Icon
+        name={icon}
+        size={18}
+        color={active ? tokens.foreground : tokens.mutedForeground}
+      />
+    </Pressable>
+  );
+};
 
 export default function QueueBody() {
   const t = useT();
@@ -39,6 +90,8 @@ export default function QueueBody() {
   const queueIndex = usePlaybackView((v) => v.queueIndex);
   const playing = usePlaybackView((v) => v.playing);
   const currentSong = usePlaybackView((v) => v.song);
+  const shuffle = usePlaybackView((v) => v.shuffle);
+  const loopMode = usePlaybackView((v) => v.loopMode);
   const likedIds = useLikedIds();
 
   // Visible order: what the user sees IS the play order under shuffle.
@@ -72,6 +125,27 @@ export default function QueueBody() {
 
   return (
     <View style={{ flex: 1 }}>
+      <View
+        style={{
+          flexDirection: "row",
+          gap: 10,
+          paddingHorizontal: 20,
+          paddingBottom: 14,
+        }}
+      >
+        <ModePill
+          icon="shuffle"
+          active={shuffle}
+          label={t(`${NP}.shuffle`)}
+          onPress={() => getTransport().setShuffle(!shuffle)}
+        />
+        <ModePill
+          icon={loopMode === "one" ? "repeat-1" : "repeat"}
+          active={loopMode !== "none"}
+          label={t(`${NP}.loop`)}
+          onPress={() => getTransport().setLoopMode(nextLoopMode(loopMode))}
+        />
+      </View>
       <Text
         style={{
           color: tokens.mutedForeground,

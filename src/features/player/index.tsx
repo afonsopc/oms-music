@@ -22,12 +22,12 @@
  */
 import React, { useCallback, useEffect, useState } from "react";
 import { Pressable, Text, useWindowDimensions, View } from "react-native";
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
 import { useRouter, type Href } from "expo-router";
 import { useLikedIds, useToggleLike } from "@/api/queries/likedSongs";
 import { getTransport } from "@/contracts/transport";
 import { songArtworkSource } from "@/domain/artwork";
 import { formatArtists, formatDuration, primaryArtistSegment } from "@/domain/format";
-import type { LoopMode } from "@/domain/playback";
 import type { Song } from "@/domain/song";
 import { getShellSlots, useShellSlotsVersion } from "@/features/shell/slots";
 import { useT } from "@/i18n";
@@ -54,10 +54,6 @@ const NP = "components.music.NowPlayingSheet";
 const BB = "components.music.BottomBar";
 const K = "native.player";
 
-/** Web parity (BottomBar.handleLoopModeClick): None -> All -> One -> None. */
-const nextLoopMode = (mode: LoopMode): LoopMode =>
-  mode === "none" ? "all" : mode === "all" ? "one" : "none";
-
 /**
  * Artwork ceiling under the desktop shell (plano-uma-so-app 4.3, player
  * sheet row): the mobile formula `min(width - 64, height * 0.42)` composes a
@@ -66,6 +62,54 @@ const nextLoopMode = (mode: LoopMode): LoopMode =>
  * native never hit this branch.
  */
 const DESKTOP_ARTWORK_MAX = 400;
+
+/**
+ * A artwork RESPIRA com o estado de reproducao (idioma Apple Music, pedido
+ * do dono 2026-08-14): em pausa encolhe para ~86% com a sombra apertada; ao
+ * tocar cresce para 100% com uma sombra larga e funda. Springs assimetricos
+ * de proposito - o crescimento e vivo (overshoot visivel), o encolher e
+ * calmo - porque e ESTA animacao que carrega quase todo o feedback de
+ * play/pause do ecra. useAnimatedStyle puro, nada de layout animations (as
+ * unicas que a web nao suporta).
+ */
+const BreathingArtwork = ({
+  song,
+  size,
+  playing,
+}: {
+  song: Song;
+  size: number;
+  playing: boolean;
+}) => {
+  const p = useSharedValue(playing ? 1 : 0);
+  useEffect(() => {
+    p.value = playing
+      ? withSpring(1, { damping: 12, stiffness: 180 })
+      : withSpring(0, { damping: 24, stiffness: 220 });
+  }, [playing, p]);
+  const style = useAnimatedStyle(() => ({
+    transform: [{ scale: 0.86 + 0.14 * p.value }],
+    shadowOpacity: 0.18 + 0.22 * p.value,
+    shadowRadius: 12 + 16 * p.value,
+  }));
+  return (
+    <Animated.View
+      style={[
+        {
+          borderRadius: 14,
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 10 },
+          // Android nao anima sombras nativas; a elevation fixa e o melhor
+          // compromisso sem Skia.
+          elevation: 16,
+        },
+        style,
+      ]}
+    >
+      <ArtworkImage source={songArtworkSource(song)} songId={song.id} size={size} borderRadius={14} />
+    </Animated.View>
+  );
+};
 
 /**
  * Position/duration leaf. Isolated so the 4 Hz position slice re-renders the
@@ -88,10 +132,15 @@ const ScrubBar = () => {
 
   return (
     <View>
+      {/* Capsula sem thumb (idioma Apple Music, pedido do dono 2026-08-14):
+          o dedo define a posicao em qualquer ponto da barra; nada de botao
+          a arrastar. A direita mostra o RESTANTE com sinal, nao o total. */}
       <Slider
         value={fraction}
         accessibilityLabel={t(`${K}.progress`)}
         disabled={duration <= 0}
+        height={7}
+        thumbSize={0}
         onSlide={(value) => setDragSeconds(value * duration)}
         onCommit={(value) => {
           setDragSeconds(null);
@@ -100,7 +149,9 @@ const ScrubBar = () => {
       />
       <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 2 }}>
         <Text style={timeStyle}>{formatDuration(shownSeconds)}</Text>
-        <Text style={timeStyle}>{formatDuration(duration)}</Text>
+        <Text style={timeStyle}>
+          {duration > 0 ? `-${formatDuration(Math.max(0, duration - shownSeconds))}` : "0:00"}
+        </Text>
       </View>
     </View>
   );
@@ -113,17 +164,20 @@ const VolumeRow = () => {
   // settings, so a controller drag shows and moves the remote value.
   const volume = usePlaybackView((v) => v.volume);
   return (
-    <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-      <Icon name="volume" size={16} color={tokens.mutedForeground} />
+    // Altifalante pequeno a esquerda, alto a direita, capsula sem thumb: a
+    // linha de volume do Apple Music.
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+      <Icon name="volume" size={13} color={tokens.mutedForeground} />
       <View style={{ flex: 1 }}>
         <Slider
           value={volume}
           accessibilityLabel={t(`${K}.volume`)}
-          height={3}
-          thumbSize={10}
+          height={6}
+          thumbSize={0}
           onCommit={(value) => getTransport().setVolume(value)}
         />
       </View>
+      <Icon name="volume" size={18} color={tokens.mutedForeground} />
     </View>
   );
 };
@@ -178,8 +232,6 @@ export default function NowPlayingBody() {
   const song = usePlaybackView((v) => v.song);
   const playing = usePlaybackView((v) => v.playing);
   const buffering = usePlaybackView((v) => v.buffering);
-  const shuffle = usePlaybackView((v) => v.shuffle);
-  const loopMode = usePlaybackView((v) => v.loopMode);
 
   const likedIds = useLikedIds();
   const toggleLike = useToggleLike();
@@ -226,12 +278,7 @@ export default function NowPlayingBody() {
     <View style={{ flex: 1 }}>
       <View style={{ flex: 1, paddingHorizontal: 24, paddingBottom: 8 }}>
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-          <ArtworkImage
-            source={songArtworkSource(song)}
-            songId={song.id}
-            size={artworkSize}
-            borderRadius={12}
-          />
+          <BreathingArtwork song={song} size={artworkSize} playing={playing} />
         </View>
 
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 12 }}>
@@ -277,67 +324,7 @@ export default function NowPlayingBody() {
           />
         </View>
 
-        <View style={{ marginTop: 10 }}>
-          <ScrubBar />
-        </View>
-
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-            marginTop: 8,
-          }}
-        >
-          <GhostIconButton
-            icon="shuffle"
-            active={shuffle}
-            accessibilityLabel={t(`${NP}.shuffle`)}
-            onPress={() => getTransport().setShuffle(!shuffle)}
-          />
-          <GhostIconButton
-            icon="skip-back"
-            size={24}
-            accessibilityLabel={t(`${NP}.previous`)}
-            onPress={() => getTransport().previous()}
-          />
-          <PlayFab
-            playing={playing}
-            loading={buffering}
-            accessibilityLabel={playing ? t(`${NP}.pause`) : t(`${NP}.play`)}
-            onPress={() => getTransport().toggle()}
-          />
-          <GhostIconButton
-            icon="skip-forward"
-            size={24}
-            accessibilityLabel={t(`${NP}.next`)}
-            onPress={() => getTransport().next()}
-          />
-          <GhostIconButton
-            icon={loopMode === "one" ? "repeat-1" : "repeat"}
-            active={loopMode !== "none"}
-            accessibilityLabel={t(`${NP}.loop`)}
-            onPress={() => getTransport().setLoopMode(nextLoopMode(loopMode))}
-          />
-        </View>
-
-        <View style={{ marginTop: 4 }}>
-          <VolumeRow />
-        </View>
-
-        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center" }}>
-          {CastButton ? <CastButton /> : null}
-          <GhostIconButton
-            icon="users"
-            accessibilityLabel={t(`${BB}.jam`)}
-            onPress={() => openInMain("/jam")}
-          />
-          <GhostIconButton
-            icon="audio-waveform"
-            accessibilityLabel={t(`${K}.audioSettings`)}
-            onPress={() => setSettingsOpen(true)}
-          />
-        </View>
+        <PlayerChrome />
       </View>
 
       <SongMenu
@@ -345,6 +332,101 @@ export default function NowPlayingBody() {
         onClose={() => setMenuOpen(false)}
         context={{ song, surface: "nowPlaying" }}
       />
+    </View>
+  );
+}
+
+/**
+ * O CHROME do player - scrub, transporte de tres glifos, volume e a fila de
+ * toggles - extraido para persistir NAS TRES vistas do player (now playing,
+ * letras, fila), o idioma Apple Music dos screenshots do dono (2026-08-14):
+ * mudar de vista nunca leva o transporte consigo. O now playing monta-o no
+ * fundo do body; as subpaginas (PlayerSubpage) montam-no por baixo do
+ * conteudo. Shuffle/repeat NAO vivem aqui - sao as pills da fila.
+ */
+export const PlayerChrome = () => {
+  const t = useT();
+  useShellSlotsVersion();
+  const song = usePlaybackView((v) => v.song);
+  const playing = usePlaybackView((v) => v.playing);
+  const buffering = usePlaybackView((v) => v.buffering);
+  const router = useRouter();
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const CastButton = getShellSlots().castButton;
+
+  const openInMain = useCallback(
+    (route: Href) => {
+      if (router.canDismiss()) router.dismissAll();
+      router.push(route);
+    },
+    [router],
+  );
+
+  return (
+    <View>
+      <View style={{ marginTop: 10 }}>
+        <ScrubBar />
+      </View>
+
+      {/* Transporte a Apple Music: TRES glifos grandes, centrados, mais
+          nada. Shuffle e repeat mudaram-se para as pills no topo da fila
+          (pagina da fila), onde o AM as tem; a fila desta linha era o que
+          fazia o transporte parecer um tabuleiro de botoes. */}
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 44,
+          marginTop: 10,
+        }}
+      >
+        <GhostIconButton
+          icon="skip-back"
+          size={30}
+          accessibilityLabel={t(`${NP}.previous`)}
+          onPress={() => getTransport().previous()}
+        />
+        <PlayFab
+          playing={playing}
+          loading={buffering}
+          accessibilityLabel={playing ? t(`${NP}.pause`) : t(`${NP}.play`)}
+          onPress={() => getTransport().toggle()}
+        />
+        <GhostIconButton
+          icon="skip-forward"
+          size={30}
+          accessibilityLabel={t(`${NP}.next`)}
+          onPress={() => getTransport().next()}
+        />
+      </View>
+
+      <View style={{ marginTop: 12 }}>
+        <VolumeRow />
+      </View>
+
+      {/* A fila de toggles do fundo, espacada como a do AM. */}
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-evenly",
+          marginTop: 8,
+        }}
+      >
+        {CastButton ? <CastButton /> : null}
+        <GhostIconButton
+          icon="users"
+          accessibilityLabel={t(`${BB}.jam`)}
+          onPress={() => openInMain("/jam")}
+        />
+        <GhostIconButton
+          icon="audio-waveform"
+          accessibilityLabel={t(`${K}.audioSettings`)}
+          onPress={() => setSettingsOpen(true)}
+        />
+      </View>
+
       <PlayerSettingsSheet
         visible={settingsOpen}
         onClose={() => setSettingsOpen(false)}
@@ -352,4 +434,4 @@ export default function NowPlayingBody() {
       />
     </View>
   );
-}
+};

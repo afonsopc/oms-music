@@ -23,14 +23,16 @@ import {
 import { useRouter } from "expo-router";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import NowPlayingBody, { useSongAccent } from "@/features/player";
+import NowPlayingBody, { PlayerChrome, useSongAccent } from "@/features/player";
 import { AboutArtistCard } from "@/features/player/aboutArtistCard";
 import { LyricsCard } from "@/features/lyrics/card";
+import { songArtworkSource } from "@/domain/artwork";
+import { formatArtists } from "@/domain/format";
 import { useT } from "@/i18n";
 import { usePlaybackView } from "@/remote/mirror";
 import { playerGradient } from "@/theme/gradients";
 import { useTheme } from "@/theme/provider";
-import { gradientBackground, Icon } from "@/ui";
+import { ArtworkImage, GhostIconButton, gradientBackground, Icon, SongMenu } from "@/ui";
 import { ChevronDownGlyph } from "./glyphs";
 
 export const NowPlayingScroll = () => {
@@ -129,31 +131,99 @@ export const NowPlayingScroll = () => {
   );
 };
 
-/** Full-screen player subpage (lyrics, queue): body + a way back down. */
+/**
+ * Full-screen player subpage (lyrics, queue), no idioma Apple Music dos
+ * screenshots do dono (2026-08-14): a artwork colapsa num CABECALHO COMPACTO
+ * (thumb + titulo/artista + menu) no topo, o conteudo da vista ocupa o meio,
+ * e o CHROME do player (scrub, transporte, volume, toggles) persiste no
+ * fundo - mudar de vista nunca leva o transporte consigo. Tudo sobre o
+ * mesmo gradient de accent do now playing, para as tres vistas lerem como
+ * modos de UMA superficie.
+ */
 export const PlayerSubpage = ({ children }: { children: React.ReactNode }) => {
-  const { tokens } = useTheme();
+  const { tokens, scheme } = useTheme();
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const t = useT();
+  const song = usePlaybackView((v) => v.song);
+  const accent = useSongAccent(song);
+  const [accentDark, accentBright] = playerGradient(accent, scheme);
+  const [menuOpen, setMenuOpen] = React.useState(false);
+  const gradientCss = `linear-gradient(to bottom, ${accentBright} 0%, ${accentDark} 55%, ${tokens.background} 96%)`;
+
   // Deep-loaded on web (refresh on /lyrics), there is no stack to pop: the
   // now-playing screen is where "back down" lands then.
   const back = (): void => {
     if (router.canGoBack()) router.back();
     else router.replace("/(player)/now-playing");
   };
+
   return (
     <View style={{ flex: 1, backgroundColor: tokens.background }}>
-      <View style={{ alignItems: "flex-start", paddingHorizontal: 12, paddingTop: 10 }}>
+      <View
+        pointerEvents="none"
+        style={[StyleSheet.absoluteFill, gradientBackground(gradientCss)]}
+      />
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 10,
+          paddingHorizontal: 16,
+          paddingTop: 10,
+          paddingBottom: 12,
+        }}
+      >
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t("native.common.close")}
           hitSlop={12}
           onPress={back}
-          style={{ padding: 6 }}
+          style={{ padding: 4 }}
         >
-          <ChevronDownGlyph color={tokens.mutedForeground} size={26} />
+          <ChevronDownGlyph color={tokens.mutedForeground} size={24} />
         </Pressable>
+        {song ? (
+          <>
+            <ArtworkImage
+              source={songArtworkSource(song)}
+              songId={song.id}
+              size={44}
+              borderRadius={8}
+            />
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text
+                numberOfLines={1}
+                style={{ color: tokens.foreground, fontSize: 15, fontWeight: "700" }}
+              >
+                {song.title}
+              </Text>
+              <Text
+                numberOfLines={1}
+                style={{ color: tokens.mutedForeground, fontSize: 13, marginTop: 1 }}
+              >
+                {formatArtists(song)}
+              </Text>
+            </View>
+            <GhostIconButton
+              icon="more-horizontal"
+              accessibilityLabel={t("components.music.NowPlayingSheet.moreActions")}
+              onPress={() => setMenuOpen(true)}
+            />
+          </>
+        ) : null}
       </View>
       <View style={{ flex: 1 }}>{children}</View>
+      <View style={{ paddingHorizontal: 24, paddingBottom: Math.max(insets.bottom, 12) }}>
+        <PlayerChrome />
+      </View>
+      {song ? (
+        <SongMenu
+          visible={menuOpen}
+          onClose={() => setMenuOpen(false)}
+          context={{ song, surface: "nowPlaying" }}
+        />
+      ) : null}
     </View>
   );
 };

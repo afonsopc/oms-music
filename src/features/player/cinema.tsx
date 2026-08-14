@@ -20,6 +20,7 @@ import React, { useEffect, useMemo } from "react";
 import {
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   useWindowDimensions,
@@ -64,6 +65,8 @@ export const closeCinema = (): void => useCinemaStore.getState().setOpen(false);
 
 /** Lines shown in the lyrics region: the active one plus the next few. */
 const CINEMA_LINES = 3;
+/** Altura estimada por linha na coluna de letras (fontSize 26 + folga). */
+const LYRIC_ROW_H = 44;
 
 /** One synced line whose emphasis fades instead of snapping (card idiom). */
 const CinemaLine = ({ text, active, color }: { text: string; active: boolean; color: string }) => {
@@ -129,6 +132,160 @@ const CinemaLyrics = ({ songId }: { songId: SongId }) => {
           color={tokens.foreground}
         />
       ))}
+    </View>
+  );
+};
+
+/**
+ * A COLUNA de letras do cinema (referencia do dono 2026-08-14: o fullscreen
+ * do Apple Music no Mac) - a letra INTEIRA numa coluna que rola sozinha,
+ * linha activa acesa, passadas e futuras esbatidas. Auto-scroll por
+ * scrollTo com altura estimada; nada de layout animations (web).
+ */
+const CinemaLyricsColumn = ({ songId }: { songId: SongId }) => {
+  const { tokens } = useTheme();
+  const lyricsQuery = useLyrics(songId);
+  const synced = lyricsQuery.data?.synced ?? null;
+  const lines = useMemo(() => (synced ? parseLrc(synced) : []), [synced]);
+  const scrollRef = React.useRef<import("react-native").ScrollView | null>(null);
+
+  const active = usePlaybackView((v) =>
+    lines.length > 0 ? activeLineIndex(lines, v.position) : -1,
+  );
+
+  useEffect(() => {
+    if (active < 0) return;
+    scrollRef.current?.scrollTo({ y: Math.max(0, active * LYRIC_ROW_H - 160), animated: true });
+  }, [active]);
+
+  if (lines.length === 0) return null;
+
+  return (
+    <ScrollView
+      ref={scrollRef}
+      style={{ flex: 1 }}
+      contentContainerStyle={{ paddingVertical: 120, paddingHorizontal: 8, gap: 10 }}
+      showsVerticalScrollIndicator={false}
+    >
+      {lines.map((line, index) => (
+        <Text
+          key={index}
+          style={{
+            color: tokens.foreground,
+            opacity: index === active ? 1 : index < active ? 0.35 : 0.5,
+            fontSize: 26,
+            lineHeight: 34,
+            fontWeight: index === active ? "800" : "700",
+          }}
+        >
+          {line.text || "♪"}
+        </Text>
+      ))}
+    </ScrollView>
+  );
+};
+
+/**
+ * O corpo do cinema: com letras sincronizadas vira DUAS COLUNAS (artwork e
+ * identidade a esquerda, a letra inteira a rolar a direita - o fullscreen do
+ * Apple Music no Mac, referencia do dono); sem letras mantem a pilha
+ * centrada com a janela de tres linhas. box-none nos wrappers para o clique
+ * em espaco vazio continuar a fechar pelo backdrop.
+ */
+const CinemaContent = ({
+  song,
+  artworkSize,
+  artistsLine,
+}: {
+  song: import("@/domain/song").Song;
+  artworkSize: number;
+  artistsLine: string;
+}) => {
+  const { tokens } = useTheme();
+  const lyricsQuery = useLyrics(song.id);
+  const synced = lyricsQuery.data?.synced ?? null;
+  const hasLyrics = useMemo(() => !!synced && parseLrc(synced).length > 0, [synced]);
+
+  const identity = (
+    <View style={{ alignItems: hasLyrics ? "flex-start" : "center", gap: 4, maxWidth: 720 }}>
+      <Text
+        numberOfLines={2}
+        style={{
+          color: tokens.foreground,
+          fontSize: hasLyrics ? 22 : 30,
+          fontWeight: "800",
+          textAlign: hasLyrics ? "left" : "center",
+        }}
+      >
+        {song.title}
+      </Text>
+      {artistsLine ? (
+        <Text
+          numberOfLines={1}
+          style={{
+            color: tokens.mutedForeground,
+            fontSize: 16,
+            textAlign: hasLyrics ? "left" : "center",
+          }}
+        >
+          {artistsLine}
+        </Text>
+      ) : null}
+    </View>
+  );
+
+  if (hasLyrics) {
+    return (
+      <View
+        pointerEvents="box-none"
+        style={{
+          flex: 1,
+          flexDirection: "row",
+          alignItems: "stretch",
+          gap: 56,
+          paddingHorizontal: 64,
+          paddingVertical: 48,
+        }}
+      >
+        <View
+          pointerEvents="box-none"
+          style={{ flex: 0.9, alignItems: "flex-start", justifyContent: "center", gap: 20 }}
+        >
+          <ArtworkImage
+            source={songArtworkSource(song)}
+            songId={song.id}
+            size={Math.min(artworkSize, 380)}
+            borderRadius={12}
+          />
+          {identity}
+        </View>
+        <View style={{ flex: 1.1 }}>
+          <CinemaLyricsColumn songId={song.id} />
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <View
+      pointerEvents="box-none"
+      style={{
+        flex: 1,
+        alignItems: "center",
+        justifyContent: "center",
+        paddingHorizontal: 48,
+        paddingVertical: 32,
+        gap: 24,
+      }}
+    >
+      <ArtworkImage
+        source={songArtworkSource(song)}
+        songId={song.id}
+        size={artworkSize}
+        borderRadius={16}
+      />
+      {identity}
+      <CinemaLyrics songId={song.id} />
     </View>
   );
 };
@@ -203,48 +360,7 @@ export const CinemaOverlay = () => {
         />
       </View>
       {song ? (
-        // box-none: the wrapper spans the whole overlay, and without it every
-        // "empty" click would land here instead of on the closing backdrop.
-        <View
-          pointerEvents="box-none"
-          style={{
-            flex: 1,
-            alignItems: "center",
-            justifyContent: "center",
-            paddingHorizontal: 48,
-            paddingVertical: 32,
-            gap: 24,
-          }}
-        >
-          <ArtworkImage
-            source={songArtworkSource(song)}
-            songId={song.id}
-            size={artworkSize}
-            borderRadius={16}
-          />
-          <View style={{ alignItems: "center", gap: 4, maxWidth: 720 }}>
-            <Text
-              numberOfLines={2}
-              style={{
-                color: tokens.foreground,
-                fontSize: 30,
-                fontWeight: "800",
-                textAlign: "center",
-              }}
-            >
-              {song.title}
-            </Text>
-            {artistsLine ? (
-              <Text
-                numberOfLines={1}
-                style={{ color: tokens.mutedForeground, fontSize: 16, textAlign: "center" }}
-              >
-                {artistsLine}
-              </Text>
-            ) : null}
-          </View>
-          <CinemaLyrics songId={song.id} />
-        </View>
+        <CinemaContent song={song} artworkSize={artworkSize} artistsLine={artistsLine} />
       ) : (
         // Songless cinema (the queue emptied under it): the player's own
         // empty state, not a black room.
