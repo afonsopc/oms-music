@@ -35,7 +35,7 @@ import { usePlaybackView } from "@/remote/mirror";
 import { useRemoteStore } from "@/remote/store";
 import { useTheme } from "@/theme/provider";
 import { ArtworkImage, GhostIconButton, PlayFab } from "@/ui";
-import { CinemaOverlay, openCinema } from "@/features/player/cinema";
+import { CinemaOverlay, toggleCinema } from "@/features/player/cinema";
 import { PlayerSettingsSheet } from "@/features/player/settingsSheet";
 import { Slider } from "@/features/player/Slider";
 import type { RightPanelTenant } from "./rightPanelModel";
@@ -343,7 +343,7 @@ export const DesktopTransportBar = ({
           size={18}
           disabled={!song}
           accessibilityLabel={t("native.desktop.cinemaMode")}
-          onPress={openCinema}
+          onPress={toggleCinema}
         />
       </View>
       {/* Mounted here because the bar exists at every desktop width; the

@@ -30,6 +30,8 @@ import {
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { create } from "zustand";
 import { useLyrics } from "@/api/queries/lyrics";
+import { getTransport } from "@/contracts/transport";
+import { domPortal } from "@/lib/domPortal";
 import { songArtworkSource } from "@/domain/artwork";
 import { formatArtists } from "@/domain/format";
 import type { SongId } from "@/domain/ids";
@@ -62,6 +64,10 @@ export const useCinemaStore = create<CinemaStore>((set) => ({
 
 export const openCinema = (): void => useCinemaStore.getState().setOpen(true);
 export const closeCinema = (): void => useCinemaStore.getState().setOpen(false);
+/** O botao de fullscreen da barra alterna (report do dono: carregar de novo
+ *  tem de FECHAR, nao re-abrir para lado nenhum). */
+export const toggleCinema = (): void =>
+  useCinemaStore.getState().setOpen(!useCinemaStore.getState().open);
 
 /** Lines shown in the lyrics region: the active one plus the next few. */
 const CINEMA_LINES = 3;
@@ -168,18 +174,26 @@ const CinemaLyricsColumn = ({ songId }: { songId: SongId }) => {
       showsVerticalScrollIndicator={false}
     >
       {lines.map((line, index) => (
-        <Text
+        // Clique numa linha = seek para o tempo dela (paridade com o cartao
+        // de letras; pedido do dono 2026-08-14).
+        <Pressable
           key={index}
-          style={{
-            color: tokens.foreground,
-            opacity: index === active ? 1 : index < active ? 0.35 : 0.5,
-            fontSize: 26,
-            lineHeight: 34,
-            fontWeight: index === active ? "800" : "700",
-          }}
+          accessibilityRole="button"
+          onPress={() => getTransport().seek(line.time)}
+          style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
         >
-          {line.text || "♪"}
-        </Text>
+          <Text
+            style={{
+              color: tokens.foreground,
+              opacity: index === active ? 1 : index < active ? 0.35 : 0.5,
+              fontSize: 26,
+              lineHeight: 34,
+              fontWeight: index === active ? "800" : "700",
+            }}
+          >
+            {line.text || "♪"}
+          </Text>
+        </Pressable>
       ))}
     </ScrollView>
   );
@@ -318,7 +332,10 @@ export const CinemaOverlay = () => {
   const artistsLine = song ? formatArtists(song) : "";
   const artworkSize = Math.min(Math.round(height * 0.45), 480);
 
-  return (
+  // Portal para o document.body (lib/domPortal): dentro do card do grid o
+  // position:fixed do RNW nao escapa o stacking context e o overlay ficava
+  // ATRAS da topbar e dos resizers, com o X inalcancavel.
+  return domPortal(
     <View
       style={[
         // position:fixed is a web-only CSS value RN's style type does not
@@ -330,7 +347,7 @@ export const CinemaOverlay = () => {
           left: GRID_GAP,
           right: GRID_GAP,
           bottom: GRID_GAP + TRANSPORT_ROW_HEIGHT,
-          zIndex: 40,
+          zIndex: 1000,
           borderRadius: 8,
           overflow: "hidden",
           backgroundColor: tokens.background,
@@ -368,6 +385,6 @@ export const CinemaOverlay = () => {
           <EmptyState icon="music" text={t("components.music.QueuePanel.empty")} />
         </View>
       )}
-    </View>
+    </View>,
   );
 };

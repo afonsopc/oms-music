@@ -6,6 +6,7 @@
  * packages code against.
  */
 import { useSyncExternalStore } from "react";
+import { Platform } from "react-native";
 import { useSegments } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useDesktopShell } from "@/ui/shellLayout";
@@ -58,7 +59,12 @@ export const useOverlayBottomOffset = (): number => {
   // edge. Without this gate the last MOBILE measurement leaks into desktop.
   if (desktop) return OVERLAY_MARGIN;
   const tabsFocused = (segments as string[]).includes("(tabs)");
-  if (tabsFocused) {
+  // NATIVO: a GlobalTabBar flutua sobre TODOS os ecras do (main) desde
+  // 2026-08-14, por isso a pill afasta-se dela em todo o lado - so a web
+  // mobile mantem a barra classica das tabs (e o offset por segmento). Sem
+  // isto a pill do player colapsado aterrava EM CIMA da barra nas paginas
+  // que antes nao a tinham (report do dono).
+  if (Platform.OS !== "web" || tabsFocused) {
     return (measured > 0 ? measured : TAB_BAR_FALLBACK + insets.bottom) + OVERLAY_MARGIN;
   }
   return insets.bottom + OVERLAY_MARGIN;

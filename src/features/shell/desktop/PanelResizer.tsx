@@ -16,6 +16,7 @@
  * Web-only by construction: only DesktopShell.web.tsx imports this file.
  */
 import React, { useRef, useState } from "react";
+import { useCinemaStore } from "@/features/player/cinema";
 import { useTheme } from "@/theme/provider";
 
 export interface PanelResizerProps {
@@ -51,6 +52,10 @@ export const PanelResizer = ({
   const { tokens } = useTheme();
   const [hot, setHot] = useState(false);
   const [dragging, setDragging] = useState(false);
+  // Com o cinema aberto nao ha nada para redimensionar - e o dono apanhou os
+  // divisores a acender por cima do overlay (hover na zona do gap,
+  // 2026-08-14). Some por completo enquanto o overlay existir.
+  const cinemaOpen = useCinemaStore((s) => s.open);
   // The drag math needs the width AT POINTER-DOWN; state alone would make
   // every move relative to the previous move and drift on coalesced events.
   // `lastSent` remembers what the moves reported so the commit on release
@@ -59,6 +64,8 @@ export const PanelResizer = ({
   const lastSentRef = useRef<number | null>(null);
 
   const clamp = (value: number): number => Math.max(min, Math.min(Math.round(value), max));
+
+  if (cinemaOpen) return null;
 
   const onPointerDown = (event: React.PointerEvent<HTMLDivElement>): void => {
     dragRef.current = { startX: event.clientX, startWidth: width };

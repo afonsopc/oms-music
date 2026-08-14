@@ -5,9 +5,9 @@
  * do player modal, que a cobre por inteiro. A barra do proprio navegador de
  * tabs deixa de renderizar no nativo (ShellTabBar); esta e A barra.
  *
- * Flutuante e translucida ("liquid glass" na medida do possivel sem
- * expo-blur: alpha alto + hairline + sombra; quando o dono aprovar a
- * dependencia, o fundo troca por um BlurView aqui e so aqui).
+ * Flutuante e em Liquid Glass a serio no iOS 26+ (expo-glass-effect,
+ * aprovado pelo dono 2026-08-14); onde o vidro nativo nao existe (Android,
+ * iOS < 26) fica a aproximacao translucida: alpha alto + hairline + sombra.
  *
  * Fora das tabs nenhuma rota esta "activa"; como no Apple Music, a barra
  * mantem acesa a ULTIMA tab visitada - dai o memo de modulo, que tambem
@@ -18,6 +18,7 @@
  */
 import React from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
 import { useRouter, useSegments } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { avatarUrl } from "@/api/mediaUrl";
@@ -110,10 +111,13 @@ export const GlobalTabBar = () => {
 
   const active = inTabs && current ? current : remembered;
 
-  // "Vidro" sem blur: um fundo quase-opaco derivado do scheme, hairline e
-  // sombra suave. O ponto unico de troca por BlurView quando ela existir.
+  // iOS 26+: Liquid Glass nativo (o glassEffect trata de fundo, refracao e
+  // adaptacao ao conteudo por baixo - nada de cores nossas). Resto: a
+  // aproximacao de "vidro" quase-opaco derivada do scheme.
+  const liquid = isLiquidGlassAvailable();
   const glass =
     scheme === "dark" ? "rgba(22, 22, 24, 0.92)" : "rgba(248, 248, 250, 0.92)";
+  const Capsule = liquid ? GlassView : View;
 
   return (
     <View
@@ -129,15 +133,23 @@ export const GlobalTabBar = () => {
         paddingTop: 6,
       }}
     >
-      <View
+      <Capsule
+        {...(liquid ? { glassEffectStyle: "regular" as const, isInteractive: true } : null)}
         style={{
           flexDirection: "row",
           borderRadius: 26,
-          backgroundColor: glass,
-          borderWidth: StyleSheet.hairlineWidth,
-          borderColor: scheme === "dark" ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.08)",
+          // O vidro nativo pinta-se a si proprio; um backgroundColor por
+          // cima mataria o efeito.
+          ...(liquid
+            ? { overflow: "hidden" as const }
+            : {
+                backgroundColor: glass,
+                borderWidth: StyleSheet.hairlineWidth,
+                borderColor:
+                  scheme === "dark" ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.08)",
+              }),
           shadowColor: "#000",
-          shadowOpacity: 0.25,
+          shadowOpacity: liquid ? 0.15 : 0.25,
           shadowRadius: 16,
           shadowOffset: { width: 0, height: 6 },
           elevation: 12,
@@ -174,7 +186,7 @@ export const GlobalTabBar = () => {
             </View>
           )}
         </TabItem>
-      </View>
+      </Capsule>
     </View>
   );
 };
