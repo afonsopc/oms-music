@@ -20,13 +20,13 @@ export const getPlaylist = (id: PlaylistId): Promise<Playlist> =>
 /** song_ids seeds <= 500 songs, order preserved (radio save-as-playlist). */
 export const createPlaylist = (body: {
   name: string;
-  artwork_fs_node_id?: string;
+  artwork_media_id?: string;
   song_ids?: SongId[];
 }): Promise<Playlist> => request("POST", "/playlists", { body });
 
 export const updatePlaylist = (
   id: PlaylistId,
-  body: { name?: string; artwork_fs_node_id?: string | null },
+  body: { name?: string; artwork_media_id?: string | null },
 ): Promise<Playlist> => request("PATCH", `/playlists/${id}`, { body });
 
 export const deletePlaylist = (id: PlaylistId): Promise<void> =>

@@ -7,7 +7,7 @@ export interface Playlist {
   updated_at: string;
   name: string;
   user_id: UserId;
-  artwork_fs_node_id: FsNodeId | null;
+  artwork_media_id: FsNodeId | null;
   source_kind: "manual" | "spotify_sync" | "imported" | null;
   source_provider: string | null;
   source_url: string | null;

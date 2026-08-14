@@ -27,8 +27,8 @@ const INSTRUMENTAL = "file:///stems/1_instrumental.mp3";
 /** A song the backend has already separated. */
 const separatedSong = (id = 1): Song =>
   makeSong(id, {
-    vocals_fs_node_id: `vocals-${id}`,
-    instrumental_fs_node_id: `instrumental-${id}`,
+    vocals_media_id: `vocals-${id}`,
+    instrumental_media_id: `instrumental-${id}`,
   });
 
 interface ProviderControl {
@@ -227,7 +227,7 @@ describe("entering and leaving custom mode", () => {
 
   it("never blends a song with only one stem", async () => {
     const ctx = setup();
-    const song = makeSong(1, { vocals_fs_node_id: "vocals-1" });
+    const song = makeSong(1, { vocals_media_id: "vocals-1" });
     urlFor(ctx, song);
     provider.resident.add("1");
     ctx.engine.setQueue([song]);
@@ -378,8 +378,8 @@ describe("stems must be on disk first", () => {
     expect(ctx.player.stemsOn).toBe(false); // no stems yet
 
     ctx.engine.patchQueueSong(song.id, {
-      vocals_fs_node_id: "vocals-1",
-      instrumental_fs_node_id: "instrumental-1",
+      vocals_media_id: "vocals-1",
+      instrumental_media_id: "instrumental-1",
     });
     await flush();
 
@@ -404,8 +404,8 @@ describe("stems must be on disk first", () => {
     // the backend destroys the fs nodes: staying on that stream plays a file
     // that no longer exists.
     ctx.engine.patchQueueSong(song.id, {
-      vocals_fs_node_id: null,
-      instrumental_fs_node_id: null,
+      vocals_media_id: null,
+      instrumental_media_id: null,
     });
     await flush();
 
@@ -427,8 +427,8 @@ describe("stems must be on disk first", () => {
     expect(ctx.player.stemsOn).toBe(true);
 
     ctx.engine.patchQueueSong(song.id, {
-      vocals_fs_node_id: null,
-      instrumental_fs_node_id: null,
+      vocals_media_id: null,
+      instrumental_media_id: null,
     });
     await flush();
 

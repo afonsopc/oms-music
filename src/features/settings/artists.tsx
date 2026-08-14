@@ -72,8 +72,8 @@ const ArtistManagementRow = React.memo(
     const t = useT();
     const { tokens, ink } = useTheme();
     const image = useMemo(() => artistImageSource(artist, "sm"), [artist]);
-    const hasImage = !!(artist.compressed_image_fs_node_id || artist.image_fs_node_id);
-    const hasBanner = !!(artist.compressed_banner_fs_node_id || artist.banner_fs_node_id);
+    const hasImage = !!(artist.compressed_image_media_id || artist.image_media_id);
+    const hasBanner = !!(artist.compressed_banner_media_id || artist.banner_media_id);
     const hasGallery = (artist.gallery_image_urls?.length ?? 0) > 0;
     const deletable = artist.songs_count === 0;
 

@@ -122,8 +122,8 @@ export default function AlbumScreen() {
               key: `${albumPrimary?.slug ?? artistSegment ?? "null"}::${album}`,
               title: album,
               artworkNodeId:
-                firstSong?.compressed_artwork_fs_node_id ??
-                firstSong?.artwork_fs_node_id ??
+                firstSong?.compressed_artwork_media_id ??
+                firstSong?.artwork_media_id ??
                 null,
             }
           : undefined

@@ -7,7 +7,7 @@ import type { Song } from "@/domain/song";
 export interface RecentlyPlayedAlbum {
   album: string | null;
   artist: Artist | string | null; // polymorphic (legacy rows are strings)
-  artwork_fs_node_id: string | null;
+  artwork_media_id: string | null;
   last_played_at: string;
 }
 
@@ -24,7 +24,7 @@ export interface TopSongRow {
 export interface TopAlbumRow {
   album: string | null;
   artist: Artist | string | null;
-  artwork_fs_node_id: string | null;
+  artwork_media_id: string | null;
   play_count: number;
 }
 

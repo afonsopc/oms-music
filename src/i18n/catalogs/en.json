@@ -1177,7 +1177,9 @@
       "legendCache": "Play cache {size}",
       "offlinePlaylists": "Offline playlists",
       "noOfflinePlaylists": "No playlist is kept offline yet - toggle it on any playlist page.",
-      "rowDetail": "Storage, offline mode, kept playlists"
+      "rowDetail": "Storage, offline mode, kept playlists",
+      "serverStorage": "Music storage",
+      "serverStorageUsed": "{used} of {limit} used"
     }
   }
 }

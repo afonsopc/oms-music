@@ -27,7 +27,7 @@ const album = (name: string | null, artistValue: AlbumSummary["artist"] = null):
   name,
   artist: artistValue,
   artist_slug: null,
-  artwork_fs_node_id: null,
+  artwork_media_id: null,
 });
 
 const sources: LibrarySources = {

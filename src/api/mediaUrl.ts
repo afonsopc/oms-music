@@ -1,17 +1,17 @@
 /**
- * Media URL builders (FR-2). `/fs_nodes/:id/data?token=` is 302-following and
+ * Media URL builders (FR-2). `/media/:id/data?token=` is 302-following and
  * rate-limit EXEMPT: use it for ALL images and downloads. Presigned resolution
  * (`data_url`) COUNTS against the 600/min ceiling and is reserved for the
- * player's resolver cache. Cache media by fs node id, NEVER by URL.
+ * player's resolver cache. Cache media by media id, NEVER by URL.
  */
 import { API_BASE_URL } from "./client";
-import type { FsNodeId, UserId } from "@/domain/ids";
+import type { MediaId, UserId } from "@/domain/ids";
 import { getToken } from "@/auth/token";
 
-/** Authenticated image/bytes URL for an fs node. */
-export const imageUrl = (nodeId: FsNodeId): string => {
+/** Authenticated image/bytes URL for a media id. */
+export const imageUrl = (nodeId: MediaId): string => {
   const token = getToken();
-  const base = `${API_BASE_URL}/fs_nodes/${encodeURIComponent(nodeId)}/data`;
+  const base = `${API_BASE_URL}/media/${encodeURIComponent(nodeId)}/data`;
   return token ? `${base}?token=${encodeURIComponent(token)}` : base;
 };
 

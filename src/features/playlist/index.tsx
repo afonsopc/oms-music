@@ -88,7 +88,7 @@ const PlaylistBody = ({ playlistId }: { playlistId: PlaylistId }) => {
   useOfflinePlaylistIdentity(
     playlist?.id ?? null,
     playlist?.name ?? null,
-    playlist?.artwork_fs_node_id ?? null,
+    playlist?.artwork_media_id ?? null,
     songs.length,
     playlist?.source_external_id ?? null,
   );
@@ -272,7 +272,7 @@ const PlaylistBody = ({ playlistId }: { playlistId: PlaylistId }) => {
                 kind: "playlist",
                 key: String(playlistId),
                 title: playlist.name,
-                artworkNodeId: playlist.artwork_fs_node_id ?? null,
+                artworkNodeId: playlist.artwork_media_id ?? null,
                 heart: likedMirror,
               }
             : undefined

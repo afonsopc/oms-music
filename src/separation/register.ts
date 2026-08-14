@@ -25,7 +25,7 @@ const useSeparateVocalsSlot: SongMenuSlotHook = (ctx) => {
 
   if (song.jam_song) return [];
 
-  const stemsPresent = !!(song.vocals_fs_node_id && song.instrumental_fs_node_id);
+  const stemsPresent = !!(song.vocals_media_id && song.instrumental_media_id);
   const running = status.phase === "pending" || status.phase === "processing";
 
   // Slot condition (frozen contract): only when stems absent. While a run

@@ -229,7 +229,8 @@ const playlistFromRow = (row: ReturnType<typeof downloadedPlaylists>[number]): P
   updated_at: EPOCH_ISO,
   name: row.name,
   user_id: "" as Playlist["user_id"],
-  artwork_fs_node_id: (row.artwork_fs_node_id ?? null) as Playlist["artwork_fs_node_id"],
+  // The SQLite column keeps its fs_nodes-era name; the value is a media id.
+  artwork_media_id: (row.artwork_fs_node_id ?? null) as Playlist["artwork_media_id"],
   source_kind: "manual",
   source_provider: null,
   source_url: null,

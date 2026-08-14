@@ -1177,7 +1177,9 @@
       "legendCache": "Atskaņošanas kešs {size}",
       "offlinePlaylists": "Bezsaistes atskaņošanas saraksti",
       "noOfflinePlaylists": "Vēl neviens saraksts nav bezsaistē - ieslēdz to saraksta lapā.",
-      "rowDetail": "Vieta, bezsaiste, saglabātie saraksti"
+      "rowDetail": "Vieta, bezsaiste, saglabātie saraksti",
+      "serverStorage": "Mūzikas krātuve",
+      "serverStorageUsed": "Izmantoti {used} no {limit}"
     }
   }
 }

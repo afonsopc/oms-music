@@ -47,7 +47,7 @@ export interface StemFileProvider {
 const residentFromLocalIndex = (song: Song): StemFiles | null => {
   // Stems only exist as fs nodes on the song; a jam proposal never has them.
   if (song.audio_url) return null;
-  if (!song.vocals_fs_node_id || !song.instrumental_fs_node_id) return null;
+  if (!song.vocals_media_id || !song.instrumental_media_id) return null;
   const index = getLocalFileIndex();
   const key = toSongKey(song.id);
   const vocalsUri = index.get(key, "vocal");

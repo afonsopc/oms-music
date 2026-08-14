@@ -162,7 +162,7 @@ export default function HomeScreen() {
         item: {
           key: id,
           title: album.album || t("components.music.Home.unknownAlbum"),
-          artwork: nodeArtwork(album.artwork_fs_node_id),
+          artwork: nodeArtwork(album.artwork_media_id),
           onPress: () => router.push(albumRoute(segment, album.album)),
         },
       });
@@ -289,7 +289,7 @@ export default function HomeScreen() {
                 subtitle={
                   artistDisplayName(album.artist) ?? t("components.music.Home.unknownArtist")
                 }
-                artwork={nodeArtwork(album.artwork_fs_node_id)}
+                artwork={nodeArtwork(album.artwork_media_id)}
                 onPress={() =>
                   router.push(albumRoute(artistRouteSegment(album.artist), album.album))
                 }
@@ -343,7 +343,7 @@ export default function HomeScreen() {
                   subtitle={
                     artistDisplayName(album.artist) ?? t("components.music.Home.unknownArtist")
                   }
-                  artwork={nodeArtwork(album.artwork_fs_node_id)}
+                  artwork={nodeArtwork(album.artwork_media_id)}
                   onPress={() =>
                     router.push(
                       albumRoute(album.artist_slug ?? artistRouteSegment(album.artist), album.name),

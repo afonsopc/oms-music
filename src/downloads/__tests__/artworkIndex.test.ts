@@ -9,8 +9,8 @@ import type { FsNodeId, SongKey } from "@/domain/ids";
 import { ArtworkNodeIndex, artworkNodeIdsOf } from "../artworkIndex";
 
 const song = (compressed: string | null, original: string | null) => ({
-  compressed_artwork_fs_node_id: compressed as FsNodeId | null,
-  artwork_fs_node_id: original as FsNodeId | null,
+  compressed_artwork_media_id: compressed as FsNodeId | null,
+  artwork_media_id: original as FsNodeId | null,
 });
 
 const key = (value: string): SongKey => value as SongKey;

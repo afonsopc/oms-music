@@ -25,8 +25,8 @@ const job = (overrides: Partial<VocalSeparation> = {}): VocalSeparation =>
 
 const status = (overrides: Partial<SongSeparationStatus> = {}): SongSeparationStatus => ({
   stems_ready: false,
-  vocals_fs_node_id: null,
-  instrumental_fs_node_id: null,
+  vocals_media_id: null,
+  instrumental_media_id: null,
   progress_percent: null,
   job: null,
   ...overrides,
@@ -47,8 +47,8 @@ describe("separation projection (FR-71)", () => {
   it("reports ready when the stems landed and stops polling", () => {
     const ready = status({
       stems_ready: true,
-      vocals_fs_node_id: "v",
-      instrumental_fs_node_id: "i",
+      vocals_media_id: "v",
+      instrumental_media_id: "i",
       job: job({ status: "complete" }),
     });
     expect(projectSeparation(ready).phase).toBe("ready");

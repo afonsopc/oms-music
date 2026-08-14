@@ -107,8 +107,8 @@ const warmLibrary = async (): Promise<void> => {
     qc.getQueryData<RecentlyPlayedAlbum[]>(keys.playEvents.recentAlbums(RECENT_ALBUMS_LIMIT)) ??
     [];
 
-  prefetchArtwork(playlists.map((p) => p.artwork_fs_node_id));
-  prefetchArtwork(recents.map((a) => a.artwork_fs_node_id));
+  prefetchArtwork(playlists.map((p) => p.artwork_media_id));
+  prefetchArtwork(recents.map((a) => a.artwork_media_id));
 
   for (const playlist of playlists) {
     await qc

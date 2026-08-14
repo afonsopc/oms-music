@@ -21,7 +21,7 @@ export interface DeezerPicture {
 
 /** True while the resource already carries a picture worth showing. */
 export const hasOwnArtistImage = (artist: Artist | undefined | null): boolean =>
-  !!(artist?.image_fs_node_id || artist?.compressed_image_fs_node_id || artist?.picture);
+  !!(artist?.image_media_id || artist?.compressed_image_media_id || artist?.picture);
 
 /**
  * Full-bleed hero backdrop URI, or null when there is nothing photographic

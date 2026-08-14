@@ -20,10 +20,10 @@ export type ArtworkSource =
 
 /** Song artwork: jam presigned url > compressed node > node > placeholder. */
 export const songArtworkSource = (
-  song: Pick<Song, "artwork_url" | "compressed_artwork_fs_node_id" | "artwork_fs_node_id">,
+  song: Pick<Song, "artwork_url" | "compressed_artwork_media_id" | "artwork_media_id">,
 ): ArtworkSource => {
   if (song.artwork_url) return { kind: "external", url: song.artwork_url };
-  const node = song.compressed_artwork_fs_node_id ?? song.artwork_fs_node_id;
+  const node = song.compressed_artwork_media_id ?? song.artwork_media_id;
   if (node) return { kind: "node", nodeId: node };
   return { kind: "placeholder" };
 };
@@ -31,7 +31,7 @@ export const songArtworkSource = (
 /** Playlist artwork: liked mirror draws the purple heart; else node or placeholder. */
 export const playlistArtworkSource = (playlist: Playlist): ArtworkSource => {
   if (isLikedMirror(playlist)) return { kind: "likedHeart" };
-  if (playlist.artwork_fs_node_id) return { kind: "node", nodeId: playlist.artwork_fs_node_id };
+  if (playlist.artwork_media_id) return { kind: "node", nodeId: playlist.artwork_media_id };
   return { kind: "placeholder" };
 };
 
@@ -40,14 +40,14 @@ export type ArtistImageSize = "sm" | "lg";
 type ArtistImageCarrier = Pick<
   Artist,
   | "name"
-  | "compressed_image_fs_node_id"
-  | "image_fs_node_id"
+  | "compressed_image_media_id"
+  | "image_media_id"
   | "picture"
   | "picture_medium"
   | "picture_big"
   | "picture_xl"
   | "external_image_url"
-  | "fallback_artwork_fs_node_id"
+  | "fallback_artwork_media_id"
 > & { gallery_image_urls?: string[] };
 
 /**
@@ -59,9 +59,9 @@ export const artistImageSource = (
   artist: ArtistImageCarrier,
   size: ArtistImageSize = "sm",
 ): ArtworkSource => {
-  if (artist.compressed_image_fs_node_id)
-    return { kind: "node", nodeId: artist.compressed_image_fs_node_id };
-  if (artist.image_fs_node_id) return { kind: "node", nodeId: artist.image_fs_node_id };
+  if (artist.compressed_image_media_id)
+    return { kind: "node", nodeId: artist.compressed_image_media_id };
+  if (artist.image_media_id) return { kind: "node", nodeId: artist.image_media_id };
   const deezer =
     size === "sm"
       ? artist.picture_medium
@@ -70,20 +70,20 @@ export const artistImageSource = (
   if (artist.picture) return { kind: "external", url: artist.picture };
   const gallery = artist.gallery_image_urls?.[0];
   if (gallery) return { kind: "external", url: gallery };
-  if (artist.fallback_artwork_fs_node_id)
-    return { kind: "node", nodeId: artist.fallback_artwork_fs_node_id };
+  if (artist.fallback_artwork_media_id)
+    return { kind: "node", nodeId: artist.fallback_artwork_media_id };
   if (artist.external_image_url) return { kind: "external", url: artist.external_image_url };
   return { kind: "initials", name: artist.name };
 };
 
 type ArtistBannerCarrier = ArtistImageCarrier &
-  Pick<Artist, "compressed_banner_fs_node_id" | "banner_fs_node_id">;
+  Pick<Artist, "compressed_banner_media_id" | "banner_media_id">;
 
 /** Artist banner chain: compressed banner > banner > xl > big > external > image chain. */
 export const artistBannerSource = (artist: ArtistBannerCarrier): ArtworkSource => {
-  if (artist.compressed_banner_fs_node_id)
-    return { kind: "node", nodeId: artist.compressed_banner_fs_node_id };
-  if (artist.banner_fs_node_id) return { kind: "node", nodeId: artist.banner_fs_node_id };
+  if (artist.compressed_banner_media_id)
+    return { kind: "node", nodeId: artist.compressed_banner_media_id };
+  if (artist.banner_media_id) return { kind: "node", nodeId: artist.banner_media_id };
   if (artist.picture_xl) return { kind: "external", url: artist.picture_xl };
   if (artist.picture_big) return { kind: "external", url: artist.picture_big };
   if (artist.external_image_url) return { kind: "external", url: artist.external_image_url };

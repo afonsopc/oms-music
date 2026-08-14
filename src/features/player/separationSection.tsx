@@ -171,7 +171,7 @@ export const SeparationSection = ({ song, disabled }: { song: Song; disabled: bo
   const instrumentalVolume = usePlayerStore((s) => s.instrumentalVolume);
   const stemMixerAvailable = usePlayerStore((s) => s.stemMixerAvailable);
 
-  const stemsReady = !!(song.vocals_fs_node_id && song.instrumental_fs_node_id);
+  const stemsReady = !!(song.vocals_media_id && song.instrumental_media_id);
   // A re-run keeps the OLD stems attached until the new ones land, so a live
   // run must never be masked by stems being ready (web parity, SongCard 48-50).
   const busy = status.phase === "pending" || status.phase === "processing";

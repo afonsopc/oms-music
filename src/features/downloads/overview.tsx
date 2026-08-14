@@ -10,6 +10,7 @@
 import React, { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { ScrollView, Switch, Text, View } from "react-native";
 import { formatBytes } from "./format";
+import { getMusicStorage, type MusicStorage } from "@/api/endpoints/musicStorage";
 import {
   downloadedPlaylists,
   listDownloadedSongs,
@@ -114,6 +115,21 @@ export default function DownloadsOverviewScreen() {
   const manualOffline = useManualOffline();
 
   const [usage, setUsage] = useState<{ bytes: number; files: number } | null>(null);
+  const [serverStorage, setServerStorage] = useState<MusicStorage | null>(null);
+
+  // Server-side music storage (the ActiveStorage quota): one best-effort
+  // fetch per mount; the row simply stays hidden when it cannot answer.
+  useEffect(() => {
+    let cancelled = false;
+    void getMusicStorage()
+      .then((result) => {
+        if (!cancelled) setServerStorage(result);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Synchronous reads keyed by the coarse status version (FR-82 discipline).
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -198,6 +214,33 @@ export default function DownloadsOverviewScreen() {
       </View>
 
       <StorageBar downloadsBytes={downloadsBytes} cacheBytes={cache.bytes} />
+
+      {serverStorage ? (
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 12,
+            backgroundColor: tokens.secondary,
+            borderRadius: RADIUS,
+            paddingHorizontal: 16,
+            paddingVertical: 12,
+          }}
+        >
+          <Icon name="cloud-check" size={20} color={tokens.foreground} />
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: tokens.foreground, fontSize: 15, fontWeight: "600" }}>
+              {t("native.downloadsOverview.serverStorage")}
+            </Text>
+            <Text style={{ color: tokens.mutedForeground, fontSize: 12, marginTop: 2 }}>
+              {t("native.downloadsOverview.serverStorageUsed", {
+                used: formatBytes(serverStorage.used_bytes),
+                limit: formatBytes(serverStorage.limit_bytes),
+              })}
+            </Text>
+          </View>
+        </View>
+      ) : null}
 
       {inFlight.length > 0 ? (
         <View style={{ gap: 8 }}>

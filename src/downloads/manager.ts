@@ -16,6 +16,8 @@ import { File, type Directory } from "expo-file-system";
 import type { SQLiteDatabase } from "expo-sqlite";
 import { getLyrics } from "@/api/endpoints/lyrics";
 import { closeUserDb, openUserDb } from "@/db/index";
+import { kvGet, kvSet } from "@/db/kv";
+import { clearRecentCollections } from "@/lib/recentCollections";
 import { isApiError } from "@/domain/api";
 import type { DownloadEntry, DownloadKind, LyricsState, SongDownloadStatus } from "@/domain/downloads";
 import type { FsNodeId, SongKey, UserId } from "@/domain/ids";
@@ -25,7 +27,12 @@ import type { Song } from "@/domain/song";
 import { ArtworkNodeIndex } from "./artworkIndex";
 import * as repo from "./db";
 import { LyricsFetchQueue } from "./lyricsQueue";
-import { ensureUserDownloadDirectory, filenameFor, walkDirectoryBytes } from "./paths";
+import {
+  downloadsRootDirectory,
+  ensureUserDownloadDirectory,
+  filenameFor,
+  walkDirectoryBytes,
+} from "./paths";
 import { getDownloadSettings } from "./settings";
 import {
   clearKindStatus,
@@ -80,6 +87,30 @@ const MIN_PLAUSIBLE_FILE_BYTES = 1024;
 export const normalizeSongKey = (id: number | string): SongKey =>
   typeof id === "number" ? toSongKey(id) : toSongKey(toSongId(id));
 
+/**
+ * The file/kv half of the media-id wipe (schema v5 drops the tables): the
+ * downloaded bytes on disk and the persisted recent-collections entries were
+ * addressed by fs node UUIDs, which no longer resolve against `/media`. Runs
+ * once per device, on the first session start after the update, and deletes
+ * the WHOLE downloads root (every user: all their ids are equally stale;
+ * each user's tables are wiped by their own db migration on open). Users
+ * re-download; a stale UUID can never be replayed against `/media`.
+ */
+const MEDIA_WIPE_KV_KEY = "oms-music.downloads.media-id-wipe";
+
+const wipeLegacyNodeArtifactsOnce = (): void => {
+  if (kvGet(MEDIA_WIPE_KV_KEY) === "1") return;
+  try {
+    const root = downloadsRootDirectory();
+    if (root.exists) root.delete();
+  } catch {
+    // Best-effort: orphan files cost disk, never correctness (the tables that
+    // pointed at them are gone), and ensureUserDownloadDirectory recreates.
+  }
+  clearRecentCollections();
+  kvSet(MEDIA_WIPE_KV_KEY, "1");
+};
+
 let active: ActiveSession | null = null;
 const startListeners = new Set<() => void>();
 /** One paced lyrics backfill queue for the process (see lyricsQueue.ts). */
@@ -106,6 +137,7 @@ export const startManager = (userId: UserId): void => {
   if (active) stopManager();
 
   const db = openUserDb(userId);
+  wipeLegacyNodeArtifactsOnce();
   const dir = ensureUserDownloadDirectory(userId);
 
   const session: ActiveSession = {
@@ -156,7 +188,7 @@ export const startManager = (userId: UserId): void => {
       } catch {
         size = 0;
       }
-      // A stale token makes /fs_nodes/:id/data answer 404 with a bare JSON
+      // A stale token makes /media/:id/data answer 404 with a bare JSON
       // string; some native stacks write that body to disk and "complete".
       // No real media file is that small, so treat it as an error and let
       // repair re-enqueue with a fresh URL instead of storing a poison file.
@@ -442,7 +474,7 @@ export const downloadSong = async (song: Song, opts?: DownloadOpts): Promise<voi
   if (!session) throw new Error("Downloads unavailable: no signed-in session.");
   if (song.jam_song) return; // Jam guard: never persisted or downloaded.
 
-  const mixedNode = song.compressed_audio_fs_node_id || song.audio_fs_node_id;
+  const mixedNode = song.compressed_audio_media_id || song.audio_media_id;
   if (!mixedNode) return; // Nothing downloadable.
 
   await wifiGate();
@@ -467,35 +499,35 @@ export const downloadSong = async (song: Song, opts?: DownloadOpts): Promise<voi
     fetchLyricsIntoRow(session, song, songKey);
   }
 
-  const usesCompressed = mixedNode === song.compressed_audio_fs_node_id;
+  const usesCompressed = mixedNode === song.compressed_audio_media_id;
   enqueueKind(session, song, songKey, "mixed", mixedNode, {
     usesCompressedNode: usesCompressed,
   });
 
   // Quality upgrade: the original master only when distinct (FR-83).
-  if (song.audio_fs_node_id && song.audio_fs_node_id !== song.compressed_audio_fs_node_id) {
-    enqueueKind(session, song, songKey, "mixed_original", song.audio_fs_node_id, {
+  if (song.audio_media_id && song.audio_media_id !== song.compressed_audio_media_id) {
+    enqueueKind(session, song, songKey, "mixed_original", song.audio_media_id, {
       siblingNodeId: mixedNode,
       usesCompressedNode: false,
     });
   }
 
-  const artworkNode = song.compressed_artwork_fs_node_id || song.artwork_fs_node_id;
+  const artworkNode = song.compressed_artwork_media_id || song.artwork_media_id;
   if (artworkNode) {
     enqueueKind(session, song, songKey, "artwork", artworkNode, {
-      usesCompressedNode: artworkNode === song.compressed_artwork_fs_node_id,
+      usesCompressedNode: artworkNode === song.compressed_artwork_media_id,
     });
   }
 
   const includeStems = opts?.includeStems ?? getDownloadSettings().includeStems;
   if (includeStems) {
-    if (song.vocals_fs_node_id) {
-      enqueueKind(session, song, songKey, "vocal", song.vocals_fs_node_id, {
+    if (song.vocals_media_id) {
+      enqueueKind(session, song, songKey, "vocal", song.vocals_media_id, {
         usesCompressedNode: false,
       });
     }
-    if (song.instrumental_fs_node_id) {
-      enqueueKind(session, song, songKey, "instrumental", song.instrumental_fs_node_id, {
+    if (song.instrumental_media_id) {
+      enqueueKind(session, song, songKey, "instrumental", song.instrumental_media_id, {
         usesCompressedNode: false,
       });
     }
@@ -540,7 +572,7 @@ export const cachePlayback = async (song: Song): Promise<void> => {
   const session = active;
   if (!session || session.closed) return;
   if (song.jam_song) return; // Jam guard: ephemeral URLs, never persisted.
-  const mixedNode = song.compressed_audio_fs_node_id || song.audio_fs_node_id;
+  const mixedNode = song.compressed_audio_media_id || song.audio_media_id;
   if (!mixedNode) return;
 
   const songKey = toSongKey(song.id);
@@ -560,7 +592,7 @@ export const cachePlayback = async (song: Song): Promise<void> => {
   if (session.closed) return;
 
   enqueueKind(session, song, songKey, "mixed", mixedNode, {
-    usesCompressedNode: mixedNode === song.compressed_audio_fs_node_id,
+    usesCompressedNode: mixedNode === song.compressed_audio_media_id,
   });
 };
 
@@ -602,8 +634,8 @@ export const downloadStemsForPlayback = async (song: Song): Promise<void> => {
   const session = active;
   if (!session) throw new Error("Downloads unavailable: no signed-in session.");
   if (song.jam_song) throw new Error("Jam songs have no stems.");
-  const vocals = song.vocals_fs_node_id;
-  const instrumental = song.instrumental_fs_node_id;
+  const vocals = song.vocals_media_id;
+  const instrumental = song.instrumental_media_id;
   if (!vocals || !instrumental) throw new Error("Song has no stems.");
 
   await wifiGate();

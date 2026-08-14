@@ -9,8 +9,8 @@ export interface SongArtistEntry {
   role: "primary" | "featured" | "with";
   name: string;
   slug: string;
-  image_fs_node_id: FsNodeId | null;
-  compressed_image_fs_node_id: FsNodeId | null;
+  image_media_id: FsNodeId | null;
+  compressed_image_media_id: FsNodeId | null;
   picture: string | null;
   picture_medium: string | null;
   external_image_url: string | null;
@@ -36,12 +36,12 @@ export interface Song {
   duration: number;
   position: number | null;
   year: number | null;
-  audio_fs_node_id: FsNodeId | null;
-  compressed_audio_fs_node_id: FsNodeId | null;
-  artwork_fs_node_id: FsNodeId | null;
-  compressed_artwork_fs_node_id: FsNodeId | null;
-  vocals_fs_node_id: FsNodeId | null;
-  instrumental_fs_node_id: FsNodeId | null;
+  audio_media_id: FsNodeId | null;
+  compressed_audio_media_id: FsNodeId | null;
+  artwork_media_id: FsNodeId | null;
+  compressed_artwork_media_id: FsNodeId | null;
+  vocals_media_id: FsNodeId | null;
+  instrumental_media_id: FsNodeId | null;
   vocal_separation_started_at: string | null;
   user_id: UserId;
   source_kind: "upload" | "yt_dlp" | "spotify_sync" | null;
@@ -102,8 +102,8 @@ export interface VocalSeparation {
 /** GET /songs/:id/separation response. */
 export interface SongSeparationStatus {
   stems_ready: boolean;
-  vocals_fs_node_id: FsNodeId | null;
-  instrumental_fs_node_id: FsNodeId | null;
+  vocals_media_id: FsNodeId | null;
+  instrumental_media_id: FsNodeId | null;
   progress_percent: number | null;
   job: VocalSeparation | null;
 }

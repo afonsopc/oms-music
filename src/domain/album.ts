@@ -9,7 +9,7 @@ export interface AlbumSummary {
   name: string | null; // null = unknown album
   artist: Artist | string | null;
   artist_slug: string | null;
-  artwork_fs_node_id: FsNodeId | null;
+  artwork_media_id: FsNodeId | null;
 }
 
 /** play_events recent/top rows share the polymorphic artist shape. */

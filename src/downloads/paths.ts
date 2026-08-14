@@ -26,6 +26,10 @@ const excluded = new Set<string>();
 export const userDownloadDirectory = (userId: string): Directory =>
   new Directory(Paths.document, ROOT_DIR_NAME, userId);
 
+/** The whole downloads tree, every user (the media-id wipe deletes it once). */
+export const downloadsRootDirectory = (): Directory =>
+  new Directory(Paths.document, ROOT_DIR_NAME);
+
 /** Creates the per-user directory (idempotent, with intermediates). */
 export const ensureUserDownloadDirectory = (userId: string): Directory => {
   const dir = userDownloadDirectory(userId);

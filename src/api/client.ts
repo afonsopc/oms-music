@@ -31,8 +31,9 @@ export interface RequestOpts {
 const DEFAULT_TIMEOUT_MS = 20_000;
 
 /**
- * Auth-failure hook: any 401 from an authed endpoint (and any fs_node 404
- * while believed-authed) notifies the guard, which runs ONE single-flight
+ * Auth-failure hook: any 401 from an authed endpoint (and any media 404
+ * while believed-authed - the media routes answer 404, never 401, so
+ * existence never leaks) notifies the guard, which runs ONE single-flight
  * /sessions/mine probe. Registered by auth/guard.ts; callers never retry.
  */
 type AuthFailureHandler = (cause: "401" | "fs404") => void;
@@ -41,7 +42,7 @@ export const setAuthFailureHandler = (handler: AuthFailureHandler): void => {
   authFailureHandler = handler;
 };
 
-const isFsNodePath = (path: string): boolean => path.startsWith("/fs_nodes/");
+const isMediaPath = (path: string): boolean => path.startsWith("/media/");
 
 export async function request<T>(
   method: HttpMethod,
@@ -119,7 +120,7 @@ export async function request<T>(
   if (response.ok) return parsed as T;
 
   if (auth && response.status === 401) authFailureHandler("401");
-  if (auth && response.status === 404 && isFsNodePath(path)) authFailureHandler("fs404");
+  if (auth && response.status === 404 && isMediaPath(path)) authFailureHandler("fs404");
 
   throw buildApiError(response.status, parsed, response.headers.get("Retry-After"));
 }

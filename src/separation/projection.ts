@@ -31,7 +31,7 @@ export const projectSeparation = (
 ): SeparationProjection => {
   if (!data) return IDLE;
 
-  const stemsPresent = !!(data.vocals_fs_node_id && data.instrumental_fs_node_id);
+  const stemsPresent = !!(data.vocals_media_id && data.instrumental_media_id);
   if (data.stems_ready || stemsPresent) {
     return { phase: "ready", progressPercent: null, startedAtMs: null };
   }

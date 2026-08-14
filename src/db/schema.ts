@@ -3,7 +3,7 @@
  * Changes go through the WP1 owner as explicit change requests.
  */
 
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 
 /**
  * Migration 2: offline playlist metadata.
@@ -97,6 +97,76 @@ CREATE TABLE IF NOT EXISTS offline_collection_songs (
 `;
 
 /**
+ * Migration 5: the media-id wipe (fs_nodes -> ActiveStorage, 2026-08).
+ *
+ * The backend stopped addressing music media by fs node UUID; the id space is
+ * now ActiveStorage attachment ids (decimal strings) served by `/media/:id`.
+ * Every persisted node id on this device is therefore stale, and a stored
+ * UUID replayed against `/media` can only 404. Rather than migrate ids we
+ * cannot map locally, every download-domain table is dropped and recreated at
+ * its current shape (the columns KEEP their fs_nodes-era names; the values
+ * they now store are media ids) and users re-download. The manager pairs this
+ * with a one-time deletion of the downloads file directory and of the
+ * persisted recent-collections entries (both hold stale node references).
+ */
+export const MIGRATION_MEDIA_ID_WIPE = `
+DROP TABLE IF EXISTS dl_songs;
+DROP TABLE IF EXISTS dl_files;
+DROP TABLE IF EXISTS offline_collections;
+DROP TABLE IF EXISTS offline_playlists;
+DROP TABLE IF EXISTS offline_collection_songs;
+
+CREATE TABLE IF NOT EXISTS dl_songs (
+  song_key     TEXT PRIMARY KEY,
+  song_json    TEXT NOT NULL,
+  stored_at    INTEGER NOT NULL,
+  lyrics_state TEXT NOT NULL DEFAULT 'unfetched'
+               CHECK (lyrics_state IN ('unfetched','none','cached')),
+  lyrics_json  TEXT
+);
+
+CREATE TABLE IF NOT EXISTS dl_files (
+  song_key        TEXT NOT NULL,
+  kind            TEXT NOT NULL CHECK (kind IN
+                  ('mixed','mixed_original','artwork','vocal','instrumental')),
+  status          TEXT NOT NULL CHECK (status IN ('queued','downloading','done','error')),
+  node_id         TEXT NOT NULL,
+  sibling_node_id TEXT,
+  filename        TEXT NOT NULL,
+  local_uri       TEXT,
+  progress        REAL NOT NULL DEFAULT 0,
+  size_bytes      INTEGER NOT NULL DEFAULT 0,
+  savable         TEXT,
+  error           TEXT,
+  created_at      INTEGER NOT NULL,
+  updated_at      INTEGER NOT NULL,
+  PRIMARY KEY (song_key, kind)
+);
+CREATE INDEX IF NOT EXISTS idx_dl_files_status ON dl_files (status);
+
+CREATE TABLE IF NOT EXISTS offline_collections (
+  key      TEXT PRIMARY KEY,
+  added_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS offline_playlists (
+  id                  INTEGER PRIMARY KEY,
+  name                TEXT NOT NULL,
+  artwork_fs_node_id  TEXT,
+  song_count          INTEGER NOT NULL DEFAULT 0,
+  source_external_id  TEXT,
+  updated_at          INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS offline_collection_songs (
+  collection_key TEXT NOT NULL,
+  song_key       TEXT NOT NULL,
+  position       INTEGER NOT NULL,
+  PRIMARY KEY (collection_key, song_key)
+);
+`;
+
+/**
  * Ordered migrations. Index 0 applies when the stored schema_version is 0
  * (fresh db). Future migrations append; NEVER edit an applied entry.
  */
@@ -105,4 +175,5 @@ export const MIGRATIONS: readonly string[] = [
   MIGRATION_OFFLINE_PLAYLISTS,
   MIGRATION_OFFLINE_PLAYLIST_SOURCE,
   MIGRATION_OFFLINE_COLLECTION_SONGS,
+  MIGRATION_MEDIA_ID_WIPE,
 ];

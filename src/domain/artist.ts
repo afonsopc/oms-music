@@ -8,10 +8,10 @@ export interface Artist {
   canonical_name: string;
   slug: string;
   user_id: UserId;
-  image_fs_node_id: FsNodeId | null;
-  compressed_image_fs_node_id: FsNodeId | null;
-  banner_fs_node_id: FsNodeId | null;
-  compressed_banner_fs_node_id: FsNodeId | null;
+  image_media_id: FsNodeId | null;
+  compressed_image_media_id: FsNodeId | null;
+  banner_media_id: FsNodeId | null;
+  compressed_banner_media_id: FsNodeId | null;
   mbid: string | null;
   lastfm_listeners: number | null;
   lastfm_playcount: number | null;
@@ -25,7 +25,7 @@ export interface Artist {
   bio_fetched_at: string | null;
   similar_fetched_at: string | null;
   songs_count: number;
-  fallback_artwork_fs_node_id: FsNodeId | null;
+  fallback_artwork_media_id: FsNodeId | null;
   // extended view (show/update) only:
   bio_html?: string | null;
   gallery_image_urls?: string[];
@@ -56,10 +56,10 @@ export interface ArtistMetadata {
   lastfm_playcount: number | null;
   bio_html: string | null;
   image_url: string | null;
-  image_fs_node_id: FsNodeId | null;
-  compressed_image_fs_node_id: FsNodeId | null;
-  banner_fs_node_id: FsNodeId | null;
-  compressed_banner_fs_node_id: FsNodeId | null;
+  image_media_id: FsNodeId | null;
+  compressed_image_media_id: FsNodeId | null;
+  banner_media_id: FsNodeId | null;
+  compressed_banner_media_id: FsNodeId | null;
   picture: string | null;
   picture_small: string | null;
   picture_medium: string | null;

@@ -331,7 +331,7 @@ describe("patch + modes (FR-68)", () => {
     expect(ctx.player.uri?.startsWith("http://cdn/1")).toBe(true);
     // Separation finishes; ids land via patch: swap preserving position.
     ctx.player.currentTime = 30;
-    ctx.engine.patchQueueSong(s1.id, { instrumental_fs_node_id: "stem-1" });
+    ctx.engine.patchQueueSong(s1.id, { instrumental_media_id: "stem-1" });
     await flush();
     expect(ctx.player.uri?.startsWith("http://cdn/stem1")).toBe(true);
     ctx.player.emitLoaded(200);
@@ -342,7 +342,7 @@ describe("patch + modes (FR-68)", () => {
 
   it("a late status from the OUTGOING source never eats pendingSeek", async () => {
     const ctx = setup();
-    const s1 = makeSong(1, { instrumental_fs_node_id: "stem-1" });
+    const s1 = makeSong(1, { instrumental_media_id: "stem-1" });
     urlFor(ctx, s1);
     ctx.resolver.control.urls.set("stem-1", "http://cdn/stem1");
     ctx.engine.setQueue([s1]);

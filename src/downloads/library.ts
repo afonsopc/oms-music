@@ -156,7 +156,7 @@ export const deriveOfflineAlbums = (songs: Song[]): AlbumSummary[] => {
       name: song.album ?? null,
       artist: primary?.name ?? null,
       artist_slug: primary?.slug ?? null,
-      artwork_fs_node_id: song.compressed_artwork_fs_node_id ?? song.artwork_fs_node_id ?? null,
+      artwork_media_id: song.compressed_artwork_media_id ?? song.artwork_media_id ?? null,
     });
   }
   return [...map.values()].sort((a, b) => (a.name ?? "").localeCompare(b.name ?? ""));
@@ -179,10 +179,10 @@ export const deriveOfflineArtists = (songs: Song[]): Artist[] => {
         canonical_name: entry.name,
         slug: entry.slug,
         user_id: song.user_id,
-        image_fs_node_id: entry.image_fs_node_id,
-        compressed_image_fs_node_id: entry.compressed_image_fs_node_id,
-        banner_fs_node_id: null,
-        compressed_banner_fs_node_id: null,
+        image_media_id: entry.image_media_id,
+        compressed_image_media_id: entry.compressed_image_media_id,
+        banner_media_id: null,
+        compressed_banner_media_id: null,
         mbid: null,
         lastfm_listeners: null,
         lastfm_playcount: null,
@@ -196,7 +196,7 @@ export const deriveOfflineArtists = (songs: Song[]): Artist[] => {
         bio_fetched_at: null,
         similar_fetched_at: null,
         songs_count: 0,
-        fallback_artwork_fs_node_id: null,
+        fallback_artwork_media_id: null,
       });
     }
   }

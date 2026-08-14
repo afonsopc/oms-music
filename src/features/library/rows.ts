@@ -99,8 +99,8 @@ export const buildLibraryRows = (
         kind: "album",
         name: album.name,
         subtitle: artistName ? `${labels.albumKind} • ${artistName}` : labels.albumKind,
-        artwork: album.artwork_fs_node_id
-          ? { kind: "node", nodeId: album.artwork_fs_node_id }
+        artwork: album.artwork_media_id
+          ? { kind: "node", nodeId: album.artwork_media_id }
           : { kind: "placeholder" },
         route: albumRoute(segment, album.name),
         system: false,

@@ -5,7 +5,14 @@
  */
 export type SongId = number & { __brand: "SongId" };          // REST
 export type SongKey = string & { __brand: "SongKey" };        // cable + sqlite
-export type FsNodeId = string;
+/**
+ * A media id is the backend's ActiveStorage attachment id serialized as a
+ * decimal string (the fs_nodes -> ActiveStorage migration, 2026-08). Used
+ * verbatim in `/media/:id/...` URLs and stored as TEXT in SQLite.
+ */
+export type MediaId = string;
+/** @deprecated Legacy alias from the fs_nodes era; new code uses MediaId. */
+export type FsNodeId = MediaId;
 export type UserId = string;
 export type SessionId = string;
 export type PlaylistId = number;

@@ -54,7 +54,7 @@ export const toAlbumHits = (albums: AlbumSummary[], term: string): SearchAlbumHi
         name: album.name,
         artist: artistDisplayName(album.artist),
         artistSegment: album.artist_slug ?? artistRouteSegment(album.artist),
-        artworkFsNodeId: album.artwork_fs_node_id,
+        artworkFsNodeId: album.artwork_media_id,
       })),
     term,
     (album) => album.name,

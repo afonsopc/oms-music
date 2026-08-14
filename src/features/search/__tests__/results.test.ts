@@ -33,7 +33,7 @@ const album = (
   name,
   artist: artistValue,
   artist_slug: slug,
-  artwork_fs_node_id: null,
+  artwork_media_id: null,
 });
 
 const playlist = (id: number, name: string): Playlist =>

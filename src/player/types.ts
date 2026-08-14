@@ -204,7 +204,7 @@ export interface ListenerSettingsPersistence {
 /** Everything the engine touches that has I/O behind it, injectable. */
 export interface EngineDeps {
   createPlayer(): AudioAdapter;
-  /** GET /fs_nodes/:id/data_url -> presigned URL (single attempt). */
+  /** GET /media/:id/data_url -> presigned URL (single attempt). */
   resolveDataUrl(nodeId: FsNodeId): Promise<string>;
   /** Fire-and-forget POST /play_events. */
   recordPlay(songId: SongId): void;

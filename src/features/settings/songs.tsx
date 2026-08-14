@@ -101,7 +101,7 @@ const SongManagementRow = React.memo(
     const { tokens } = useTheme();
     const t = useT();
     const artwork = useMemo(() => songArtworkSource(song), [song]);
-    const stems = !!song.vocals_fs_node_id && !!song.instrumental_fs_node_id;
+    const stems = !!song.vocals_media_id && !!song.instrumental_media_id;
 
     return (
       <Pressable

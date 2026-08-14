@@ -1,6 +1,6 @@
 /**
  * Transfer engine (FR-84): a JS scheduler (3 concurrent) over the
- * expo-file-system task API. Source URLs are `/fs_nodes/:id/data?token=`
+ * expo-file-system task API. Source URLs are `/media/:id/data?token=`
  * built at DEQUEUE time (redirect-following, rate-exempt, never expires);
  * NO Authorization header is attached - S3 rejects requests carrying both
  * header auth and a presigned query signature after the 302 hop.

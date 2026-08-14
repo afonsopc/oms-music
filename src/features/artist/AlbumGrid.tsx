@@ -62,8 +62,8 @@ export const AlbumGrid = ({
                 : t("components.music.ArtistView.albumSubtitle")
             }
             artwork={
-              album.artwork_fs_node_id
-                ? { kind: "node", nodeId: album.artwork_fs_node_id }
+              album.artwork_media_id
+                ? { kind: "node", nodeId: album.artwork_media_id }
                 : { kind: "placeholder" }
             }
             width={tileWidth}

@@ -158,7 +158,7 @@ const StemsSection = ({ song }: { song: Song }) => {
 
   const selectedModelId = pickedModelId ?? defaultModelId(models);
 
-  const stemsReady = !!song.vocals_fs_node_id && !!song.instrumental_fs_node_id;
+  const stemsReady = !!song.vocals_media_id && !!song.instrumental_media_id;
   const running = status.phase === "pending" || status.phase === "processing";
 
   const startRun = async (): Promise<void> => {

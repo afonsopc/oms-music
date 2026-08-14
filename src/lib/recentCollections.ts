@@ -45,6 +45,17 @@ export const subscribeRecentCollections = (cb: () => void): (() => void) => {
   };
 };
 
+/**
+ * Media-id wipe hook (downloads manager, schema v5): persisted entries carry
+ * `artworkNodeId`s from the fs_nodes era, which can never resolve against
+ * `/media`. Dropping them once beats rendering a grid of dead tiles.
+ */
+export const clearRecentCollections = (): void => {
+  cached = [];
+  kvSetJson(KV_KEY, []);
+  for (const cb of listeners) cb();
+};
+
 /** Called by CollectionScreen whenever a queue starts from a collection. */
 export const recordRecentCollection = (
   entry: Omit<RecentCollection, "at">,

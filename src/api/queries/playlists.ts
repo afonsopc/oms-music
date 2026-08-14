@@ -66,7 +66,7 @@ export const usePlaylist = (id: PlaylistId | null) => {
 export const useCreatePlaylist = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: { name: string; artwork_fs_node_id?: string; song_ids?: SongId[] }) =>
+    mutationFn: (body: { name: string; artwork_media_id?: string; song_ids?: SongId[] }) =>
       createPlaylist(body),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: keys.playlists.all });
@@ -83,7 +83,7 @@ export const useUpdatePlaylist = () => {
       body,
     }: {
       id: PlaylistId;
-      body: { name?: string; artwork_fs_node_id?: string | null };
+      body: { name?: string; artwork_media_id?: string | null };
     }) => updatePlaylist(id, body),
     onMutate: async ({ id, body }) => {
       await qc.cancelQueries({ queryKey: keys.playlists.all });

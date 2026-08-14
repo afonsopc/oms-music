@@ -46,8 +46,8 @@ const applyReadyStems = (
   // Stale-queue reconciliation: swap the ids in place; the engine only
   // touches the audio source when the current MODE wants a stem (FR-68).
   getPlayerEngine().patchQueueSong(songId, {
-    vocals_fs_node_id: vocals,
-    instrumental_fs_node_id: instrumental,
+    vocals_media_id: vocals,
+    instrumental_media_id: instrumental,
     vocal_separation_started_at: null,
   });
   void queryClient.invalidateQueries({ queryKey: keys.songs.all });
@@ -93,8 +93,8 @@ const useSeparationStatusHook = (songId: SongId): SeparationStatus => {
   // them into the playing queue without restarting the track.
   useEffect(() => {
     if (!data) return;
-    if (data.stems_ready && data.vocals_fs_node_id && data.instrumental_fs_node_id) {
-      applyReadyStems(songId, data.vocals_fs_node_id, data.instrumental_fs_node_id);
+    if (data.stems_ready && data.vocals_media_id && data.instrumental_media_id) {
+      applyReadyStems(songId, data.vocals_media_id, data.instrumental_media_id);
     }
   }, [data, songId]);
 
@@ -126,8 +126,8 @@ const deleteSeparation = async (songId: SongId): Promise<void> => {
   await deleteSeparationRequest(songId);
   appliedStems.delete(songId);
   getPlayerEngine().patchQueueSong(songId, {
-    vocals_fs_node_id: null,
-    instrumental_fs_node_id: null,
+    vocals_media_id: null,
+    instrumental_media_id: null,
     vocal_separation_started_at: null,
   });
   await queryClient.invalidateQueries({ queryKey: keys.songs.separation(songId) });

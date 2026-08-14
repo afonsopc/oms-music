@@ -21,7 +21,7 @@ export interface SongCreditsDialogProps {
 
 const CreditsRow = ({ entry }: { entry: SongArtistEntry }) => {
   const { tokens } = useTheme();
-  const node = entry.compressed_image_fs_node_id ?? entry.image_fs_node_id;
+  const node = entry.compressed_image_media_id ?? entry.image_media_id;
   const external = entry.picture_medium ?? entry.picture ?? entry.external_image_url;
   return (
     <View style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 6 }}>

@@ -30,8 +30,8 @@ const entry = (
   role,
   name,
   slug,
-  image_fs_node_id: null,
-  compressed_image_fs_node_id: null,
+  image_media_id: null,
+  compressed_image_media_id: null,
   picture: null,
   picture_medium: null,
   external_image_url: null,
@@ -54,12 +54,12 @@ const song = (
   duration: 180,
   position: null,
   year: null,
-  audio_fs_node_id: `audio-${id}`,
-  compressed_audio_fs_node_id: `caudio-${id}`,
-  artwork_fs_node_id: `art-${id}`,
-  compressed_artwork_fs_node_id: `cart-${id}`,
-  vocals_fs_node_id: null,
-  instrumental_fs_node_id: null,
+  audio_media_id: `audio-${id}`,
+  compressed_audio_media_id: `caudio-${id}`,
+  artwork_media_id: `art-${id}`,
+  compressed_artwork_media_id: `cart-${id}`,
+  vocals_media_id: null,
+  instrumental_media_id: null,
   vocal_separation_started_at: null,
   user_id: "user-1",
   source_kind: null,
@@ -143,7 +143,7 @@ describe("deriveOfflineAlbums", () => {
     const singles = albums.find((a) => a.name === "Singles");
     expect(singles?.artist).toBe("Carlos Paião");
     expect(singles?.artist_slug).toBe("carlos-paiao");
-    expect(singles?.artwork_fs_node_id).toBe("cart-1");
+    expect(singles?.artwork_media_id).toBe("cart-1");
     expect(albums.some((a) => a.name === null)).toBe(true);
   });
 

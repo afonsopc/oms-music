@@ -114,6 +114,7 @@ export const keys = {
 
   sessions: ["sessions"] as QueryKey,
   serviceUsagesTop: (limit: number): QueryKey => ["serviceUsages", "top", limit],
+  musicStorage: ["musicStorage"] as QueryKey,
 } as const;
 
 /** Invalidation helper groups (the frozen targets). */
