@@ -1163,11 +1163,24 @@
       "goodMorning": "Labrīt",
       "goodAfternoon": "Labdien",
       "goodEvening": "Labvakar",
-      "recentlyPlayed": "Nesen atskaņotais"
+      "recentlyPlayed": "Nesen atskaņotais",
+      "viewProfile": "Skatīt profilu"
     },
     "playlist": {
       "reorder": "Pārkārtot dziesmas",
       "reorderDone": "Pabeigt pārkārtošanu"
+    },
+    "downloadsOverview": {
+      "goOffline": "Bezsaistes režīms",
+      "goOfflineHint": "Tikai lejupielādes; nekas neizmanto tīklu.",
+      "songs": "Dziesmas",
+      "files": "Faili",
+      "storage": "Vieta",
+      "legendDownloads": "Lejupielādes {size}",
+      "legendCache": "Atskaņošanas kešs {size}",
+      "offlinePlaylists": "Bezsaistes atskaņošanas saraksti",
+      "noOfflinePlaylists": "Vēl neviens saraksts nav bezsaistē - ieslēdz to saraksta lapā.",
+      "rowDetail": "Vieta, bezsaiste, saglabātie saraksti"
     }
   }
 }

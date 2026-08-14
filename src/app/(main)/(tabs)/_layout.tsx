@@ -1,4 +1,10 @@
-/** The 4 tabs: Home, Search, Library, Downloads (DESIGN 15.3). */
+/**
+ * The 3 tabs: Home, Search, Library. Downloads lost its tab on 2026-08-14
+ * (owner request): the endless song list was dead weight - the library
+ * screens already badge what is downloaded, offline mode surfaces the
+ * downloaded playlists by itself, and the numbers live in Settings >
+ * Transferências (features/downloads/overview).
+ */
 import React from "react";
 import { Tabs } from "expo-router/js-tabs";
 import { ShellTabBar } from "@/features/shell/ShellTabBar";
@@ -44,13 +50,6 @@ export default function TabsLayout() {
         options={{
           title: t("native.shell.tabLibrary"),
           tabBarIcon: ({ color }) => <TabIcon name="library" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="downloads"
-        options={{
-          title: t("native.shell.tabDownloads"),
-          tabBarIcon: ({ color }) => <TabIcon name="downloads" color={color} />,
         }}
       />
     </Tabs>

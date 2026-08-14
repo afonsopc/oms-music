@@ -1163,11 +1163,24 @@
       "goodMorning": "Good morning",
       "goodAfternoon": "Good afternoon",
       "goodEvening": "Good evening",
-      "recentlyPlayed": "Recently played"
+      "recentlyPlayed": "Recently played",
+      "viewProfile": "View profile"
     },
     "playlist": {
       "reorder": "Reorder songs",
       "reorderDone": "Done reordering"
+    },
+    "downloadsOverview": {
+      "goOffline": "Offline mode",
+      "goOfflineHint": "Only your downloads; nothing touches the network.",
+      "songs": "Songs",
+      "files": "Files",
+      "storage": "Storage",
+      "legendDownloads": "Downloads {size}",
+      "legendCache": "Play cache {size}",
+      "offlinePlaylists": "Offline playlists",
+      "noOfflinePlaylists": "No playlist is kept offline yet - toggle it on any playlist page.",
+      "rowDetail": "Storage, offline mode, kept playlists"
     }
   }
 }

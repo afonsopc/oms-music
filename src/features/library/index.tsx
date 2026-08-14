@@ -210,7 +210,7 @@ export default function LibraryScreen() {
         <QuickLink
           icon="download"
           label={t("native.shell.tabDownloads")}
-          onPress={() => router.push("/(main)/(tabs)/downloads")}
+          onPress={() => router.push("/(main)/settings/downloads-overview")}
         />
         <QuickLink
           icon="settings"

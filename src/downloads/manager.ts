@@ -514,6 +514,24 @@ export const downloadSong = async (song: Song, opts?: DownloadOpts): Promise<voi
 const PLAY_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 /**
+ * The play-cache tier's footprint (settings overview): orphan audio rows -
+ * dl_files with NO dl_songs row - summed from their recorded sizes.
+ */
+export const playCacheUsage = (): { bytes: number; files: number } => {
+  const session = active;
+  if (!session) return { bytes: 0, files: 0 };
+  let bytes = 0;
+  let files = 0;
+  for (const row of repo.listAllFiles(session.db)) {
+    if (row.status !== "done") continue;
+    if (session.songs.has(row.song_key)) continue;
+    bytes += row.size_bytes ?? 0;
+    files += 1;
+  }
+  return { bytes, files };
+};
+
+/**
  * Play cache (owner request 2026-08-08): every song that starts playing gets
  * its mixed file onto disk in the ORPHAN tier - dl_files row, deliberately NO
  * dl_songs row, the exact shape downloadStemsForPlayback established. That

@@ -125,6 +125,12 @@ export default function SettingsHubScreen() {
           onPress={() => router.push("/(main)/settings/playback")}
         />
         <SettingsRow
+          icon="download"
+          label={t("native.shell.tabDownloads")}
+          detail={t("native.downloadsOverview.rowDetail")}
+          onPress={() => router.push("/(main)/settings/downloads-overview")}
+        />
+        <SettingsRow
           icon="cloud-check"
           label={t("native.settings.hub.rowDownloads")}
           onPress={() => router.push("/(main)/settings/downloads")}

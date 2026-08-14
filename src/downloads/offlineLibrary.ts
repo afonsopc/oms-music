@@ -45,17 +45,46 @@ export class OfflineUnavailableError extends Error {
 // Online flag (FR-91). register.ts feeds it from NetInfo.
 // ---------------------------------------------------------------------------
 
-let online = true;
+let netOnline = true;
+/** The GO OFFLINE switch (owner request 2026-08-14): user-forced offline
+ *  that composes with (and survives) every NetInfo event. */
+let manualOffline = false;
 const onlineListeners = new Set<(value: boolean) => void>();
+const manualListeners = new Set<() => void>();
 
-export const setOnlineState = (value: boolean): void => {
-  if (value === online) return;
-  online = value;
-  for (const cb of onlineListeners) cb(value);
+const effectiveOnline = (): boolean => netOnline && !manualOffline;
+
+const notifyOnline = (previous: boolean): void => {
+  const now = effectiveOnline();
+  if (now === previous) return;
+  for (const cb of onlineListeners) cb(now);
 };
 
-export const isOnline = (): boolean => online;
-export const isOffline = (): boolean => !online;
+export const setOnlineState = (value: boolean): void => {
+  const previous = effectiveOnline();
+  netOnline = value;
+  notifyOnline(previous);
+};
+
+export const setManualOffline = (value: boolean): void => {
+  if (manualOffline === value) return;
+  const previous = effectiveOnline();
+  manualOffline = value;
+  for (const cb of manualListeners) cb();
+  notifyOnline(previous);
+};
+
+export const isManualOffline = (): boolean => manualOffline;
+
+export const subscribeManualOffline = (cb: () => void): (() => void) => {
+  manualListeners.add(cb);
+  return () => {
+    manualListeners.delete(cb);
+  };
+};
+
+export const isOnline = (): boolean => effectiveOnline();
+export const isOffline = (): boolean => !effectiveOnline();
 
 export const subscribeOnlineState = (cb: (value: boolean) => void): (() => void) => {
   onlineListeners.add(cb);
