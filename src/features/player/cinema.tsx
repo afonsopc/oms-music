@@ -19,22 +19,14 @@
 import React, { useEffect, useMemo } from "react";
 import {
   Platform,
+  Pressable,
   StyleSheet,
   Text,
   useWindowDimensions,
   View,
   type ViewStyle,
 } from "react-native";
-import Animated, {
-  FadeIn,
-  FadeInDown,
-  FadeOut,
-  FadeOutUp,
-  LinearTransition,
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-} from "react-native-reanimated";
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { create } from "zustand";
 import { useLyrics } from "@/api/queries/lyrics";
 import { songArtworkSource } from "@/domain/artwork";
@@ -121,17 +113,21 @@ const CinemaLyrics = ({ songId }: { songId: SongId }) => {
 
   if (shown.length === 0) return null;
 
+  // Plain Views on purpose: Reanimated entering/exiting/layout animations do
+  // NOT work on react-native-web (plano-uma-so-app, riscos assumidos) - the
+  // first build shipped them here and the exiting ghosts stacked every old
+  // line on top of the new one AND wedged the whole page (owner screenshot
+  // 2026-08-14). The per-line opacity tween in CinemaLine is the animation
+  // budget; the window slide is instant.
   return (
     <View style={{ alignItems: "center", gap: 6, maxWidth: 720, minHeight: 32 * CINEMA_LINES }}>
       {shown.map((line, index) => (
-        <Animated.View
+        <CinemaLine
           key={line.key}
-          entering={FadeInDown.duration(260)}
-          exiting={FadeOutUp.duration(220)}
-          layout={LinearTransition.duration(260)}
-        >
-          <CinemaLine text={line.text} active={index === 0} color={tokens.foreground} />
-        </Animated.View>
+          text={line.text}
+          active={index === 0}
+          color={tokens.foreground}
+        />
       ))}
     </View>
   );
@@ -184,16 +180,21 @@ export const CinemaOverlay = () => {
         },
       ]}
     >
-      {/* Keyed by its own colours: a song change crossfades the accent over
-          the old one instead of snapping (the player scroll's treatment). */}
-      <Animated.View
-        key={gradientCss}
-        entering={FadeIn.duration(450)}
-        exiting={FadeOut.duration(450)}
+      {/* Plain View, no entering/exiting crossfade: web layout animations
+          are the bug this file just recovered from. A song change snaps the
+          accent, which nobody notices behind the artwork swap. */}
+      <View
         pointerEvents="none"
         style={[StyleSheet.absoluteFill, gradientBackground(gradientCss)]}
       />
-      <View style={{ position: "absolute", top: 10, right: 10, zIndex: 2 }}>
+      {/* Backdrop click closes: with the X and Escape this makes THREE doors
+          out, because a cinema the user cannot leave reads as a frozen app. */}
+      <Pressable
+        accessibilityLabel={t("native.common.close")}
+        onPress={closeCinema}
+        style={StyleSheet.absoluteFill}
+      />
+      <View style={{ position: "absolute", top: 10, right: 10, zIndex: 10 }}>
         <GhostIconButton
           icon="x"
           size={20}
@@ -202,7 +203,10 @@ export const CinemaOverlay = () => {
         />
       </View>
       {song ? (
+        // box-none: the wrapper spans the whole overlay, and without it every
+        // "empty" click would land here instead of on the closing backdrop.
         <View
+          pointerEvents="box-none"
           style={{
             flex: 1,
             alignItems: "center",
