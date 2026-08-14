@@ -11,7 +11,7 @@ import { Platform, Pressable, Text, View, type GestureResponderEvent } from "rea
 import { cardContextMenuProps, cardFocusProps, cardKeyProps, cardPressRole } from "./a11y";
 import { ArtworkImage } from "./ArtworkImage";
 import type { PopoverAnchor } from "./popoverPosition";
-import { songTableColumnGate, songTableDurationWidth } from "./breakpoints";
+import { songTableColumnGate, songTableDurationWidth, songTablePanelGate } from "./breakpoints";
 import { useContainerWidth, useDesktopShell } from "./shellLayout";
 import { getDownloadStatusReader, useDownloadBadgeVersion } from "./downloadStatus";
 import { Icon } from "./icons";
@@ -167,6 +167,12 @@ const SongRowInner = ({
   };
 
   const gate = songTableColumnGate(width, desktopShell);
+  // Panel form (right panel, breakpoints.ts): the title block is the one
+  // column a track row can never lose, so in a panel-narrow container the
+  // index and (when even 44px does not fit) the duration drop FIRST. The
+  // drag grip and the menu stay - reorder and actions are why the queue
+  // tenant exists. Mobile and the main pane never enter this branch.
+  const panelGate = songTablePanelGate(width, desktopShell);
   const isNarrow = !gate.album;
   // Duration cell per the plan's grid spec: mobile keeps the shipped 44px,
   // desktop rides 120px until mainXl frees it to flex. `null` means flex.
@@ -178,7 +184,9 @@ const SongRowInner = ({
   const has = (c: SongRowColumn) =>
     columns.includes(c) &&
     !(c === "album" && !gate.album) &&
-    !(c === "addedAt" && !gate.addedAt);
+    !(c === "addedAt" && !gate.addedAt) &&
+    !(c === "index" && panelGate.panel) &&
+    !(c === "duration" && !panelGate.duration);
 
   const artistsLine = formatArtists(song) || t("components.music.SongRow.unknownArtist");
   const proposerSuffix = song.jam_proposer ? ` · @${song.jam_proposer.handle}` : "";
@@ -346,8 +354,9 @@ const SongRowInner = ({
             ) : null}
             {/* With the hover heart BUTTON active (desktop + onToggleLike)
                 the static indicator would be a second heart on the same
-                row; everywhere else it renders exactly as shipped. */}
-            {liked && !(desktopShell && onToggleLike) ? (
+                row, and in panel form every non-title glyph is width the
+                title needs more; everywhere else it renders as shipped. */}
+            {liked && !(desktopShell && onToggleLike) && !panelGate.panel ? (
               <Icon name="heart" size={13} color={tokens.primary} filled />
             ) : null}
             <DownloadBadge songId={song.id} />
@@ -405,7 +414,7 @@ const SongRowInner = ({
               (opacity, not unmount): columns must never shift as the
               pointer sweeps rows, and the buttons stay tabbable - focus
               reveals them through the row's focus-within tracking. */}
-          {desktopShell && onToggleLike ? (
+          {desktopShell && onToggleLike && !panelGate.panel ? (
             <Pressable
               onPress={onToggleLike}
               accessibilityRole="button"

@@ -29,6 +29,8 @@ export interface LibraryRow {
   /** Spotify-synced playlist: draws the emerald badge, never an edit affordance. */
   system: boolean;
   circular: boolean;
+  /** The pinned Liked Songs entry: bold name, immune to the filter pills. */
+  pinned?: boolean;
 }
 
 export interface LibraryRowLabels {
@@ -46,6 +48,35 @@ export interface LibrarySources {
 
 const wants = (filter: LibraryFilter, kind: Exclude<LibraryFilter, "all">): boolean =>
   filter === "all" || filter === kind;
+
+/** The local search predicate: name OR subtitle, case-insensitive. */
+export const rowMatchesSearch = (row: LibraryRow, search: string): boolean => {
+  const trimmed = search.trim().toLowerCase();
+  if (!trimmed) return true;
+  return (
+    row.name.toLowerCase().includes(trimmed) || row.subtitle.toLowerCase().includes(trimmed)
+  );
+};
+
+/**
+ * The pinned Liked Songs row (owner request 2026-08-14): sits ABOVE the
+ * assembled rows on both library surfaces no matter which pill is active -
+ * liked songs are the one collection every account owns, so no filter may
+ * hide it. Deliberately NOT part of buildLibraryRows: pills must never
+ * filter it, so callers prepend it themselves (gated only by the search
+ * text, through rowMatchesSearch like any other row).
+ */
+export const likedLibraryRow = (name: string, kindLabel: string): LibraryRow => ({
+  key: "liked",
+  kind: "playlist",
+  name,
+  subtitle: kindLabel,
+  artwork: { kind: "likedHeart" },
+  route: "/(main)/liked",
+  system: false,
+  circular: false,
+  pinned: true,
+});
 
 export const buildLibraryRows = (
   filter: LibraryFilter,
@@ -109,11 +140,6 @@ export const buildLibraryRows = (
     }
   }
 
-  const trimmed = search.trim().toLowerCase();
-  if (!trimmed) return out;
-  return out.filter(
-    (row) =>
-      row.name.toLowerCase().includes(trimmed) ||
-      row.subtitle.toLowerCase().includes(trimmed),
-  );
+  if (!search.trim()) return out;
+  return out.filter((row) => rowMatchesSearch(row, search));
 };

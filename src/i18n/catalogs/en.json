@@ -952,7 +952,8 @@
       "tabSearch": "Search",
       "tabLibrary": "Library",
       "tabDownloads": "Downloads",
-      "closePlayer": "Close player"
+      "closePlayer": "Close player",
+      "tabProfile": "Profile"
     },
     "desktop": {
       "back": "Back",
@@ -976,7 +977,12 @@
       "shortcutMute": "Mute or restore sound",
       "shortcutSearch": "Go to search",
       "shortcutSidebar": "Show or hide the sidebar",
-      "shortcutOverlay": "This shortcuts panel"
+      "shortcutOverlay": "This shortcuts panel",
+      "resizeSidebar": "Resize the sidebar",
+      "profileMenu": "Open the profile menu",
+      "viewQueue": "Show queue",
+      "moreThanSongs": "more than {count} songs",
+      "syncedOn": "synced on {date}"
     },
     "library": {
       "settings": "Settings",
@@ -1101,7 +1107,8 @@
         "language": "Language",
         "languageEn": "English",
         "languagePt": "Português",
-        "languageLv": "Latviešu"
+        "languageLv": "Latviešu",
+        "rowDownloadSettings": "Download settings"
       },
       "pickers": {
         "unavailable": "Picking images is not available on this device."
@@ -1175,7 +1182,9 @@
       "topSongs": "Top songs",
       "recent": "Recently played",
       "plays": "{count} plays",
-      "playsLastMonth": "{count} plays in the last 30 days"
+      "playsLastMonth": "{count} plays in the last 30 days",
+      "yourProfile": "Your profile",
+      "friendBadge": "Friends"
     },
     "lyrics": {
       "cardTitle": "Lyrics"

@@ -16,8 +16,11 @@ import {
   mainBucket,
   MOBILE_SONG_TABLE_DURATION_WIDTH,
   MOBILE_SONG_TABLE_WIDE,
+  PANEL_SONG_TABLE_DURATION_MIN,
+  PANEL_SONG_TABLE_WIDTH,
   songTableColumnGate,
   songTableDurationWidth,
+  songTablePanelGate,
   topTileGridColumns,
 } from "../breakpoints";
 
@@ -104,6 +107,35 @@ describe("songTableDurationWidth", () => {
     expect(songTableDurationWidth(599, true)).toBe(120);
     expect(songTableDurationWidth(1115, true)).toBe(120);
     expect(songTableDurationWidth(1116, true)).toBeNull();
+  });
+
+  it("panel form gets the compact 44px cell, never the 120px one", () => {
+    expect(songTableDurationWidth(320, true)).toBe(44);
+    expect(songTableDurationWidth(479, true)).toBe(44);
+    expect(songTableDurationWidth(480, true)).toBe(120);
+  });
+});
+
+describe("songTablePanelGate", () => {
+  it("only binds inside the desktop shell - mobile stays frozen", () => {
+    for (const width of [280, 320, 479]) {
+      expect(songTablePanelGate(width, false).panel).toBe(false);
+    }
+  });
+
+  it("marks desktop containers under the panel boundary as panel form", () => {
+    expect(PANEL_SONG_TABLE_WIDTH).toBe(480);
+    expect(songTablePanelGate(479, true).panel).toBe(true);
+    expect(songTablePanelGate(480, true).panel).toBe(false);
+  });
+
+  it("drops the duration cell before the title ever ellipsizes to nothing", () => {
+    expect(PANEL_SONG_TABLE_DURATION_MIN).toBe(340);
+    expect(songTablePanelGate(280, true)).toEqual({ panel: true, duration: false });
+    expect(songTablePanelGate(339, true)).toEqual({ panel: true, duration: false });
+    expect(songTablePanelGate(340, true)).toEqual({ panel: true, duration: true });
+    // Outside panel form the duration column is someone else's decision.
+    expect(songTablePanelGate(600, true)).toEqual({ panel: false, duration: true });
   });
 });
 

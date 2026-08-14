@@ -164,9 +164,12 @@ export default function SettingsHubScreen() {
           detail={t("native.downloadsOverview.rowDetail")}
           onPress={() => router.push("/(main)/settings/downloads-overview")}
         />
+        {/* Distinct label from the downloads OVERVIEW row above: both read
+            "Transferências" before, and two identical rows in the same
+            section looked like a bug (owner report 2026-08-14). */}
         <SettingsRow
           icon="cloud-check"
-          label={t("native.settings.hub.rowDownloads")}
+          label={t("native.settings.hub.rowDownloadSettings")}
           onPress={() => router.push("/(main)/settings/downloads")}
         />
         <SettingsRow

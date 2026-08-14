@@ -77,12 +77,25 @@ export const useContentBottomPadding = (): number => {
 };
 
 /**
+ * Top padding of plain stack pages inside the DESKTOP shell: there is no
+ * status bar or island to clear (insets.top is 0 in a browser), so without
+ * a fixed band every self-headed page glued its title to the topbar row.
+ * One constant so friends, settings, downloads and profile all breathe the
+ * same amount.
+ */
+const DESKTOP_CONTENT_TOP = 32;
+
+/**
  * Top padding for a scrollable screen that draws its OWN heading rather than
  * a Hero. The Hero applies the inset itself, so collection screens must not
  * use this or they would pay it twice; downloads and settings do, which is
- * why their titles sat under the dynamic island.
+ * why their titles sat under the dynamic island. In the desktop shell the
+ * safe-area inset is 0 and `extra` alone was too tight, so a fixed
+ * comfortable band replaces the whole sum there - callers keep their mobile
+ * rhythm untouched.
  */
 export const useContentTopPadding = (extra = 16): number => {
   const insets = useSafeAreaInsets();
-  return insets.top + extra;
+  const desktop = useDesktopShell();
+  return desktop ? DESKTOP_CONTENT_TOP : insets.top + extra;
 };

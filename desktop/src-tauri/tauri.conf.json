@@ -30,6 +30,10 @@
     "targets": ["app", "dmg"],
     "createUpdaterArtifacts": true,
     "category": "Music",
+    "publisher": "O Melhor Site",
+    "copyright": "(c) 2026 Afonso Coutinho, O Melhor Site",
+    "shortDescription": "Uma app de música do O Melhor Site.",
+    "longDescription": "OMS Music, a app de música do O Melhor Site. Feita por Afonso Coutinho (afonso@omelhorsite.pt).",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

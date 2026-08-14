@@ -12,10 +12,13 @@ import {
   DEFAULT_TIME_LABEL_MODE,
   isTimeLabelMode,
   recordViewMode,
+  SIDEBAR_COLLAPSE_THRESHOLD,
   SIDEBAR_WIDTH_DEFAULT,
   SIDEBAR_WIDTH_MAX,
   SIDEBAR_WIDTH_MIN,
+  sidebarWidthCeiling,
 } from "../layoutModel";
+import { MAIN_MIN_WIDTH, RIGHT_PANEL_MIN_WIDTH } from "../rightPanelModel";
 
 describe("clampSidebarWidth", () => {
   it("passes sane widths through, rounded", () => {
@@ -35,6 +38,25 @@ describe("clampSidebarWidth", () => {
 
   it("the default itself is within bounds (or the fallback would clamp)", () => {
     expect(clampSidebarWidth(SIDEBAR_WIDTH_DEFAULT)).toBe(SIDEBAR_WIDTH_DEFAULT);
+  });
+});
+
+describe("sidebarWidthCeiling", () => {
+  it("caps at the absolute maximum on a wide window", () => {
+    expect(sidebarWidthCeiling(2560, 32, 8)).toBe(SIDEBAR_WIDTH_MAX);
+  });
+
+  it("concedes main >= 480 plus the right column's floor when tight", () => {
+    expect(sidebarWidthCeiling(1200, RIGHT_PANEL_MIN_WIDTH, 8)).toBe(
+      1200 - RIGHT_PANEL_MIN_WIDTH - MAIN_MIN_WIDTH - 4 * 8,
+    );
+  });
+});
+
+describe("SIDEBAR_COLLAPSE_THRESHOLD", () => {
+  it("sits strictly between the icon rail (72) and the usable minimum", () => {
+    expect(SIDEBAR_COLLAPSE_THRESHOLD).toBeGreaterThan(72);
+    expect(SIDEBAR_COLLAPSE_THRESHOLD).toBeLessThan(SIDEBAR_WIDTH_MIN);
   });
 });
 

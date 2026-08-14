@@ -5,6 +5,12 @@
  * to the full result page for that term. Both modes share the same four
  * `1:20` queries, so submitting never refetches.
  *
+ * Under the DESKTOP shell the topbar carries the one persistent field, so
+ * this page renders no input of its own: it is the "see all results"
+ * destination, driven entirely by the `query` URL param (which the topbar
+ * field mirrors). Recents remain and write the param instead of a local
+ * submit. Below 900px nothing here changes.
+ *
  * Activation semantics are the web's (FR-32): a song REPLACES the queue
  * with just that song and plays; artists, albums and playlists navigate.
  */
@@ -18,7 +24,6 @@ import {
   View,
 } from "react-native";
 import { useLocalSearchParams, useRouter, type Href } from "expo-router";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSearchArtists } from "@/api/queries/artists";
 import { useLikedIds } from "@/api/queries/likedSongs";
 import { useSearchPlaylists } from "@/api/queries/playlists";
@@ -32,7 +37,7 @@ import {
 } from "@/domain/artwork";
 import { formatArtists } from "@/domain/format";
 import type { Song } from "@/domain/song";
-import { useContentBottomPadding } from "@/features/shell/metrics";
+import { useContentBottomPadding, useContentTopPadding } from "@/features/shell/metrics";
 import { useT } from "@/i18n";
 import {
   forgetSearch,
@@ -54,6 +59,7 @@ import {
   PlayFab,
   SongRow,
   Tile,
+  useDesktopShell,
 } from "@/ui";
 import { ExternalResults } from "./ExternalResults";
 import {
@@ -330,9 +336,17 @@ export default function SearchScreen() {
   const t = useT();
   const router = useRouter();
   const { tokens } = useTheme();
-  const insets = useSafeAreaInsets();
   const bottomPadding = useContentBottomPadding();
+  const topPadding = useContentTopPadding(12);
   const params = useLocalSearchParams<{ query?: string }>();
+  /**
+   * Desktop shell: the topbar already carries the persistent search field
+   * with its typeahead, so this page stops being an input surface and
+   * becomes the "see all results" destination only - the query comes from
+   * the URL (which the topbar keeps in sync) and the local field, the
+   * suggestion mode and the submit state machine all stay mobile-only.
+   */
+  const desktopShell = useDesktopShell();
 
   const [input, setInput] = useState(params.query ?? "");
   const [submitted, setSubmitted] = useState<string | null>(params.query ?? null);
@@ -353,8 +367,10 @@ export default function SearchScreen() {
     }
   }
 
-  const term = (submitted ?? debounced).trim();
+  const term = (desktopShell ? (routeQuery ?? "") : (submitted ?? debounced)).trim();
   const enabled = term.length > 0;
+  /** Full result page vs typeahead list; desktop is always the full page. */
+  const fullResults = desktopShell || submitted !== null;
 
   const songsQuery = useSearchSongs(term, enabled);
   const artistsQuery = useSearchArtists(term, enabled);
@@ -412,6 +428,13 @@ export default function SearchScreen() {
   };
 
   const openTerm = (value: string): void => {
+    if (desktopShell) {
+      // The URL is the input on desktop: writing the param re-runs the
+      // search AND flows back into the topbar field through its sync.
+      setRecents(rememberSearch(value));
+      router.setParams({ query: value });
+      return;
+    }
     setInput(value);
     submit(value);
   };
@@ -463,7 +486,7 @@ export default function SearchScreen() {
   const showAlbums = filter === "all" || filter === "albums";
   const showPlaylists = filter === "all" || filter === "playlists";
 
-  const searchField = (
+  const searchField = desktopShell ? null : (
     <View
       style={{
         flexDirection: "row",
@@ -511,7 +534,7 @@ export default function SearchScreen() {
     <ScrollView
       style={{ flex: 1, backgroundColor: tokens.background }}
       contentContainerStyle={{
-        paddingTop: insets.top + 12,
+        paddingTop: topPadding,
         paddingBottom: bottomPadding + 24,
         gap: 20,
       }}
@@ -522,6 +545,8 @@ export default function SearchScreen() {
       >
         {t("native.shell.tabSearch")}
       </Text>
+      {/* Desktop already has THE search field in the topbar; a second big
+          one here was pure duplication (owner report 2026-08-14). */}
       {searchField}
 
       {!enabled ? (
@@ -577,7 +602,7 @@ export default function SearchScreen() {
         ) : (
           <EmptyState icon="search" text={t("components.music.Search.emptyQuery")} />
         )
-      ) : submitted === null ? (
+      ) : !fullResults ? (
         <View style={{ gap: 2 }}>
           {isLoading && suggestions.length === 0 ? (
             <Text

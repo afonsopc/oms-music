@@ -14,3 +14,18 @@ export const registerTopbarSearchFocus = (fn: (() => void) | null): void => {
 export const focusTopbarSearch = (): void => {
   focusFn?.();
 };
+
+/**
+ * The sidebar rail's "Pesquisar" entry point: on the desktop shell a second
+ * full-page search input is redundant with the persistent topbar field, so
+ * activating search FOCUSES the topbar (same landing as Cmd/Ctrl+K) instead
+ * of navigating. The fallback runs only while no field is registered -
+ * i.e. outside the desktop shell - keeping the mobile navigation intact.
+ */
+export const focusTopbarSearchOrNavigate = (navigate: () => void): void => {
+  if (focusFn) {
+    focusFn();
+    return;
+  }
+  navigate();
+};

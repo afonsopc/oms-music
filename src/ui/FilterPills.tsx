@@ -27,6 +27,12 @@ export interface FilterPillsProps {
   activeKey: string;
   onChange: (key: string) => void;
   scrollable?: boolean;
+  /**
+   * Leading/trailing inset of the scrollable strip. Defaults to the screen
+   * gutter (24); narrow hosts (the desktop sidebar) pass their own so the
+   * pills line up with the content around them instead of the screen edge.
+   */
+  contentPaddingHorizontal?: number;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -37,6 +43,7 @@ export const FilterPills = ({
   activeKey,
   onChange,
   scrollable = true,
+  contentPaddingHorizontal = 24,
   style,
 }: FilterPillsProps) => {
   const { tokens } = useTheme();
@@ -139,7 +146,7 @@ export const FilterPills = ({
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
-      contentContainerStyle={{ paddingHorizontal: 24 }}
+      contentContainerStyle={{ paddingHorizontal: contentPaddingHorizontal }}
       style={style}
     >
       {row}

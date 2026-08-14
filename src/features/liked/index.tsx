@@ -79,6 +79,17 @@ export default function LikedScreen() {
 
   const title = t("components.music.LikedSongsView.title");
 
+  // The list is cursor-paged, so `songs.length` only counts the LOADED
+  // pages and undersold the collection until the user scrolled to the end.
+  // `/liked_songs/ids` already ships the complete set for the hearts, so
+  // its size IS the server total; the pages only fill in as a fallback,
+  // announced as a floor while more of them remain.
+  const totalLiked = likedIdsQuery.data?.length ?? null;
+  const heroMeta =
+    totalLiked === null && likedQuery.hasNextPage
+      ? t("native.desktop.moreThanSongs", { count: songs.length })
+      : `${totalLiked ?? songs.length} ${t("components.music.LikedSongsView.songs")}`;
+
   if (likedQuery.isLoading) {
     return (
       <View style={{ flex: 1, backgroundColor: tokens.background }}>
@@ -121,7 +132,7 @@ export default function LikedScreen() {
         title={title}
         accentColor={LIKED_ACCENT}
         artworkSlot={<LikedArtwork size={HERO_ARTWORK_SIZE} />}
-        meta={`${songs.length} ${t("components.music.LikedSongsView.songs")}`}
+        meta={heroMeta}
       />
       <ActionBar
         onPlay={songs.length > 0 ? () => play(0) : undefined}

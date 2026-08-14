@@ -13,6 +13,7 @@
 //! package.json da app nao ganhar dependencias novas.
 
 mod media;
+mod menubar;
 mod miniplayer;
 mod tray;
 
@@ -31,7 +32,7 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             miniplayer::miniplayer_set_size::<tauri::Wry>,
             miniplayer::miniplayer_get_size::<tauri::Wry>,
         ])
-        .events(collect_events![media::MediaCommand])
+        .events(collect_events![media::MediaCommand, menubar::ShellCommand])
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -61,6 +62,7 @@ pub fn run() {
         .setup(move |app| {
             specta.mount_events(app);
             media::init(app.handle())?;
+            menubar::init(app.handle())?;
             tray::init(app.handle())?;
             Ok(())
         })

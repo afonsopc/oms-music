@@ -22,7 +22,7 @@
  * register separately from features/devices/register.ts, because src/remote
  * must not import from src/features.
  */
-import { AppState, type AppStateStatus } from "react-native";
+import { AppState, Platform, type AppStateStatus } from "react-native";
 import * as Device from "expo-device";
 import { getCableClient } from "@/cable/client";
 import { setTransportDecorator } from "@/contracts/transport";
@@ -40,6 +40,7 @@ import {
   type RemoteNotice,
 } from "./channel";
 import { setRemoteSongLookup } from "./commands";
+import { deviceRegistrationLabel } from "./deviceName";
 import { querySongLookup } from "./songResolver";
 import { createRemoteTransportDecorator } from "./transport";
 
@@ -79,14 +80,19 @@ const emitNotice = (notice: RemoteNotice): void => {
 // Registration
 // ---------------------------------------------------------------------------
 
-/** Free-form hint the server slices to 80 chars when naming the row. */
-const deviceLabelHint = (): string => {
-  const name = Device.deviceName?.trim();
-  const model = Device.modelName?.trim();
-  const os = Device.osName?.trim();
-  if (name && os) return `${name} - ${os}`;
-  return name || model || os || "oms-music";
-};
+/**
+ * Free-form hint the server slices to 80 chars when naming the row. The
+ * derivation lives in deviceName.ts (pure, bun-tested): model on native
+ * ("iPhone 15"), browser + OS on web ("Chrome em Linux").
+ */
+const deviceLabelHint = (): string =>
+  deviceRegistrationLabel({
+    web: Platform.OS === "web",
+    modelName: Device.modelName,
+    deviceName: Device.deviceName,
+    osName: Device.osName,
+    userAgent: typeof navigator !== "undefined" ? navigator.userAgent : null,
+  });
 
 let registered = false;
 let appStateSub: { remove(): void } | null = null;

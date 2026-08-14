@@ -69,9 +69,11 @@ async miniplayerGetSize() : Promise<MiniplayerSize> {
 
 
 export const events = __makeEvents__<{
-mediaCommand: MediaCommand
+mediaCommand: MediaCommand,
+shellCommand: ShellCommand
 }>({
-mediaCommand: "media-command"
+mediaCommand: "media-command",
+shellCommand: "shell-command"
 })
 
 /** user-defined constants **/
@@ -110,6 +112,11 @@ export type MiniplayerSize =
  * duracao, que o Now Playing quer para desenhar a barra de progresso.
  */
 export type NowPlaying = { title: string; artist: string; albumTitle: string; artworkUrl: string | null; durationS: number | null }
+/**
+ * Accoes de shell que nao sao transporte: o bridge da app escuta este
+ * evento e traduz em navegacao/UI (modo cinema, definicoes).
+ */
+export type ShellCommand = { type: "cinema" } | { type: "settings" }
 
 /** tauri-specta globals **/
 

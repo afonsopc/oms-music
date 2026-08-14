@@ -13,6 +13,7 @@
 import React from "react";
 import { View } from "react-native";
 import { Stack } from "expo-router";
+import { ProfileDrawerHost } from "@/features/home/ProfileDrawer";
 import { DesktopShell } from "@/features/shell/desktop/DesktopShell";
 import { OverlayHost } from "@/features/shell/OverlayHost";
 import { useServiceUsagePing } from "@/features/shell/useServiceUsagePing";
@@ -33,6 +34,9 @@ export default function MainLayout() {
           }}
         />
         <OverlayHost />
+        {/* Shell-level mount so the tab bar avatar (and Home's header
+            avatar) can open the profile drawer from ANY tab. */}
+        <ProfileDrawerHost />
       </View>
     </DesktopShell>
   );

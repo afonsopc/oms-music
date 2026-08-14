@@ -149,6 +149,33 @@ export const Hero = ({
           ),
         }}
       />
+      {/* Desktop contrast guarantee (owner report 2026-08-14): the desktop
+          hero is width-capped and SHORTER than the mobile fraction, so the
+          accent has not fully faded by the time it reaches the text block -
+          a bright accent left the meta line swimming on it. This scrim
+          settles the bottom of the gradient back onto `background`, which is
+          the surface the foreground tokens are measured against. The artist
+          backdrop keeps its own accent scrim + onColor ink; mobile keeps the
+          shipped fade untouched. */}
+      {desktopShell && !isArtistBackdrop ? (
+        <View
+          pointerEvents="none"
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            ...gradientBackground(
+              linearGradient(
+                "to top",
+                `${withAlpha(tokens.background, 0.92)} 0%`,
+                "transparent 65%",
+              ),
+            ),
+          }}
+        />
+      ) : null}
       {/* The gradient and any backdrop bleed to the very top on purpose, but
           the CONTENT must clear the status bar and the dynamic island: this
           hero is the shared header of every collection screen, so without the
@@ -201,7 +228,9 @@ export const Hero = ({
               }}
             >
               {typeof meta === "string" ? (
-                <Text style={{ color: metaInk, fontSize: 13 }}>{meta}</Text>
+                // One step up on desktop: 13px under a 72/96px display title
+                // read as fine print on a monitor. Mobile keeps 13.
+                <Text style={{ color: metaInk, fontSize: desktopShell ? 14 : 13 }}>{meta}</Text>
               ) : (
                 meta
               )}

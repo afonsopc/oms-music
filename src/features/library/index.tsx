@@ -16,7 +16,6 @@ import {
 import { useContentBottomPadding, useContentTopPadding } from "@/features/shell/metrics";
 import { useT } from "@/i18n";
 import { useTheme } from "@/theme/provider";
-import { RADIUS } from "@/theme/tokens";
 import { typeScale } from "@/theme/typography";
 import {
   ArtworkImage,
@@ -31,56 +30,16 @@ import {
   type LibraryViewMode,
 } from "@/ui";
 import { LIBRARY_ITEM_LIMIT, useLibraryAlbums, useLibraryArtists } from "./queries";
-import { buildLibraryRows, type LibraryFilter, type LibraryRow } from "./rows";
+import {
+  buildLibraryRows,
+  likedLibraryRow,
+  rowMatchesSearch,
+  type LibraryFilter,
+  type LibraryRow,
+} from "./rows";
 
 /** Rows rendered per window batch (web LIBRARY_PAGE_SIZE). */
 const WINDOW_SIZE = 40;
-
-const QuickLink = ({
-  icon,
-  label,
-  onPress,
-}: {
-  icon: "heart" | "download" | "user" | "settings";
-  label: string;
-  onPress: () => void;
-}) => {
-  const { tokens } = useTheme();
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      // A FULL-WIDTH row, not a cell in a strip. Four destinations with names
-      // like "Transferencias" and "Lejupielades" cannot share the width of a
-      // phone, and every attempt to make them fit (shrinking, wrapping,
-      // stacking the icon) traded legibility for a layout nobody asked for.
-      // One per line reads instantly and cannot overflow at any type size.
-      style={({ pressed }) => ({
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 14,
-        paddingVertical: 14,
-        paddingHorizontal: 16,
-        borderRadius: RADIUS,
-        backgroundColor: tokens.secondary,
-        opacity: pressed ? 0.7 : 1,
-      })}
-    >
-      <Icon name={icon} size={20} color={tokens.foreground} />
-      <Text
-        style={{
-          color: tokens.foreground,
-          fontSize: 15,
-          fontWeight: "600",
-          flex: 1,
-        }}
-        numberOfLines={1}
-      >
-        {label}
-      </Text>
-    </Pressable>
-  );
-};
 
 const LibraryRowView = ({
   row,
@@ -118,7 +77,12 @@ const LibraryRowView = ({
       {compact ? (
         <View style={{ flex: 1, minWidth: 0, flexDirection: "row", alignItems: "baseline", gap: 8 }}>
           <Text
-            style={{ color: tokens.foreground, fontSize: 14, fontWeight: "500", flexShrink: 1 }}
+            style={{
+              color: tokens.foreground,
+              fontSize: 14,
+              fontWeight: row.pinned ? "700" : "500",
+              flexShrink: 1,
+            }}
             numberOfLines={1}
           >
             {row.name}
@@ -146,7 +110,12 @@ const LibraryRowView = ({
         <View style={{ flex: 1, minWidth: 0 }}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
             <Text
-              style={{ color: tokens.foreground, fontSize: 14, fontWeight: "500", flexShrink: 1 }}
+              style={{
+                color: tokens.foreground,
+                fontSize: 14,
+                fontWeight: row.pinned ? "700" : "500",
+                flexShrink: 1,
+              }}
               numberOfLines={1}
             >
               {row.name}
@@ -279,6 +248,18 @@ export default function LibraryScreen() {
     [filter, playlistsQuery.data, artistsQuery.data, albumsQuery.data, search, labels],
   );
 
+  // Pinned ABOVE whatever the pills chose (owner request 2026-08-14): the
+  // quick links are gone - Liked Songs lives at the top of the list itself,
+  // on every pill, hidden only by a search text it does not match.
+  const likedRow = useMemo(
+    () => likedLibraryRow(t("components.music.Sidebar.liked"), labels.playlistKind),
+    [t, labels],
+  );
+  const data = useMemo(
+    () => (rowMatchesSearch(likedRow, search) ? [likedRow, ...rows] : rows),
+    [likedRow, rows, search],
+  );
+
   // Only the queries feeding the active pill count; the disabled ones sit
   // pending forever and would pin the spinner.
   const isLoading =
@@ -307,66 +288,50 @@ export default function LibraryScreen() {
           flexDirection: "row",
           alignItems: "center",
           paddingHorizontal: 24,
-          gap: 4,
         }}
       >
         <Text style={[typeScale.sectionHeader, { color: tokens.foreground, flex: 1 }]}>
           {t("components.music.Sidebar.libraryTitle")}
         </Text>
-        {desktop ? (
-          <>
-            <GhostIconButton
-              icon="list"
-              onPress={() => selectViewMode("list")}
-              active={effectiveMode === "list"}
-              accessibilityLabel={t("native.desktop.viewList")}
-            />
-            <GhostIconButton
-              icon="rows-3"
-              onPress={() => selectViewMode("compact")}
-              active={effectiveMode === "compact"}
-              accessibilityLabel={t("native.desktop.viewCompact")}
-            />
-            <GhostIconButton
-              icon="layout-grid"
-              onPress={() => selectViewMode("grid")}
-              active={effectiveMode === "grid"}
-              accessibilityLabel={t("native.desktop.viewGrid")}
-            />
-          </>
-        ) : null}
       </View>
 
-      <View style={{ gap: 8, paddingHorizontal: 24 }}>
-        <QuickLink
-          icon="heart"
-          label={t("components.music.Sidebar.liked")}
-          onPress={() => router.push("/(main)/liked")}
+      {/* Desktop pairs the view-mode cluster WITH the pills - the controls
+          sit on the line of the rows they reshape, not up by the title.
+          Mobile keeps the bare strip, byte-identical to what shipped. */}
+      {desktop ? (
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 4, paddingRight: 24 }}>
+          <FilterPills
+            pills={pills}
+            activeKey={filter}
+            onChange={(key) => setFilter(key as LibraryFilter)}
+            style={{ flex: 1, minWidth: 0 }}
+          />
+          <GhostIconButton
+            icon="list"
+            onPress={() => selectViewMode("list")}
+            active={effectiveMode === "list"}
+            accessibilityLabel={t("native.desktop.viewList")}
+          />
+          <GhostIconButton
+            icon="rows-3"
+            onPress={() => selectViewMode("compact")}
+            active={effectiveMode === "compact"}
+            accessibilityLabel={t("native.desktop.viewCompact")}
+          />
+          <GhostIconButton
+            icon="layout-grid"
+            onPress={() => selectViewMode("grid")}
+            active={effectiveMode === "grid"}
+            accessibilityLabel={t("native.desktop.viewGrid")}
+          />
+        </View>
+      ) : (
+        <FilterPills
+          pills={pills}
+          activeKey={filter}
+          onChange={(key) => setFilter(key as LibraryFilter)}
         />
-        {/* Friends used to be reachable only as the fourth page of the player
-            sheet, which is not where anyone looks for a social screen. */}
-        <QuickLink
-          icon="user"
-          label={t("native.friends.title")}
-          onPress={() => router.push("/(main)/friends")}
-        />
-        <QuickLink
-          icon="download"
-          label={t("native.shell.tabDownloads")}
-          onPress={() => router.push("/(main)/settings/downloads-overview")}
-        />
-        <QuickLink
-          icon="settings"
-          label={t("native.library.settings")}
-          onPress={() => router.push("/(main)/settings")}
-        />
-      </View>
-
-      <FilterPills
-        pills={pills}
-        activeKey={filter}
-        onChange={(key) => setFilter(key as LibraryFilter)}
-      />
+      )}
 
       <View
         style={{
@@ -432,7 +397,7 @@ export default function LibraryScreen() {
       // desktop toggle can cause that - mobile is always the single column.
       key={isGrid ? `grid-${gridColumns}` : effectiveMode}
       style={{ flex: 1, backgroundColor: tokens.background }}
-      data={rows}
+      data={data}
       keyExtractor={(row) => row.key}
       numColumns={isGrid ? gridColumns : 1}
       columnWrapperStyle={
@@ -455,6 +420,10 @@ export default function LibraryScreen() {
       }
       ListHeaderComponent={header}
       ListEmptyComponent={empty}
+      // The pinned row keeps the list technically non-empty: whenever only
+      // Liked Songs rendered, the loading / error / empty message follows it
+      // as the footer instead.
+      ListFooterComponent={data.length > 0 && rows.length === 0 ? empty : null}
       initialNumToRender={WINDOW_SIZE}
       maxToRenderPerBatch={WINDOW_SIZE}
       windowSize={11}

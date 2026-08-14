@@ -952,7 +952,8 @@
       "tabSearch": "Pesquisar",
       "tabLibrary": "Biblioteca",
       "tabDownloads": "Transferências",
-      "closePlayer": "Fechar leitor"
+      "closePlayer": "Fechar leitor",
+      "tabProfile": "Perfil"
     },
     "desktop": {
       "back": "Recuar",
@@ -976,7 +977,12 @@
       "shortcutMute": "Silenciar ou repor o som",
       "shortcutSearch": "Ir para a pesquisa",
       "shortcutSidebar": "Mostrar ou esconder a barra lateral",
-      "shortcutOverlay": "Este painel de atalhos"
+      "shortcutOverlay": "Este painel de atalhos",
+      "resizeSidebar": "Redimensionar a barra lateral",
+      "profileMenu": "Abrir o menu de perfil",
+      "viewQueue": "Ver fila",
+      "moreThanSongs": "mais de {count} músicas",
+      "syncedOn": "sincronizada a {date}"
     },
     "library": {
       "settings": "Definições",
@@ -1101,7 +1107,8 @@
         "language": "Idioma",
         "languageEn": "English",
         "languagePt": "Português",
-        "languageLv": "Latviešu"
+        "languageLv": "Latviešu",
+        "rowDownloadSettings": "Definições de transferências"
       },
       "pickers": {
         "unavailable": "Escolher imagens não está disponível neste dispositivo."
@@ -1175,7 +1182,9 @@
       "topSongs": "Músicas de topo",
       "recent": "Ouvido recentemente",
       "plays": "{count} reproduções",
-      "playsLastMonth": "{count} reproduções nos últimos 30 dias"
+      "playsLastMonth": "{count} reproduções nos últimos 30 dias",
+      "yourProfile": "O teu perfil",
+      "friendBadge": "Amigos"
     },
     "lyrics": {
       "cardTitle": "Letra"

@@ -1,11 +1,13 @@
 /**
- * Right-panel divider (plano-uma-so-app 4.1): the 8px bar with
- * `cursor: col-resize` that lives INSIDE the grid gap to the panel's left,
- * implemented over a real `<input type=range>` so it is operable by keyboard
- * - Tab reaches it, arrow keys resize, no pointer required. The pointer path
- * bypasses the input entirely (an 8px-wide native range would map a click
- * anywhere on it to a wild value jump), so the input keeps
- * `pointer-events: none` and the wrapper owns the drag.
+ * Panel divider (plano-uma-so-app 4.1): the 8px bar with
+ * `cursor: col-resize` that lives INSIDE the grid gap on the panel's inner
+ * edge - the left edge of the right panel, the right edge of the sidebar
+ * (`side` names which side of the app the panel sits on). Implemented over a
+ * real `<input type=range>` so it is operable by keyboard - Tab reaches it,
+ * arrow keys resize, no pointer required. The pointer path bypasses the
+ * input entirely (an 8px-wide native range would map a click anywhere on it
+ * to a wild value jump), so the input keeps `pointer-events: none` and the
+ * wrapper owns the drag.
  *
  * The bar paints a centre line while hovered, dragged or focused; the rest
  * of the time it is invisible gap, exactly like every other divider the plan
@@ -21,8 +23,14 @@ export interface PanelResizerProps {
   width: number;
   min: number;
   max: number;
-  /** The grid gap the bar occupies (it sits at `left: -gap`). */
+  /** The grid gap the bar occupies (it sits in the gap past the inner edge). */
   gap: number;
+  /**
+   * Which side of the APP the panel lives on. "right" (the default, the
+   * right panel) puts the bar at the panel's LEFT edge and grows the panel
+   * as the pointer moves left; "left" (the sidebar) mirrors both.
+   */
+  side?: "left" | "right";
   label: string;
   /** Live updates while dragging or on arrow keys. */
   onResize: (width: number) => void;
@@ -35,6 +43,7 @@ export const PanelResizer = ({
   min,
   max,
   gap,
+  side = "right",
   label,
   onResize,
   onCommit,
@@ -61,8 +70,11 @@ export const PanelResizer = ({
   const onPointerMove = (event: React.PointerEvent<HTMLDivElement>): void => {
     const drag = dragRef.current;
     if (!drag) return;
-    // The panel is on the RIGHT: moving the pointer left grows it.
-    const next = clamp(drag.startWidth + (drag.startX - event.clientX));
+    // Moving the pointer AWAY from the panel's side grows it: left for the
+    // right panel, right for the sidebar.
+    const delta =
+      side === "right" ? drag.startX - event.clientX : event.clientX - drag.startX;
+    const next = clamp(drag.startWidth + delta);
     lastSentRef.current = next;
     onResize(next);
   };
@@ -79,7 +91,7 @@ export const PanelResizer = ({
     <div
       style={{
         position: "absolute",
-        left: -gap,
+        ...(side === "right" ? { left: -gap } : { right: -gap }),
         top: 0,
         bottom: 0,
         width: gap,

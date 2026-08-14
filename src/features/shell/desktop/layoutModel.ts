@@ -1,9 +1,10 @@
 /**
  * Pure desktop-layout model (plano-uma-so-app 4.5): the numbers and guards
- * behind layoutPrefs.ts, kept import-free so bun test loads them directly -
- * layoutPrefs itself rides on kv, which pulls expo-sqlite on native and is
- * therefore untestable outside Metro.
+ * behind layoutPrefs.ts, kept free of React and react-native imports so bun
+ * test loads them directly - layoutPrefs itself rides on kv, which pulls
+ * expo-sqlite on native and is therefore untestable outside Metro.
  */
+import { MAIN_MIN_WIDTH } from "./rightPanelModel";
 
 /** Sidebar geometry: default matches the shell's shipped 280px column. */
 export const SIDEBAR_WIDTH_DEFAULT = 280;
@@ -25,6 +26,28 @@ export const clampSidebarWidth = (width: number): number => {
   if (!Number.isFinite(width)) return SIDEBAR_WIDTH_DEFAULT;
   return Math.min(SIDEBAR_WIDTH_MAX, Math.max(SIDEBAR_WIDTH_MIN, Math.round(width)));
 };
+
+/**
+ * The sidebar divider's snap point: a drag RELEASED below this collapses to
+ * the icon rail instead of settling on an unusably thin column. Sits between
+ * the rail (72) and the usable minimum (200), so the pointer crosses a real
+ * dead zone before the snap - a 1px overshoot never folds the sidebar.
+ */
+export const SIDEBAR_COLLAPSE_THRESHOLD = 140;
+
+/**
+ * Largest width the sidebar may take in the current window: its own ceiling,
+ * further capped so `sidebar + main(>=480) + panel + chrome` still fits -
+ * the mirror of rightPanelModel.rightPanelWidthCeiling, with `panelFloor`
+ * standing in for whatever the right column cannot shrink below (its rail
+ * when shut, its minimum width when open). `gap` appears 4 times across the
+ * row: outer padding on both sides plus the two column gaps.
+ */
+export const sidebarWidthCeiling = (
+  windowWidth: number,
+  panelFloor: number,
+  gap: number,
+): number => Math.min(SIDEBAR_WIDTH_MAX, windowWidth - panelFloor - MAIN_MIN_WIDTH - 4 * gap);
 
 /** Transport time label: elapsed (default) or remaining (plan 4.3 row). */
 export const TIME_LABEL_MODES = ["elapsed", "remaining"] as const;

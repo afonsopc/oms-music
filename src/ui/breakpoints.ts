@@ -155,6 +155,46 @@ export const songTableColumnGate = (
         addedAt: containerWidth >= MOBILE_SONG_TABLE_WIDE,
       };
 
+/**
+ * Panel-container rule (right panel, plano 4.3): any desktop container
+ * narrower than this IS the right panel - the panel column spans 280..480
+ * (rightPanelModel) while the main pane is guaranteed >= 480 by the divider
+ * clamp, so the two ranges only touch at the boundary. Inside the panel the
+ * title block is the ONE column that can never drop: index and the fixed
+ * duration cell go first, because at 320px of panel a 28px index plus a
+ * 120px duration cell leave the title literally zero width (the "queue with
+ * no song names" screenshot).
+ */
+export const PANEL_SONG_TABLE_WIDTH = 480;
+
+/**
+ * Below this even the compact 44px duration cell crowds the title into a
+ * few characters of ellipsis, so it drops too and the row becomes pure
+ * [artwork, title+artist].
+ */
+export const PANEL_SONG_TABLE_DURATION_MIN = 340;
+
+export interface SongTablePanelGate {
+  /** The container is the right panel: index and the liked glyph drop. */
+  panel: boolean;
+  /** Whether a duration cell still fits beside the title block. */
+  duration: boolean;
+}
+
+/**
+ * The narrow-container gate SongRow and SongTable's header consult on top of
+ * `songTableColumnGate`. Outside the desktop shell it is inert by
+ * construction (mobile and native render exactly as shipped), and inside the
+ * main pane it can never bind because the pane never gets this narrow.
+ */
+export const songTablePanelGate = (
+  containerWidth: number,
+  desktopShell: boolean,
+): SongTablePanelGate => {
+  const panel = desktopShell && containerWidth < PANEL_SONG_TABLE_WIDTH;
+  return { panel, duration: !panel || containerWidth >= PANEL_SONG_TABLE_DURATION_MIN };
+};
+
 /** The mobile shell's frozen duration cell width. Not a token; a fact. */
 export const MOBILE_SONG_TABLE_DURATION_WIDTH = 44;
 
@@ -169,5 +209,10 @@ export const songTableDurationWidth = (
   desktopShell: boolean,
 ): number | null => {
   if (!desktopShell) return MOBILE_SONG_TABLE_DURATION_WIDTH;
+  // Inside the right panel the 120px cell is what crushed the queue titles
+  // to nothing; the mobile 44px cell is the one that fits next to a title.
+  if (songTablePanelGate(containerWidth, desktopShell).panel) {
+    return MOBILE_SONG_TABLE_DURATION_WIDTH;
+  }
   return containerWidth >= BREAKPOINTS.mainXl ? null : 120;
 };

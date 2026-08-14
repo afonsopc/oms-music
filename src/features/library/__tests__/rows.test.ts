@@ -8,7 +8,12 @@ import { describe, expect, it } from "bun:test";
 import type { AlbumSummary } from "@/domain/album";
 import type { Artist } from "@/domain/artist";
 import type { Playlist } from "@/domain/playlist";
-import { buildLibraryRows, type LibrarySources } from "../rows";
+import {
+  buildLibraryRows,
+  likedLibraryRow,
+  rowMatchesSearch,
+  type LibrarySources,
+} from "../rows";
 
 const labels = {
   playlistKind: "Playlist",
@@ -82,5 +87,30 @@ describe("buildLibraryRows", () => {
     expect(byArtist).toHaveLength(1);
     expect(byArtist[0].name).toBe("Circo de Feras");
     expect(buildLibraryRows("all", sources, "nothing here", labels)).toHaveLength(0);
+  });
+});
+
+describe("likedLibraryRow", () => {
+  it("is pinned, heart-tiled and routes to the liked screen", () => {
+    const row = likedLibraryRow("Liked Songs", "Playlist");
+    expect(row.pinned).toBeTruthy();
+    expect(row.artwork.kind).toBe("likedHeart");
+    expect(row.route).toBe("/(main)/liked");
+    expect(row.subtitle).toBe("Playlist");
+  });
+});
+
+describe("rowMatchesSearch", () => {
+  const row = likedLibraryRow("Liked Songs", "Playlist");
+
+  it("passes everything on empty or blank search", () => {
+    expect(rowMatchesSearch(row, "")).toBe(true);
+    expect(rowMatchesSearch(row, "   ")).toBe(true);
+  });
+
+  it("matches name or subtitle, case-insensitively", () => {
+    expect(rowMatchesSearch(row, "liKed")).toBe(true);
+    expect(rowMatchesSearch(row, "PLAY")).toBe(true);
+    expect(rowMatchesSearch(row, "beatles")).toBe(false);
   });
 });

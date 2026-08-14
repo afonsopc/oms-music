@@ -163,14 +163,14 @@ export const useSongAccent = (song: Song | null): string => {
   return variants ? variants[scheme] : ACCENT_FALLBACK;
 };
 
-export default function NowPlayingBody({ embedded = false }: { embedded?: boolean } = {}) {
+export default function NowPlayingBody() {
   const t = useT();
   const { tokens } = useTheme();
   const router = useRouter();
   const { height } = useWindowDimensions();
-  // Container, not window: inside the right panel this is the panel's ~300px
-  // (the provider is mounted by the tenant), everywhere else it falls back to
-  // the window width - numerically the shipped mobile behaviour.
+  // Container, not window: outside any provider (the mobile modal, all of
+  // native) this falls back to the window width - numerically the shipped
+  // mobile behaviour.
   const containerWidth = useContainerWidth();
   const desktopShell = useDesktopShell();
   useShellSlotsVersion();
@@ -191,15 +191,14 @@ export default function NowPlayingBody({ embedded = false }: { embedded?: boolea
   // the user is already in. `back()` only pops one entry and races the push,
   // which is how the destination ended up presented as another sheet;
   // dismissAll() unwinds every modal first, and canDismiss() keeps it safe
-  // when the player is somehow not presented modally. Embedded (the desktop
-  // right panel) there is no modal to unwind - the closest stack is (main)
-  // itself and dismissAll would reset it to the tabs - so it pushes plainly.
+  // when the player is somehow not presented modally. (This body is the
+  // mobile modal's alone now - the desktop panel has its own lean tenant.)
   const openInMain = useCallback(
     (route: Href) => {
-      if (!embedded && router.canDismiss()) router.dismissAll();
+      if (router.canDismiss()) router.dismissAll();
       router.push(route);
     },
-    [router, embedded],
+    [router],
   );
 
   if (!song) {

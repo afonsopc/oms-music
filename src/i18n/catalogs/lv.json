@@ -952,7 +952,8 @@
       "tabSearch": "Meklēt",
       "tabLibrary": "Bibliotēka",
       "tabDownloads": "Lejupielādes",
-      "closePlayer": "Aizvērt atskaņotāju"
+      "closePlayer": "Aizvērt atskaņotāju",
+      "tabProfile": "Profils"
     },
     "desktop": {
       "back": "Atpakaļ",
@@ -976,7 +977,12 @@
       "shortcutMute": "Izslēgt vai atjaunot skaņu",
       "shortcutSearch": "Doties uz meklēšanu",
       "shortcutSidebar": "Rādīt vai paslēpt sānjoslu",
-      "shortcutOverlay": "Šis īsinājumtaustiņu panelis"
+      "shortcutOverlay": "Šis īsinājumtaustiņu panelis",
+      "resizeSidebar": "Mainīt sānjoslas platumu",
+      "profileMenu": "Atvērt profila izvēlni",
+      "viewQueue": "Skatīt rindu",
+      "moreThanSongs": "vairāk nekā {count} dziesmas",
+      "syncedOn": "sinhronizēta {date}"
     },
     "library": {
       "settings": "Iestatījumi",
@@ -1101,7 +1107,8 @@
         "language": "Valoda",
         "languageEn": "English",
         "languagePt": "Português",
-        "languageLv": "Latviešu"
+        "languageLv": "Latviešu",
+        "rowDownloadSettings": "Lejupielādes iestatījumi"
       },
       "pickers": {
         "unavailable": "Attēlu izvēle šajā ierīcē nav pieejama."
@@ -1175,7 +1182,9 @@
       "topSongs": "Populārākās dziesmas",
       "recent": "Nesen klausītais",
       "plays": "{count} atskaņojumi",
-      "playsLastMonth": "{count} atskaņojumi pēdējās 30 dienās"
+      "playsLastMonth": "{count} atskaņojumi pēdējās 30 dienās",
+      "yourProfile": "Tavs profils",
+      "friendBadge": "Draugi"
     },
     "lyrics": {
       "cardTitle": "Dziesmas vārdi"

@@ -5,23 +5,47 @@
  *
  * The contract for `visible: false` is "render nothing", so a private
  * profile must be INDISTINGUISHABLE from an empty one: both land on the same
- * neutral empty state, and no error, badge or hint says which it was.
+ * neutral empty state, and no error, badge or hint says which it was. The
+ * person header above the sections is exempt: it renders identity (avatar,
+ * name, handle) from rosters the viewer already holds, never listening
+ * data, and resolves to the same values in both cases.
  *
  * Every media URL here is presigned by the backend (the viewer does not own
  * a friend's fs nodes, so resolving them would 404): they are used AS-IS,
  * never through `imageUrl()`, and never cached beyond the query.
  */
-import React from "react";
+import React, { useMemo } from "react";
 import { ScrollView, Text, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
+import { avatarUrl } from "@/api/mediaUrl";
+import { acceptedFriends } from "@/api/endpoints/relationships";
+import { useRelationships } from "@/api/queries/relationships";
 import { useMusicProfile } from "@/api/queries/social";
+import { useSessionStore } from "@/auth/session";
+import type { UserId } from "@/domain/ids";
 import { useContentBottomPadding, useContentTopPadding } from "@/features/shell/metrics";
 import { useT } from "@/i18n";
 import { artistNamesLine, formatSnapshotDuration, musicProfileArtistImage } from "@/social/display";
+import { useListeningStore } from "@/social/listeningStore";
 import { useTheme } from "@/theme/provider";
-import { ArtworkImage, EmptyState, ErrorState, PlayingBars, SongRowSkeleton } from "@/ui";
+import {
+  ArtworkImage,
+  EmptyState,
+  ErrorState,
+  Icon,
+  InitialsAvatar,
+  PlayingBars,
+  SongRowSkeleton,
+} from "@/ui";
 
 const PROFILE = "native.profile";
+
+/** Whoever the route points at, resolved to a renderable identity. */
+interface ProfilePerson {
+  id: UserId | null;
+  handle: string | null;
+  name: string;
+}
 
 const Section = ({ title, children }: { title: string; children: React.ReactNode }) => {
   const { tokens } = useTheme();
@@ -88,6 +112,73 @@ const SnapshotSongRow = ({
   );
 };
 
+/**
+ * The person header that makes this page read as a PROFILE and not as a
+ * generic music screen: big round avatar, display name, handle, and the
+ * relationship note the read API can vouch for ("your profile" / the
+ * friends badge). The client API has no friend-request mutations yet, so
+ * there is deliberately no add/remove button to promise here.
+ */
+const ProfileHeader = ({
+  person,
+  isSelf,
+  isFriend,
+}: {
+  person: ProfilePerson;
+  isSelf: boolean;
+  isFriend: boolean;
+}) => {
+  const t = useT();
+  const { tokens } = useTheme();
+  return (
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 16 }}>
+      {person.id ? (
+        <ArtworkImage uri={avatarUrl(person.id)} size={96} shape="circle" />
+      ) : (
+        <InitialsAvatar name={person.name} size={96} />
+      )}
+      <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
+        <Text
+          numberOfLines={2}
+          style={{ color: tokens.foreground, fontSize: 26, fontWeight: "800" }}
+        >
+          {person.name}
+        </Text>
+        {person.handle ? (
+          <Text numberOfLines={1} style={{ color: tokens.mutedForeground, fontSize: 14 }}>
+            @{person.handle}
+          </Text>
+        ) : null}
+        {isSelf ? (
+          <Text style={{ color: tokens.mutedForeground, fontSize: 12 }}>
+            {t(`${PROFILE}.yourProfile`)}
+          </Text>
+        ) : isFriend ? (
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              alignSelf: "flex-start",
+              gap: 5,
+              paddingHorizontal: 10,
+              paddingVertical: 3,
+              borderRadius: 999,
+              backgroundColor: tokens.secondary,
+            }}
+          >
+            <Icon name="users" size={12} color={tokens.secondaryForeground} />
+            <Text
+              style={{ color: tokens.secondaryForeground, fontSize: 11, fontWeight: "700" }}
+            >
+              {t(`${PROFILE}.friendBadge`)}
+            </Text>
+          </View>
+        ) : null}
+      </View>
+    </View>
+  );
+};
+
 export default function ProfileScreen() {
   const t = useT();
   const { tokens } = useTheme();
@@ -100,6 +191,49 @@ export default function ProfileScreen() {
   const query = useMusicProfile(idOrHandle || null);
 
   const profile = query.data ?? null;
+
+  // ---- Identity resolution ----
+  // The music_profile payload carries the user block only inside
+  // now_playing, and only when the profile is visible; a private profile
+  // still deserves a proper header, so the header falls back through every
+  // roster the app already holds: self (session), accepted friends
+  // (relationships), the listening store, and finally the raw route param.
+  const selfUser = useSessionStore((s) => s.user);
+  const listeningFriends = useListeningStore((s) => s.friends);
+  const isSelf =
+    !!selfUser &&
+    (selfUser.id === idOrHandle || selfUser.handle.toLowerCase() === idOrHandle.toLowerCase());
+  const relationshipsQuery = useRelationships(!isSelf);
+
+  const person = useMemo<ProfilePerson>(() => {
+    const needle = idOrHandle.toLowerCase();
+    const matches = (u: { id: UserId; handle: string }): boolean =>
+      u.id === idOrHandle || u.handle.toLowerCase() === needle;
+    if (isSelf && selfUser) {
+      return { id: selfUser.id, handle: selfUser.handle, name: selfUser.name || selfUser.handle };
+    }
+    const snapshotUser = profile?.now_playing?.user;
+    const friend = selfUser
+      ? acceptedFriends(relationshipsQuery.data ?? [], selfUser.id).find(matches)
+      : undefined;
+    const listening = listeningFriends.find((row) => matches(row.user))?.user;
+    const resolved = (snapshotUser && matches(snapshotUser) ? snapshotUser : null) ?? friend ?? listening;
+    if (resolved) {
+      return { id: resolved.id, handle: resolved.handle, name: resolved.name || resolved.handle };
+    }
+    // Nothing resolved: a numeric segment is an id (never worth rendering
+    // as a handle); anything else came from a handle link.
+    const looksLikeId = /^\d+$/.test(idOrHandle);
+    return { id: null, handle: looksLikeId ? null : idOrHandle, name: idOrHandle };
+  }, [idOrHandle, isSelf, selfUser, profile, relationshipsQuery.data, listeningFriends]);
+
+  const isFriend = useMemo(() => {
+    if (isSelf || !selfUser) return false;
+    return acceptedFriends(relationshipsQuery.data ?? [], selfUser.id).some(
+      (u) => u.id === person.id || (!!person.handle && u.handle === person.handle.toLowerCase()),
+    );
+  }, [isSelf, selfUser, relationshipsQuery.data, person]);
+
   const nowPlaying = profile?.now_playing ?? null;
   const live = !!nowPlaying?.song && nowPlaying.online && !nowPlaying.paused;
   const topArtists = profile?.top_artists ?? [];
@@ -113,9 +247,9 @@ export default function ProfileScreen() {
       style={{ flex: 1, backgroundColor: tokens.background }}
       contentContainerStyle={{ padding: 16, paddingTop: topPadding, paddingBottom: bottomPadding, gap: 20 }}
     >
-      <Text style={{ color: tokens.foreground, fontSize: 28, fontWeight: "800" }}>
-        {t(`${PROFILE}.title`)}
-      </Text>
+      {/* The page opens as a PROFILE - the old bare "Música" heading made
+          this look like a generic music page (owner report 2026-08-14). */}
+      <ProfileHeader person={person} isSelf={isSelf} isFriend={isFriend} />
 
       {query.isLoading ? (
         <View style={{ gap: 8 }}>

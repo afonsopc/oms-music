@@ -1,12 +1,11 @@
 /**
  * Right panel (plano-uma-so-app 4.3, rows "Player sheet" and "Queue"): ONE
  * slot, FIVE tenants - Now Playing, Queue, Lyrics, Devices, Friend activity -
- * behind ONE persisted key (layoutPrefs). Every tenant reuses the exact body
- * the mobile shell already ships:
+ * behind ONE persisted key (layoutPrefs).
  *
- *  - Now Playing IS `NowPlayingScroll` in embedded mode: same composition
- *    (body, lyrics card, queue row, artist card in one scroll), measured
- *    against the panel instead of the window;
+ *  - Now Playing is `PanelNowPlaying`, a lean column built FOR the panel
+ *    (artwork, title row, artist card, credits, up-next preview) - never the
+ *    mobile player, whose transport would duplicate the bar right below;
  *  - Queue / Lyrics / Friends are the (player) pager bodies as-is;
  *  - Devices is the DevicePicker's body outside its bottom sheet (a 2560px
  *    drawer for five rows is exactly what the plan is killing).
@@ -19,23 +18,23 @@
  * Forms by window width: >= 1200px and open, the real column; >= 1200px and
  * closed, a 32px rail whose icons reopen straight into a tenant; 900-1200px,
  * the rail is geometry only (the tenants live behind the transport-bar
- * routes there). The cinema entry hands the SAME now-playing composition to
- * the full-window (player) modal - which mobile keeps as its player sheet.
+ * routes there). The maximize button opens the desktop cinema overlay
+ * (features/player/cinema) - the (player) modal remains the MOBILE player.
  *
  * Web-only by construction: only DesktopShell.web.tsx imports this file.
  */
 import React from "react";
 import { ScrollView, View } from "react-native";
-import { useRouter } from "expo-router";
 import { DevicePickerBody } from "@/features/devices/DevicePicker";
 import FriendsBody from "@/features/friends";
 import LyricsBody from "@/features/lyrics";
+import { openCinema } from "@/features/player/cinema";
+import { PanelNowPlaying } from "@/features/player/panelNowPlaying";
 import QueueBody from "@/features/player/queue";
 import { useT } from "@/i18n";
 import { useRemoteStore } from "@/remote/store";
 import { useTheme } from "@/theme/provider";
 import { ContainerWidthProvider, EmptyState, GhostIconButton, type IconName } from "@/ui";
-import { NowPlayingScroll } from "../PlayerPager";
 import { RIGHT_PANEL_TENANTS, type RightPanelTenant } from "./rightPanelModel";
 
 const TENANT_ICONS: Record<RightPanelTenant, IconName> = {
@@ -86,7 +85,7 @@ const TenantBody = ({
 }) => {
   switch (tenant) {
     case "nowPlaying":
-      return <NowPlayingScroll embedded onOpenQueue={() => onSelectTenant("queue")} />;
+      return <PanelNowPlaying onOpenQueue={() => onSelectTenant("queue")} />;
     case "queue":
       return (
         <View style={{ flex: 1, paddingTop: 12 }}>
@@ -128,7 +127,6 @@ export const DesktopRightPanel = ({
 }: DesktopRightPanelProps) => {
   const { tokens } = useTheme();
   const t = useT();
-  const router = useRouter();
 
   // 900-1200px: geometry-only rail, nothing to interact with (the plan's
   // collapse order folds the panel first, and the transport bar still routes
@@ -179,13 +177,14 @@ export const DesktopRightPanel = ({
           />
         ))}
         <View style={{ flex: 1 }} />
-        {/* Cinema mode: the full-window player - the same modal mobile keeps
-            as its sheet, reached from inside the panel per the plan. */}
+        {/* Cinema mode: the desktop overlay above the shell (the transport
+            bar stays visible under it) - the same surface the bar's own
+            fullscreen button opens, never the mobile modal. */}
         <GhostIconButton
           icon="maximize-2"
           size={14}
           accessibilityLabel={t("native.desktop.cinemaMode")}
-          onPress={() => router.push("/(player)/now-playing")}
+          onPress={openCinema}
           style={{ width: 30, height: 36 }}
         />
         <GhostIconButton

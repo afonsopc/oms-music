@@ -33,6 +33,7 @@ export type IconName =
   | "rows-3"
   | "layout-grid"
   | "mic-vocal"
+  | "maximize"
   | "maximize-2"
   | "disc"
   | "user"
@@ -92,6 +93,8 @@ const ICON_BODIES: Record<IconName, string> = {
     '<rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/>',
   "mic-vocal":
     '<path d="m12 8-9.04 9.06a2.82 2.82 0 1 0 3.98 3.98L16 12"/><circle cx="17" cy="7" r="5"/>',
+  maximize:
+    '<path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/>',
   "maximize-2":
     '<polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" x2="14" y1="3" y2="10"/><line x1="3" x2="10" y1="21" y2="14"/>',
   disc: '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="2"/>',

@@ -19,8 +19,15 @@
  * Web-only by construction: only TopBar.tsx (itself web-only) imports this.
  */
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
-import { useRouter } from "expo-router";
+import {
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
+  type TextStyle,
+} from "react-native";
+import { useGlobalSearchParams, usePathname, useRouter } from "expo-router";
 import { useSearchArtists } from "@/api/queries/artists";
 import { useSearchPlaylists } from "@/api/queries/playlists";
 import { useSearchAlbums, useSearchSongs } from "@/api/queries/songs";
@@ -43,6 +50,15 @@ import { registerTopbarSearchFocus } from "./searchFocus";
 const MSI = "components.music.MusicSearchInput";
 
 /**
+ * Kill the browser's UA focus ring (an ugly rectangle doubled against the
+ * pill's rounding); the pill paints its own `ring`-colored border while
+ * focused instead. react-native-web forwards outline* straight to CSS, but
+ * the RN style union predates the web value "none", hence the cast. This
+ * file is web-only, so the prop always lands on a real DOM node.
+ */
+const NO_UA_OUTLINE = { outlineStyle: "none", outlineWidth: 0 } as unknown as TextStyle;
+
+/**
  * Key + preventDefault, extracted from the RN onKeyPress event. onKeyPress
  * and not onKeyDown on purpose: react-native-web's TextInput installs its
  * OWN onKeyDown (which would silently replace a passed one) and forwards
@@ -61,9 +77,32 @@ export const TopBarSearch = () => {
   const inputRef = useRef<TextInput>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
-  const [text, setText] = useState("");
+  // On the /search page this field IS the page's input (the desktop page
+  // renders no field of its own), so a query arriving through the URL - a
+  // direct link, back/forward, a fresh load - must land in here too.
+  const pathname = usePathname();
+  const routeParams = useGlobalSearchParams<{ query?: string | string[] }>();
+  const rawRouteQuery = Array.isArray(routeParams.query)
+    ? routeParams.query[0]
+    : routeParams.query;
+  const routeQuery = pathname === "/search" ? (rawRouteQuery ?? "") : null;
+
+  const [text, setText] = useState(routeQuery ?? "");
   const [open, setOpen] = useState(false);
+  const [focused, setFocused] = useState(false);
   const [highlight, setHighlight] = useState(0);
+
+  // Later URL changes sync in through adjust-state-during-render, the
+  // repo's documented pattern for "a prop moved".
+  const [seenRouteQuery, setSeenRouteQuery] = useState(routeQuery);
+  if (routeQuery !== seenRouteQuery) {
+    setSeenRouteQuery(routeQuery);
+    // Leaving /search (null) keeps whatever was typed; only a real query
+    // syncs in, and never while the user is mid-edit in the field.
+    if (routeQuery !== null && routeQuery.length > 0 && !focused && routeQuery !== text) {
+      setText(routeQuery);
+    }
+  }
 
   const term = useDebounced(text).trim();
   const enabled = open && term.length > 0;
@@ -219,6 +258,12 @@ export const TopBarSearch = () => {
           alignItems: "center",
           gap: 8,
           paddingHorizontal: 14,
+          // The pill's own focus treatment (keyboard a11y): the border is
+          // always there so focusing never shifts layout, and lights up in
+          // the theme's `ring` token - dark ink on the light secondary,
+          // light gray on the dark one - when the field has the caret.
+          borderWidth: 1,
+          borderColor: focused ? tokens.ring : "transparent",
         }}
       >
         <Icon name="search" size={16} color={tokens.mutedForeground} />
@@ -229,7 +274,11 @@ export const TopBarSearch = () => {
             setText(value);
             setOpen(true);
           }}
-          onFocus={() => setOpen(true)}
+          onFocus={() => {
+            setFocused(true);
+            setOpen(true);
+          }}
+          onBlur={() => setFocused(false)}
           onKeyPress={(event) =>
             onFieldKeyDown({
               key: event.nativeEvent.key,
@@ -244,7 +293,7 @@ export const TopBarSearch = () => {
           placeholderTextColor={tokens.mutedForeground}
           autoCorrect={false}
           accessibilityLabel={t(`${MSI}.ariaSearch`)}
-          style={{ flex: 1, color: tokens.foreground, fontSize: 14 }}
+          style={[{ flex: 1, color: tokens.foreground, fontSize: 14 }, NO_UA_OUTLINE]}
         />
         {text.length > 0 ? (
           <Pressable

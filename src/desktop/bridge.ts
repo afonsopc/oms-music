@@ -17,14 +17,17 @@
  * The pure pieces (payload parsing, send discipline) live in ./protocol so
  * they test without dragging react-native into bun test.
  */
+import { router } from "expo-router";
+import { openCinema } from "@/features/player/cinema";
 import { buildLockScreenMetadata, routeRemoteCommand } from "@/player/lockScreen";
 import { playerStore, type PlayerStoreState } from "@/player/store";
 import { toSongKey } from "@/domain/ids";
 import { playbackUpdateReason, toRemoteCommand, type SentPlayback } from "./protocol";
 import { getTauriGlobals } from "./tauri";
 
-/** Event name from desktop/bindings.ts (tauri-specta derives it). */
+/** Event names from desktop/bindings.ts (tauri-specta derives them). */
 const MEDIA_COMMAND_EVENT = "media-command";
+const SHELL_COMMAND_EVENT = "shell-command";
 
 let running = false;
 
@@ -42,6 +45,19 @@ export const startDesktopBridge = (): boolean => {
   void tauri.event.listen(MEDIA_COMMAND_EVENT, (event) => {
     const command = toRemoteCommand(event.payload);
     if (command) routeRemoteCommand(command);
+  });
+
+  // Shell UI commands (menu bar Vista/OMS Music): cinema opens the desktop
+  // overlay store directly; settings navigates. Payload shape is the specta
+  // ShellCommand ({ type: "cinema" | "settings" }); unknown types no-op so
+  // an older bundle under a newer shell never throws.
+  void tauri.event.listen(SHELL_COMMAND_EVENT, (event) => {
+    const payload = event.payload as { type?: string } | null;
+    if (payload?.type === "cinema") {
+      openCinema();
+    } else if (payload?.type === "settings") {
+      router.push("/(main)/settings");
+    }
   });
 
   // State OUT: playerStore -> shell. Fire-and-forget by design: a lost

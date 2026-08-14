@@ -50,7 +50,7 @@ import { avatarUrl } from "@/api/mediaUrl";
 import { useSessionStore } from "@/auth/session";
 import { getRecentCollections, subscribeRecentCollections } from "@/lib/recentCollections";
 import { useFriendsStripActive, useFriendsStripSlot } from "./friendsSlot";
-import { ProfileDrawer } from "./ProfileDrawer";
+import { openProfileDrawer } from "./ProfileDrawer";
 
 type HomeFilter = "all" | "playlists" | "albums" | "artists";
 
@@ -99,7 +99,6 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const bottomPadding = useContentBottomPadding();
   const [filter, setFilter] = useState<HomeFilter>("all");
-  const [drawerOpen, setDrawerOpen] = useState(false);
   const userId = useSessionStore((s) => s.user?.id ?? s.session?.user_id ?? null);
 
   const recentAlbumsQuery = useRecentAlbums(RECENT_ALBUMS_LIMIT);
@@ -206,7 +205,6 @@ export default function HomeScreen() {
   ];
 
   return (
-    <>
     <ScrollView
       style={{ flex: 1, backgroundColor: tokens.background }}
       contentContainerStyle={{
@@ -223,7 +221,9 @@ export default function HomeScreen() {
             accessibilityRole="button"
             accessibilityLabel={t("native.home.viewProfile")}
             hitSlop={8}
-            onPress={() => setDrawerOpen(true)}
+            // The drawer itself mounts at the shell level (ProfileDrawerHost
+            // in (main)/_layout) so the tab bar avatar can open it too.
+            onPress={openProfileDrawer}
             style={({ pressed }) => ({ paddingLeft: 24, opacity: pressed ? 0.7 : 1 })}
           >
             <ArtworkImage uri={avatarUrl(userId)} size={34} shape="circle" />
@@ -386,7 +386,5 @@ export default function HomeScreen() {
         </Section>
       ) : null}
     </ScrollView>
-    <ProfileDrawer visible={drawerOpen} onClose={() => setDrawerOpen(false)} />
-    </>
   );
 }

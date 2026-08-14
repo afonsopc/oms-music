@@ -137,13 +137,22 @@ export const ArtworkImage = ({
       ? PLACEHOLDER_ARTWORK
       : { uri: resolved.uri, cacheKey: resolved.cacheKey };
 
+  // Web: transition 0, always. expo-image cannot tell a browser-cache hit
+  // from a fresh fetch, and the crossfade ran on BOTH - so even an
+  // instantly-available image visibly "popped in" from the placeholder on
+  // every mount (avatars, tiles). With the backend now sending Cache-Control
+  // on the media/picture redirects, cached loads complete immediately and
+  // the placeholder never paints; uncached ones swap in without the fade.
+  // Native keeps the crossfade: its disk cache decodes off-frame anyway.
+  const transition = Platform.OS === "web" ? 0 : transitionMs;
+
   return (
     <Image
       source={imageSource}
       placeholder={PLACEHOLDER_ARTWORK}
       placeholderContentFit={contentFit}
       contentFit={contentFit}
-      transition={transitionMs}
+      transition={transition}
       recyclingKey={recyclingKey ?? undefined}
       onError={() => {
         if (resolved.uri) setFailedUri(resolved.uri);

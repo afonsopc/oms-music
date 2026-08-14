@@ -40,7 +40,14 @@ import {
   writeRightPanelTenant,
   writeRightPanelWidth,
   writeSidebarCollapsed,
+  writeSidebarWidth,
 } from "./layoutPrefs";
+import {
+  clampSidebarWidth,
+  SIDEBAR_COLLAPSE_THRESHOLD,
+  SIDEBAR_WIDTH_MIN,
+  sidebarWidthCeiling,
+} from "./layoutModel";
 import { DesktopShortcuts } from "./DesktopShortcuts";
 import { PanelResizer } from "./PanelResizer";
 import { DesktopRightPanel } from "./RightPanel";
@@ -80,10 +87,7 @@ export const DesktopShell = ({ children }: DesktopShellProps) => {
   // Remembered shape, hydrated synchronously so the first frame is already
   // right (4.5 persistence; kv is localStorage here).
   const [collapsed, setCollapsed] = useState(readSidebarCollapsed);
-  // Read once at mount (4.5): the sidebar divider is later F3 work, but the
-  // persistence contract already exists, so a width written by any future
-  // build (or another window) shapes this one on its next load.
-  const [wantedSidebarWidth] = useState(readSidebarWidth);
+  const [wantedSidebarWidth, setWantedSidebarWidth] = useState(readSidebarWidth);
   const [panelOpen, setPanelOpen] = useState(readRightPanelOpen);
   const [panelTenant, setPanelTenant] = useState(readRightPanelTenant);
   const [wantedPanelWidth, setWantedPanelWidth] = useState(readRightPanelWidth);
@@ -116,11 +120,36 @@ export const DesktopShell = ({ children }: DesktopShellProps) => {
     else selectTenant(tenant);
   };
 
-  const sidebarWidth = collapsed ? SIDEBAR_RAIL_WIDTH : wantedSidebarWidth;
-  // The remembered width re-clamps against the LIVE window (the window it
-  // was saved under is gone), preserving the plan's main >= 480 guarantee.
+  // Both remembered widths re-clamp against the LIVE window (the window they
+  // were saved under is gone), preserving the plan's main >= 480 guarantee.
+  // The sidebar settles first, conceding only the right column's FLOOR (its
+  // rail when shut, its minimum when open); the panel then clamps against
+  // the sidebar's settled width - never circular, always within bounds.
+  const panelFloor = panelWide && panelOpen ? RIGHT_PANEL_MIN_WIDTH : PANEL_RAIL_WIDTH;
+  const sidebarMax = Math.max(
+    SIDEBAR_WIDTH_MIN,
+    sidebarWidthCeiling(windowWidth, panelFloor, GAP),
+  );
+  const expandedSidebarWidth = Math.min(clampSidebarWidth(wantedSidebarWidth), sidebarMax);
+  const sidebarWidth = collapsed ? SIDEBAR_RAIL_WIDTH : expandedSidebarWidth;
   const panelColumnWidth = clampRightPanelWidth(wantedPanelWidth, windowWidth, sidebarWidth, GAP);
   const panelWidth = panelWide && panelOpen ? panelColumnWidth : PANEL_RAIL_WIDTH;
+
+  /** Live drag: the column tracks the pointer, floored at the usable minimum. */
+  const resizeSidebar = (next: number): void => {
+    setWantedSidebarWidth(clampSidebarWidth(next));
+  };
+  /** The settled value: below the threshold it snaps to the rail instead. */
+  const commitSidebarWidth = (next: number): void => {
+    if (next < SIDEBAR_COLLAPSE_THRESHOLD) {
+      setCollapsed(true);
+      writeSidebarCollapsed(true);
+      return;
+    }
+    const width = clampSidebarWidth(next);
+    setWantedSidebarWidth(width);
+    writeSidebarWidth(width);
+  };
 
   /** Every zone is a card: surface wash over the page background, radius 8. */
   const card: React.CSSProperties = {
@@ -197,8 +226,36 @@ export const DesktopShell = ({ children }: DesktopShellProps) => {
         </div>
       ) : null}
       {desktop ? (
-        <div key="sidebar" style={{ ...card, gridArea: "sidebar" }}>
-          <DesktopSidebar collapsed={collapsed} onToggleCollapsed={toggleSidebar} />
+        // Wrapper, not the card itself: the resizer must live in the grid
+        // GAP (right: -8) and the card's overflow:hidden would clip it there.
+        <div
+          key="sidebar"
+          style={{
+            gridArea: "sidebar",
+            position: "relative",
+            display: "flex",
+            minWidth: 0,
+            minHeight: 0,
+          }}
+        >
+          <div style={{ ...card, flex: "1 1 0%" }}>
+            <DesktopSidebar collapsed={collapsed} onToggleCollapsed={toggleSidebar} />
+          </div>
+          {collapsed ? null : (
+            <PanelResizer
+              side="left"
+              width={expandedSidebarWidth}
+              // The drag floor sits BELOW the usable minimum on purpose: the
+              // stretch between rail and minimum is the dead zone a release
+              // inside of snaps to the collapsed rail (commitSidebarWidth).
+              min={SIDEBAR_RAIL_WIDTH}
+              max={sidebarMax}
+              gap={GAP}
+              label={t("native.desktop.resizeSidebar")}
+              onResize={resizeSidebar}
+              onCommit={commitSidebarWidth}
+            />
+          )}
         </div>
       ) : null}
       <div key="main" style={main}>

@@ -20,6 +20,7 @@ import { useContentBottomPadding, useContentTopPadding } from "@/features/shell/
 import { useT } from "@/i18n";
 import { useTheme } from "@/theme/provider";
 import { ArtworkImage, ConfirmDialog, EmptyState, ErrorState, Icon } from "@/ui";
+import { cardKeyProps, cardPressRole } from "@/ui/a11y";
 import { ArtistEditDialog } from "./ArtistEditDialog";
 import { NoticeBanner, SearchField, useApiErrorMessage } from "./ui";
 
@@ -78,9 +79,17 @@ const ArtistManagementRow = React.memo(
     const deletable = artist.songs_count === 0;
 
     return (
+      // The row hosts a REAL button (the trash can), so on web the outer
+      // pressable must degrade to a div (cardPressRole) - role="button" here
+      // renders a <button> and HTML forbids nesting those (React hydration
+      // errors, browsers re-parent the DOM). cardKeyProps keeps the row
+      // reachable and Space-activatable for keyboard users. Same pattern as
+      // SongRow / ui/a11y.ts.
       <Pressable
         onPress={onEdit}
-        accessibilityRole="button"
+        accessibilityRole={cardPressRole}
+        accessibilityLabel={artist.name}
+        {...cardKeyProps(onEdit)}
         style={({ pressed }) => ({
           flexDirection: "row",
           alignItems: "center",

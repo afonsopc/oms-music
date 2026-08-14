@@ -94,22 +94,37 @@ const PlaylistBody = ({ playlistId }: { playlistId: PlaylistId }) => {
   );
 
   const meta = useMemo(() => {
-    const count = songs.length;
-    const countLabel = `${count} ${t(
-      count === 1 ? "components.music.PlaylistView.song" : "components.music.PlaylistView.songs",
-    )}`;
-    const { hours, minutes } = splitDuration(totalDuration(songs));
-    const durationLabel = hours > 0 ? `${hours} h ${minutes} min` : `${minutes} min`;
-    const parts = [countLabel, durationLabel];
+    const parts: string[] = [];
+    // The pages are infinite (100 a pop) and the playlist payload carries no
+    // song_count, so before the last page lands the loaded slice UNDERSELLS
+    // the playlist - the hero used to claim "100 músicas" for a 176-song
+    // playlist. Until everything is in, the count is announced as a floor
+    // and the duration (only computable from loaded rows) stays quiet.
+    if (!songsQuery.isLoading) {
+      const count = songs.length;
+      if (songsQuery.hasNextPage) {
+        parts.push(t("native.desktop.moreThanSongs", { count }));
+      } else {
+        parts.push(
+          `${count} ${t(
+            count === 1
+              ? "components.music.PlaylistView.song"
+              : "components.music.PlaylistView.songs",
+          )}`,
+        );
+        const { hours, minutes } = splitDuration(totalDuration(songs));
+        parts.push(hours > 0 ? `${hours} h ${minutes} min` : `${minutes} min`);
+      }
+    }
     if (system && playlist?.synced_at) {
       parts.push(
-        t("components.music.PlaylistView.lastSynced", {
-          when: formatDate(playlist.synced_at, locale),
+        t("native.desktop.syncedOn", {
+          date: formatDate(playlist.synced_at, locale),
         }),
       );
     }
     return parts.join(" • ");
-  }, [songs, system, playlist, t, locale]);
+  }, [songs, songsQuery.isLoading, songsQuery.hasNextPage, system, playlist, t, locale]);
 
   const addedAtFor = useCallback(
     (_song: Song, index: number) => rows[index]?.created_at,

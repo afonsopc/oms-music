@@ -7,24 +7,54 @@
  * its pure row assembly (buildLibraryRows) so both surfaces filter and label
  * rows identically forever.
  *
- * Collapsed, it narrows to the icon rail alone. Collapse state, active chip
- * and search text persist through layoutPrefs (4.5): a desktop app REMEMBERS
- * its layout, and the queries stay off while collapsed so a closed sidebar
- * costs no network.
+ * The list is topped by the PINNED Liked Songs row (immune to the chips) and
+ * the column ends in the account block: avatar + name (avatar alone on the
+ * rail) opening the anchored profile menu - profile, friends, downloads,
+ * settings, the four destinations the Library tab's quick links used to own.
+ *
+ * Collapsed, it narrows to the icon rail plus that avatar. Collapse state,
+ * active chip and search text persist through layoutPrefs (4.5): a desktop
+ * app REMEMBERS its layout, and the queries stay off while collapsed so a
+ * closed sidebar costs no network.
  *
  * Web-only by construction: only DesktopShell.web.tsx imports this file.
  */
 import React, { useMemo, useState } from "react";
-import { FlatList, Pressable, Text, TextInput, View } from "react-native";
-import { useRouter, useSegments } from "expo-router";
+import {
+  FlatList,
+  Pressable,
+  Text,
+  TextInput,
+  View,
+  type GestureResponderEvent,
+} from "react-native";
+import { useRouter, useSegments, type Href } from "expo-router";
+import { avatarUrl } from "@/api/mediaUrl";
 import { usePlaylists } from "@/api/queries/playlists";
+import { useSessionStore } from "@/auth/session";
 import { useLibraryAlbums, useLibraryArtists, LIBRARY_ITEM_LIMIT } from "@/features/library/queries";
-import { buildLibraryRows, type LibraryFilter, type LibraryRow } from "@/features/library/rows";
+import {
+  buildLibraryRows,
+  likedLibraryRow,
+  rowMatchesSearch,
+  type LibraryFilter,
+  type LibraryRow,
+} from "@/features/library/rows";
 import { TabIcon, type TabIconName } from "@/features/shell/TabIcon";
 import { useT } from "@/i18n";
 import { useTheme } from "@/theme/provider";
 import { RADIUS } from "@/theme/tokens";
-import { ArtworkImage, EmptyState, FilterPills, GhostIconButton, Icon } from "@/ui";
+import { focusTopbarSearchOrNavigate } from "./searchFocus";
+import {
+  ArtworkImage,
+  EmptyState,
+  FilterPills,
+  GhostIconButton,
+  Icon,
+  Popover,
+  type IconName,
+  type PopoverAnchor,
+} from "@/ui";
 import {
   readSidebarFilter,
   readSidebarSearch,
@@ -124,7 +154,12 @@ const SidebarRow = ({ row, onPress }: { row: LibraryRow; onPress: () => void }) 
       <View style={{ flex: 1, minWidth: 0 }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
           <Text
-            style={{ color: tokens.foreground, fontSize: 13, fontWeight: "500", flexShrink: 1 }}
+            style={{
+              color: tokens.foreground,
+              fontSize: 13,
+              fontWeight: row.pinned ? "700" : "500",
+              flexShrink: 1,
+            }}
             numberOfLines={1}
           >
             {row.name}
@@ -141,15 +176,59 @@ const SidebarRow = ({ row, onPress }: { row: LibraryRow; onPress: () => void }) 
   );
 };
 
+/** One row of the account popover: SongMenu's menu-item look, four routes. */
+const AccountMenuRow = ({
+  icon,
+  label,
+  onPress,
+}: {
+  icon: IconName;
+  label: string;
+  onPress: () => void;
+}) => {
+  const { tokens } = useTheme();
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="menuitem"
+      style={({ pressed }) => ({
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 14,
+        paddingHorizontal: 20,
+        paddingVertical: 13,
+        opacity: pressed ? 0.6 : 1,
+      })}
+    >
+      <Icon name={icon} size={19} color={tokens.foreground} />
+      <Text style={{ color: tokens.foreground, fontSize: 15 }} numberOfLines={1}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+};
+
 export const DesktopSidebar = ({ collapsed, onToggleCollapsed }: DesktopSidebarProps) => {
   const { tokens } = useTheme();
   const t = useT();
   const router = useRouter();
   const segments = useSegments() as string[];
+  const user = useSessionStore((s) => s.user);
 
   // Chip + search text hydrate from kv so a reload keeps the shape (4.5).
   const [filter, setFilterState] = useState<LibraryFilter>(readSidebarFilter);
   const [search, setSearchState] = useState<string>(readSidebarSearch);
+  // The account popover anchors at the click (SongRow's pointer pattern).
+  const [accountAnchor, setAccountAnchor] = useState<PopoverAnchor | null>(null);
+
+  const openAccountMenu = (event: GestureResponderEvent): void => {
+    const { pageX, pageY } = event.nativeEvent;
+    setAccountAnchor({ x: pageX ?? 0, y: pageY ?? 0 });
+  };
+  const goFromAccountMenu = (route: Href): void => {
+    setAccountAnchor(null);
+    router.push(route);
+  };
 
   const setFilter = (next: LibraryFilter): void => {
     setFilterState(next);
@@ -198,6 +277,17 @@ export const DesktopSidebar = ({ collapsed, onToggleCollapsed }: DesktopSidebarP
     [filter, playlistsQuery.data, artistsQuery.data, albumsQuery.data, search, labels],
   );
 
+  // Pinned ABOVE whatever the chips chose (owner request): only the search
+  // text may hide Liked Songs, through the same predicate as every row.
+  const likedRow = useMemo(
+    () => likedLibraryRow(t("components.music.Sidebar.liked"), labels.playlistKind),
+    [t, labels],
+  );
+  const data = useMemo(
+    () => (rowMatchesSearch(likedRow, search) ? [likedRow, ...rows] : rows),
+    [likedRow, rows, search],
+  );
+
   const isLoading =
     (wantsPlaylists && playlistsQuery.isLoading) ||
     (wantsArtists && artistsQuery.isLoading) ||
@@ -212,6 +302,23 @@ export const DesktopSidebar = ({ collapsed, onToggleCollapsed }: DesktopSidebarP
     { key: "albums", label: t("components.music.Sidebar.filterAlbums") },
   ];
 
+  // The pinned row keeps the list technically non-empty, so the loading /
+  // empty message drops to the FOOTER whenever only Liked Songs rendered.
+  const statusFallback = isLoading ? (
+    <Text style={{ color: tokens.mutedForeground, fontSize: 12, paddingHorizontal: 12 }}>
+      {t("components.music.Sidebar.loading")}
+    </Text>
+  ) : (
+    <EmptyState
+      icon="library"
+      text={
+        search.trim()
+          ? t("native.library.noFilterMatches")
+          : t("components.music.Sidebar.emptyLibrary")
+      }
+    />
+  );
+
   return (
     <View style={{ flex: 1, paddingHorizontal: collapsed ? 6 : 10, paddingVertical: 10, gap: 4 }}>
       <View style={{ gap: 2 }}>
@@ -221,7 +328,14 @@ export const DesktopSidebar = ({ collapsed, onToggleCollapsed }: DesktopSidebarP
             item={item}
             active={activeTab === item.key}
             collapsed={collapsed}
-            onPress={() => router.push(item.route)}
+            // "Pesquisar" foca a barra de cima em vez de abrir a pagina
+            // duplicada (plano 4.3): no desktop a topbar E a pesquisa, e a
+            // pagina fica so como destino de "ver todos".
+            onPress={
+              item.key === "search"
+                ? () => focusTopbarSearchOrNavigate(() => router.push(item.route))
+                : () => router.push(item.route)
+            }
           />
         ))}
       </View>
@@ -257,11 +371,15 @@ export const DesktopSidebar = ({ collapsed, onToggleCollapsed }: DesktopSidebarP
 
       {collapsed ? null : (
         <>
+          {/* Full-bleed strip: the negative margin lets overflowing pills
+              scroll across the card's whole width, the inset re-aligns pill
+              one with the search capsule below. */}
           <FilterPills
             pills={pills}
             activeKey={filter}
             onChange={(key) => setFilter(key as LibraryFilter)}
-            style={{ flexGrow: 0 }}
+            contentPaddingHorizontal={10}
+            style={{ flexGrow: 0, marginHorizontal: -10 }}
           />
 
           <View
@@ -300,29 +418,13 @@ export const DesktopSidebar = ({ collapsed, onToggleCollapsed }: DesktopSidebarP
 
           <FlatList
             style={{ flex: 1, marginTop: 4 }}
-            data={rows}
+            data={data}
             keyExtractor={(row) => row.key}
             renderItem={({ item }) => (
               <SidebarRow row={item} onPress={() => router.push(item.route)} />
             )}
-            ListEmptyComponent={
-              isLoading ? (
-                <Text
-                  style={{ color: tokens.mutedForeground, fontSize: 12, paddingHorizontal: 12 }}
-                >
-                  {t("components.music.Sidebar.loading")}
-                </Text>
-              ) : (
-                <EmptyState
-                  icon="library"
-                  text={
-                    search.trim()
-                      ? t("native.library.noFilterMatches")
-                      : t("components.music.Sidebar.emptyLibrary")
-                  }
-                />
-              )
-            }
+            ListEmptyComponent={statusFallback}
+            ListFooterComponent={data.length > 0 && rows.length === 0 ? statusFallback : null}
             initialNumToRender={30}
             maxToRenderPerBatch={30}
             windowSize={11}
@@ -331,6 +433,75 @@ export const DesktopSidebar = ({ collapsed, onToggleCollapsed }: DesktopSidebarP
           />
         </>
       )}
+
+      {/* Account block: pinned to the column's foot in BOTH states - the
+          expanded sidebar's list flexes above it, the rail gets a spacer. */}
+      {user ? (
+        <>
+          {collapsed ? <View style={{ flex: 1 }} /> : null}
+          <Pressable
+            onPress={openAccountMenu}
+            accessibilityRole="button"
+            accessibilityLabel={t("native.desktop.profileMenu")}
+            style={({ pressed }) => ({
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: collapsed ? "center" : "flex-start",
+              gap: 10,
+              paddingHorizontal: collapsed ? 0 : 12,
+              paddingVertical: 6,
+              borderRadius: RADIUS,
+              opacity: pressed ? 0.7 : 1,
+            })}
+          >
+            <ArtworkImage uri={avatarUrl(user.id)} size={32} shape="circle" />
+            {collapsed ? null : (
+              <Text
+                style={{
+                  color: tokens.foreground,
+                  fontSize: 13,
+                  fontWeight: "600",
+                  flexShrink: 1,
+                }}
+                numberOfLines={1}
+              >
+                {user.name}
+              </Text>
+            )}
+          </Pressable>
+          <Popover
+            visible={accountAnchor != null}
+            anchor={accountAnchor ?? { x: 0, y: 0 }}
+            onClose={() => setAccountAnchor(null)}
+          >
+            <AccountMenuRow
+              icon="user"
+              label={t("native.home.viewProfile")}
+              onPress={() =>
+                goFromAccountMenu({
+                  pathname: "/(main)/profile/[idOrHandle]",
+                  params: { idOrHandle: user.handle },
+                })
+              }
+            />
+            <AccountMenuRow
+              icon="users"
+              label={t("native.friends.title")}
+              onPress={() => goFromAccountMenu("/(main)/friends")}
+            />
+            <AccountMenuRow
+              icon="download"
+              label={t("native.shell.tabDownloads")}
+              onPress={() => goFromAccountMenu("/(main)/settings/downloads-overview")}
+            />
+            <AccountMenuRow
+              icon="settings"
+              label={t("native.library.settings")}
+              onPress={() => goFromAccountMenu("/(main)/settings")}
+            />
+          </Popover>
+        </>
+      ) : null}
     </View>
   );
 };

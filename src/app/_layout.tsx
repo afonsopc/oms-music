@@ -12,6 +12,7 @@ import { Stack, ThemeProvider as NavigationThemeProvider, usePathname } from "ex
 import Head from "expo-router/head";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
+import { Platform } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { hydrateQueryCache, startQueryCachePersistence } from "@/api/persistCache";
@@ -31,10 +32,14 @@ SplashScreen.preventAutoHideAsync().catch(() => {});
  * therefore no screen-level <Head> can serialize into the exported HTML.
  * This is the one spot that titles every prerendered shell AND tracks
  * client-side navigation; src/features/shell/routeTitles.ts explains the
- * full argument. On native, expo-router/head is a no-op and nothing renders.
+ * full argument. WEB ONLY: on native expo-router/head is NOT a no-op - it
+ * drives Handoff/universal-link activity metadata and ALERTS at runtime
+ * when no `origin` is configured (owner report 2026-08-14). Titles are a
+ * browser concern; native never mounts this.
  */
 const RouteTitle = () => {
   const pathname = usePathname();
+  if (Platform.OS !== "web") return null;
   return (
     <Head>
       <title>{routeTitle(pathname)}</title>

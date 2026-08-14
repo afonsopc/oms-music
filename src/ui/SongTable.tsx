@@ -22,7 +22,7 @@ import {
   type StyleProp,
   type ViewStyle,
 } from "react-native";
-import { songTableColumnGate, songTableDurationWidth } from "./breakpoints";
+import { songTableColumnGate, songTableDurationWidth, songTablePanelGate } from "./breakpoints";
 import { useContainerWidth, useDesktopShell } from "./shellLayout";
 import { Icon } from "./icons";
 import {
@@ -108,11 +108,16 @@ export const SongTableHeader = ({
   const width = useContainerWidth();
   const desktopShell = useDesktopShell();
   const gate = songTableColumnGate(width, desktopShell);
+  // Panel form drops index/duration in the rows (SongRow), so the header
+  // must drop the same cells or its labels float over nothing.
+  const panelGate = songTablePanelGate(width, desktopShell);
   const durationWidth = songTableDurationWidth(width, desktopShell);
   const has = (c: SongRowColumn) =>
     columns.includes(c) &&
     !(c === "album" && !gate.album) &&
-    !(c === "addedAt" && !gate.addedAt);
+    !(c === "addedAt" && !gate.addedAt) &&
+    !(c === "index" && panelGate.panel) &&
+    !(c === "duration" && !panelGate.duration);
   const cellStyle = { color: tokens.mutedForeground, fontSize: 12 } as const;
   return (
     <View
@@ -197,12 +202,15 @@ export const SongTable = ({
   const { tokens } = useTheme();
   const t = useT();
   const desktopShell = useDesktopShell();
+  const containerWidth = useContainerWidth();
   const [drag, setDrag] = useState<DragState | null>(null);
   const [dragY] = useState(() => new Animated.Value(0));
   const reorderEnabled = !!onReorder;
   // The header's trailing spacer must mirror the rows' like column, which
-  // only exists at desktop widths (SongRow applies the same gate).
-  const likeColumn = desktopShell && !!onToggleLike;
+  // only exists at desktop widths and OUTSIDE panel form (SongRow applies
+  // the same two gates).
+  const likeColumn =
+    desktopShell && !!onToggleLike && !songTablePanelGate(containerWidth, desktopShell).panel;
 
   const clampTarget = useCallback(
     (from: number, dy: number): number => {
