@@ -26,12 +26,9 @@ import {
   Text,
   TextInput,
   View,
-  type GestureResponderEvent,
 } from "react-native";
-import { useRouter, useSegments, type Href } from "expo-router";
-import { avatarUrl } from "@/api/mediaUrl";
+import { useRouter, useSegments } from "expo-router";
 import { usePlaylists } from "@/api/queries/playlists";
-import { useSessionStore } from "@/auth/session";
 import { useLibraryAlbums, useLibraryArtists, LIBRARY_ITEM_LIMIT } from "@/features/library/queries";
 import {
   buildLibraryRows,
@@ -51,9 +48,6 @@ import {
   FilterPills,
   GhostIconButton,
   Icon,
-  Popover,
-  type IconName,
-  type PopoverAnchor,
 } from "@/ui";
 import {
   readSidebarFilter,
@@ -176,59 +170,15 @@ const SidebarRow = ({ row, onPress }: { row: LibraryRow; onPress: () => void }) 
   );
 };
 
-/** One row of the account popover: SongMenu's menu-item look, four routes. */
-const AccountMenuRow = ({
-  icon,
-  label,
-  onPress,
-}: {
-  icon: IconName;
-  label: string;
-  onPress: () => void;
-}) => {
-  const { tokens } = useTheme();
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="menuitem"
-      style={({ pressed }) => ({
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 14,
-        paddingHorizontal: 20,
-        paddingVertical: 13,
-        opacity: pressed ? 0.6 : 1,
-      })}
-    >
-      <Icon name={icon} size={19} color={tokens.foreground} />
-      <Text style={{ color: tokens.foreground, fontSize: 15 }} numberOfLines={1}>
-        {label}
-      </Text>
-    </Pressable>
-  );
-};
-
 export const DesktopSidebar = ({ collapsed, onToggleCollapsed }: DesktopSidebarProps) => {
   const { tokens } = useTheme();
   const t = useT();
   const router = useRouter();
   const segments = useSegments() as string[];
-  const user = useSessionStore((s) => s.user);
 
   // Chip + search text hydrate from kv so a reload keeps the shape (4.5).
   const [filter, setFilterState] = useState<LibraryFilter>(readSidebarFilter);
   const [search, setSearchState] = useState<string>(readSidebarSearch);
-  // The account popover anchors at the click (SongRow's pointer pattern).
-  const [accountAnchor, setAccountAnchor] = useState<PopoverAnchor | null>(null);
-
-  const openAccountMenu = (event: GestureResponderEvent): void => {
-    const { pageX, pageY } = event.nativeEvent;
-    setAccountAnchor({ x: pageX ?? 0, y: pageY ?? 0 });
-  };
-  const goFromAccountMenu = (route: Href): void => {
-    setAccountAnchor(null);
-    router.push(route);
-  };
 
   const setFilter = (next: LibraryFilter): void => {
     setFilterState(next);
@@ -434,74 +384,8 @@ export const DesktopSidebar = ({ collapsed, onToggleCollapsed }: DesktopSidebarP
         </>
       )}
 
-      {/* Account block: pinned to the column's foot in BOTH states - the
-          expanded sidebar's list flexes above it, the rail gets a spacer. */}
-      {user ? (
-        <>
-          {collapsed ? <View style={{ flex: 1 }} /> : null}
-          <Pressable
-            onPress={openAccountMenu}
-            accessibilityRole="button"
-            accessibilityLabel={t("native.desktop.profileMenu")}
-            style={({ pressed }) => ({
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: collapsed ? "center" : "flex-start",
-              gap: 10,
-              paddingHorizontal: collapsed ? 0 : 12,
-              paddingVertical: 6,
-              borderRadius: RADIUS,
-              opacity: pressed ? 0.7 : 1,
-            })}
-          >
-            <ArtworkImage uri={avatarUrl(user.id)} size={32} shape="circle" />
-            {collapsed ? null : (
-              <Text
-                style={{
-                  color: tokens.foreground,
-                  fontSize: 13,
-                  fontWeight: "600",
-                  flexShrink: 1,
-                }}
-                numberOfLines={1}
-              >
-                {user.name}
-              </Text>
-            )}
-          </Pressable>
-          <Popover
-            visible={accountAnchor != null}
-            anchor={accountAnchor ?? { x: 0, y: 0 }}
-            onClose={() => setAccountAnchor(null)}
-          >
-            <AccountMenuRow
-              icon="user"
-              label={t("native.home.viewProfile")}
-              onPress={() =>
-                goFromAccountMenu({
-                  pathname: "/(main)/profile/[idOrHandle]",
-                  params: { idOrHandle: user.handle },
-                })
-              }
-            />
-            <AccountMenuRow
-              icon="users"
-              label={t("native.friends.title")}
-              onPress={() => goFromAccountMenu("/(main)/friends")}
-            />
-            <AccountMenuRow
-              icon="download"
-              label={t("native.shell.tabDownloads")}
-              onPress={() => goFromAccountMenu("/(main)/settings/downloads-overview")}
-            />
-            <AccountMenuRow
-              icon="settings"
-              label={t("native.library.settings")}
-              onPress={() => goFromAccountMenu("/(main)/settings")}
-            />
-          </Popover>
-        </>
-      ) : null}
+      {/* A conta mudou-se para o canto direito da topbar (AccountMenu.tsx,
+          o sitio do Spotify) - a sidebar acaba na lista. */}
     </View>
   );
 };

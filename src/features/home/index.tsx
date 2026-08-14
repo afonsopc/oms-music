@@ -15,7 +15,7 @@
  *    each collapses silently when its query settles empty.
  */
 import React, { useMemo, useState, useSyncExternalStore } from "react";
-import { Pressable, ScrollView, View } from "react-native";
+import { ScrollView, View } from "react-native";
 import { useRouter } from "expo-router";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -35,7 +35,6 @@ import { mixDescription, mixStampText, mixTitle } from "@/i18n/mixLabels";
 import { albumRoute, artistRoute, mixRoute, playlistRoute } from "@/lib/routes";
 import { useTheme } from "@/theme/provider";
 import {
-  ArtworkImage,
   artworkSourceUri,
   FilterPills,
   MixTile,
@@ -46,11 +45,8 @@ import {
   TopTileGrid,
   type TopTileItem,
 } from "@/ui";
-import { avatarUrl } from "@/api/mediaUrl";
-import { useSessionStore } from "@/auth/session";
-import { getRecentCollections, subscribeRecentCollections } from "@/lib/recentCollections";
+ import { getRecentCollections, subscribeRecentCollections } from "@/lib/recentCollections";
 import { useFriendsStripActive, useFriendsStripSlot } from "./friendsSlot";
-import { openProfileDrawer } from "./ProfileDrawer";
 
 type HomeFilter = "all" | "playlists" | "albums" | "artists";
 
@@ -99,7 +95,6 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const bottomPadding = useContentBottomPadding();
   const [filter, setFilter] = useState<HomeFilter>("all");
-  const userId = useSessionStore((s) => s.user?.id ?? s.session?.user_id ?? null);
 
   const recentAlbumsQuery = useRecentAlbums(RECENT_ALBUMS_LIMIT);
   const mixesQuery = useMixes();
@@ -213,30 +208,14 @@ export default function HomeScreen() {
         gap: 28,
       }}
     >
-      {/* Spotify's top-of-home: avatar + pills ARE the header - the screen
-          opens straight on the quick grid (owner screenshots 2026-08-11/13). */}
-      <View style={{ flexDirection: "row", alignItems: "center" }}>
-        {userId ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t("native.home.viewProfile")}
-            hitSlop={8}
-            // The drawer itself mounts at the shell level (ProfileDrawerHost
-            // in (main)/_layout) so the tab bar avatar can open it too.
-            onPress={openProfileDrawer}
-            style={({ pressed }) => ({ paddingLeft: 24, opacity: pressed ? 0.7 : 1 })}
-          >
-            <ArtworkImage uri={avatarUrl(userId)} size={34} shape="circle" />
-          </Pressable>
-        ) : null}
-        <View style={{ flex: 1 }}>
-          <FilterPills
-            pills={pills}
-            activeKey={filter}
-            onChange={(key) => setFilter(key as HomeFilter)}
-          />
-        </View>
-      </View>
+      {/* Spotify's top-of-home: the pills ARE the header. The avatar left
+          for good (2026-08-14): mobile carries it in the tab bar, desktop in
+          the topbar corner, so the Home never needs to double it. */}
+      <FilterPills
+        pills={pills}
+        activeKey={filter}
+        onChange={(key) => setFilter(key as HomeFilter)}
+      />
 
       {filter === "all" ? (
         recentAlbumsQuery.isLoading && playlistsQuery.isLoading ? (
