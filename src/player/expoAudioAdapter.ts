@@ -48,7 +48,42 @@ const toAdapterStatus = (s: AudioStatus): AudioAdapterStatus => ({
   error: s.error,
 });
 
+/**
+ * Static-export gate. `expo export -p web` with `web.output: "static"`
+ * prerenders every route in Node, and boot/wireup.ts builds the engine (and
+ * therefore this adapter) at import time - before a single route renders.
+ * expo-audio's web player constructs a DOM `Audio` element the moment
+ * `createAudioPlayer` runs, and Node has no `Audio`, so without this gate the
+ * whole export dies with `ReferenceError: Audio is not defined`.
+ *
+ * The prerender only ever needs the adapter's SHAPE (the engine subscribes to
+ * status and applies persisted volume/rate during construction); no route can
+ * start audio during SSG. An inert adapter is safer than shimming a global
+ * `Audio`, because nothing half-real can leak into the emitted HTML. Every
+ * browser and native runtime has `window`, so real users never take this
+ * branch.
+ */
+const createInertPrerenderAdapter = (): AudioAdapter => ({
+  currentTime: 0,
+  duration: 0,
+  playing: false,
+  hasSource: false,
+  setVolume: () => {},
+  play: () => {},
+  pause: () => {},
+  replace: () => {},
+  seekTo: () => Promise.resolve(),
+  setRate: () => {},
+  onStatus: () => () => {},
+  setLockScreenActive: () => {},
+  updateLockScreenMetadata: () => {},
+  remove: () => {},
+  // No stem members: an adapter without a mixer is already a legal shape, so
+  // `custom` mode reports itself unsupported exactly like a mixerless build.
+});
+
 export const createExpoAudioAdapter = (): AudioAdapter => {
+  if (typeof window === "undefined") return createInertPrerenderAdapter();
   const player: AudioPlayer = createAudioPlayer(null, {
     updateInterval: STATUS_INTERVAL_MS,
   });

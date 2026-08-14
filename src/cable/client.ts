@@ -40,11 +40,21 @@ interface SubscriptionEntry {
 
 const buildCableUrl = (token: string): string => {
   const ws = API_BASE_URL.replace(/^http/, "ws");
+  // "" is the cookie-auth credential (auth/token.ts#cableCredential): the
+  // same-site handshake carries the httpOnly session cookie by itself, so no
+  // ?token= is sent at all - the server tries param, header, then cookie.
+  if (!token) return `${ws}/cable`;
   return `${ws}/cable?token=${encodeURIComponent(token)}`;
 };
 
 class CableClientImpl implements CableClient {
   private socket: WebSocket | null = null;
+  /**
+   * The connect() credential: a Bearer token, or "" for cookie auth. The
+   * distinction that matters everywhere below is null vs non-null ("do we
+   * have a credential"), so the guards say `== null`, never truthiness -
+   * "" is a live credential.
+   */
   private token: string | null = null;
   /** Keyed by the VERBATIM identifier string. */
   private readonly subs = new Map<string, SubscriptionEntry>();
@@ -117,7 +127,7 @@ class CableClientImpl implements CableClient {
   }
 
   notifyForeground(): void {
-    if (this.intentional || !this.token) return;
+    if (this.intentional || this.token == null) return;
     if (!this.socket) {
       // Dropped while backgrounded: reconnect NOW, not after the backoff.
       this.clearReconnect();
@@ -156,7 +166,7 @@ class CableClientImpl implements CableClient {
   }
 
   private openSocket(): void {
-    if (!this.token) return;
+    if (this.token == null) return;
     this.setState("connecting");
     let socket: WebSocket;
     try {
@@ -256,7 +266,7 @@ class CableClientImpl implements CableClient {
   }
 
   private scheduleReconnect(): void {
-    if (this.reconnectTimer || this.intentional || !this.token) return;
+    if (this.reconnectTimer || this.intentional || this.token == null) return;
     const delay = this.reconnectDelay;
     this.reconnectDelay = Math.min(this.reconnectDelay * 2, BACKOFF_MAX_MS);
     this.reconnectTimer = setTimeout(() => {

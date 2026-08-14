@@ -54,7 +54,6 @@ import {
   PlayFab,
   SongRow,
   Tile,
-  useDownloadStatusVersion,
 } from "@/ui";
 import { ExternalResults } from "./ExternalResults";
 import {
@@ -108,12 +107,21 @@ const SectionTitle = ({ children }: { children: string }) => {
   );
 };
 
-const SuggestionRow = ({
+/**
+ * One mixed suggestion row with its kind label. Exported for the desktop
+ * topbar typeahead (plano-uma-so-app 4.3, Search row): both dropdowns must
+ * label and rank suggestions identically forever, so there is exactly one
+ * row component. `highlighted` is the typeahead's keyboard cursor; the
+ * mobile screen never passes it.
+ */
+export const SuggestionRow = ({
   suggestion,
   onSelect,
+  highlighted = false,
 }: {
   suggestion: SearchSuggestion;
   onSelect: () => void;
+  highlighted?: boolean;
 }) => {
   const { tokens } = useTheme();
   const t = useT();
@@ -166,6 +174,7 @@ const SuggestionRow = ({
         paddingHorizontal: 24,
         paddingVertical: 8,
         opacity: pressed ? 0.7 : 1,
+        backgroundColor: highlighted ? tokens.secondary : "transparent",
       })}
     >
       <ArtworkImage source={artwork} size={40} shape={circle ? "circle" : "rounded"} />
@@ -324,7 +333,6 @@ export default function SearchScreen() {
   const insets = useSafeAreaInsets();
   const bottomPadding = useContentBottomPadding();
   const params = useLocalSearchParams<{ query?: string }>();
-  const downloadVersion = useDownloadStatusVersion();
 
   const [input, setInput] = useState(params.query ?? "");
   const [submitted, setSubmitted] = useState<string | null>(params.query ?? null);
@@ -675,7 +683,6 @@ export default function SearchScreen() {
                   liked={likedIds.has(song.id)}
                   isCurrent={currentSongId === song.id}
                   isPlaying={isPlaying}
-                  downloadVersion={downloadVersion}
                   onPlay={() => playSongList(songs, i)}
                 />
               ))}
@@ -697,7 +704,6 @@ export default function SearchScreen() {
                   liked={likedIds.has(song.id)}
                   isCurrent={currentSongId === song.id}
                   isPlaying={isPlaying}
-                  downloadVersion={downloadVersion}
                   onPlay={() => playSongList(songs, i)}
                 />
               ))}

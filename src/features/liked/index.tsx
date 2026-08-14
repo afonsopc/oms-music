@@ -9,7 +9,7 @@
  */
 import React, { useMemo, useState } from "react";
 import { ActivityIndicator, useWindowDimensions, View } from "react-native";
-import { useLikedIds, useLikedInfinite } from "@/api/queries/likedSongs";
+import { useLikedIds, useLikedInfinite, useToggleLike } from "@/api/queries/likedSongs";
 import { getTransport } from "@/contracts/transport";
 import { recordRecentCollection } from "@/lib/recentCollections";
 import type { Song } from "@/domain/song";
@@ -23,15 +23,22 @@ import {
   EmptyState,
   ErrorState,
   Hero,
+  heroMinHeight,
   HeroSkeleton,
   LikedArtwork,
   PlayFab,
   SongTable,
+  SongTableHeader,
   SongTableSkeleton,
   StickyTitle,
+  useContainerWidth,
+  useDesktopShell,
 } from "@/ui";
 
 const HERO_ARTWORK_SIZE = 136;
+/** Matches CollectionScreen's desktop sticky bar (plan 4.3). */
+const DESKTOP_STICKY_BAR_HEIGHT = 64;
+const ACTION_BAR_APPROX_HEIGHT = 92;
 
 export default function LikedScreen() {
   const t = useT();
@@ -39,9 +46,25 @@ export default function LikedScreen() {
   const { height } = useWindowDimensions();
   const bottomPadding = useContentBottomPadding();
   const [scrollY, setScrollY] = useState(0);
+  const desktopShell = useDesktopShell();
+  const containerWidth = useContainerWidth();
+
+  // Mobile keeps the shipped fraction; desktop derives from the width-capped
+  // hero (breakpoints.heroMinHeight) because the window fraction no longer
+  // describes what rendered.
+  const stickyThreshold = desktopShell
+    ? heroMinHeight(containerWidth, false) - DESKTOP_STICKY_BAR_HEIGHT
+    : Math.round(height * 0.36) - 72;
+  const headerApproxHeight = desktopShell
+    ? heroMinHeight(containerWidth, false) + ACTION_BAR_APPROX_HEIGHT
+    : 0;
 
   const likedQuery = useLikedInfinite();
   const likedIdsQuery = useLikedIds();
+  // Hover heart (plan 4.3): on THIS surface every row is liked, so the
+  // button is really an inline "remove from liked" with the same
+  // optimistic rollback as everywhere else.
+  const toggleLike = useToggleLike();
   const currentSongId = usePlaybackView((v) => v.song?.id ?? null);
   const isPlaying = usePlaybackView((v) => v.playing);
 
@@ -120,6 +143,7 @@ export default function LikedScreen() {
         showHeader
         header={header}
         onPlay={(_song, index) => play(index)}
+        onToggleLike={(song, liked) => toggleLike.mutate({ songId: song.id, liked })}
         onEndReached={() => {
           if (likedQuery.hasNextPage && !likedQuery.isFetchingNextPage) {
             void likedQuery.fetchNextPage();
@@ -139,8 +163,9 @@ export default function LikedScreen() {
         }
       />
       <StickyTitle
-        visible={scrollY > Math.round(height * 0.36) - 72}
+        visible={scrollY > stickyThreshold}
         title={title}
+        barHeight={desktopShell ? DESKTOP_STICKY_BAR_HEIGHT : undefined}
         leading={
           songs.length > 0 ? (
             <PlayFab
@@ -151,6 +176,28 @@ export default function LikedScreen() {
           ) : undefined
         }
       />
+      {/* Desktop sticky column header (plan 4.3), as in CollectionScreen. */}
+      {desktopShell && songs.length > 0 && scrollY > headerApproxHeight - DESKTOP_STICKY_BAR_HEIGHT ? (
+        <View
+          pointerEvents="none"
+          style={{
+            position: "absolute",
+            top: DESKTOP_STICKY_BAR_HEIGHT,
+            left: 0,
+            right: 0,
+            zIndex: 29,
+          }}
+        >
+          <SongTableHeader
+            columns={["index", "title", "album", "addedAt", "duration"]}
+            hasPlays={false}
+            reorder={false}
+            // This copy only exists on desktop, where the like column is on.
+            hasLike
+            backgroundColor={tokens.background}
+          />
+        </View>
+      ) : null}
     </View>
   );
 }

@@ -5,13 +5,13 @@
  * results: the caller passes a key (song id) and gets back the entry only
  * when it is still the newest request for that key.
  *
- * Average color comes from expo-image's [1,1] blurhash: its DC component is
- * exactly the sRGB average of the image (decoded in accentMath.ts).
+ * Average color comes from accentExtract (platform-forked): the [1,1]
+ * blurhash DC component on native, a canvas downsample on web - both answer
+ * "the sRGB average of the image" and the variant math never knows which.
  */
-import { Image } from "expo-image";
+import { extractAverageHex } from "./accentExtract";
 import {
   type AccentVariants,
-  blurhashAverageHex,
   heroAccentVariants,
   songAccentVariants,
 } from "./accentMath";
@@ -53,12 +53,6 @@ const lruTouch = (cache: Map<string, CacheEntry>, key: string, entry: CacheEntry
 /** Synchronous cache read (render path). */
 export const getCachedAccent = (kind: AccentKind, key: string): AccentVariants | null =>
   caches[kind].get(key)?.variants ?? null;
-
-const extractAverageHex = async (imageUri: string): Promise<string> => {
-  const blurhash = await Image.generateBlurhashAsync(imageUri, [1, 1]);
-  if (!blurhash) throw new Error("No blurhash");
-  return blurhashAverageHex(blurhash);
-};
 
 /**
  * Resolves both variants for the key, from cache or by extraction. On any

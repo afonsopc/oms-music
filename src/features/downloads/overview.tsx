@@ -8,7 +8,7 @@
  * the offline resolvers regardless of what NetInfo says.
  */
 import React, { useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import { ScrollView, Switch, Text, View } from "react-native";
+import { Platform, ScrollView, Switch, Text, View } from "react-native";
 import { formatBytes } from "./format";
 import { getMusicStorage, type MusicStorage } from "@/api/endpoints/musicStorage";
 import {
@@ -16,14 +16,19 @@ import {
   listDownloadedSongs,
   listInFlight,
   playCacheUsage,
-  storageUsage,
+  storageUsageFast,
 } from "@/downloads/manager";
 import {
   isManualOffline,
   setManualOffline,
   subscribeManualOffline,
 } from "@/downloads/offlineLibrary";
-import { getStatusVersion, subscribeDownloadStatus } from "@/downloads/status";
+import {
+  getProgressVersion,
+  getStatusVersion,
+  subscribeDownloadProgress,
+  subscribeDownloadStatus,
+} from "@/downloads/status";
 import { useContentBottomPadding, useContentTopPadding } from "@/features/shell/metrics";
 import { switchColors } from "@/theme/switchColors";
 import { useT } from "@/i18n";
@@ -34,6 +39,10 @@ import { ArtworkImage, Icon } from "@/ui";
 
 const useDownloadVersion = (): number =>
   useSyncExternalStore(subscribeDownloadStatus, getStatusVersion, getStatusVersion);
+
+/** The in-flight list's percent bars ride the ~1 Hz progress channel. */
+const useDownloadProgressVersion = (): number =>
+  useSyncExternalStore(subscribeDownloadProgress, getProgressVersion, getProgressVersion);
 
 const useManualOffline = (): boolean =>
   useSyncExternalStore(subscribeManualOffline, isManualOffline, isManualOffline);
@@ -112,9 +121,9 @@ export default function DownloadsOverviewScreen() {
   const topPadding = useContentTopPadding();
   const bottomPadding = useContentBottomPadding();
   const version = useDownloadVersion();
+  const progressVersion = useDownloadProgressVersion();
   const manualOffline = useManualOffline();
 
-  const [usage, setUsage] = useState<{ bytes: number; files: number } | null>(null);
   const [serverStorage, setServerStorage] = useState<MusicStorage | null>(null);
 
   // Server-side music storage (the ActiveStorage quota): one best-effort
@@ -131,29 +140,23 @@ export default function DownloadsOverviewScreen() {
     };
   }, []);
 
-  // Synchronous reads keyed by the coarse status version (FR-82 discipline).
+  // Synchronous reads keyed by the coarse status version, which since the
+  // 2026-08-14 freeze report bumps on TRANSITIONS only. Byte totals come
+  // from SQL SUMs over dl_files.size_bytes - the old disk walk stat()ed
+  // thousands of files on the JS thread per bump.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const songs = useMemo(() => listDownloadedSongs(), [version]);
+  // In-flight rows carry the percent, so they alone key on progress too.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const inFlight = useMemo(() => listInFlight(), [version]);
+  const inFlight = useMemo(() => listInFlight(), [version, progressVersion]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const playlists = useMemo(() => downloadedPlaylists(), [version]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const cache = useMemo(() => playCacheUsage(), [version]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const usage = useMemo(() => storageUsageFast(), [version]);
 
-  useEffect(() => {
-    let cancelled = false;
-    void storageUsage()
-      .then((result) => {
-        if (!cancelled) setUsage(result);
-      })
-      .catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
-  }, [version]);
-
-  const downloadsBytes = Math.max(0, (usage?.bytes ?? 0) - cache.bytes);
+  const downloadsBytes = Math.max(0, usage.bytes - cache.bytes);
 
   return (
     <ScrollView
@@ -170,33 +173,38 @@ export default function DownloadsOverviewScreen() {
       </Text>
 
       {/* GO OFFLINE: force the offline resolvers even with a live network -
-          the Spotify semantics (test your downloads, save data). */}
-      <View
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          gap: 12,
-          backgroundColor: tokens.secondary,
-          borderRadius: RADIUS,
-          paddingHorizontal: 16,
-          paddingVertical: 12,
-        }}
-      >
-        <Icon name="cloud-check" size={20} color={tokens.foreground} />
-        <View style={{ flex: 1 }}>
-          <Text style={{ color: tokens.foreground, fontSize: 15, fontWeight: "600" }}>
-            {t("native.downloadsOverview.goOffline")}
-          </Text>
-          <Text style={{ color: tokens.mutedForeground, fontSize: 12, marginTop: 2 }}>
-            {t("native.downloadsOverview.goOfflineHint")}
-          </Text>
+          the Spotify semantics (test your downloads, save data). Never on
+          web: with no downloads subsystem there the flag would only empty
+          the library, persist that state across reloads, and give the tab
+          nothing it could possibly play (plano "uma so app", F1). */}
+      {Platform.OS !== "web" ? (
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 12,
+            backgroundColor: tokens.secondary,
+            borderRadius: RADIUS,
+            paddingHorizontal: 16,
+            paddingVertical: 12,
+          }}
+        >
+          <Icon name="cloud-check" size={20} color={tokens.foreground} />
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: tokens.foreground, fontSize: 15, fontWeight: "600" }}>
+              {t("native.downloadsOverview.goOffline")}
+            </Text>
+            <Text style={{ color: tokens.mutedForeground, fontSize: 12, marginTop: 2 }}>
+              {t("native.downloadsOverview.goOfflineHint")}
+            </Text>
+          </View>
+          <Switch
+            value={manualOffline}
+            onValueChange={setManualOffline}
+            {...switchColors(tokens)}
+          />
         </View>
-        <Switch
-          value={manualOffline}
-          onValueChange={setManualOffline}
-          {...switchColors(tokens)}
-        />
-      </View>
+      ) : null}
 
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
         <StatCard

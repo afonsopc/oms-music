@@ -2,6 +2,40 @@
  * WP4 UI kit public surface. Feature packages import from "@/ui".
  */
 export { ActionBar, type ActionBarMenuItem, type ActionBarProps } from "./ActionBar";
+export {
+  BREAKPOINTS,
+  collectionGridColumns,
+  heroMinHeight,
+  heroTitleType,
+  isDesktopShellWidth,
+  isRightPanelWidth,
+  mainBucket,
+  MOBILE_SONG_TABLE_DURATION_WIDTH,
+  MOBILE_SONG_TABLE_WIDE,
+  songTableColumnGate,
+  songTableDurationWidth,
+  topTileGridColumns,
+  type HeroTitleType,
+  type MainBucket,
+  type SongTableColumnGate,
+} from "./breakpoints";
+export {
+  COLLECTION_VIEW_MODES,
+  DEFAULT_COLLECTION_VIEW_MODE,
+  DEFAULT_LIBRARY_VIEW_MODE,
+  isCollectionViewMode,
+  isLibraryViewMode,
+  LIBRARY_VIEW_MODES,
+  type CollectionViewMode,
+  type LibraryViewMode,
+} from "./viewModes";
+export {
+  ContainerWidthProvider,
+  useContainerWidth,
+  useDesktopShell,
+  useRightPanelWide,
+  type ContainerWidthProviderProps,
+} from "./shellLayout";
 export { AlbumCard, type AlbumCardProps } from "./AlbumCard";
 export { ArtistCard, type ArtistCardProps } from "./ArtistCard";
 export {
@@ -34,16 +68,30 @@ export {
   type MixTileProps,
 } from "./MixTile";
 export { PlayingBars, type PlayingBarsProps } from "./PlayingBars";
+export { Popover, type PopoverProps } from "./Popover";
+export {
+  popoverPlacement,
+  POPOVER_MARGIN,
+  type PopoverAnchor,
+  type PopoverPlacement,
+} from "./popoverPosition";
 export { Rail, type RailProps } from "./Rail";
 export {
   DEFAULT_SONG_COLUMNS,
   SONG_ROW_HEIGHT,
+  SONG_ROW_HEIGHT_COMPACT,
+  songRowHeight,
   SongRow,
   type SongRowColumn,
   type SongRowProps,
 } from "./SongRow";
 export { SongMenu, type SongMenuProps } from "./SongMenu";
-export { SongTable, type SongTableProps } from "./SongTable";
+export {
+  SongTable,
+  SongTableHeader,
+  type SongTableHeaderProps,
+  type SongTableProps,
+} from "./SongTable";
 export { StickyTitle, type StickyTitleProps } from "./StickyTitle";
 export { Tile, TILE_WIDTH, type TileProps } from "./Tile";
 export { TopTileGrid, type TopTileGridProps, type TopTileItem } from "./TopTileGrid";

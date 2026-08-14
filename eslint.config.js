@@ -5,6 +5,7 @@ const expoConfig = require("eslint-config-expo/flat");
 module.exports = defineConfig([
   expoConfig,
   {
-    ignores: ["dist/*"],
+    // desktop/ is the Tauri shell workspace (own deps, generated bindings.ts).
+    ignores: ["dist/*", "desktop/*"],
   }
 ]);

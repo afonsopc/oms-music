@@ -95,6 +95,7 @@ export class FakeAudioPlayer implements AudioAdapter {
   stemLog: string[] = [];
 
   private listeners = new Set<(s: AudioAdapterStatus) => void>();
+  private autoplayBlockedListeners = new Set<() => void>();
 
   get hasSource(): boolean {
     return this.uri !== null;
@@ -227,6 +228,11 @@ export class FakeAudioPlayer implements AudioAdapter {
     return () => this.listeners.delete(cb);
   }
 
+  onAutoplayBlocked(cb: () => void): () => void {
+    this.autoplayBlockedListeners.add(cb);
+    return () => this.autoplayBlockedListeners.delete(cb);
+  }
+
   setLockScreenActive(active: boolean, metadata?: LockScreenMetadata): void {
     this.lockScreenActive = active;
     this.lockScreenMetadata = metadata;
@@ -254,6 +260,17 @@ export class FakeAudioPlayer implements AudioAdapter {
   tick(dt: number): void {
     if (this.playing) this.currentTime += dt;
     this.emitStatus();
+  }
+
+  /**
+   * Models the WEB adapter's autoplay-policy channel: the browser rejected
+   * play() with NotAllowedError. On the web the honest `playing` getter
+   * reads false (paused never flipped), so the fake mirrors that; drive it
+   * with `ignorePlay = true` so play() lands without starting.
+   */
+  emitAutoplayBlocked(): void {
+    this.playing = false;
+    for (const cb of [...this.autoplayBlockedListeners]) cb();
   }
 
   emitError(message: string): void {

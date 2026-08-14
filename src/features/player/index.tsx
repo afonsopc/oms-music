@@ -44,6 +44,8 @@ import {
   Icon,
   PlayFab,
   SongMenu,
+  useContainerWidth,
+  useDesktopShell,
 } from "@/ui";
 import { PlayerSettingsSheet } from "./settingsSheet";
 import { Slider } from "./Slider";
@@ -55,6 +57,15 @@ const K = "native.player";
 /** Web parity (BottomBar.handleLoopModeClick): None -> All -> One -> None. */
 const nextLoopMode = (mode: LoopMode): LoopMode =>
   mode === "none" ? "all" : mode === "all" ? "one" : "none";
+
+/**
+ * Artwork ceiling under the desktop shell (plano-uma-so-app 4.3, player
+ * sheet row): the mobile formula `min(width - 64, height * 0.42)` composes a
+ * phone, but on a 1440p monitor it inflates the cover to ~600px of flat
+ * pixels. 400 keeps the cinema view an artwork, not a billboard. Mobile and
+ * native never hit this branch.
+ */
+const DESKTOP_ARTWORK_MAX = 400;
 
 /**
  * Position/duration leaf. Isolated so the 4 Hz position slice re-renders the
@@ -152,11 +163,16 @@ export const useSongAccent = (song: Song | null): string => {
   return variants ? variants[scheme] : ACCENT_FALLBACK;
 };
 
-export default function NowPlayingBody() {
+export default function NowPlayingBody({ embedded = false }: { embedded?: boolean } = {}) {
   const t = useT();
   const { tokens } = useTheme();
   const router = useRouter();
-  const { width, height } = useWindowDimensions();
+  const { height } = useWindowDimensions();
+  // Container, not window: inside the right panel this is the panel's ~300px
+  // (the provider is mounted by the tenant), everywhere else it falls back to
+  // the window width - numerically the shipped mobile behaviour.
+  const containerWidth = useContainerWidth();
+  const desktopShell = useDesktopShell();
   useShellSlotsVersion();
 
   const song = usePlaybackView((v) => v.song);
@@ -175,13 +191,15 @@ export default function NowPlayingBody() {
   // the user is already in. `back()` only pops one entry and races the push,
   // which is how the destination ended up presented as another sheet;
   // dismissAll() unwinds every modal first, and canDismiss() keeps it safe
-  // when the player is somehow not presented modally.
+  // when the player is somehow not presented modally. Embedded (the desktop
+  // right panel) there is no modal to unwind - the closest stack is (main)
+  // itself and dismissAll would reset it to the tabs - so it pushes plainly.
   const openInMain = useCallback(
     (route: Href) => {
-      if (router.canDismiss()) router.dismissAll();
+      if (!embedded && router.canDismiss()) router.dismissAll();
       router.push(route);
     },
-    [router],
+    [router, embedded],
   );
 
   if (!song) {
@@ -196,7 +214,11 @@ export default function NowPlayingBody() {
   const artistSegment = primaryArtistSegment(song);
   const liked = (likedIds.data ?? []).includes(song.id);
   const CastButton = getShellSlots().castButton;
-  const artworkSize = Math.min(width - 64, Math.round(height * 0.42));
+  const artworkSize = Math.min(
+    containerWidth - 64,
+    Math.round(height * 0.42),
+    desktopShell ? DESKTOP_ARTWORK_MAX : Number.POSITIVE_INFINITY,
+  );
 
   return (
     // Transparent on purpose: the (player) scroll paints ONE continuous

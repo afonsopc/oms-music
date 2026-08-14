@@ -58,6 +58,7 @@ import { registerCoreSongMenuSlots } from "@/features/home/register";
 import { registerJamSurfaces } from "@/features/jam/register";
 import { registerAddToPlaylistHost } from "@/features/playlists/register";
 import { registerRadioSongMenuSlots } from "@/features/radios/register";
+import { registerDesktopBridge } from "@/desktop/register";
 import { registerLibraryWarmup } from "@/api/warmup";
 import { getJamManager } from "@/jam/channel";
 import { registerPlayerEngine } from "@/player/register";
@@ -148,6 +149,13 @@ export const wireUp = (): void => {
   // 8. Local-first warm-up: after sign-in, sweep the library into the query
   // cache (and its disk snapshot) so taps land on local data.
   registerLibraryWarmup();
+
+  // 9. Desktop shell bridge (plano "uma so app" F5): media keys, Now
+  // Playing/MPRIS and the tray, fed from the player store and routed back
+  // through the transport seam. Probes for the Tauri global itself, so on
+  // native and plain web this is a no-op. After 1 and 4 on purpose: its
+  // commands ride the same decorated transport the lock screen uses.
+  registerDesktopBridge();
 
   if (__DEV__) logSeamReport();
 };

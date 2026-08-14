@@ -11,6 +11,7 @@ import { useRouter } from "expo-router";
 import { useContentBottomPadding, useContentTopPadding } from "@/features/shell/metrics";
 import { LOCALES, setLocale, useLocale, useT, type Locale } from "@/i18n";
 import { useTheme, type ThemeMode } from "@/theme/provider";
+import { useDesktopShell } from "@/ui";
 import { SettingsRow, SettingsSection } from "./ui";
 
 const THEME_MODES: readonly ThemeMode[] = ["light", "dark", "system"];
@@ -75,6 +76,10 @@ export default function SettingsHubScreen() {
   const locale = useLocale();
   const bottomPadding = useContentBottomPadding();
   const topPadding = useContentTopPadding();
+  // Desktop (plan 4.3, settings row): the split shell already lists every
+  // section on the left, so this screen becomes the "General" DETAIL only -
+  // theme and language, no duplicate navigation rows. Mobile keeps the hub.
+  const desktop = useDesktopShell();
 
   const themeLabels: Record<ThemeMode, string> = {
     light: t("native.settings.hub.themeLight"),
@@ -84,6 +89,35 @@ export default function SettingsHubScreen() {
   const languageLabels = Object.fromEntries(
     LOCALES.map((l) => [l, t(LANGUAGE_LABEL_KEYS[l])]),
   ) as Record<Locale, string>;
+
+  if (desktop) {
+    return (
+      <ScrollView
+        style={{ flex: 1, backgroundColor: tokens.background }}
+        contentContainerStyle={{ padding: 24, gap: 20 }}
+      >
+        <Text style={{ color: tokens.foreground, fontSize: 28, fontWeight: "800" }}>
+          {t("native.desktop.settingsGeneral")}
+        </Text>
+        <SettingsSection title={t("native.settings.hub.theme")}>
+          <SegmentedRow
+            options={THEME_MODES}
+            labels={themeLabels}
+            value={mode}
+            onChange={setMode}
+          />
+        </SettingsSection>
+        <SettingsSection title={t("native.settings.hub.language")}>
+          <SegmentedRow
+            options={LOCALES}
+            labels={languageLabels}
+            value={locale}
+            onChange={setLocale}
+          />
+        </SettingsSection>
+      </ScrollView>
+    );
+  }
 
   return (
     <ScrollView

@@ -60,7 +60,12 @@ import {
 } from "./offlineLibrary";
 import { runRepairPass } from "./repair";
 import { getDownloadSettings, subscribeDownloadSettings } from "./settings";
-import { getStatusVersion, subscribeDownloadStatus } from "./status";
+import {
+  getProgressVersion,
+  getStatusVersion,
+  subscribeDownloadProgress,
+  subscribeDownloadStatus,
+} from "./status";
 import { registerStemFileProvider } from "./stemProvision";
 
 const LAST_USER_KV_KEY = "oms-music.downloads.last-user-id";
@@ -72,8 +77,13 @@ const LAST_USER_KV_KEY = "oms-music.downloads.last-user-id";
 const useDownloadStatusTick = (): number =>
   useSyncExternalStore(subscribeDownloadStatus, getStatusVersion, getStatusVersion);
 
+/** The open menu shows a live percent: it alone rides the progress channel. */
+const useDownloadProgressTick = (): number =>
+  useSyncExternalStore(subscribeDownloadProgress, getProgressVersion, getProgressVersion);
+
 const useDownloadSlot: SongMenuSlotHook = (ctx) => {
-  useDownloadStatusTick(); // Coarse refresh while a transfer runs.
+  useDownloadStatusTick(); // Status transitions while a transfer runs.
+  useDownloadProgressTick(); // ~1 Hz percent while the menu is open.
   const song = ctx.song;
   // Jam proposals carry ephemeral presigned URLs, never fs nodes: they are
   // not downloadable (one of the three independent jam guards).
@@ -144,11 +154,9 @@ const resolveUserId = (): UserId | null => {
 };
 
 const syncManagerToSession = (): void => {
-  // The downloads stack is expo-sqlite + expo-file-system, neither of which
-  // has a browser build here: on web the manager simply never starts, every
-  // read degrades (empty downloads, inert LocalFileIndex) and playback
-  // streams - which is what a browser tab should do anyway.
-  if (Platform.OS === "web") return;
+  // Only ever wired up on native: registerDownloads returns before any
+  // subscription on web, where the expo-sqlite + expo-file-system stack
+  // underneath the manager has no browser build.
   const userId = resolveUserId();
   if (!userId) {
     if (currentUserId()) stopManager();
@@ -187,6 +195,20 @@ export const registerDownloads = (): void => {
   if (registered) return;
   registered = true;
 
+  // Web build: the downloads subsystem does not exist AT ALL (plano
+  // "uma so app", F1). The stack underneath is expo-sqlite plus
+  // expo-file-system, neither of which has a browser build here, so every
+  // registration below would be either inert or actively harmful on web:
+  // the "Transferir" song-menu slot would render a button whose only
+  // possible outcome is an error, and the offline resolvers would let a
+  // persisted GO OFFLINE flag (kv survives reloads) empty the whole library
+  // with nothing on screen explaining why. A browser tab streams. Every
+  // seam this module would install keeps its inert default instead - no row
+  // badges, no keep-synced toggle, no offline ladder, no repair pass - and
+  // the GO OFFLINE switch never surfaces (features/downloads/overview hides
+  // it on web for the same reason).
+  if (Platform.OS === "web") return;
+
   setLocalFileIndex({ get: localUriFor, getArtworkByNodeId: localArtworkUriForNode });
 
   // Custom blend: the mixer plays local files only, so the player asks this
@@ -197,6 +219,7 @@ export const registerDownloads = (): void => {
     getStatus: getStatusFor,
     getProgress: getProgressFor,
     subscribe: subscribeDownloadStatus,
+    subscribeProgress: subscribeDownloadProgress,
   });
 
   registerOfflineLibrary();
@@ -208,14 +231,18 @@ export const registerDownloads = (): void => {
     isOfflineCollection,
     toggleOfflineCollection,
     getShowOnlyDownloaded: () => getDownloadSettings().showOnlyDownloaded,
+    // NO status subscription here (freeze report 2026-08-14): the ActionBar
+    // toggle and the show-only-downloaded filter change on collection and
+    // settings events; wiring download-status bumps through this bundle
+    // re-rendered every collection screen during every transfer. Screens
+    // that filter by status subscribe to useDownloadStatusVersion directly
+    // (transition-only since the same report).
     subscribe: (cb) => {
       const unsubscribeCollections = subscribeCollections(cb);
       const unsubscribeSettings = subscribeDownloadSettings(cb);
-      const unsubscribeStatus = subscribeDownloadStatus(cb);
       return () => {
         unsubscribeCollections();
         unsubscribeSettings();
-        unsubscribeStatus();
       };
     },
   });

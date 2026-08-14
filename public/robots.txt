@@ -1,0 +1,11 @@
+# music.omelhorsite.pt - a app de música do omelhorsite.pt.
+# Os shells prerenderizados são públicos; o conteúdo autenticado nunca chega
+# ao HTML, portanto não há nada sensível para esconder além do ruído.
+User-agent: *
+Allow: /
+# Retorno OAuth: transporta tickets de login efémeros, nunca deve ser indexado.
+Disallow: /oauth/
+# Mapa interno do expo-router, não é uma página do produto.
+Disallow: /_sitemap
+
+Sitemap: https://music.omelhorsite.pt/sitemap.xml

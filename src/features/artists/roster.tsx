@@ -11,7 +11,6 @@ import {
   ActivityIndicator,
   FlatList,
   TextInput,
-  useWindowDimensions,
   View,
 } from "react-native";
 import { useRouter } from "expo-router";
@@ -23,7 +22,17 @@ import { useT } from "@/i18n";
 import { artistRoute } from "@/lib/routes";
 import { useTheme } from "@/theme/provider";
 import { RADIUS } from "@/theme/tokens";
-import { ArtistCard, CircleSkeleton, EmptyState, ErrorState, FilterPills, Icon, Skeleton } from "@/ui";
+import {
+  ArtistCard,
+  CircleSkeleton,
+  collectionGridColumns,
+  EmptyState,
+  ErrorState,
+  FilterPills,
+  Icon,
+  Skeleton,
+  useContainerWidth,
+} from "@/ui";
 import { useContentBottomPadding, useContentTopPadding } from "@/features/shell/metrics";
 
 const SEARCH_DEBOUNCE_MS = 250;
@@ -36,14 +45,13 @@ const ORDER_BY_SORT: Record<Sort, ArtistsRosterOrder> = {
   recent: "created_at:desc",
 };
 
-const columnsForWidth = (width: number): number =>
-  width >= 1024 ? 5 : width >= 768 ? 4 : width >= 520 ? 3 : 2;
-
 export default function ArtistsRosterScreen() {
   const t = useT();
   const { tokens } = useTheme();
   const router = useRouter();
-  const { width } = useWindowDimensions();
+  // Container width (breakpoints.ts): the desktop shell's main pane is the
+  // surface this grid fills; on mobile it is the window, unchanged.
+  const width = useContainerWidth();
   const bottomPadding = useContentBottomPadding();
   const topPadding = useContentTopPadding(20);
 
@@ -66,7 +74,7 @@ export default function ArtistsRosterScreen() {
   );
   const visible = isFiltering ? (searchQuery.data ?? []) : roster;
 
-  const columns = columnsForWidth(width);
+  const columns = collectionGridColumns(width);
   const cardSize = Math.max(72, Math.floor((width - 40 - columns * 8) / columns) - 16);
 
   const renderItem = useCallback(

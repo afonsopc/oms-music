@@ -19,5 +19,20 @@ module.exports = () => {
     const { associatedDomains, ...iosWithoutAssociatedDomains } = expo.ios;
     expo.ios = iosWithoutAssociatedDomains;
   }
+
+  // Web export mode ("uma so app" F1 / plano 2.1). app.json keeps the
+  // historical "single" so the base manifest never changes shape for native
+  // tooling; the override lives HERE, next to the other build-variant gate,
+  // because this is the one file where such decisions are documented.
+  //
+  // "static" makes `expo export -p web` prerender one HTML shell per route
+  // (what Cloudflare Pages needs for real 404s, per-route <title> and the 7
+  // dynamic-route rewrites - see scripts/build-web.sh). The `web` key is only
+  // ever read by the web bundler/exporter: `expo run:ios|android`, EAS and
+  // the dev client ignore it, so native builds are unaffected by design.
+  // Spike 1 (plano, seccao 6.1) measured the export at 99 files / 5.0 MB,
+  // nowhere near the Pages limit of 20.000 files.
+  expo.web = { ...expo.web, output: "static" };
+
   return { ...config, expo };
 };

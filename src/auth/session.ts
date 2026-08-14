@@ -13,6 +13,7 @@ import { request } from "@/api/client";
 import { queryClient } from "@/api/queryClient";
 import { isApiError } from "@/domain/api";
 import type { Session, User } from "@/domain/user";
+import { isCookieAuth } from "./authMode";
 import { clearToken, loadToken, setToken } from "./token";
 import { onAuthLoss, setAuthReady } from "./guard";
 import { MissingCredentialsError } from "./authErrors";
@@ -78,7 +79,11 @@ onAuthLoss(() => {
 export const bootSession = async (): Promise<void> => {
   set({ status: "booting" });
   const token = await loadToken();
-  if (!token) {
+  // A cookie origin never has a readable token, but may well have a live
+  // httpOnly cookie (a sign-in on omelhorsite.pt is same-site with the API,
+  // so it signs THIS origin in too): the only way to find out is to probe.
+  // No cookie just means the probe 401s into the same anon path below.
+  if (!token && !isCookieAuth()) {
     set({ status: "anon", session: null, user: null, offlineBoot: false });
     return;
   }
@@ -127,7 +132,9 @@ export const refreshAccount = async (): Promise<void> => {
  *
  * Ordering is load-bearing:
  *  1. store the token first - every call below is authenticated, and the HTTP
- *     client refuses to send an authed request without one;
+ *     client refuses to send an authed request without one (on a cookie
+ *     origin setToken deliberately stores nothing and the calls below ride
+ *     the httpOnly cookie the sign-in response just set - see auth/token.ts);
  *  2. clear the query cache before flipping status, so no anonymous (or
  *     previous account's) data can be observed by the screens that mount next;
  *  3. flip the store and only THEN setAuthReady(true): the cable registrars

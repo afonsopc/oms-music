@@ -692,3 +692,125 @@ describe("stall watchdog", () => {
     ctx.engine.dispose();
   });
 });
+
+describe("autoplay blocked (web adapter channel)", () => {
+  // The web-only failure mode measured in the spike: media.play() rejects
+  // with NotAllowedError, the element never starts, and the adapter raises
+  // the dedicated channel instead of a stream error.
+
+  it("clears the intent so the FIRST tap on play plays instead of pausing", async () => {
+    const ctx = setup();
+    const s1 = makeSong(1);
+    urlFor(ctx, s1);
+    ctx.player.ignorePlay = true; // play() lands, audio never starts
+    ctx.engine.setQueue([s1]); // autoplay intent from the transition
+    await flush();
+    ctx.player.emitLoaded(200);
+    ctx.player.emitAutoplayBlocked();
+
+    expect(playerStore.getState().autoplayBlocked).toBe(true);
+    expect(playerStore.getState().playing).toBe(false);
+    expect(playerStore.getState().buffering).toBe(false);
+
+    // The inverted-toggle regression: with a stale intendedPlay, toggle()
+    // would PAUSE here (audible no-op) and only the second tap would play.
+    ctx.player.ignorePlay = false;
+    const callsBefore = ctx.player.playCalls;
+    ctx.engine.toggle();
+    expect(ctx.player.playCalls).toBe(callsBefore + 1);
+    expect(ctx.player.playing).toBe(true);
+    expect(playerStore.getState().autoplayBlocked).toBe(false);
+    ctx.engine.dispose();
+  });
+
+  it("never burns recovery or advances the queue (not a stream error)", async () => {
+    const ctx = setup();
+    const s1 = makeSong(1);
+    const s2 = makeSong(2);
+    urlFor(ctx, s1);
+    urlFor(ctx, s2);
+    ctx.player.ignorePlay = true;
+    ctx.engine.setQueue([s1, s2]);
+    await flush();
+    ctx.player.emitLoaded(200);
+    const resolvesBefore = ctx.resolver.control.calls.length;
+    const replacesBefore = ctx.player.replaceLog.length;
+    ctx.player.emitAutoplayBlocked();
+    await flush();
+
+    // No fresh-URL reload, no candidate laddering, no mark-and-advance:
+    // routed into handlePlayerError this would have burned the single
+    // recovery attempt and walked to song 2 in silence.
+    expect(ctx.resolver.control.calls.length).toBe(resolvesBefore);
+    expect(ctx.player.replaceLog.length).toBe(replacesBefore);
+    expect(playerStore.getState().currentSong?.id).toBe(s1.id);
+    expect(playerStore.getState().failedSongKeys.size).toBe(0);
+    ctx.engine.dispose();
+  });
+
+  it("stands the watchdogs down: a blocked player is not a stuck player", async () => {
+    // wedgedSetup-style clock so the stall watchdog COULD fire if armed.
+    resetPlayerStore();
+    setPlaybackInterceptor(null);
+    let t = 0;
+    const wctx = makeEngineDeps({ now: () => t });
+    const engine = new PlayerEngineImpl(wctx.deps);
+    const s1 = makeSong(1);
+    wctx.resolver.control.urls.set("compressed-1", "http://cdn/1");
+    wctx.player.ignorePlay = true;
+    engine.setQueue([s1]);
+    await flush();
+    wctx.player.emitLoaded(200);
+    wctx.player.emitAutoplayBlocked();
+    const seeksBefore = wctx.player.seekLog.length;
+
+    // Plenty of wedged-looking statuses and wall time: without the cleared
+    // intent this is exactly the stall-nudge recipe.
+    t += 30_000;
+    for (let i = 0; i < 10; i++) wctx.player.emitStatus();
+    await flush();
+
+    expect(wctx.player.seekLog.length).toBe(seeksBefore);
+    expect(wctx.player.playCalls).toBe(1); // only the original attempt
+    engine.dispose();
+  });
+
+  it("a user transition with autoplay drops the affordance flag", async () => {
+    const ctx = setup();
+    const s1 = makeSong(1);
+    const s2 = makeSong(2);
+    urlFor(ctx, s1);
+    urlFor(ctx, s2);
+    ctx.player.ignorePlay = true;
+    ctx.engine.setQueue([s1, s2]);
+    await flush();
+    ctx.player.emitLoaded(200);
+    ctx.player.emitAutoplayBlocked();
+    expect(playerStore.getState().autoplayBlocked).toBe(true);
+
+    // Tapping another song IS a gesture: the affordance must not linger
+    // over a track that is about to play normally.
+    ctx.player.ignorePlay = false;
+    ctx.engine.setQueueIndex(1);
+    await flush();
+    expect(playerStore.getState().autoplayBlocked).toBe(false);
+    ctx.engine.dispose();
+  });
+
+  it("becoming a controller drops the affordance with the source", async () => {
+    const ctx = setup();
+    const s1 = makeSong(1);
+    urlFor(ctx, s1);
+    ctx.player.ignorePlay = true;
+    ctx.engine.setQueue([s1]);
+    await flush();
+    ctx.player.emitLoaded(200);
+    ctx.player.emitAutoplayBlocked();
+    expect(playerStore.getState().autoplayBlocked).toBe(true);
+
+    // Audio plays ELSEWHERE now; "toca para ouvir" here would lie.
+    ctx.engine.stopAndClearSource();
+    expect(playerStore.getState().autoplayBlocked).toBe(false);
+    ctx.engine.dispose();
+  });
+});

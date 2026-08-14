@@ -1,0 +1,6 @@
+node_modules/
+src-tauri/target/
+src-tauri/gen/schemas/
+# A chave privada do updater ja cai no *.key da raiz; a linha fica na mesma
+# para o dia em que alguem mexer no .gitignore de cima sem pensar nesta.
+keys/updater.key

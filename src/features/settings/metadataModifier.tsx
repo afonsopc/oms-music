@@ -86,8 +86,12 @@ export const MetadataModifierDialog = ({
     setBusy(true);
     setNotice(null);
     try {
+      // The picked object goes through AS IS: on web it is a real browser
+      // File (pickers.web.ts) and rebuilding a { uri, name, type } literal
+      // would strip the bytes FormData needs; on native it already is that
+      // plain shape.
       const blob = await modifyMetadata(
-        { uri: file.uri, name: file.name, type: file.type },
+        file,
         {
           ...(title.trim() ? { title: title.trim() } : {}),
           ...(artist.trim() ? { artist: artist.trim() } : {}),

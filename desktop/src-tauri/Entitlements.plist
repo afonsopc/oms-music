@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Entitlements do shell macOS (plano 3.6, linha "macOS" da tabela): allow-jit
+  e allow-unsigned-executable-memory sao OBRIGATORIOS com Hardened Runtime -
+  sem eles o JavaScriptCore do WKWebView nao pode compilar JIT e a app
+  notarizada morre ao arrancar num Mac limpo. Mantidos tambem no build ad-hoc
+  para o binario testado ser o mesmo que um dia se notariza.
+-->
+<plist version="1.0">
+<dict>
+  <key>com.apple.security.cs.allow-jit</key>
+  <true/>
+  <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+  <true/>
+</dict>
+</plist>

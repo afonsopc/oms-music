@@ -218,6 +218,29 @@ export const deleteFilesForSong = (db: SQLiteDatabase, songKey: SongKey): void =
   db.runSync("DELETE FROM dl_files WHERE song_key = ?", [songKey]);
 };
 
+/**
+ * Byte accounting straight from the rows (freeze report 2026-08-14): the
+ * overview used to WALK THE DISK - thousands of synchronous stat() calls on
+ * the JS thread, re-attempted on every status bump. size_bytes is written at
+ * completion, so two SUM queries answer the same question in microseconds.
+ */
+export const sumDoneFileBytes = (db: SQLiteDatabase): { bytes: number; files: number } => {
+  const row = db.getFirstSync<{ files: number; bytes: number | null }>(
+    "SELECT COUNT(*) AS files, SUM(size_bytes) AS bytes FROM dl_files WHERE status = 'done'",
+  );
+  return { bytes: row?.bytes ?? 0, files: row?.files ?? 0 };
+};
+
+/** The play-cache tier: done rows with no dl_songs row (orphan tier). */
+export const sumCacheFileBytes = (db: SQLiteDatabase): { bytes: number; files: number } => {
+  const row = db.getFirstSync<{ files: number; bytes: number | null }>(
+    `SELECT COUNT(*) AS files, SUM(size_bytes) AS bytes FROM dl_files
+      WHERE status = 'done'
+        AND song_key NOT IN (SELECT song_key FROM dl_songs)`,
+  );
+  return { bytes: row?.bytes ?? 0, files: row?.files ?? 0 };
+};
+
 // ---------------------------------------------------------------------------
 // offline_collections
 // ---------------------------------------------------------------------------
@@ -295,16 +318,28 @@ export const replaceCollectionSongs = (
   collectionKey: string,
   songKeys: readonly SongKey[],
 ): void => {
+  // First occurrence wins on duplicates (a playlist CAN hold the same song
+  // twice; the PK cannot), and rows land in multi-row INSERTs instead of
+  // one statement per song - a 300-song playlist was 300 sync INSERTs
+  // inside a query-settle callback (freeze report 2026-08-14).
+  const positions = new Map<SongKey, number>();
+  songKeys.forEach((songKey, i) => {
+    if (!positions.has(songKey)) positions.set(songKey, i);
+  });
+  const rows = [...positions.entries()];
+  const CHUNK = 300;
   db.withTransactionSync(() => {
     db.runSync("DELETE FROM offline_collection_songs WHERE collection_key = ?", [collectionKey]);
-    songKeys.forEach((songKey, i) => {
+    for (let start = 0; start < rows.length; start += CHUNK) {
+      const chunk = rows.slice(start, start + CHUNK);
+      const placeholders = chunk.map(() => "(?, ?, ?)").join(", ");
+      const params: (string | number)[] = [];
+      for (const [songKey, position] of chunk) params.push(collectionKey, songKey, position);
       db.runSync(
-        `INSERT INTO offline_collection_songs (collection_key, song_key, position)
-         VALUES (?, ?, ?)
-         ON CONFLICT(collection_key, song_key) DO UPDATE SET position = excluded.position`,
-        [collectionKey, songKey, i],
+        `INSERT INTO offline_collection_songs (collection_key, song_key, position) VALUES ${placeholders}`,
+        params,
       );
-    });
+    }
   });
 };
 

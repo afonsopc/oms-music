@@ -12,7 +12,8 @@
  *     (contracts/transport) - this is what makes a lock-screen "next" on a
  *     controller advance the ACTIVE device (FR-63 remote half);
  *  2. the PlaybackChannel manager over the hand-rolled cable client;
- *  3. auth gating: connect while authed with a live token, disconnect and
+ *  3. auth gating: connect while authed with a live credential (Bearer
+ *     token, or the session cookie on a cookie origin), disconnect and
  *     wipe on logout or auth loss (the guard flips authReady false FIRST);
  *  4. the app-wide foreground pump: AppState "active" heals the socket and
  *     fires every subscription wake hook (request_snapshot + heartbeat).
@@ -27,7 +28,7 @@ import { getCableClient } from "@/cable/client";
 import { setTransportDecorator } from "@/contracts/transport";
 import { isAuthReady, subscribeAuthReady } from "@/auth/guard";
 import { registerLogoutTask, useSessionStore } from "@/auth/session";
-import { getToken } from "@/auth/token";
+import { cableCredential } from "@/auth/token";
 import { getLaunchDeviceId } from "@/lib/uuid";
 import { setLockScreenSongOverride } from "@/player/lockScreen";
 import { getPlayerEngine } from "@/player/register";
@@ -92,16 +93,17 @@ let appStateSub: { remove(): void } | null = null;
 
 const shouldConnect = (): boolean => {
   const session = useSessionStore.getState();
-  return session.status === "authed" && isAuthReady() && !!getToken();
+  // null = no credential; "" = cookie auth (still a live credential).
+  return session.status === "authed" && isAuthReady() && cableCredential() !== null;
 };
 
 const syncConnection = (): void => {
   const channel = getPlaybackChannel();
   if (!channel) return;
   const cable = getCableClient();
-  const token = getToken();
-  if (shouldConnect() && token) {
-    cable.connect(token);
+  const credential = cableCredential();
+  if (shouldConnect() && credential !== null) {
+    cable.connect(credential);
     channel.start();
     return;
   }

@@ -5,16 +5,31 @@
  * 500-artist library must not fire 500 artwork requests on mount, so rows
  * render 40 at a time through a FlatList instead of all at once.
  */
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { FlatList, Pressable, Text, TextInput, View } from "react-native";
 import { useRouter } from "expo-router";
 import { usePlaylists } from "@/api/queries/playlists";
+import {
+  readLibraryViewMode,
+  writeLibraryViewMode,
+} from "@/features/shell/desktop/layoutPrefs";
 import { useContentBottomPadding, useContentTopPadding } from "@/features/shell/metrics";
 import { useT } from "@/i18n";
 import { useTheme } from "@/theme/provider";
 import { RADIUS } from "@/theme/tokens";
 import { typeScale } from "@/theme/typography";
-import { ArtworkImage, EmptyState, ErrorState, FilterPills, Icon } from "@/ui";
+import {
+  ArtworkImage,
+  collectionGridColumns,
+  EmptyState,
+  ErrorState,
+  FilterPills,
+  GhostIconButton,
+  Icon,
+  useContainerWidth,
+  useDesktopShell,
+  type LibraryViewMode,
+} from "@/ui";
 import { LIBRARY_ITEM_LIMIT, useLibraryAlbums, useLibraryArtists } from "./queries";
 import { buildLibraryRows, type LibraryFilter, type LibraryRow } from "./rows";
 
@@ -67,7 +82,16 @@ const QuickLink = ({
   );
 };
 
-const LibraryRowView = ({ row, onPress }: { row: LibraryRow; onPress: () => void }) => {
+const LibraryRowView = ({
+  row,
+  compact = false,
+  onPress,
+}: {
+  row: LibraryRow;
+  /** Desktop compact mode (plan 4.3): no artwork, one line, denser. */
+  compact?: boolean;
+  onPress: () => void;
+}) => {
   const { tokens, ink } = useTheme();
   return (
     <Pressable
@@ -79,18 +103,20 @@ const LibraryRowView = ({ row, onPress }: { row: LibraryRow; onPress: () => void
         alignItems: "center",
         gap: 12,
         paddingHorizontal: 24,
-        paddingVertical: 8,
+        paddingVertical: compact ? 6 : 8,
         opacity: pressed ? 0.7 : 1,
       })}
     >
-      <ArtworkImage
-        source={row.artwork}
-        size={44}
-        shape={row.circular ? "circle" : "rounded"}
-        recyclingKey={row.key}
-      />
-      <View style={{ flex: 1, minWidth: 0 }}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+      {compact ? null : (
+        <ArtworkImage
+          source={row.artwork}
+          size={44}
+          shape={row.circular ? "circle" : "rounded"}
+          recyclingKey={row.key}
+        />
+      )}
+      {compact ? (
+        <View style={{ flex: 1, minWidth: 0, flexDirection: "row", alignItems: "baseline", gap: 8 }}>
           <Text
             style={{ color: tokens.foreground, fontSize: 14, fontWeight: "500", flexShrink: 1 }}
             numberOfLines={1}
@@ -105,14 +131,84 @@ const LibraryRowView = ({ row, onPress }: { row: LibraryRow; onPress: () => void
                 height: 8,
                 borderRadius: 4,
                 backgroundColor: ink.sync,
+                alignSelf: "center",
               }}
             />
           ) : null}
+          <Text
+            style={{ color: tokens.mutedForeground, fontSize: 12, flexShrink: 3 }}
+            numberOfLines={1}
+          >
+            {row.subtitle}
+          </Text>
         </View>
-        <Text style={{ color: tokens.mutedForeground, fontSize: 12 }} numberOfLines={1}>
-          {row.subtitle}
-        </Text>
-      </View>
+      ) : (
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+            <Text
+              style={{ color: tokens.foreground, fontSize: 14, fontWeight: "500", flexShrink: 1 }}
+              numberOfLines={1}
+            >
+              {row.name}
+            </Text>
+            {/* Spotify-sync marker: emerald, per the design language. */}
+            {row.system ? (
+              <View
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: 4,
+                  backgroundColor: ink.sync,
+                }}
+              />
+            ) : null}
+          </View>
+          <Text style={{ color: tokens.mutedForeground, fontSize: 12 }} numberOfLines={1}>
+            {row.subtitle}
+          </Text>
+        </View>
+      )}
+    </Pressable>
+  );
+};
+
+/** Grid cell (desktop "grid" mode): artwork-led tile, two text lines. */
+const LibraryGridTile = ({
+  row,
+  size,
+  onPress,
+}: {
+  row: LibraryRow;
+  size: number;
+  onPress: () => void;
+}) => {
+  const { tokens } = useTheme();
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={row.name}
+      style={({ pressed }) => ({
+        width: size,
+        gap: 6,
+        opacity: pressed ? 0.7 : 1,
+      })}
+    >
+      <ArtworkImage
+        source={row.artwork}
+        size={size}
+        shape={row.circular ? "circle" : "rounded"}
+        recyclingKey={row.key}
+      />
+      <Text
+        style={{ color: tokens.foreground, fontSize: 13, fontWeight: "600" }}
+        numberOfLines={1}
+      >
+        {row.name}
+      </Text>
+      <Text style={{ color: tokens.mutedForeground, fontSize: 12 }} numberOfLines={1}>
+        {row.subtitle}
+      </Text>
     </Pressable>
   );
 };
@@ -128,6 +224,24 @@ export default function LibraryScreen() {
   // for exactly that reason.
   const [filter, setFilter] = useState<LibraryFilter>("playlists");
   const [search, setSearch] = useState("");
+
+  // View mode (plan 4.3, library row): list / compact / grid, persisted
+  // (plan 4.5). Desktop shell only - on mobile and native the stored value
+  // is ignored and the list renders exactly as shipped.
+  const desktop = useDesktopShell();
+  const containerWidth = useContainerWidth();
+  const [viewMode, setViewMode] = useState<LibraryViewMode>(() => readLibraryViewMode());
+  const selectViewMode = useCallback((mode: LibraryViewMode) => {
+    setViewMode(mode);
+    writeLibraryViewMode(mode);
+  }, []);
+  const effectiveMode: LibraryViewMode = desktop ? viewMode : "list";
+  const gridColumns = collectionGridColumns(containerWidth);
+  // Grid tile size: horizontal padding is 24 a side, the gap 16 per gutter.
+  const gridTileSize = Math.max(
+    120,
+    Math.floor((containerWidth - 48 - 16 * (gridColumns - 1)) / gridColumns),
+  );
 
   const wantsPlaylists = filter === "all" || filter === "playlists";
   const wantsArtists = filter === "all" || filter === "artists";
@@ -188,11 +302,40 @@ export default function LibraryScreen() {
     // area, and stacking both is where the huge blank band above the title
     // came from.
     <View style={{ gap: 16, paddingBottom: 12 }}>
-      <Text
-        style={[typeScale.sectionHeader, { color: tokens.foreground, paddingHorizontal: 24 }]}
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          paddingHorizontal: 24,
+          gap: 4,
+        }}
       >
-        {t("components.music.Sidebar.libraryTitle")}
-      </Text>
+        <Text style={[typeScale.sectionHeader, { color: tokens.foreground, flex: 1 }]}>
+          {t("components.music.Sidebar.libraryTitle")}
+        </Text>
+        {desktop ? (
+          <>
+            <GhostIconButton
+              icon="list"
+              onPress={() => selectViewMode("list")}
+              active={effectiveMode === "list"}
+              accessibilityLabel={t("native.desktop.viewList")}
+            />
+            <GhostIconButton
+              icon="rows-3"
+              onPress={() => selectViewMode("compact")}
+              active={effectiveMode === "compact"}
+              accessibilityLabel={t("native.desktop.viewCompact")}
+            />
+            <GhostIconButton
+              icon="layout-grid"
+              onPress={() => selectViewMode("grid")}
+              active={effectiveMode === "grid"}
+              accessibilityLabel={t("native.desktop.viewGrid")}
+            />
+          </>
+        ) : null}
+      </View>
 
       <View style={{ gap: 8, paddingHorizontal: 24 }}>
         <QuickLink
@@ -280,14 +423,36 @@ export default function LibraryScreen() {
     />
   );
 
+  const isGrid = effectiveMode === "grid";
+
   return (
     <FlatList
+      // numColumns cannot change on a live FlatList; the key remounts the
+      // list when the mode (or the column count under it) changes. Only the
+      // desktop toggle can cause that - mobile is always the single column.
+      key={isGrid ? `grid-${gridColumns}` : effectiveMode}
       style={{ flex: 1, backgroundColor: tokens.background }}
       data={rows}
       keyExtractor={(row) => row.key}
-      renderItem={({ item }) => (
-        <LibraryRowView row={item} onPress={() => router.push(item.route)} />
-      )}
+      numColumns={isGrid ? gridColumns : 1}
+      columnWrapperStyle={
+        isGrid ? { gap: 16, paddingHorizontal: 24, marginBottom: 16 } : undefined
+      }
+      renderItem={({ item }) =>
+        isGrid ? (
+          <LibraryGridTile
+            row={item}
+            size={gridTileSize}
+            onPress={() => router.push(item.route)}
+          />
+        ) : (
+          <LibraryRowView
+            row={item}
+            compact={effectiveMode === "compact"}
+            onPress={() => router.push(item.route)}
+          />
+        )
+      }
       ListHeaderComponent={header}
       ListEmptyComponent={empty}
       initialNumToRender={WINDOW_SIZE}

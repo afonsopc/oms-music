@@ -17,6 +17,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { importSongFile } from "@/api/endpoints/songs";
 import { invalidationTargets } from "@/api/queryKeys";
 import {
+  FOLDER_PICKER_AVAILABLE,
   pickAudioFiles,
   pickAudioFolder,
   type PickedAudio,
@@ -102,7 +103,11 @@ export default function FilesImportTab() {
         await Promise.all(
           batch.map(async (file) => {
             try {
-              await importSongFile({ uri: file.uri, name: file.name, type: file.type });
+              // The picked object goes through AS IS: on web it is a real
+              // browser File (pickers.web.ts) and rebuilding a plain
+              // { uri, name, type } literal would strip the bytes FormData
+              // needs; on native it already is that plain shape.
+              await importSongFile(file);
               succeeded += 1;
               if (folderPath) trackSuccess(folderPath, fileKey(file));
             } catch {
@@ -180,12 +185,18 @@ export default function FilesImportTab() {
               disabled={busy}
               compact
             />
-            <GhostButton
-              label={t(`${SETTINGS_KEY}.selectFolder`)}
-              onPress={() => void chooseFolder()}
-              disabled={busy}
-              compact
-            />
+            {/* Folder picks need a real primitive underneath (webkitdirectory
+                on web, Directory.pickDirectoryAsync on native); where there
+                is none the button disappears instead of erroring - loose
+                multi-file picks cover the same ground. */}
+            {FOLDER_PICKER_AVAILABLE ? (
+              <GhostButton
+                label={t(`${SETTINGS_KEY}.selectFolder`)}
+                onPress={() => void chooseFolder()}
+                disabled={busy}
+                compact
+              />
+            ) : null}
           </View>
 
           {busy && progress ? (

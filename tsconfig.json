@@ -16,5 +16,13 @@
     "**/*.tsx",
     ".expo/types/**/*.ts",
     "expo-env.d.ts"
+  ],
+  // desktop/ is the Tauri shell: its own package.json, its own node_modules
+  // (@tauri-apps/*) and a generated bindings.ts that imports them. Excluded
+  // so the app's typecheck stays hermetic - src/desktop/ (the bridge) is the
+  // app's side of that seam and IS checked.
+  "exclude": [
+    "node_modules",
+    "desktop"
   ]
 }

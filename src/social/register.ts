@@ -3,7 +3,8 @@
  * listening feed and the per-user notifications stream.
  *
  * Both channels are receive-only and gated on an authed session with a live
- * token. The cable's foreground pump (AppState -> notifyForeground) is owned
+ * credential (Bearer token, or the session cookie on a cookie origin).
+ * The cable's foreground pump (AppState -> notifyForeground) is owned
  * by remote/register.ts; the friends manager rides it through its wake hook
  * to refresh the subscribe-time roster.
  */
@@ -11,7 +12,7 @@ import { queryClient } from "@/api/queryClient";
 import { keys } from "@/api/queryKeys";
 import { isAuthReady, subscribeAuthReady } from "@/auth/guard";
 import { registerLogoutTask, useSessionStore } from "@/auth/session";
-import { getToken } from "@/auth/token";
+import { cableCredential } from "@/auth/token";
 import { getCableClient } from "@/cable/client";
 import { JAM_NOTICES, notifyJam } from "@/jam/notices";
 import { FriendListeningManager } from "./listeningStore";
@@ -23,14 +24,15 @@ let notifications: NotificationsManager | null = null;
 
 const shouldRun = (): boolean => {
   const session = useSessionStore.getState();
-  return session.status === "authed" && isAuthReady() && !!getToken();
+  // null = no credential; "" = cookie auth (still a live credential).
+  return session.status === "authed" && isAuthReady() && cableCredential() !== null;
 };
 
 const sync = (): void => {
-  const token = getToken();
-  if (shouldRun() && token) {
-    // Idempotent: the cable ignores a connect with the same live token.
-    getCableClient().connect(token);
+  const credential = cableCredential();
+  if (shouldRun() && credential !== null) {
+    // Idempotent: the cable ignores a connect with the same live credential.
+    getCableClient().connect(credential);
     friends?.start();
     notifications?.start();
     return;

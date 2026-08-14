@@ -30,6 +30,46 @@ const flush = (): void => {
 };
 
 /**
+ * The PROGRESS channel, split from the coarse one (owner freeze report
+ * 2026-08-14): progress samples arrive at 4 Hz per transfer, but only the
+ * percent surfaces (overview in-flight list, the open song menu) care.
+ * Bumping the coarse counter for them re-rendered every mounted badge - and
+ * through the old table-level subscription, every mounted ROW - for the
+ * whole duration of every transfer, which is exactly "the app freezes while
+ * a song loads". Progress consumers subscribe HERE, at 1 Hz.
+ */
+const progressListeners = new Set<() => void>();
+let progressPending = false;
+let progressTimer: ReturnType<typeof setTimeout> | null = null;
+let progressVersion = 0;
+const PROGRESS_THROTTLE_MS = 1_000;
+
+const flushProgress = (): void => {
+  progressPending = false;
+  progressVersion += 1;
+  for (const cb of progressListeners) cb();
+};
+
+const notifyProgress = (): void => {
+  if (progressPending) return;
+  progressPending = true;
+  if (progressTimer) return;
+  progressTimer = setTimeout(() => {
+    progressTimer = null;
+    if (progressPending) flushProgress();
+  }, PROGRESS_THROTTLE_MS);
+};
+
+export const getProgressVersion = (): number => progressVersion;
+
+export const subscribeDownloadProgress = (cb: () => void): (() => void) => {
+  progressListeners.add(cb);
+  return () => {
+    progressListeners.delete(cb);
+  };
+};
+
+/**
  * Coarse version counter, bumped once per notify window. useSyncExternalStore
  * snapshots must be referentially stable between changes, so subscribers read
  * THIS, never a timestamp.
@@ -60,8 +100,13 @@ export const setKindStatus = (
   status: DownloadFileStatus,
   progress = 0,
 ): void => {
-  statuses.set(statusKey(songKey, kind), { status, progress });
-  notifyCoarse();
+  const key = statusKey(songKey, kind);
+  const prev = statuses.get(key);
+  statuses.set(key, { status, progress });
+  // Coarse bump ONLY on a status transition (none->queued->downloading->
+  // done/error); a same-status progress sample feeds the progress channel.
+  if (!prev || prev.status !== status) notifyCoarse();
+  else notifyProgress();
 };
 
 export const clearKindStatus = (songKey: SongKey, kind: DownloadKind): void => {

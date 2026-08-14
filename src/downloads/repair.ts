@@ -20,24 +20,36 @@ import {
   isWifiRefusedError,
   listErroredSongKeys,
   listStoredSongs,
+  probeWifiGate,
   verifySongFiles,
 } from "./manager";
 import { getDownloadSettings } from "./settings";
 
 let running = false;
 
+/** ONE gate probe per pass (freeze report 2026-08-14): the per-song
+ *  NetInfo round-trip made a full-library walk hundreds of native calls. */
+const gateClosed = async (): Promise<boolean> => {
+  try {
+    await probeWifiGate();
+    return false;
+  } catch (error) {
+    return isWifiRefusedError(error);
+  }
+};
+
 /** Re-issues the bundle for every song with at least one errored file. */
 export const retryFailures = async (): Promise<void> => {
   if (!isStarted()) return;
   const failed = new Set(listErroredSongKeys());
   if (failed.size === 0) return;
+  if (await gateClosed()) return; // The next reconnect on WiFi retries.
   for (const stored of listStoredSongs()) {
     if (!failed.has(stored.songKey)) continue;
     try {
-      await downloadSong(stored.song);
-    } catch (error) {
-      if (isWifiRefusedError(error)) return; // Gate closed: stop the pass.
-      // Anything else is transient; the next reconnect retries.
+      await downloadSong(stored.song, { skipWifiGate: true });
+    } catch {
+      // Transient; the next reconnect retries.
     }
   }
 };
@@ -50,12 +62,12 @@ export const retryFailures = async (): Promise<void> => {
 export const verifyAndRepair = async (): Promise<void> => {
   if (!isStarted()) return;
   const includeStems = getDownloadSettings().includeStems;
+  if (await gateClosed()) return;
   for (const stored of listStoredSongs()) {
     verifySongFiles(stored.songKey);
     try {
-      await downloadSong(stored.song, { includeStems });
-    } catch (error) {
-      if (isWifiRefusedError(error)) return;
+      await downloadSong(stored.song, { includeStems, skipWifiGate: true });
+    } catch {
       // Transient failure: the row stays as it is for the next pass.
     }
   }

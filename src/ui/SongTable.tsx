@@ -14,19 +14,20 @@ import {
   Animated,
   FlatList,
   PanResponder,
+  Platform,
   Text,
-  useWindowDimensions,
   View,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
   type StyleProp,
   type ViewStyle,
 } from "react-native";
-import { useDownloadStatusVersion } from "./downloadStatus";
+import { songTableColumnGate, songTableDurationWidth } from "./breakpoints";
+import { useContainerWidth, useDesktopShell } from "./shellLayout";
 import { Icon } from "./icons";
 import {
   DEFAULT_SONG_COLUMNS,
-  SONG_ROW_HEIGHT,
+  songRowHeight,
   SongRow,
   type SongRowColumn,
 } from "./SongRow";
@@ -50,9 +51,17 @@ export interface SongTableProps {
   showHeader?: boolean;
   surface?: string;
   onPlay: (song: Song, index: number) => void;
+  /**
+   * Like toggle for the hover heart (desktop shell, plan 4.3). Rows only
+   * grow the button above 900px; below that (and on native) omitting or
+   * providing this is invisible.
+   */
+  onToggleLike?: (song: Song, liked: boolean) => void;
   extraActionsFor?: (song: Song, index: number) => SongMenuItem[] | undefined;
   /** Enables drag handles; refuse by omitting (partially loaded lists). */
   onReorder?: (fromVisible: number, toVisible: number) => void;
+  /** Compact view mode (plan 4.3): 40px artwork-less rows. */
+  compact?: boolean;
   header?: React.ReactElement | null;
   footer?: React.ReactElement | null;
   emptyComponent?: React.ReactElement | null;
@@ -68,21 +77,42 @@ export interface SongTableProps {
   testID?: string;
 }
 
-const TableHeader = ({
-  columns,
-  hasPlays,
-  reorder,
-}: {
+export interface SongTableHeaderProps {
   columns: SongRowColumn[];
   hasPlays: boolean;
   reorder: boolean;
-}) => {
+  /** Rows carry the hover heart column (desktop + onToggleLike). */
+  hasLike?: boolean;
+  /** Opaque background for the desktop sticky overlay copy (plan 4.3). */
+  backgroundColor?: string;
+}
+
+/**
+ * The column header row. Exported so the desktop collection screen can
+ * render a second, absolutely-positioned copy that stays pinned under the
+ * sticky title once the in-flow one scrolls off - the copy MUST be this
+ * exact component or the two drift column-by-column.
+ */
+export const SongTableHeader = ({
+  columns,
+  hasPlays,
+  reorder,
+  hasLike = false,
+  backgroundColor,
+}: SongTableHeaderProps) => {
   const { tokens } = useTheme();
   const t = useT();
-  const { width } = useWindowDimensions();
-  const isNarrow = width < 768;
+  // Same container-width gates as SongRow (breakpoints.ts): a header cell
+  // must never appear over a column the rows dropped, so neither side keeps
+  // a private ladder.
+  const width = useContainerWidth();
+  const desktopShell = useDesktopShell();
+  const gate = songTableColumnGate(width, desktopShell);
+  const durationWidth = songTableDurationWidth(width, desktopShell);
   const has = (c: SongRowColumn) =>
-    columns.includes(c) && !(isNarrow && (c === "album" || c === "addedAt"));
+    columns.includes(c) &&
+    !(c === "album" && !gate.album) &&
+    !(c === "addedAt" && !gate.addedAt);
   const cellStyle = { color: tokens.mutedForeground, fontSize: 12 } as const;
   return (
     <View
@@ -94,6 +124,7 @@ const TableHeader = ({
         paddingVertical: 8,
         borderBottomWidth: 1,
         borderBottomColor: tokens.border,
+        backgroundColor,
       }}
     >
       {has("index") ? (
@@ -114,11 +145,19 @@ const TableHeader = ({
         </Text>
       ) : null}
       {has("duration") ? (
-        <View style={{ width: 44, alignItems: "flex-end" }}>
+        <View
+          style={
+            durationWidth == null
+              ? { flex: 0.5, minWidth: 44, alignItems: "flex-end" }
+              : { width: durationWidth, alignItems: "flex-end" }
+          }
+        >
           <Icon name="clock" size={14} color={tokens.mutedForeground} />
         </View>
       ) : null}
-      <View style={{ width: reorder ? 56 : 32 }} />
+      {/* Trailing spacer mirrors the rows' control cluster px by px:
+          heart (32, desktop like column) + grip (24) + menu (32). */}
+      <View style={{ width: (hasLike ? 32 : 0) + (reorder ? 24 : 0) + 32 }} />
     </View>
   );
 };
@@ -139,8 +178,10 @@ export const SongTable = ({
   showHeader = false,
   surface = "row",
   onPlay,
+  onToggleLike,
   extraActionsFor,
   onReorder,
+  compact = false,
   header,
   footer,
   emptyComponent,
@@ -155,17 +196,20 @@ export const SongTable = ({
 }: SongTableProps) => {
   const { tokens } = useTheme();
   const t = useT();
-  const downloadVersion = useDownloadStatusVersion();
+  const desktopShell = useDesktopShell();
   const [drag, setDrag] = useState<DragState | null>(null);
   const [dragY] = useState(() => new Animated.Value(0));
   const reorderEnabled = !!onReorder;
+  // The header's trailing spacer must mirror the rows' like column, which
+  // only exists at desktop widths (SongRow applies the same gate).
+  const likeColumn = desktopShell && !!onToggleLike;
 
   const clampTarget = useCallback(
     (from: number, dy: number): number => {
-      const delta = Math.round(dy / SONG_ROW_HEIGHT);
+      const delta = Math.round(dy / songRowHeight(compact));
       return Math.max(0, Math.min(songs.length - 1, from + delta));
     },
-    [songs.length],
+    [songs.length, compact],
   );
 
   const startDrag = useCallback(
@@ -208,8 +252,13 @@ export const SongTable = ({
           highlighted={!!highlightTitle && highlightTitle === item.title}
           surface={surface}
           extraActions={extraActionsFor?.(item, index)}
+          compact={compact}
           onPlay={() => onPlay(item, index)}
-          downloadVersion={downloadVersion}
+          onToggleLike={
+            onToggleLike
+              ? () => onToggleLike(item, likedIds?.has(item.id) ?? false)
+              : undefined
+          }
           dragHandle={
             reorderEnabled ? (
               <DragHandle
@@ -252,13 +301,14 @@ export const SongTable = ({
       surface,
       extraActionsFor,
       onPlay,
-      downloadVersion,
+      onToggleLike,
       reorderEnabled,
       startDrag,
       moveDrag,
       endDrag,
       drag,
       dragY,
+      compact,
       tokens.card,
       tokens.mutedForeground,
       t,
@@ -283,7 +333,6 @@ export const SongTable = ({
       data={songs}
       renderItem={renderItem}
       keyExtractor={keyExtractor}
-      extraData={downloadVersion}
       initialNumToRender={40}
       maxToRenderPerBatch={40}
       windowSize={11}
@@ -297,10 +346,11 @@ export const SongTable = ({
         <>
           {header}
           {showHeader && songs.length > 0 ? (
-            <TableHeader
+            <SongTableHeader
               columns={columns}
               hasPlays={!!playCounts && Object.keys(playCounts).length > 0}
               reorder={reorderEnabled}
+              hasLike={likeColumn}
             />
           ) : null}
         </>
@@ -325,15 +375,25 @@ interface DragHandleProps {
 }
 
 const DragHandle = ({ index, color, label, onStart, onMove, onEnd }: DragHandleProps) => {
+  const [grabbing, setGrabbing] = useState(false);
   const responder = useMemo(
     () =>
       PanResponder.create({
         onStartShouldSetPanResponder: () => true,
         onMoveShouldSetPanResponder: () => true,
-        onPanResponderGrant: () => onStart(index),
+        onPanResponderGrant: () => {
+          setGrabbing(true);
+          onStart(index);
+        },
         onPanResponderMove: (_evt, gesture) => onMove(gesture.dy),
-        onPanResponderRelease: (_evt, gesture) => onEnd(index, gesture.dy),
-        onPanResponderTerminate: (_evt, gesture) => onEnd(index, gesture.dy),
+        onPanResponderRelease: (_evt, gesture) => {
+          setGrabbing(false);
+          onEnd(index, gesture.dy);
+        },
+        onPanResponderTerminate: (_evt, gesture) => {
+          setGrabbing(false);
+          onEnd(index, gesture.dy);
+        },
       }),
     [index, onStart, onMove, onEnd],
   );
@@ -342,7 +402,15 @@ const DragHandle = ({ index, color, label, onStart, onMove, onEnd }: DragHandleP
       {...responder.panHandlers}
       accessible
       accessibilityLabel={label}
-      style={{ width: 24, height: 32, alignItems: "center", justifyContent: "center" }}
+      style={[
+        { width: 24, height: 32, alignItems: "center", justifyContent: "center" },
+        // grab/grabbing are web-only CSS cursors RN's style type does not
+        // know; native ignores the whole entry (plan 4.3: reorder exists
+        // but shows no pointer affordance - this is the affordance).
+        Platform.OS === "web"
+          ? ({ cursor: grabbing ? "grabbing" : "grab" } as unknown as ViewStyle)
+          : null,
+      ]}
     >
       <Icon name="grip-vertical" size={16} color={color} />
     </View>

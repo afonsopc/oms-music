@@ -33,7 +33,19 @@ import { useTheme } from "@/theme/provider";
 import { gradientBackground, Icon } from "@/ui";
 import { ChevronDownGlyph } from "./glyphs";
 
-export const NowPlayingScroll = () => {
+export interface NowPlayingScrollProps {
+  /**
+   * Desktop right-panel tenancy (plano-uma-so-app 4.3): the SAME composition
+   * - body, lyrics card, queue row, artist card in one scroll - measured
+   * against its own pane instead of the window, with no close chevron (the
+   * panel has its own chrome). Default false = the mobile sheet, unchanged.
+   */
+  embedded?: boolean;
+  /** Embedded queue affordance: switch the panel tenant instead of pushing. */
+  onOpenQueue?: () => void;
+}
+
+export const NowPlayingScroll = ({ embedded = false, onOpenQueue }: NowPlayingScrollProps = {}) => {
   const { height } = useWindowDimensions();
   const { tokens, scheme } = useTheme();
   const insets = useSafeAreaInsets();
@@ -45,8 +57,14 @@ export const NowPlayingScroll = () => {
   const [accentDark, accentBright] = playerGradient(accent, scheme);
 
   // The sheet presentation already insets the top; now playing is composed
-  // for a full viewport.
-  const viewport = Math.max(1, height - insets.bottom);
+  // for a full viewport. Embedded, "the viewport" is the panel's own height,
+  // measured below - the window height would compose for a pane that is not
+  // this one (the panel is shorter by topbar + transport + gaps).
+  const [measuredHeight, setMeasuredHeight] = React.useState(0);
+  const viewport = Math.max(
+    1,
+    embedded && measuredHeight > 0 ? measuredHeight : height - insets.bottom,
+  );
 
   const gradientCss = `linear-gradient(to bottom, ${accentBright} 0%, ${accentDark} 55%, ${tokens.background} 90%)`;
 
@@ -58,7 +76,7 @@ export const NowPlayingScroll = () => {
     else router.replace("/(main)/(tabs)/home");
   };
   const webClose =
-    Platform.OS === "web" ? (
+    Platform.OS === "web" && !embedded ? (
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={t("native.common.close")}
@@ -71,7 +89,14 @@ export const NowPlayingScroll = () => {
     ) : null;
 
   return (
-    <View style={{ flex: 1 }}>
+    <View
+      style={{ flex: 1 }}
+      onLayout={
+        embedded
+          ? (event) => setMeasuredHeight(Math.round(event.nativeEvent.layout.height))
+          : undefined
+      }
+    >
       {webClose}
       <ScrollView
       style={{ flex: 1, backgroundColor: tokens.background }}
@@ -91,15 +116,17 @@ export const NowPlayingScroll = () => {
         style={[StyleSheet.absoluteFill, gradientBackground(gradientCss)]}
       />
       <View style={{ height: viewport }}>
-        <NowPlayingBody />
+        <NowPlayingBody embedded={embedded} />
       </View>
 
       <LyricsCard />
 
       {/* The queue kept its full-screen route; this compact button is how
-          you reach it now that the pager pages are gone. */}
+          you reach it now that the pager pages are gone. Embedded, the queue
+          is the panel's neighbouring tenant, so the button switches tenants
+          instead of pushing the full-screen route. */}
       <Pressable
-        onPress={() => router.push("/(player)/queue")}
+        onPress={() => (onOpenQueue ? onOpenQueue() : router.push("/(player)/queue"))}
         accessibilityRole="button"
         style={({ pressed }) => ({
           alignSelf: "center",
@@ -120,7 +147,7 @@ export const NowPlayingScroll = () => {
         </Text>
       </Pressable>
 
-      <AboutArtistCard />
+      <AboutArtistCard embedded={embedded} />
       </ScrollView>
     </View>
   );

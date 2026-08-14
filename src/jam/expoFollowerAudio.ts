@@ -17,7 +17,28 @@ import type { FollowerAudio, FollowerAudioStatus } from "./types";
 
 const STATUS_INTERVAL_MS = 250;
 
+/**
+ * Static-export gate, same story as player/expoAudioAdapter.ts: the Node
+ * prerender of `expo export -p web` has no DOM `Audio`, and expo-audio's web
+ * `createAudioPlayer` constructs one on the spot. FollowerPlayer only builds
+ * its player lazily (ensurePlayer on the first jam state), so this branch is
+ * defence in depth rather than the crash site - but a follower that could be
+ * constructed during SSG must stay inert, never explode.
+ */
+const createInertPrerenderAudio = (): FollowerAudio => ({
+  currentTime: 0,
+  playing: false,
+  replace: () => {},
+  play: () => {},
+  pause: () => {},
+  seekTo: () => Promise.resolve(),
+  setVolume: () => {},
+  onStatus: () => () => {},
+  remove: () => {},
+});
+
 export const createExpoFollowerAudio = (): FollowerAudio => {
+  if (typeof window === "undefined") return createInertPrerenderAudio();
   const player: AudioPlayer = createAudioPlayer(null, {
     updateInterval: STATUS_INTERVAL_MS,
   });

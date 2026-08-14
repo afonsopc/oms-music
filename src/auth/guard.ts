@@ -14,6 +14,7 @@ import { useSyncExternalStore } from "react";
 import { request, setAuthFailureHandler } from "@/api/client";
 import { isApiError } from "@/domain/api";
 import type { Session } from "@/domain/user";
+import { isCookieAuth } from "./authMode";
 import { getToken } from "./token";
 
 let authReady = false;
@@ -56,7 +57,12 @@ let inflight: Promise<boolean> | null = null;
  */
 export const verify = (): Promise<boolean> => {
   if (inflight) return inflight;
-  if (!getToken()) {
+  // No token means no session - except on a cookie origin, where the
+  // credential is httpOnly state this code cannot read: there the probe
+  // itself (which rides the cookie) is the only way to know, so never
+  // short-circuit it. This is what keeps the 401/fs-404 heuristic alive in
+  // cookie mode.
+  if (!getToken() && !isCookieAuth()) {
     setAuthReady(false);
     return Promise.resolve(false);
   }

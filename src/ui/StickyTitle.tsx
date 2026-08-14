@@ -18,9 +18,21 @@ export interface StickyTitleProps {
   leading?: React.ReactNode;
   /** Extra top offset when not under a safe-area edge. */
   topOffset?: number;
+  /**
+   * Fixed bar height (desktop shell): the collection screen pins its sticky
+   * column header exactly below this bar, so the height must be a known
+   * number there rather than whatever the paddings add up to.
+   */
+  barHeight?: number;
 }
 
-export const StickyTitle = ({ visible, title, leading, topOffset = 0 }: StickyTitleProps) => {
+export const StickyTitle = ({
+  visible,
+  title,
+  leading,
+  topOffset = 0,
+  barHeight,
+}: StickyTitleProps) => {
   const { tokens, scheme } = useTheme();
   const insets = useSafeAreaInsets();
   const [opacity] = useState(() => new Animated.Value(visible ? 1 : 0));
@@ -56,7 +68,7 @@ export const StickyTitle = ({ visible, title, leading, topOffset = 0 }: StickyTi
           alignItems: "center",
           gap: 12,
           paddingHorizontal: 24,
-          paddingVertical: 10,
+          ...(barHeight != null ? { height: barHeight } : { paddingVertical: 10 }),
         }}
       >
         {leading}

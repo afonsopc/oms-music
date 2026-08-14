@@ -1,0 +1,23 @@
+# Cloudflare Pages headers for music.omelhorsite.pt ("uma so app" F1 / 2.1).
+# `expo export -p web` copies public/ verbatim into dist/, so this ships with
+# every export. Two cache regimes, nothing in between:
+#
+# 1. Content-hashed build artifacts. The filename changes whenever the bytes
+#    do (entry-<hash>.js, *.<hash>.otf), so a year of `immutable` can never
+#    serve a stale byte - the HTML that references them is what rolls over.
+/_expo/static/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# expo asset pipeline output: also content-hashed (hash inside the filename).
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# 2. Prerendered HTML shells: never cache beyond a revalidation, or a deploy
+#    would keep pointing old visitors at bundles that may already be gone.
+/*.html
+  Cache-Control: public, max-age=0, must-revalidate
+
+# Boring hygiene for everything (Pages appends, does not replace).
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin

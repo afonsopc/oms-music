@@ -1,0 +1,63 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "OMS Music",
+  "version": "0.1.0",
+  "identifier": "pt.omelhorsite.music.desktop",
+  "build": {
+    "devUrl": "http://localhost:8081",
+    "beforeDevCommand": "bash scripts/dev-web.sh",
+    "beforeBuildCommand": "bash scripts/ensure-dist.sh",
+    "frontendDist": "../../dist"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "label": "main",
+        "title": "OMS Music",
+        "width": 1280,
+        "height": 820,
+        "minWidth": 360,
+        "minHeight": 500
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' blob: https:; connect-src 'self' https: wss://backend.omelhorsite.pt; font-src 'self' data:; object-src 'none'; base-uri 'self'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["app", "dmg"],
+    "createUpdaterArtifacts": true,
+    "category": "Music",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "macOS": {
+      "entitlements": "./Entitlements.plist",
+      "signingIdentity": "-",
+      "minimumSystemVersion": "11.0"
+    },
+    "linux": {
+      "deb": {
+        "depends": [
+          "libwebkit2gtk-4.1-0",
+          "libgtk-3-0",
+          "libappindicator3-1 | libayatana-appindicator3-1"
+        ]
+      }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDRBN0Q1NjAwMkIzOEYwRDQKUldUVThEZ3JBRlo5U3ZOVFZobmIxbWJtaVVjdmdyMy9FS25jWG14eXpQWFNZeHZwdzFLOUhNS1gK",
+      "endpoints": [
+        "https://updates.omelhorsite.pt/oms-music-desktop/{{target}}/{{arch}}/{{current_version}}"
+      ]
+    }
+  }
+}

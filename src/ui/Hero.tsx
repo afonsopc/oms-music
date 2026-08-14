@@ -11,7 +11,9 @@ import { Text, useWindowDimensions, View, type StyleProp, type ViewStyle } from 
 import { Image } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ArtworkImage, artworkSourceUri } from "./ArtworkImage";
+import { heroMinHeight, heroTitleType } from "./breakpoints";
 import { InitialsAvatar } from "./InitialsAvatar";
+import { useContainerWidth, useDesktopShell } from "./shellLayout";
 import { gradientBackground, linearGradient } from "./uiTheme";
 import type { ArtworkSource } from "@/domain/artwork";
 import { useT } from "@/i18n";
@@ -101,7 +103,25 @@ export const Hero = ({
   const metaInk = isArtistBackdrop ? ink : withAlpha(ink, 0.92);
 
   const insets = useSafeAreaInsets();
-  const minHeight = Math.round(height * (isArtistBackdrop ? 0.42 : 0.36)) + insets.top;
+  const desktopShell = useDesktopShell();
+  const containerWidth = useContainerWidth();
+  /**
+   * Two geometry regimes (plan 4.3, collection row). Mobile keeps the
+   * shipped height fractions untouched - the sacred below-900px freeze. The
+   * desktop shell swaps to a WIDTH-dependent cap (breakpoints.heroMinHeight)
+   * because a fraction of a 1440p monitor is a ~500px band of nothing, and
+   * to the 96/72/32 type ramp keyed on the main pane's bucket instead of
+   * the mobile 28/34 title-length pair.
+   */
+  const minHeight = desktopShell
+    ? heroMinHeight(containerWidth, isArtistBackdrop) + insets.top
+    : Math.round(height * (isArtistBackdrop ? 0.42 : 0.36)) + insets.top;
+  const titleType = desktopShell
+    ? heroTitleType(containerWidth, title.length)
+    : {
+        fontSize: title.length > 24 ? 28 : 34,
+        lineHeight: title.length > 24 ? 32 : 38,
+      };
   const artSize = 136;
 
   return (
@@ -162,8 +182,8 @@ export const Hero = ({
           <Text
             style={{
               color: ink,
-              fontSize: title.length > 24 ? 28 : 34,
-              lineHeight: title.length > 24 ? 32 : 38,
+              fontSize: titleType.fontSize,
+              lineHeight: titleType.lineHeight,
               fontWeight: "900",
               letterSpacing: -0.5,
             }}

@@ -8,7 +8,12 @@ import { API_BASE_URL } from "./client";
 import type { MediaId, UserId } from "@/domain/ids";
 import { getToken } from "@/auth/token";
 
-/** Authenticated image/bytes URL for a media id. */
+/**
+ * Authenticated image/bytes URL for a media id. On a cookie origin (see
+ * auth/authMode.ts) the token is null by design and the bare URL is correct:
+ * media elements without crossOrigin fetch same-site with credentials, so
+ * the httpOnly session cookie authenticates the request instead.
+ */
 export const imageUrl = (nodeId: MediaId): string => {
   const token = getToken();
   const base = `${API_BASE_URL}/media/${encodeURIComponent(nodeId)}/data`;

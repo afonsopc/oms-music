@@ -20,7 +20,7 @@ import { ArtworkImage, artworkSourceUri, Icon } from "@/ui";
 
 const PHOTO_HEIGHT = 180;
 
-export const AboutArtistCard = () => {
+export const AboutArtistCard = ({ embedded = false }: { embedded?: boolean } = {}) => {
   const t = useT();
   const { tokens } = useTheme();
   const router = useRouter();
@@ -33,9 +33,12 @@ export const AboutArtistCard = () => {
 
   const open = useCallback(() => {
     if (!hasArtist) return;
-    if (router.canDismiss()) router.dismissAll();
+    // Embedded (desktop right panel) there is no player modal above the
+    // (main) stack; dismissAll would reset that stack instead of unwinding
+    // a modal, so the panel navigates with a plain push.
+    if (!embedded && router.canDismiss()) router.dismissAll();
     router.push(artistRoute(segment));
-  }, [router, hasArtist, segment]);
+  }, [router, hasArtist, segment, embedded]);
 
   // An unresolved artist (404, offline, jam proposal) renders nothing: a card
   // with no photo and no data would just be a second, worse artist link.

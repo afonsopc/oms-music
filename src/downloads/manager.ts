@@ -463,7 +463,17 @@ const fetchLyricsIntoRow = (session: ActiveSession, song: Song, songKey: SongKey
 
 export interface DownloadOpts {
   includeStems?: boolean;
+  /**
+   * Batch loops (collection sync, repair) probe the gate ONCE via
+   * `probeWifiGate` and skip the per-song NetInfo round-trip - hundreds of
+   * native fetches per pass were part of the 2026-08-14 freeze report. The
+   * transfers themselves still fail safely if WiFi drops mid-loop.
+   */
+  skipWifiGate?: boolean;
 }
+
+/** One enqueue-time gate check for a whole batch (throws WifiRefusedError). */
+export const probeWifiGate = async (): Promise<void> => wifiGate();
 
 /**
  * Enqueues the full bundle for a song. Throws WifiRefusedError on the
@@ -477,24 +487,30 @@ export const downloadSong = async (song: Song, opts?: DownloadOpts): Promise<voi
   const mixedNode = song.compressed_audio_media_id || song.audio_media_id;
   if (!mixedNode) return; // Nothing downloadable.
 
-  await wifiGate();
+  if (!opts?.skipWifiGate) await wifiGate();
   if (session.closed) return;
 
   const songKey = toSongKey(song.id);
 
   // Song JSON first (FR-83): the Downloads screen renders metadata before
-  // any bytes arrive, and repair walks these rows.
+  // any bytes arrive, and repair walks these rows. SKIPPED when the stored
+  // payload is current (same server updated_at): the repair pass and the
+  // keep-synced loops re-call this for every already-done song, and the
+  // unconditional stringify+INSERT was measurable freeze fuel.
   const existing = session.songs.get(songKey) ?? null;
-  repo.upsertSong(session.db, songKey, song);
-  if (existing) session.artworkNodes.remove(songKey, existing.song);
-  session.artworkNodes.add(songKey, song);
-  session.songs.set(songKey, {
-    songKey,
-    song,
-    storedAt: Date.now(),
-    lyricsState: existing?.lyricsState ?? "unfetched",
-    lyrics: existing?.lyrics ?? null,
-  });
+  const unchanged = !!existing && existing.song.updated_at === song.updated_at;
+  if (!unchanged) {
+    repo.upsertSong(session.db, songKey, song);
+    if (existing) session.artworkNodes.remove(songKey, existing.song);
+    session.artworkNodes.add(songKey, song);
+    session.songs.set(songKey, {
+      songKey,
+      song,
+      storedAt: Date.now(),
+      lyricsState: existing?.lyricsState ?? "unfetched",
+      lyrics: existing?.lyrics ?? null,
+    });
+  }
   if (!existing || existing.lyricsState === "unfetched") {
     fetchLyricsIntoRow(session, song, songKey);
   }
@@ -544,15 +560,19 @@ const PLAY_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 export const playCacheUsage = (): { bytes: number; files: number } => {
   const session = active;
   if (!session) return { bytes: 0, files: 0 };
-  let bytes = 0;
-  let files = 0;
-  for (const row of repo.listAllFiles(session.db)) {
-    if (row.status !== "done") continue;
-    if (session.songs.has(row.song_key)) continue;
-    bytes += row.size_bytes ?? 0;
-    files += 1;
-  }
-  return { bytes, files };
+  // One SQL aggregate, not a JS sweep over every row (freeze report).
+  return repo.sumCacheFileBytes(session.db);
+};
+
+/**
+ * Synchronous byte accounting from dl_files.size_bytes - the disk walk
+ * (storageUsage) stats every file natively and belongs nowhere near a
+ * render path; this is the read the overview keys on status transitions.
+ */
+export const storageUsageFast = (): { bytes: number; files: number } => {
+  const session = active;
+  if (!session) return { bytes: 0, files: 0 };
+  return repo.sumDoneFileBytes(session.db);
 };
 
 /**

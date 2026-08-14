@@ -5,6 +5,7 @@
 import { buildApiError } from "./errors";
 import { deepNullToSentinel, encodeQuery } from "./params";
 import { ApiError } from "@/domain/api";
+import { isCookieAuth } from "@/auth/authMode";
 import { getToken } from "@/auth/token";
 import { buildUserAgent } from "@/auth/userAgent";
 
@@ -50,11 +51,18 @@ export async function request<T>(
   opts: RequestOpts = {},
 ): Promise<T> {
   const auth = opts.auth !== false;
+  // Cookie origins (music.omelhorsite.pt, plano F2 / 2.2) authenticate with
+  // the httpOnly same-site session cookie: every request goes out with
+  // credentials "include" and never a Bearer header. Everywhere else the
+  // stored token rides as Bearer, exactly as before.
+  const cookieAuth = isCookieAuth();
   const token = getToken();
 
-  if (auth && !token) {
+  if (auth && !token && !cookieAuth) {
     // Never let a token-less request reach the network: invalid/absent tokens
-    // count against the anonymous 120/min/IP bucket.
+    // count against the anonymous 120/min/IP bucket. On a cookie origin there
+    // is no readable credential to gate on - the cookie is httpOnly - so the
+    // request goes out and a dead session comes back as a plain 401.
     throw new ApiError(0, "Not authenticated");
   }
 
@@ -69,7 +77,10 @@ export async function request<T>(
   const headers: Record<string, string> = {
     "User-Agent": buildUserAgent(),
   };
-  if (auth && token) headers.Authorization = `Bearer ${token}`;
+  // Never send Bearer next to the cookie: the API reads header/param BEFORE
+  // the cookie, so a stale token would shadow a fresh session (the exact
+  // lockout the site's purgeLegacyToken exists to clean up).
+  if (auth && token && !cookieAuth) headers.Authorization = `Bearer ${token}`;
 
   let body: BodyInit | undefined;
   if (opts.formData) {
@@ -94,6 +105,11 @@ export async function request<T>(
       body,
       signal: controller.signal,
       cache: "no-store",
+      // "include" on EVERY call in cookie mode, auth:false ones too: the
+      // Set-Cookie on /sessions and /sessions/adopt is only processed by the
+      // browser when the response is credentialed. Elsewhere undefined keeps
+      // today's behavior untouched.
+      credentials: cookieAuth ? "include" : undefined,
     });
 
     if (response.status === 204) return undefined as T;
@@ -131,12 +147,15 @@ export async function requestBinary(
   path: string,
   opts: RequestOpts = {},
 ): Promise<Blob> {
+  // Same two auth modes as request() above: cookie origins ride the session
+  // cookie (no readable token to gate on), everything else requires Bearer.
+  const cookieAuth = isCookieAuth();
   const token = getToken();
-  if (!token) throw new ApiError(0, "Not authenticated");
+  if (!token && !cookieAuth) throw new ApiError(0, "Not authenticated");
   const headers: Record<string, string> = {
     "User-Agent": buildUserAgent(),
-    Authorization: `Bearer ${token}`,
   };
+  if (token && !cookieAuth) headers.Authorization = `Bearer ${token}`;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), opts.timeoutMs ?? 120_000);
   try {
@@ -145,6 +164,7 @@ export async function requestBinary(
       headers,
       body: opts.formData,
       signal: controller.signal,
+      credentials: cookieAuth ? "include" : undefined,
     });
     if (!response.ok) {
       const text = await response.text();

@@ -3,9 +3,16 @@
  * MiniPlayer pill, the controller strip slot attached above it (WP9), or the
  * JamBar slot replacing the pill entirely while following a jam (WP10).
  * Mounted once in (main)/_layout, as a sibling of the Stack.
+ *
+ * Desktop shell (web >= 900px): the PILL alone disappears - the transport
+ * bar is a grid row of the shell, so a floating duplicate would sit right on
+ * top of it. The offline banner, the controller strip and the JamBar keep
+ * floating (now just above the main pane's bottom edge, metrics.ts gates the
+ * offset), because none of them has a desktop tenant yet.
  */
 import React from "react";
 import { View } from "react-native";
+import { useDesktopShell } from "@/ui/shellLayout";
 import { MiniPlayer } from "./MiniPlayer";
 import { OfflineBanner } from "./OfflineBanner";
 import { useOverlayBottomOffset } from "./metrics";
@@ -23,27 +30,37 @@ const SlotGate = ({ slot }: { slot: OverlaySlot }) => {
   return <Component />;
 };
 
-const PillStack = ({ strip }: { strip: OverlaySlot | null }) => (
+const PillStack = ({ strip, showPill }: { strip: OverlaySlot | null; showPill: boolean }) => (
   <>
     {strip ? <SlotGate slot={strip} /> : null}
-    <MiniPlayer />
+    {showPill ? <MiniPlayer /> : null}
   </>
 );
 
 /** While the jam slot reports active, the JamBar replaces the pill. */
-const JamSwitch = ({ jam, strip }: { jam: OverlaySlot; strip: OverlaySlot | null }) => {
+const JamSwitch = ({
+  jam,
+  strip,
+  showPill,
+}: {
+  jam: OverlaySlot;
+  strip: OverlaySlot | null;
+  showPill: boolean;
+}) => {
   const following = useOverlaySlotActive(jam);
   if (following) {
     const JamBar = jam.Component;
     return <JamBar />;
   }
-  return <PillStack strip={strip} />;
+  return <PillStack strip={strip} showPill={showPill} />;
 };
 
 export const OverlayHost = () => {
   useShellSlotsVersion();
   const bottom = useOverlayBottomOffset();
+  const desktop = useDesktopShell();
   const slots = getShellSlots();
+  const showPill = !desktop;
 
   return (
     <>
@@ -53,9 +70,9 @@ export const OverlayHost = () => {
         style={{ position: "absolute", left: 8, right: 8, bottom }}
       >
         {slots.jamBar ? (
-          <JamSwitch jam={slots.jamBar} strip={slots.controllerStrip} />
+          <JamSwitch jam={slots.jamBar} strip={slots.controllerStrip} showPill={showPill} />
         ) : (
-          <PillStack strip={slots.controllerStrip} />
+          <PillStack strip={slots.controllerStrip} showPill={showPill} />
         )}
       </View>
     </>

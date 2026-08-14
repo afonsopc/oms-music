@@ -138,6 +138,18 @@ export interface AudioAdapter {
   /** Rate with shouldCorrectPitch=false (deliberate pitch shift, FR-64). */
   setRate(rate: number): void;
   onStatus(cb: (s: AudioAdapterStatus) => void): () => void;
+  /**
+   * WEB-ONLY channel (native adapters never implement it): the browser
+   * REJECTED media.play() under its autoplay policy - NotAllowedError, no
+   * user gesture on the origin yet. Deliberately NOT status.error: the
+   * source is fine and nothing is wedged, so this must never enter the
+   * stream-error ladder (it would burn the song's one recovery attempt,
+   * then mark-and-advance - a never-clicked tab would walk the whole queue
+   * in silence). The engine clears its play intent instead (a stale intent
+   * inverts toggle(): the first tap on play would pause), stands the
+   * watchdogs down and raises the store's `autoplayBlocked` affordance.
+   */
+  onAutoplayBlocked?(cb: () => void): () => void;
   setLockScreenActive(active: boolean, metadata?: LockScreenMetadata): void;
   updateLockScreenMetadata(metadata: LockScreenMetadata): void;
   remove(): void;

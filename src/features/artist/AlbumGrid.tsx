@@ -6,13 +6,13 @@
  * still land on the right album page.
  */
 import React from "react";
-import { useWindowDimensions, View } from "react-native";
+import { View } from "react-native";
 import { useRouter } from "expo-router";
 import type { AlbumSummary } from "@/domain/album";
 import { artistDisplayName } from "@/domain/album";
 import { useT } from "@/i18n";
 import { albumRoute } from "@/lib/routes";
-import { Tile } from "@/ui";
+import { collectionGridColumns, Tile, useContainerWidth } from "@/ui";
 
 const GUTTER = 8;
 const HORIZONTAL_PADDING = 40;
@@ -25,9 +25,6 @@ export interface AlbumGridProps {
   showAlbumArtistSubtitle?: boolean;
 }
 
-const columnsForWidth = (width: number): number =>
-  width >= 1024 ? 5 : width >= 768 ? 4 : width >= 520 ? 3 : 2;
-
 export const AlbumGrid = ({
   albums,
   fallbackArtistSegment,
@@ -35,9 +32,11 @@ export const AlbumGrid = ({
 }: AlbumGridProps) => {
   const t = useT();
   const router = useRouter();
-  const { width } = useWindowDimensions();
+  // Container width (breakpoints.ts): the desktop shell's main pane is what
+  // this grid actually fills; on mobile it is the window, as before.
+  const width = useContainerWidth();
 
-  const columns = columnsForWidth(width);
+  const columns = collectionGridColumns(width);
   const tileWidth = Math.floor((width - HORIZONTAL_PADDING - (columns - 1) * GUTTER) / columns);
 
   return (

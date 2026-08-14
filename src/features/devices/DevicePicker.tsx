@@ -107,12 +107,13 @@ const DeviceRow = ({
   );
 };
 
-export interface DevicePickerSheetProps {
-  visible: boolean;
-  onClose: () => void;
-}
-
-export const DevicePickerSheet = ({ visible, onClose }: DevicePickerSheetProps) => {
+/**
+ * The picker's content, host-agnostic: the mobile shell serves it in a
+ * BottomSheet, the desktop right panel renders it as the Devices tenant.
+ * `onTransfer` fires after a transfer is requested - the sheet closes on it,
+ * the panel just stays put.
+ */
+export const DevicePickerBody = ({ onTransfer }: { onTransfer?: () => void }) => {
   const t = useT();
   const { tokens } = useTheme();
   const fallback = useFallbackLabel();
@@ -131,11 +132,11 @@ export const DevicePickerSheet = ({ visible, onClose }: DevicePickerSheetProps) 
 
   const transfer = (deviceId: string): void => {
     remoteTransferTo(deviceId);
-    onClose();
+    onTransfer?.();
   };
 
   return (
-    <BottomSheet visible={visible} onClose={onClose}>
+    <>
       <View style={{ paddingHorizontal: 16, paddingBottom: 8, gap: 4 }}>
         <Text style={{ color: tokens.foreground, fontSize: 18, fontWeight: "800" }}>
           {t("components.music.DevicePicker.devices")}
@@ -200,9 +201,20 @@ export const DevicePickerSheet = ({ visible, onClose }: DevicePickerSheetProps) 
           </View>
         ) : null}
       </View>
-    </BottomSheet>
+    </>
   );
 };
+
+export interface DevicePickerSheetProps {
+  visible: boolean;
+  onClose: () => void;
+}
+
+export const DevicePickerSheet = ({ visible, onClose }: DevicePickerSheetProps) => (
+  <BottomSheet visible={visible} onClose={onClose}>
+    <DevicePickerBody onTransfer={onClose} />
+  </BottomSheet>
+);
 
 // ---------------------------------------------------------------------------
 // Cast button (MiniPlayer pill slot + Now Playing)

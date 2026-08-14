@@ -43,7 +43,11 @@ export type {
  *    (OAUTH_NATIVE_CALLBACK), which closes the system-browser session;
  *  - web: `app_origin=<origin>` makes it answer on `<origin>/oauth/callback`,
  *    the app's own route, where maybeCompleteAuthSession() hands the popup's
- *    URL back to the opener (backend only honours LOOPBACK origins).
+ *    URL back to the opener. The backend only honours loopback origins and
+ *    the exact production origin `https://music.omelhorsite.pt`
+ *    (identities_controller.rb WEB_APP_ORIGINS - the return redirect carries
+ *    a login ticket, so it is an allowlist, never a free param); any other
+ *    origin falls back to the apex site's callback.
  */
 export const buildOAuthUrl = (provider: OAuthProvider, mode: OAuthMode): string => {
   if (Platform.OS === "web") {
@@ -62,6 +66,12 @@ export const oauthReturnUrl = (): string =>
  * a 2 minute ticket instead because a host-only cookie cannot cross to the API
  * host, but a native client already holds the token
  * (`identities_controller.rb:5-14` accepts either).
+ *
+ * KNOWN GAP on cookie origins (music.omelhorsite.pt): getToken() is null
+ * there by design, so this URL carries an empty token and the link flow
+ * fails. The fix is the site's shape - GET /sessions/oauth_ticket (cookie
+ * authed) and pass ?ticket= - but it makes this builder async and touches
+ * both linkSheet forks, so it rides with the F2 linking work, not here.
  */
 export const buildLinkUrl = (provider: OAuthProvider): string => {
   const token = getToken();

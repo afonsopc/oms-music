@@ -49,9 +49,19 @@ export interface PickedFolder {
   files: PickedAudio[];
 }
 
-export const IMAGE_PICKER_AVAILABLE = true as boolean;
-export const AUDIO_PICKER_AVAILABLE = true as boolean;
-export const FOLDER_PICKER_AVAILABLE = true as boolean;
+/**
+ * Real availability, not a hardcoded `true`: these used to be constants and
+ * the buttons behind them were dead on web, where this module's
+ * expo-file-system pickers do not exist (audit gap; plano "uma so app", F1).
+ * Web now resolves pickers.web.ts (an `<input type="file">` fork), so THIS
+ * file only ever runs on native - but the flags still probe the module
+ * instead of asserting, so a platform where the native picker methods are
+ * missing degrades to hidden/disabled buttons instead of a TypeError.
+ */
+export const IMAGE_PICKER_AVAILABLE: boolean = typeof File.pickFileAsync === "function";
+export const AUDIO_PICKER_AVAILABLE: boolean = typeof File.pickFileAsync === "function";
+export const FOLDER_PICKER_AVAILABLE: boolean =
+  typeof Directory.pickDirectoryAsync === "function";
 
 const IMAGE_FALLBACK_TYPE = "image/jpeg";
 const AUDIO_FALLBACK_TYPE = "audio/mpeg";

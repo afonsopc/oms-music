@@ -19,6 +19,9 @@ import { Pressable, Text, View } from "react-native";
 import { ArtworkImage } from "./ArtworkImage";
 import { SongCreditsDialog } from "./dialogs/SongCreditsDialog";
 import { Icon, iconForHint } from "./icons";
+import { Popover } from "./Popover";
+import type { PopoverAnchor } from "./popoverPosition";
+import { useDesktopShell } from "./shellLayout";
 import { BottomSheet } from "./sheets/BottomSheet";
 import {
   getSongMenuSlot,
@@ -37,6 +40,14 @@ export interface SongMenuProps {
   visible: boolean;
   onClose: () => void;
   context: SongMenuContext;
+  /**
+   * Pointer coordinates to anchor a POPOVER at (plano-uma-so-app 4.3,
+   * "Menus" row): at desktop widths a right-click or a hover-revealed `...`
+   * passes them and the menu opens as an anchored card; without an anchor
+   * (or on touch/mobile) the bottom sheet stays. The CONTENT is the same
+   * component tree either way, so the frozen slot order can never fork.
+   */
+  anchor?: PopoverAnchor | null;
 }
 
 const MenuItemRow = ({
@@ -150,8 +161,9 @@ const SlotItems = ({
   return registered;
 };
 
-export const SongMenu = ({ visible, onClose, context }: SongMenuProps) => {
+export const SongMenu = ({ visible, onClose, context, anchor }: SongMenuProps) => {
   const { tokens } = useTheme();
+  const desktopShell = useDesktopShell();
   const [stage, setStage] = useState<"menu" | "credits">("menu");
   const { song } = context;
 
@@ -165,48 +177,63 @@ export const SongMenu = ({ visible, onClose, context }: SongMenuProps) => {
     item.onPress();
   };
 
+  // ONE content tree for both containers - the frozen slot order, the
+  // header, the credits hand-off are byte-identical whether the frame is a
+  // sheet (touch) or an anchored popover (desktop pointer).
+  const content = (
+    <>
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 12,
+          paddingHorizontal: 20,
+          paddingBottom: 10,
+          borderBottomWidth: 1,
+          borderBottomColor: tokens.border,
+          marginBottom: 4,
+        }}
+      >
+        <ArtworkImage
+          source={songArtworkSource(song)}
+          songId={song.id}
+          size={44}
+        />
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text
+            style={{ color: tokens.foreground, fontSize: 15, fontWeight: "600" }}
+            numberOfLines={1}
+          >
+            {song.title}
+          </Text>
+          <Text style={{ color: tokens.mutedForeground, fontSize: 12 }} numberOfLines={1}>
+            {formatArtists(song)}
+          </Text>
+        </View>
+      </View>
+      {SONG_MENU_SLOT_ORDER.map((id) => (
+        <SlotItems
+          key={id}
+          id={id}
+          ctx={context}
+          onSelect={handleSelect}
+          onOpenCredits={() => setStage("credits")}
+        />
+      ))}
+    </>
+  );
+
   return (
     <>
-      <BottomSheet visible={visible && stage === "menu"} onClose={closeAll}>
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 12,
-            paddingHorizontal: 20,
-            paddingBottom: 10,
-            borderBottomWidth: 1,
-            borderBottomColor: tokens.border,
-            marginBottom: 4,
-          }}
-        >
-          <ArtworkImage
-            source={songArtworkSource(song)}
-            songId={song.id}
-            size={44}
-          />
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <Text
-              style={{ color: tokens.foreground, fontSize: 15, fontWeight: "600" }}
-              numberOfLines={1}
-            >
-              {song.title}
-            </Text>
-            <Text style={{ color: tokens.mutedForeground, fontSize: 12 }} numberOfLines={1}>
-              {formatArtists(song)}
-            </Text>
-          </View>
-        </View>
-        {SONG_MENU_SLOT_ORDER.map((id) => (
-          <SlotItems
-            key={id}
-            id={id}
-            ctx={context}
-            onSelect={handleSelect}
-            onOpenCredits={() => setStage("credits")}
-          />
-        ))}
-      </BottomSheet>
+      {desktopShell && anchor ? (
+        <Popover visible={visible && stage === "menu"} anchor={anchor} onClose={closeAll}>
+          {content}
+        </Popover>
+      ) : (
+        <BottomSheet visible={visible && stage === "menu"} onClose={closeAll}>
+          {content}
+        </BottomSheet>
+      )}
       <SongCreditsDialog
         visible={visible && stage === "credits"}
         song={song}

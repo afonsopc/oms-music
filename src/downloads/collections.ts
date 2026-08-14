@@ -24,6 +24,7 @@ import {
   isStarted,
   isWifiRefusedError,
   normalizeSongKey,
+  probeWifiGate,
   rememberCollectionMembership,
   removeDownload,
   removeOfflineCollection,
@@ -53,13 +54,25 @@ export const subscribeCollections = (cb: () => void): (() => void) => {
 
 export const isOfflineCollection = (key: string): boolean => isOfflineCollectionKey(key);
 
+/** Last-persisted membership signature per key: the query-settle watcher
+ *  re-reports identical lists on every refetch, and re-writing N rows for
+ *  an unchanged playlist was freeze fuel (2026-08-14 report). */
+const persistedSignatures = new Map<string, string>();
+
+const persistMembership = (key: string, songKeys: readonly SongKey[]): void => {
+  const signature = songKeys.join(",");
+  if (persistedSignatures.get(key) === signature) return;
+  persistedSignatures.set(key, signature);
+  rememberCollectionMembership(key, songKeys);
+};
+
 /** Records the songs a collection currently holds (removal safety net).
  *  Offline collections ALSO persist the membership (schema v4) so a cold
  *  offline boot can rebuild the playlist screen from disk. */
 export const rememberCollectionSongs = (key: string, songs: readonly Song[]): void => {
   const songKeys = songs.map((s) => normalizeSongKey(s.id));
   membership.set(key, new Set(songKeys));
-  if (isOfflineCollectionKey(key)) rememberCollectionMembership(key, songKeys);
+  if (isOfflineCollectionKey(key)) persistMembership(key, songKeys);
 };
 
 /** True when some OTHER offline collection still needs this song. */
@@ -77,16 +90,22 @@ const neededElsewhere = (key: string, songKey: SongKey): boolean => {
  * next song would refuse too) and reports it once through the notice channel.
  */
 export const downloadSongsSequentially = async (songs: readonly Song[]): Promise<void> => {
+  // ONE gate probe for the whole batch: per-song NetInfo round-trips were
+  // hundreds of native calls per pass (freeze report 2026-08-14).
+  try {
+    await probeWifiGate();
+  } catch (error) {
+    if (isWifiRefusedError(error)) {
+      notifyDownloadNotice(NOTICE_KEYS.wifiRefused);
+      return;
+    }
+  }
   for (const song of songs) {
     if (song.jam_song) continue;
     if (getMixedStatus(normalizeSongKey(song.id)) === "done") continue;
     try {
-      await downloadSong(song);
-    } catch (error) {
-      if (isWifiRefusedError(error)) {
-        notifyDownloadNotice(NOTICE_KEYS.wifiRefused);
-        return;
-      }
+      await downloadSong(song, { skipWifiGate: true });
+    } catch {
       notifyDownloadNotice(NOTICE_KEYS.enqueueFailed);
     }
   }
@@ -99,19 +118,23 @@ export const toggleOfflineCollection = async (
 ): Promise<void> => {
   if (!isStarted()) return;
   const turningOn = !isOfflineCollectionKey(key);
-  rememberCollectionSongs(key, songs);
+  const songKeys = songs.map((s) => normalizeSongKey(s.id));
+  membership.set(key, new Set(songKeys));
 
   if (turningOn) {
     addOfflineCollection(key);
-    rememberCollectionMembership(key, songs.map((s) => normalizeSongKey(s.id)));
+    persistMembership(key, songKeys);
     notify();
     await downloadSongsSequentially(songs);
     notify();
     return;
   }
 
+  // Turning OFF never persists first: writing N rows just to delete them in
+  // the next statement was the double-write the freeze audit flagged.
   removeOfflineCollection(key);
   forgetCollectionMembership(key);
+  persistedSignatures.delete(key);
   notify();
   for (const song of songs) {
     const songKey = normalizeSongKey(song.id);
@@ -141,13 +164,18 @@ export const syncOfflineCollection = async (
   if (isOffline()) return;
   syncing.add(key);
   try {
+    try {
+      await probeWifiGate(); // one probe per pass, not one per song
+    } catch (error) {
+      if (isWifiRefusedError(error)) return; // Gate closed: try again later.
+    }
     for (const song of songs) {
       if (song.jam_song) continue;
       if (getMixedStatus(normalizeSongKey(song.id)) === "done") continue;
       try {
-        await downloadSong(song);
-      } catch (error) {
-        if (isWifiRefusedError(error)) return; // Gate closed: try again later.
+        await downloadSong(song, { skipWifiGate: true });
+      } catch {
+        // Per-song enqueue failures stay silent here by design.
       }
     }
   } finally {

@@ -29,7 +29,7 @@ import { queryClient } from "@/api/queryClient";
 import { keys } from "@/api/queryKeys";
 import { isAuthReady, subscribeAuthReady } from "@/auth/guard";
 import { registerLogoutTask, useSessionStore } from "@/auth/session";
-import { getToken } from "@/auth/token";
+import { cableCredential } from "@/auth/token";
 import { getCableClient } from "@/cable/client";
 import { getTransport } from "@/contracts/transport";
 import { getPlayerEngine } from "@/player/register";
@@ -48,18 +48,19 @@ let teardownInterceptor: (() => void) | null = null;
 
 const shouldRun = (): boolean => {
   const session = useSessionStore.getState();
-  return session.status === "authed" && isAuthReady() && !!getToken();
+  // null = no credential; "" = cookie auth (still a live credential).
+  return session.status === "authed" && isAuthReady() && cableCredential() !== null;
 };
 
 const syncSubscription = (): void => {
   const manager = getJamManager();
   if (!manager) return;
   const session = useSessionStore.getState();
-  const token = getToken();
+  const credential = cableCredential();
   const userId = session.user?.id ?? null;
-  if (shouldRun() && token && userId) {
-    // Idempotent: the cable ignores a connect with the same live token.
-    getCableClient().connect(token);
+  if (shouldRun() && credential !== null && userId) {
+    // Idempotent: the cable ignores a connect with the same live credential.
+    getCableClient().connect(credential);
     if (!manager.isStarted()) manager.start(userId);
     else applyJam({ myUserId: userId });
     return;

@@ -1,0 +1,11 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "main",
+  "description": "Superficie minima (plano F5): eventos + comandos proprios do shell, estado de janela e updater. Sem plugin fs de todo - o audio fica no webview e os bytes vem da rede, portanto o scope de ficheiros mais pequeno possivel e nenhum. Downloads offline (F6) reabrem esta discussao com um glob restrito a $APPDATA/downloads. O miniplayer vive numa capability propria sem updater: uma injeccao nesse contexto nao deve conseguir sequer accionar o download de updates.",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "window-state:default",
+    "updater:default"
+  ]
+}

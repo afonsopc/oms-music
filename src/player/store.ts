@@ -33,6 +33,13 @@ export interface PlayerStoreState {
   duration: number;
   playing: boolean;
   buffering: boolean;
+  /**
+   * WEB ONLY affordance: the browser's autoplay policy rejected play()
+   * before any user gesture reached this origin (typically a remote play
+   * adopted by a tab nobody ever touched). The UI shows "toca para ouvir";
+   * any engine play intent clears it. Always false on native.
+   */
+  autoplayBlocked: boolean;
   loopMode: LoopMode; // default "all"
   volume: number;
   rate: number; // 0.5..1.5 in the UI
@@ -70,6 +77,7 @@ export const initialPlayerState: PlayerStoreState = {
   duration: 0,
   playing: false,
   buffering: false,
+  autoplayBlocked: false,
   loopMode: "all",
   volume: 1,
   rate: 1,

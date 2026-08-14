@@ -13,7 +13,7 @@
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, FlatList, useWindowDimensions, View } from "react-native";
-import { useLikedIds } from "@/api/queries/likedSongs";
+import { useLikedIds, useToggleLike } from "@/api/queries/likedSongs";
 import { getTransport } from "@/contracts/transport";
 import { recordRecentCollection, type RecentCollection } from "@/lib/recentCollections";
 import type { SongMenuItem } from "@/contracts/songMenu";
@@ -21,29 +21,47 @@ import type { ArtworkSource } from "@/domain/artwork";
 import type { Song } from "@/domain/song";
 import { useT } from "@/i18n";
 import { usePlaybackView } from "@/remote/mirror";
+import { useTheme } from "@/theme/provider";
 import {
   ActionBar,
   EmptyState,
   ErrorState,
   getDownloadStatusReader,
+  GhostIconButton,
   Hero,
+  heroMinHeight,
   HeroSkeleton,
+  songRowHeight,
   SongTable,
+  SongTableHeader,
   SongTableSkeleton,
   StickyTitle,
   PlayFab,
+  useContainerWidth,
+  useDesktopShell,
   useDownloadStatusVersion,
   type ActionBarMenuItem,
+  type CollectionViewMode,
   type HeroKind,
   type SongRowColumn,
 } from "@/ui";
 import { useContentBottomPadding } from "@/features/shell/metrics";
+import {
+  readCollectionViewMode,
+  writeCollectionViewMode,
+} from "@/features/shell/desktop/layoutPrefs";
 import {
   getOfflineCollectionsApi,
   useOfflineCollectionsVersion,
 } from "./offlineCollections";
 
 const ACTION_BAR_APPROX_HEIGHT = 92;
+/**
+ * Desktop sticky geometry (plan 4.3, collection row): the title bar is a
+ * fixed 64px so the opaque column header can pin EXACTLY under it - the
+ * mobile shell keeps its padding-derived bar and no pinned header.
+ */
+const DESKTOP_STICKY_BAR_HEIGHT = 64;
 
 export interface CollectionScreenProps {
   kind: HeroKind;
@@ -125,10 +143,48 @@ export const CollectionScreen = ({
   recentEntry,
 }: CollectionScreenProps) => {
   const t = useT();
+  const { tokens } = useTheme();
   const { height } = useWindowDimensions();
   const bottomPadding = useContentBottomPadding();
   const listRef = useRef<FlatList<Song>>(null);
   const [stickyVisible, setStickyVisible] = useState(false);
+  const desktopShell = useDesktopShell();
+  const containerWidth = useContainerWidth();
+
+  /**
+   * Measured height of Hero + ActionBar (the list header block). On desktop
+   * the hero is width-capped, not a window fraction, so the sticky
+   * thresholds must come from what actually rendered - the mobile shell
+   * keeps its original fraction math untouched below.
+   */
+  const [headerHeight, setHeaderHeight] = useState(0);
+
+  /**
+   * View mode, persisted PER COLLECTION (plan 4.5). The offline key is the
+   * most stable identity; accentKey covers albums/mixes/radios; the
+   * kind+title pair is the fallback for surfaces with neither. Desktop
+   * only - the mobile shell always renders the full list rows.
+   */
+  const viewKey = collectionKey ?? accentKey ?? `${kind}:${title}`;
+  const [viewMode, setViewMode] = useState<CollectionViewMode>(() =>
+    readCollectionViewMode(viewKey),
+  );
+  // The key can settle after mount (title arrives with the query): re-read
+  // the stored mode for the new identity DURING render, the documented
+  // adjust-state-on-prop-change pattern - no effect, no cascading render.
+  const [hydratedViewKey, setHydratedViewKey] = useState(viewKey);
+  if (hydratedViewKey !== viewKey) {
+    setHydratedViewKey(viewKey);
+    setViewMode(readCollectionViewMode(viewKey));
+  }
+  const selectViewMode = useCallback(
+    (mode: CollectionViewMode) => {
+      setViewMode(mode);
+      writeCollectionViewMode(viewKey, mode);
+    },
+    [viewKey],
+  );
+  const compact = desktopShell && viewMode === "compact";
 
   const currentSongId = usePlaybackView((v) => v.song?.id ?? null);
   const playing = usePlaybackView((v) => v.playing);
@@ -136,6 +192,13 @@ export const CollectionScreen = ({
   const likedIds = useMemo(
     () => new Set<number>(likedIdsQuery.data ?? []),
     [likedIdsQuery.data],
+  );
+  // Hover heart (plan 4.3, desktop shell): the optimistic toggle every
+  // other heart already uses. SongTable only grows the button >= 900px.
+  const toggleLike = useToggleLike();
+  const handleToggleLike = useCallback(
+    (song: Song, liked: boolean) => toggleLike.mutate({ songId: song.id, liked }),
+    [toggleLike],
   );
 
   // Offline bridge: toggle + show-only-downloaded filter.
@@ -191,7 +254,20 @@ export const CollectionScreen = ({
     void offlineApi.toggleOfflineCollection(collectionKey, songs);
   }, [offlineApi, collectionKey, songs]);
 
-  const heroThreshold = Math.round(height * (kind === "artist" ? 0.42 : 0.36)) - 60;
+  /**
+   * Fallback header estimate until onLayout reports: desktop derives it
+   * from the width-capped hero (breakpoints.heroMinHeight), mobile from the
+   * shipped window fraction. Real measurements replace both.
+   */
+  const estimatedHeaderHeight =
+    (desktopShell
+      ? heroMinHeight(containerWidth, kind === "artist")
+      : Math.round(height * (kind === "artist" ? 0.42 : 0.36))) + ACTION_BAR_APPROX_HEIGHT;
+  const measuredHeaderHeight = headerHeight > 0 ? headerHeight : estimatedHeaderHeight;
+
+  const heroThreshold = desktopShell
+    ? Math.max(0, measuredHeaderHeight - DESKTOP_STICKY_BAR_HEIGHT)
+    : Math.round(height * (kind === "artist" ? 0.42 : 0.36)) - 60;
   const handleScrollOffset = useCallback(
     (offsetY: number) => {
       setStickyVisible(offsetY > heroThreshold);
@@ -207,16 +283,41 @@ export const CollectionScreen = ({
     const index = visibleSongs.findIndex((s) => s.title === highlightTitle);
     if (index < 0) return;
     highlightedOnce.current = true;
-    const heroHeight = Math.round(height * (kind === "artist" ? 0.42 : 0.36));
-    const offset = Math.max(0, heroHeight + ACTION_BAR_APPROX_HEIGHT + index * 56 - height / 3);
+    const offset = Math.max(
+      0,
+      measuredHeaderHeight + index * songRowHeight(compact) - height / 3,
+    );
     const timer = setTimeout(() => {
       listRef.current?.scrollToOffset({ offset, animated: true });
     }, 350);
     return () => clearTimeout(timer);
-  }, [highlightTitle, visibleSongs, height, kind]);
+  }, [highlightTitle, visibleSongs, height, measuredHeaderHeight, compact]);
+
+  /**
+   * View-mode control (plan 4.3: list / compact in the action bar, between
+   * hero and list). Desktop shell only; the mobile action bar is frozen.
+   */
+  const viewModeSlot = desktopShell ? (
+    <>
+      <GhostIconButton
+        icon="list"
+        onPress={() => selectViewMode("list")}
+        active={viewMode === "list"}
+        accessibilityLabel={t("native.desktop.viewList")}
+      />
+      <GhostIconButton
+        icon="rows-3"
+        onPress={() => selectViewMode("compact")}
+        active={viewMode === "compact"}
+        accessibilityLabel={t("native.desktop.viewCompact")}
+      />
+    </>
+  ) : undefined;
 
   const header = (
-    <>
+    // The wrapper measures Hero + ActionBar as one block: on desktop the
+    // sticky thresholds derive from this measurement, not from the window.
+    <View onLayout={(event) => setHeaderHeight(Math.round(event.nativeEvent.layout.height))}>
       <Hero
         kind={kind}
         title={title}
@@ -239,8 +340,9 @@ export const CollectionScreen = ({
         isPlayingThisCollection={isPlayingThisCollection}
         playLoading={playLoading}
         menuItems={menuItems}
+        rightSlot={viewModeSlot}
       />
-    </>
+    </View>
   );
 
   const emptyComponent = isLoading ? (
@@ -278,8 +380,10 @@ export const CollectionScreen = ({
         showHeader={showTableHeader && visibleSongs.length > 0}
         surface={surface}
         onPlay={handleRowPlay}
+        onToggleLike={handleToggleLike}
         extraActionsFor={extraActionsFor}
         onReorder={showOnlyDownloaded ? undefined : onReorder}
+        compact={compact}
         header={header}
         footer={
           isLoadingMore ? (
@@ -296,6 +400,7 @@ export const CollectionScreen = ({
       <StickyTitle
         visible={stickyVisible}
         title={title}
+        barHeight={desktopShell ? DESKTOP_STICKY_BAR_HEIGHT : undefined}
         leading={
           visibleSongs.length > 0 ? (
             <PlayFab
@@ -311,6 +416,33 @@ export const CollectionScreen = ({
           ) : undefined
         }
       />
+      {/*
+        Desktop sticky column header (plan 4.3): once the in-flow header
+        scrolls under the title bar, an OPAQUE copy pins at top: 64 - the
+        same component as the in-flow header, so the columns can never
+        drift. Mobile keeps scroll-away headers; nothing renders here.
+      */}
+      {desktopShell && stickyVisible && showTableHeader && visibleSongs.length > 0 ? (
+        <View
+          pointerEvents="none"
+          style={{
+            position: "absolute",
+            top: DESKTOP_STICKY_BAR_HEIGHT,
+            left: 0,
+            right: 0,
+            zIndex: 29,
+          }}
+        >
+          <SongTableHeader
+            columns={columns}
+            hasPlays={!!playCounts && Object.keys(playCounts).length > 0}
+            reorder={!showOnlyDownloaded && !!onReorder}
+            // This copy only exists on desktop, where the like column is on.
+            hasLike
+            backgroundColor={tokens.background}
+          />
+        </View>
+      ) : null}
     </View>
   );
 };

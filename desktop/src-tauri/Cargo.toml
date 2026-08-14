@@ -1,0 +1,61 @@
+# Shell desktop de oms-music (plano "uma so app", F5). Este Cargo.toml e, a
+# par do package.json de desktop/, o UNICO sitio onde o desktop pode declarar
+# dependencias novas. O audio fica no webview nesta fase (spike 4 validou que
+# um <audio> activo impede a suspensao do WKWebView e o App Nap); o motor
+# Rust (symphonia/rubato/cpal) so entra em F6, como terceiro adaptador atras
+# da costura src/player/expoAudioAdapter.
+[package]
+name = "oms-music-desktop"
+version = "0.1.0"
+description = "Shell Tauri da app de musica de omelhorsite.pt"
+edition = "2021"
+
+# lib + main e o layout canonico do Tauri v2: o main.rs fino chama
+# oms_music_desktop_lib::run(), e a lib expoe o builder do tauri-specta ao
+# teste export_bindings (scripts/export-bindings.sh), que regenera o
+# bindings.ts sem precisar de abrir uma janela.
+[lib]
+name = "oms_music_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+# tray-icon: o tray nativo do core (plano 3.5); image-png para carregar o
+# icone do tray a partir dos bytes gerados por `tauri icon`.
+tauri = { version = "2", features = ["tray-icon", "image-png"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# Obrigatorio (plano 3.5): dois lancamentos disputariam o dispositivo de audio.
+tauri-plugin-single-instance = "2"
+# Posicao/tamanho da janela principal entre sessoes (4.5 do plano). O
+# mini-player NAO fica a cargo deste plugin: os tres tamanhos sao presets
+# nossos, persistidos em miniplayer.rs, por isso o plugin ignora essa janela.
+tauri-plugin-window-state = "2"
+# Assinatura de updates OBRIGATORIA e nao desactivavel (plano 3.6): a pubkey
+# vive em tauri.conf.json, a chave privada em desktop/keys/ (gitignored via
+# *.key). Ver scripts/generate-updater-keys.sh.
+tauri-plugin-updater = "2"
+# Teclas de media + Now Playing (macOS) + MPRIS (Linux) + SMTC (Windows) numa
+# so abstraccao (plano 3.4). NUNCA tauri-plugin-global-shortcut para teclas de
+# media: RegisterEventHotKey perde para os atalhos de sistema e chega a dar
+# webview branco.
+souvlaki = "0.8"
+# Ponte tipada Rust <-> JS (plano 3.6): sem o bindings.ts gerado, renomear um
+# enum em Rust partia um switch em React em silencio.
+specta = "=2.0.0-rc.22"
+specta-typescript = "0.0.9"
+tauri-specta = { version = "=2.0.0-rc.21", features = ["derive", "typescript"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+# NSPanel a serio para o mini-player (plano 3.5): flutuante, nao rouba foco,
+# visivel em todos os Spaces. Git porque o crate nao publica no crates.io;
+# rev PINADA porque o branch v2 ja partiu API duas vezes (cocoa -> objc2).
+# Noutras plataformas cai numa janela normal always-on-top.
+tauri-nspanel = { git = "https://github.com/ahkohd/tauri-nspanel", rev = "18ffb9a201fbf6fedfaa382fd4b92315ea30ab1a" }
+
+[profile.dev]
+# Mesma razao do spike 4: um debug puro contamina medicoes de CPU/RSS sem
+# beneficio; opt-level 1 e o meio-termo barato.
+opt-level = 1

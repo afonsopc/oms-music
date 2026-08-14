@@ -8,6 +8,7 @@
 import { useSyncExternalStore } from "react";
 import { useSegments } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useDesktopShell } from "@/ui/shellLayout";
 
 /** Pill height (web mobile mini player: 64px, rounded-xl). */
 export const OVERLAY_PILL_HEIGHT = 64;
@@ -38,11 +39,24 @@ const getHeight = (): number => measuredTabBarHeight;
 export const useMeasuredTabBarHeight = (): number =>
   useSyncExternalStore(subscribe, getHeight, getHeight);
 
+/**
+ * Bottom padding of the main pane's scrollables inside the DESKTOP shell:
+ * the transport bar is a grid ROW below the pane, not an overlay, so there
+ * is no pill to clear - just breathing room for the last list item.
+ */
+const DESKTOP_CONTENT_BOTTOM = 24;
+
 /** Distance from the screen bottom to the overlay's bottom edge. */
 export const useOverlayBottomOffset = (): number => {
   const segments = useSegments();
   const insets = useSafeAreaInsets();
   const measured = useMeasuredTabBarHeight();
+  const desktop = useDesktopShell();
+  // Desktop shell: the tab bar does not render, so its measured height (or
+  // the phone fallback) must not push the remaining overlays (offline
+  // banner, jam bar) anywhere - they float just above the pane's bottom
+  // edge. Without this gate the last MOBILE measurement leaks into desktop.
+  if (desktop) return OVERLAY_MARGIN;
   const tabsFocused = (segments as string[]).includes("(tabs)");
   if (tabsFocused) {
     return (measured > 0 ? measured : TAB_BAR_FALLBACK + insets.bottom) + OVERLAY_MARGIN;
@@ -53,10 +67,14 @@ export const useOverlayBottomOffset = (): number => {
 /**
  * Bottom padding every scrollable screen applies (FR-16 AC: the pill never
  * covers list tails). Constant whether or not a song is loaded, so lists do
- * not jump when playback starts.
+ * not jump when playback starts. In the desktop shell there is no floating
+ * pill (the transport bar is a grid row), so no tab-bar-height math applies.
  */
-export const useContentBottomPadding = (): number =>
-  useOverlayBottomOffset() + OVERLAY_PILL_HEIGHT + OVERLAY_MARGIN;
+export const useContentBottomPadding = (): number => {
+  const offset = useOverlayBottomOffset();
+  const desktop = useDesktopShell();
+  return desktop ? DESKTOP_CONTENT_BOTTOM : offset + OVERLAY_PILL_HEIGHT + OVERLAY_MARGIN;
+};
 
 /**
  * Top padding for a scrollable screen that draws its OWN heading rather than

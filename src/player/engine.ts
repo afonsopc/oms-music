@@ -151,6 +151,8 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
   private stuckSince: number | null = null;
   private readonly stuckTimer: ReturnType<typeof setInterval> | null = null;
   private readonly statusUnsub: () => void;
+  /** Web adapter's autoplay-policy channel; null on native (no such member). */
+  private readonly autoplayBlockedUnsub: (() => void) | null;
   /** The mixer's failure channel; inert (a no-op) without a native mixer. */
   private readonly stemStatusUnsub: () => void;
   private disposed = false;
@@ -172,6 +174,14 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
     this.player = deps.createPlayer();
     this.applyPersistedSettings();
     this.statusUnsub = this.player.onStatus((s) => this.onStatus(s));
+    // The web adapter's autoplay-policy channel (types.ts onAutoplayBlocked).
+    // A NotAllowedError is NOT a stream error: routed into handlePlayerError
+    // it would burn the song's single recovery attempt and then
+    // mark-and-advance - a never-clicked tab would walk the whole queue in
+    // silence. Native adapters have no such member, so this wire is inert
+    // there by construction.
+    this.autoplayBlockedUnsub =
+      this.player.onAutoplayBlocked?.(() => this.handleAutoplayBlocked()) ?? null;
     // The mixer's own failure channel. While the blend is live the main
     // player is MUTED by the gain law, so a mixer that gives up mid-track
     // would leave NOTHING audible - the one outcome worse than losing the
@@ -393,6 +403,13 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
 
   play(): void {
     this.intendedPlay = true;
+    // Pressing play IS the user gesture the autoplay affordance asked for;
+    // if the policy still refuses, the adapter's channel raises it again.
+    // Guarded read: on native the flag is false forever and this never
+    // writes, so the store traffic there is byte-identical to before.
+    if (playerStore.getState().autoplayBlocked) {
+      playerStore.setState({ autoplayBlocked: false });
+    }
     this.player.play();
   }
 
@@ -520,7 +537,9 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
     this.player.pause();
     this.player.replace(null);
     this.loadedMain = null;
-    playerStore.setState({ playing: false, buffering: false });
+    // autoplayBlocked drops too: becoming a controller means audio plays
+    // ELSEWHERE, so a leftover "toca para ouvir" affordance would lie.
+    playerStore.setState({ playing: false, buffering: false, autoplayBlocked: false });
   }
 
   // ----- extras (additive; used by WP7/WP9/WP11) ---------------------------
@@ -853,6 +872,7 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
     this.stemGen++;
     this.releaseStemBlend("off");
     this.statusUnsub();
+    this.autoplayBlockedUnsub?.();
     this.stemStatusUnsub();
     this.sleepTimer.dispose();
     this.player.remove();
@@ -934,6 +954,13 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
   private beginLoad(song: Song, opts: { autoplay: boolean; fresh: boolean }): void {
     const gen = ++this.transitionGen;
     const key = toSongKey(song.id);
+    // A transition that intends audio doubles as the gesture the autoplay
+    // affordance was waiting for (user tapped a song); if the policy still
+    // refuses, the adapter's channel raises it again. Guarded read: inert
+    // on native, where the flag is false forever.
+    if (opts.autoplay && playerStore.getState().autoplayBlocked) {
+      playerStore.setState({ autoplayBlocked: false });
+    }
     // A new MAIN source invalidates the blend: stems belong to one song and
     // one file. loadCandidate re-syncs once the new source is in place.
     this.stemGen++;
@@ -1140,6 +1167,27 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
   }
 
   // ----- failure recovery (FR-61) ------------------------------------------
+
+  /**
+   * Autoplay blocked (web only; see types.ts onAutoplayBlocked): the browser
+   * wants a user gesture before audio. Clearing the intent is load-bearing
+   * twice over. toggle() runs on intent, so a stale intendedPlay=true
+   * INVERTS it - the user's first tap on play would pause (an audible
+   * no-op) and only the second would play; the same trap catches a remote
+   * play adopted by a tab nobody ever clicked. And both watchdogs key on
+   * intendedPlay: left set, the stall nudge and the wall-clock checker
+   * would keep fighting a player that is not stuck, eventually escalating
+   * a policy refusal into the recovery ladder. Nothing failed here: the
+   * queue stays put, the song stays current, and the store's
+   * `autoplayBlocked` tells the UI to ask for the gesture.
+   */
+  private handleAutoplayBlocked(): void {
+    if (this.disposed) return;
+    this.intendedPlay = false;
+    this.stallTicks = 0;
+    this.stuckSince = null;
+    playerStore.setState({ playing: false, buffering: false, autoplayBlocked: true });
+  }
 
   private handlePlayerError(): void {
     const load = this.currentLoad;
