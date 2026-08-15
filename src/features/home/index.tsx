@@ -46,6 +46,7 @@ import {
   type TopTileItem,
 } from "@/ui";
  import { getRecentCollections, subscribeRecentCollections } from "@/lib/recentCollections";
+import { HeaderAvatar } from "@/features/shell/HeaderAvatar";
 import { useFriendsStripActive, useFriendsStripSlot } from "./friendsSlot";
 
 type HomeFilter = "all" | "playlists" | "albums" | "artists";
@@ -208,14 +209,22 @@ export default function HomeScreen() {
         gap: 28,
       }}
     >
-      {/* Spotify's top-of-home: the pills ARE the header. The avatar left
-          for good (2026-08-14): mobile carries it in the tab bar, desktop in
-          the topbar corner, so the Home never needs to double it. */}
-      <FilterPills
-        pills={pills}
-        activeKey={filter}
-        onChange={(key) => setFilter(key as HomeFilter)}
-      />
+      {/* O topo da Home a Spotify: as pills SAO o cabecalho, com o avatar no
+          canto. Ele saiu daqui a 2026-08-14 para a barra de tabs e voltou a
+          2026-08-16, quando a barra passou a ser a do sistema e deixou de
+          poder carregar uma fotografia redonda. */}
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <FilterPills
+            pills={pills}
+            activeKey={filter}
+            onChange={(key) => setFilter(key as HomeFilter)}
+          />
+        </View>
+        <View style={{ paddingRight: 24 }}>
+          <HeaderAvatar />
+        </View>
+      </View>
 
       {filter === "all" ? (
         recentAlbumsQuery.isLoading && playlistsQuery.isLoading ? (

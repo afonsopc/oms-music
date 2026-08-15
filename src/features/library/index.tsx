@@ -13,6 +13,7 @@ import {
   readLibraryViewMode,
   writeLibraryViewMode,
 } from "@/features/shell/desktop/layoutPrefs";
+import { HeaderAvatar } from "@/features/shell/HeaderAvatar";
 import { useContentBottomPadding, useContentTopPadding } from "@/features/shell/metrics";
 import { useT } from "@/i18n";
 import { useTheme } from "@/theme/provider";
@@ -295,6 +296,10 @@ export default function LibraryScreen() {
         <Text style={[typeScale.sectionHeader, { color: tokens.foreground, flex: 1 }]}>
           {t("components.music.Sidebar.libraryTitle")}
         </Text>
+        {/* O avatar a direita do titulo, onde o Spotify o tem. E a porta
+            para /account desde que a barra de tabs passou a ser a do sistema
+            e deixou de poder carrega-lo (2026-08-16). */}
+        <HeaderAvatar />
       </View>
 
       {/* Desktop pairs the view-mode cluster WITH the pills - the controls

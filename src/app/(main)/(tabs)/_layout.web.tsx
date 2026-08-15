@@ -13,20 +13,16 @@
  */
 import React from "react";
 import { Tabs } from "expo-router/js-tabs";
-import { avatarUrl } from "@/api/mediaUrl";
-import { useSessionStore } from "@/auth/session";
 import { ShellTabBar } from "@/features/shell/ShellTabBar";
 import { TabIcon } from "@/features/shell/TabIcon";
 import { useT } from "@/i18n";
 import { useTheme } from "@/theme/provider";
-import { ArtworkImage, Icon } from "@/ui";
 
 export const unstable_settings = { anchor: "(home)" };
 
 export default function TabsLayoutWeb() {
   const t = useT();
   const { tokens } = useTheme();
-  const userId = useSessionStore((s) => s.user?.id ?? s.session?.user_id ?? null);
   return (
     <Tabs
       tabBar={(props) => <ShellTabBar {...props} />}
@@ -60,22 +56,6 @@ export default function TabsLayoutWeb() {
         options={{
           title: t("native.shell.tabLibrary"),
           tabBarIcon: ({ color }) => <TabIcon name="library" color={color} />,
-        }}
-      />
-      {/* O Perfil e uma tab como as outras desde que virou pagina
-          (2026-08-15). A barra da web mostrava tres itens porque este nao
-          tinha rota; agora tem. O icone e a foto, redonda - aqui e uma View
-          normal e a mascara funciona (na barra NATIVA nao ha mascara). */}
-      <Tabs.Screen
-        name="(account)"
-        options={{
-          title: t("native.shell.tabProfile"),
-          tabBarIcon: ({ color }) =>
-            userId ? (
-              <ArtworkImage uri={avatarUrl(userId)} size={24} shape="circle" />
-            ) : (
-              <Icon name="user" size={22} color={String(color)} />
-            ),
         }}
       />
     </Tabs>

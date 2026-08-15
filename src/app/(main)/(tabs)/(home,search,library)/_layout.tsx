@@ -20,6 +20,22 @@ import { Stack } from "expo-router";
 import { OverlayHost } from "@/features/shell/OverlayHost";
 import { useTheme } from "@/theme/provider";
 
+/**
+ * A raiz de CADA copia deste layout, dita explicitamente.
+ *
+ * Sem isto, so a (home) abria no sitio certo e as outras duas tabs abriam
+ * numa rota qualquer da stack - o dono viu as Gostadas na Pesquisa e na
+ * Biblioteca (2026-08-16). A leitura ingenua e que o router adivinha a raiz
+ * pelo nome do grupo; nao adivinha - o getRoutesCore so aceita a raiz de um
+ * grupo partilhado por `unstable_settings[<grupo>].anchor`, e sem ela fica a
+ * primeira rota da arvore, que aqui calha ser uma das paginas empurradas.
+ */
+export const unstable_settings = {
+  "(home)": { anchor: "home" },
+  "(search)": { anchor: "search" },
+  "(library)": { anchor: "library" },
+};
+
 export default function TabStackLayout() {
   const { tokens } = useTheme();
   return (
