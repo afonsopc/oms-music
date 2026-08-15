@@ -15,13 +15,15 @@
  * painel direito do desktop.
  */
 import React from "react";
-import { Platform, Pressable, View } from "react-native";
+import { Platform, Pressable, ScrollView, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import NowPlayingBody, { PlayerChrome } from "@/features/player";
 import { ImmersiveBackdrop } from "@/features/player/immersive";
 import { usePlayerModeStore } from "@/features/player/mode";
 import QueueBody from "@/features/player/queue";
+import { PlayerSettingsBody } from "@/features/player/settingsSheet";
+import JamScreen from "@/features/jam";
 import LyricsBody from "@/features/lyrics";
 import { useT } from "@/i18n";
 import { usePlaybackView } from "@/remote/mirror";
@@ -72,6 +74,16 @@ export const NowPlayingScreen = () => {
             <LyricsBody />
           ) : mode === "queue" ? (
             <QueueBody />
+          ) : mode === "settings" ? (
+            // Definicoes e jam entram pelo palco, nao por folhas: dentro de
+            // um player sem scroll uma folha e uma segunda camada a disputar
+            // o mesmo arrasto (pedido do dono 2026-08-15). Scroll proprio
+            // porque ambas sao mais altas do que o palco.
+            <ScrollView contentContainerStyle={{ paddingBottom: 8 }}>
+              <PlayerSettingsBody song={song} />
+            </ScrollView>
+          ) : mode === "jam" ? (
+            <JamScreen embedded />
           ) : (
             <NowPlayingBody />
           )}

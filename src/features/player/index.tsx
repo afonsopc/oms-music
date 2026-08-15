@@ -22,7 +22,6 @@
  */
 import React, { useCallback, useEffect, useState } from "react";
 import { Pressable, Text, useWindowDimensions, View } from "react-native";
-import Animated, { useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
 import { useRouter, type Href } from "expo-router";
 import { useLikedIds, useToggleLike } from "@/api/queries/likedSongs";
 import { getTransport } from "@/contracts/transport";
@@ -37,7 +36,6 @@ import { getCachedAccent, resolveAccent } from "@/theme/accent";
 import { useTheme } from "@/theme/provider";
 import { ACCENT_FALLBACK } from "@/theme/tokens";
 import {
-  ArtworkImage,
   artworkSourceUri,
   EmptyState,
   GhostIconButton,
@@ -47,10 +45,8 @@ import {
   useContainerWidth,
   useDesktopShell,
 } from "@/ui";
-import { JamSheet } from "@/features/jam/sheet";
 import { ImmersiveArtwork } from "./immersive";
 import { togglePlayerMode, usePlayerModeStore } from "./mode";
-import { PlayerSettingsSheet } from "./settingsSheet";
 import { Slider } from "./Slider";
 
 const NP = "components.music.NowPlayingSheet";
@@ -65,54 +61,6 @@ const K = "native.player";
  * native never hit this branch.
  */
 const DESKTOP_ARTWORK_MAX = 400;
-
-/**
- * A artwork RESPIRA com o estado de reproducao (idioma Apple Music, pedido
- * do dono 2026-08-14): em pausa encolhe para ~86% com a sombra apertada; ao
- * tocar cresce para 100% com uma sombra larga e funda. Springs assimetricos
- * de proposito - o crescimento e vivo (overshoot visivel), o encolher e
- * calmo - porque e ESTA animacao que carrega quase todo o feedback de
- * play/pause do ecra. useAnimatedStyle puro, nada de layout animations (as
- * unicas que a web nao suporta).
- */
-const BreathingArtwork = ({
-  song,
-  size,
-  playing,
-}: {
-  song: Song;
-  size: number;
-  playing: boolean;
-}) => {
-  const p = useSharedValue(playing ? 1 : 0);
-  useEffect(() => {
-    p.value = playing
-      ? withSpring(1, { damping: 12, stiffness: 180 })
-      : withSpring(0, { damping: 24, stiffness: 220 });
-  }, [playing, p]);
-  const style = useAnimatedStyle(() => ({
-    transform: [{ scale: 0.86 + 0.14 * p.value }],
-    shadowOpacity: 0.18 + 0.22 * p.value,
-    shadowRadius: 12 + 16 * p.value,
-  }));
-  return (
-    <Animated.View
-      style={[
-        {
-          borderRadius: 14,
-          shadowColor: "#000",
-          shadowOffset: { width: 0, height: 10 },
-          // Android nao anima sombras nativas; a elevation fixa e o melhor
-          // compromisso sem Skia.
-          elevation: 16,
-        },
-        style,
-      ]}
-    >
-      <ArtworkImage source={songArtworkSource(song)} songId={song.id} size={size} borderRadius={14} />
-    </Animated.View>
-  );
-};
 
 /**
  * Position/duration leaf. Isolated so the 4 Hz position slice re-renders the
@@ -233,13 +181,9 @@ export default function NowPlayingBody() {
   useShellSlotsVersion();
 
   const song = usePlaybackView((v) => v.song);
-  const playing = usePlaybackView((v) => v.playing);
-  const buffering = usePlaybackView((v) => v.buffering);
-
   const likedIds = useLikedIds();
   const toggleLike = useToggleLike();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
 
   // Links leave the player entirely: an album or a radio opened from here
   // belongs on the (main) stack, not stacked as a second sheet over the one
@@ -356,11 +300,8 @@ export default function NowPlayingBody() {
 export const PlayerChrome = () => {
   const t = useT();
   useShellSlotsVersion();
-  const song = usePlaybackView((v) => v.song);
   const playing = usePlaybackView((v) => v.playing);
   const buffering = usePlaybackView((v) => v.buffering);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [jamOpen, setJamOpen] = useState(false);
   const mode = usePlayerModeStore((s) => s.mode);
   const CastButton = getShellSlots().castButton;
 
@@ -433,25 +374,17 @@ export const PlayerChrome = () => {
         />
         <GhostIconButton
           icon="users"
+          active={mode === "jam"}
           accessibilityLabel={t(`${BB}.jam`)}
-          onPress={() => setJamOpen(true)}
+          onPress={() => togglePlayerMode("jam")}
         />
         <GhostIconButton
           icon="audio-waveform"
+          active={mode === "settings"}
           accessibilityLabel={t(`${K}.audioSettings`)}
-          onPress={() => setSettingsOpen(true)}
+          onPress={() => togglePlayerMode("settings")}
         />
       </View>
-
-      <PlayerSettingsSheet
-        visible={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-        song={song}
-      />
-      {/* A jam era um ecra inteiro alcancado por dismissAll + push - saltar
-          para fora do player para depois voltar. Passa a folha, como as
-          definicoes de reproducao (pedido do dono 2026-08-15). */}
-      <JamSheet visible={jamOpen} onClose={() => setJamOpen(false)} />
     </View>
   );
 };

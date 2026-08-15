@@ -13,7 +13,13 @@
  */
 import { create } from "zustand";
 
-export type PlayerMode = "artwork" | "lyrics" | "queue";
+/**
+ * As vistas do palco. Definicoes e jam entraram aqui a 2026-08-15 pela mesma
+ * razao das letras: com o player sem scroll, uma folha por cima dele e uma
+ * segunda camada a disputar o mesmo gesto de arrastar. Dentro do player nao
+ * ha folhas - ha modos.
+ */
+export type PlayerMode = "artwork" | "lyrics" | "queue" | "settings" | "jam";
 
 interface PlayerModeStore {
   mode: PlayerMode;

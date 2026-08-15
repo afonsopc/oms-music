@@ -44,7 +44,14 @@ export interface PlayerSettingsSheetProps {
   song: Song | null;
 }
 
-export const PlayerSettingsSheet = ({ visible, onClose, song }: PlayerSettingsSheetProps) => {
+/**
+ * O CORPO das definicoes de reproducao, sem moldura. Existe separado da
+ * folha porque no telemovel deixou de haver folhas dentro do player: as
+ * definicoes sao um MODO do palco, como as letras (decisao do dono
+ * 2026-08-15). No desktop a barra de transporte continua a monta-lo numa
+ * folha, que ali e a forma certa.
+ */
+export const PlayerSettingsBody = ({ song }: { song: Song | null }) => {
   const t = useT();
   const { tokens } = useTheme();
   const rate = usePlayerStore((s) => s.rate);
@@ -62,7 +69,7 @@ export const PlayerSettingsSheet = ({ visible, onClose, song }: PlayerSettingsSh
   const isJamSong = !!song?.jam_song;
 
   return (
-    <BottomSheet visible={visible} onClose={onClose}>
+    <>
       <Text
         style={{
           color: tokens.foreground,
@@ -147,6 +154,15 @@ export const PlayerSettingsSheet = ({ visible, onClose, song }: PlayerSettingsSh
 
       <EqualizerSection disabled={localDisabled} />
       <View style={{ height: 12 }} />
+    </>
+  );
+};
+
+/** A folha, que hoje so o desktop usa (barra de transporte). */
+export const PlayerSettingsSheet = ({ visible, onClose, song }: PlayerSettingsSheetProps) => {
+  return (
+    <BottomSheet visible={visible} onClose={onClose}>
+      <PlayerSettingsBody song={song} />
     </BottomSheet>
   );
 };
