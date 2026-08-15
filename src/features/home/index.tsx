@@ -213,16 +213,22 @@ export default function HomeScreen() {
           canto. Ele saiu daqui a 2026-08-14 para a barra de tabs e voltou a
           2026-08-16, quando a barra passou a ser a do sistema e deixou de
           poder carregar uma fotografia redonda. */}
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+      <View style={{ flexDirection: "row", alignItems: "center" }}>
+        {/* O avatar a ESQUERDA e as pills a seguir, que e onde o Spotify os
+            tem e onde esta Home ja os teve. A direita nao dava: a tira de
+            pills rola e era cortada a meio da ultima palavra quando batia no
+            avatar (screenshot do dono 2026-08-16). A esquerda ele e o
+            batente, e as pills correm ate a margem do ecra como deve ser. */}
+        <View style={{ paddingLeft: 24 }}>
+          <HeaderAvatar />
+        </View>
         <View style={{ flex: 1, minWidth: 0 }}>
           <FilterPills
             pills={pills}
             activeKey={filter}
             onChange={(key) => setFilter(key as HomeFilter)}
+            contentPaddingHorizontal={16}
           />
-        </View>
-        <View style={{ paddingRight: 24 }}>
-          <HeaderAvatar />
         </View>
       </View>
 
