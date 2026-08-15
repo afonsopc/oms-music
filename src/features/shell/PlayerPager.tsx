@@ -33,6 +33,7 @@ import { PlayerSettingsBody } from "@/features/player/settingsSheet";
 import JamScreen from "@/features/jam";
 import LyricsBody from "@/features/lyrics";
 import { usePlaybackView } from "@/remote/mirror";
+import { withAlpha } from "@/theme/contrast";
 import { useTheme } from "@/theme/provider";
 
 export const NowPlayingScreen = () => {
@@ -82,6 +83,23 @@ export const NowPlayingScreen = () => {
           extraido que dava fundos imprevisiveis (queixa do dono). */}
       <ImmersiveBackdrop song={song} />
       <View style={{ flex: 1, paddingBottom: Math.max(insets.bottom, 12) }}>
+        {/* A PEGA. E o que diz "isto puxa-se para baixo" antes de o
+            utilizador tentar, e como vive acima do palco vale em TODAS as
+            vistas - letras, fila, definicoes ou capa (pedido do dono
+            2026-08-15). No nativo e so a afordancia: quem fecha e o gesto da
+            folha do sistema. */}
+        <GestureDetector gesture={dismissGesture(web)}>
+          <View style={{ paddingTop: insets.top + 10, paddingBottom: 10, alignItems: "center" }}>
+            <View
+              style={{
+                width: 38,
+                height: 5,
+                borderRadius: 3,
+                backgroundColor: withAlpha(tokens.foreground, 0.4),
+              }}
+            />
+          </View>
+        </GestureDetector>
         {/* O PALCO. Troca de conteudo, nunca de sitio: o chrome por baixo
             fica onde esta, que e o ponto todo do idioma Apple Music. O gesto
             de fechar so vale aqui no modo da capa - nas outras vistas o

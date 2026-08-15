@@ -21,7 +21,7 @@
  * ticks re-render that leaf only, never the whole screen.
  */
 import React, { useCallback, useEffect, useState } from "react";
-import { Pressable, Text, useWindowDimensions, View } from "react-native";
+import { Pressable, Text, useWindowDimensions, View, type ViewStyle } from "react-native";
 import { useRouter, type Href } from "expo-router";
 import { useLikedIds, useToggleLike } from "@/api/queries/likedSongs";
 import { getTransport } from "@/contracts/transport";
@@ -40,11 +40,11 @@ import {
   EmptyState,
   GhostIconButton,
   Icon,
-  PlayFab,
   SongMenu,
   useContainerWidth,
   useDesktopShell,
 } from "@/ui";
+import { foregroundWash } from "@/ui/uiTheme";
 import { ImmersiveArtwork } from "./immersive";
 import { togglePlayerMode, usePlayerModeStore } from "./mode";
 import { Slider } from "./Slider";
@@ -61,6 +61,14 @@ const K = "native.player";
  * native never hit this branch.
  */
 const DESKTOP_ARTWORK_MAX = 400;
+
+/**
+ * A vista ACTIVA da fila de baixo ganha um disco por tras, como o botao da
+ * fila no Apple Music (screenshots do dono 2026-08-15). A cor sozinha nao
+ * chegava para dizer "estas aqui".
+ */
+const modePill = (scheme: "light" | "dark", active: boolean): ViewStyle | undefined =>
+  active ? { backgroundColor: foregroundWash(scheme, 0.22), borderRadius: 22 } : undefined;
 
 /**
  * Position/duration leaf. Isolated so the 4 Hz position slice re-renders the
@@ -211,21 +219,20 @@ export default function NowPlayingBody() {
   const artistsLine = formatArtists(song) || t(`${NP}.unknownArtist`);
   const artistSegment = primaryArtistSegment(song);
   const liked = (likedIds.data ?? []).includes(song.id);
-  // A capa IMERSIVA e quadrada e a largura toda; no shell desktop mantem o
-  // tecto antigo para nao virar outdoor num monitor de 1440p.
-  const artworkSize = desktopShell
-    ? Math.min(containerWidth - 64, Math.round(height * 0.42), DESKTOP_ARTWORK_MAX)
-    : containerWidth;
+  // Quadrado recuado das margens (screenshots do Apple Music, 2026-08-15),
+  // limitado tambem pela altura disponivel para nao empurrar a identidade
+  // para fora do ecra num telefone baixo.
+  const artworkSize = Math.min(
+    containerWidth - 48,
+    Math.round(height * 0.44),
+    desktopShell ? DESKTOP_ARTWORK_MAX : Number.POSITIVE_INFINITY,
+  );
 
   return (
     <View style={{ flex: 1 }}>
-      <View style={{ flex: 1 }}>
-        {/* Full-bleed e encostada ao topo (descricao do dono 2026-08-15): a
-            capa desvanece para o veu do fundo em vez de flutuar como cartao.
-            O `flexShrink` deixa-a ceder altura em ecras baixos - a fade
-            esconde o corte. */}
-        <View style={{ alignItems: "center", flexShrink: 1, overflow: "hidden" }}>
-          <ImmersiveArtwork song={song} width={artworkSize} height={artworkSize} />
+      <View style={{ flex: 1, justifyContent: "center" }}>
+        <View style={{ alignItems: "center", flexShrink: 1 }}>
+          <ImmersiveArtwork song={song} size={artworkSize} />
         </View>
 
         <View
@@ -233,7 +240,7 @@ export default function NowPlayingBody() {
             flexDirection: "row",
             alignItems: "center",
             gap: 8,
-            marginTop: 12,
+            marginTop: 28,
             paddingHorizontal: 24,
           }}
         >
@@ -299,9 +306,9 @@ export default function NowPlayingBody() {
  */
 export const PlayerChrome = () => {
   const t = useT();
+  const { scheme } = useTheme();
   useShellSlotsVersion();
   const playing = usePlaybackView((v) => v.playing);
-  const buffering = usePlaybackView((v) => v.buffering);
   const mode = usePlayerModeStore((s) => s.mode);
   const CastButton = getShellSlots().castButton;
 
@@ -326,19 +333,25 @@ export const PlayerChrome = () => {
       >
         <GhostIconButton
           icon="skip-back"
-          size={30}
+          size={34}
           accessibilityLabel={t(`${NP}.previous`)}
           onPress={() => getTransport().previous()}
         />
-        <PlayFab
-          playing={playing}
-          loading={buffering}
+        {/* Glifo nu, sem o disco branco por tras: no Apple Music o play e o
+            proprio simbolo (screenshots do dono 2026-08-15), e era o disco
+            que fazia esta linha parecer um botao entre dois icones em vez de
+            tres irmaos. */}
+        <GhostIconButton
+          icon={playing ? "pause" : "play"}
+          size={40}
+          filled
+          style={{ width: 64, height: 64 }}
           accessibilityLabel={playing ? t(`${NP}.pause`) : t(`${NP}.play`)}
           onPress={() => getTransport().toggle()}
         />
         <GhostIconButton
           icon="skip-forward"
-          size={30}
+          size={34}
           accessibilityLabel={t(`${NP}.next`)}
           onPress={() => getTransport().next()}
         />
@@ -363,24 +376,28 @@ export const PlayerChrome = () => {
         <GhostIconButton
           icon="mic-vocal"
           active={mode === "lyrics"}
+          style={modePill(scheme, mode === "lyrics")}
           accessibilityLabel={t(`${NP}.lyrics`)}
           onPress={() => togglePlayerMode("lyrics")}
         />
         <GhostIconButton
           icon="list-music"
           active={mode === "queue"}
+          style={modePill(scheme, mode === "queue")}
           accessibilityLabel={t(`${NP}.queue`)}
           onPress={() => togglePlayerMode("queue")}
         />
         <GhostIconButton
           icon="users"
           active={mode === "jam"}
+          style={modePill(scheme, mode === "jam")}
           accessibilityLabel={t(`${BB}.jam`)}
           onPress={() => togglePlayerMode("jam")}
         />
         <GhostIconButton
           icon="audio-waveform"
           active={mode === "settings"}
+          style={modePill(scheme, mode === "settings")}
           accessibilityLabel={t(`${K}.audioSettings`)}
           onPress={() => togglePlayerMode("settings")}
         />

@@ -20,9 +20,6 @@ import { songArtworkSource } from "@/domain/artwork";
 import { useTheme } from "@/theme/provider";
 import { ArtworkImage, gradientBackground } from "@/ui";
 
-/** Quanto do fundo da capa se dissolve no veu. */
-const FADE_FRACTION = 0.42;
-
 /** rgb do veu por tema; as paragens de alpha sao as mesmas nos dois. */
 const washRgb = (scheme: "light" | "dark"): string =>
   scheme === "dark" ? "0, 0, 0" : "255, 255, 255";
@@ -60,45 +57,32 @@ export const ImmersiveBackdrop = ({ song }: { song: Song | null }) => {
 };
 
 /**
- * A capa nitida: quadrada, a largura toda, encostada ao topo, com o fundo a
- * desvanecer. Sem cantos redondos nem sombra - nao e um cartao, e o topo da
- * pagina.
+ * A capa: quadrado de cantos redondos com sombra funda, recuado das margens -
+ * a forma dos screenshots do Apple Music que o dono mandou (2026-08-15). A
+ * primeira versao era full-bleed com fade; ele viu o AM ao lado e preferiu
+ * este, que e um objecto pousado sobre o ambiente em vez de fazer parte dele.
  */
-export const ImmersiveArtwork = ({
-  song,
-  width,
-  height,
-}: {
-  song: Song;
-  width: number;
-  height: number;
-}) => {
-  const { scheme } = useTheme();
-  const rgb = washRgb(scheme);
-  return (
-    <View style={{ width, height, overflow: "hidden" }}>
-      <ArtworkImage
-        source={songArtworkSource(song)}
-        songId={song.id}
-        contentFit="cover"
-        borderRadius={0}
-        style={{ width, height }}
-      />
-      <View
-        pointerEvents="none"
-        style={[
-          {
-            position: "absolute",
-            left: 0,
-            right: 0,
-            bottom: 0,
-            height: Math.round(height * FADE_FRACTION),
-          },
-          gradientBackground(
-            `linear-gradient(to bottom, rgba(${rgb}, 0) 0%, rgba(${rgb}, 0.45) 55%, rgba(${rgb}, 0.9) 100%)`,
-          ),
-        ]}
-      />
-    </View>
-  );
-};
+export const ImmersiveArtwork = ({ song, size }: { song: Song; size: number }) => (
+  <View
+    style={{
+      width: size,
+      height: size,
+      borderRadius: 18,
+      // A sombra e o que separa a capa do fundo, ja que ambos saem da mesma
+      // imagem; sem ela a capa parecia colada ao desfoque.
+      shadowColor: "#000",
+      shadowOpacity: 0.45,
+      shadowRadius: 28,
+      shadowOffset: { width: 0, height: 14 },
+      elevation: 18,
+    }}
+  >
+    <ArtworkImage
+      source={songArtworkSource(song)}
+      songId={song.id}
+      contentFit="cover"
+      borderRadius={18}
+      style={{ width: size, height: size }}
+    />
+  </View>
+);
