@@ -126,13 +126,17 @@ export const NowPlayingScreen = () => {
             )}
           </View>
         </GestureDetector>
-        {/* O chrome nunca rola, por isso o gesto vale aqui em TODAS as
-            vistas: mesmo com as letras abertas ha sempre onde arrastar. */}
-        <GestureDetector gesture={dismissGesture(web)}>
-          <View style={{ paddingHorizontal: 24 }}>
-            <PlayerChrome />
-          </View>
-        </GestureDetector>
+        {/* O chrome NAO leva gesto de fechar. Levou durante meia hora e
+            partiu as barras de scrub e de volume (report do dono): os
+            sliders sao Gesture.Pan com failOffsetY apertado, e um arrasto
+            humano numa barra nunca e perfeitamente horizontal - bastavam os
+            12px verticais do gesto de cima para ele activar e cancelar o do
+            slider. Os botoes escapavam porque um toque nao e arrasto, o que
+            deu exactamente o sintoma descrito. Quem fecha e a pega, que
+            existe em todas as vistas. */}
+        <View style={{ paddingHorizontal: 24 }}>
+          <PlayerChrome />
+        </View>
       </View>
     </Animated.View>
   );
