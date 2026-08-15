@@ -105,26 +105,38 @@ fn ensure_window<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<tauri::Webview
 fn promote_to_panel<R: Runtime>(window: &tauri::WebviewWindow<R>) {
     use tauri_nspanel::WebviewWindowExt;
 
-    match window.to_panel() {
-        Ok(panel) => {
-            // NSFloatingWindowLevel = 3: acima das janelas normais, abaixo de
-            // menus/dock, que e onde um mini-player pertence.
-            panel.set_level(3);
-            // 1 << 7: NSWindowStyleMaskNonActivatingPanel.
-            panel.set_style_mask(1 << 7);
-            // canJoinAllSpaces (1<<0) | fullScreenAuxiliary (1<<8): visivel em
-            // todos os Spaces e sobre apps em ecra inteiro.
-            panel.set_collection_behaviour(
-                tauri_nspanel::cocoa::appkit::NSWindowCollectionBehavior::from_bits_retain(
-                    (1 << 0) | (1 << 8),
-                ),
-            );
-        }
-        Err(error) => {
-            // Sem panico: a janela continua a existir como always-on-top
-            // normal, que e o mesmo fallback das outras plataformas.
-            eprintln!("miniplayer: to_panel falhou, fica janela normal: {error:?}");
-        }
+    // Corpo INTEIRO dentro de um catch de NSException: no macOS 26 a
+    // promocao atira excepcoes Objective-C (reclass/setStyleMask), e uma
+    // NSException a atravessar frames Rust nao e apanhavel - o runtime
+    // aborta o processo inteiro ("Rust cannot catch foreign exceptions",
+    // report do dono 2026-08-15, destapado assim que o init do plugin deixou
+    // o to_panel correr). Com o catch, o pior caso volta a ser o fallback
+    // documentado: janela normal always-on-top.
+    let outcome = unsafe {
+        objc_exception::r#try(|| match window.to_panel() {
+            Ok(panel) => {
+                // NSFloatingWindowLevel = 3: acima das janelas normais, abaixo
+                // de menus/dock, que e onde um mini-player pertence.
+                panel.set_level(3);
+                // 1 << 7: NSWindowStyleMaskNonActivatingPanel.
+                panel.set_style_mask(1 << 7);
+                // canJoinAllSpaces (1<<0) | fullScreenAuxiliary (1<<8):
+                // visivel em todos os Spaces e sobre apps em ecra inteiro.
+                panel.set_collection_behaviour(
+                    tauri_nspanel::cocoa::appkit::NSWindowCollectionBehavior::from_bits_retain(
+                        (1 << 0) | (1 << 8),
+                    ),
+                );
+            }
+            Err(error) => {
+                // Sem panico: a janela continua a existir como always-on-top
+                // normal, que e o mesmo fallback das outras plataformas.
+                eprintln!("miniplayer: to_panel falhou, fica janela normal: {error:?}");
+            }
+        })
+    };
+    if outcome.is_err() {
+        eprintln!("miniplayer: NSException na promocao a NSPanel; fica janela normal");
     }
 }
 
