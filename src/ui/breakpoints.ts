@@ -105,18 +105,26 @@ export interface HeroTitleType {
 }
 
 /**
- * Desktop entity-title size (plan 4.2: main-sm 32, main-md 72, main-lg 96).
- * Long titles step DOWN one rung instead of wrapping at display size - the
- * same instinct as the mobile `length > 24` rule, expressed on the ramp so
- * a 40-character playlist name never renders three lines of 96px. Line
- * height rides 4px above the size, matching the mobile hero's ratio.
+ * Desktop entity-title size, a Spotify: o titulo dimensiona-se para caber
+ * NUMA linha na largura util do bloco de texto, com o bucket como tecto
+ * (main-sm 32, main-md 72, main-lg 96) e snap a degraus discretos para o
+ * tamanho nao dancar pixel a pixel num resize. A regra antiga (rampa por
+ * bucket + cliff nos 24 caracteres) deixava "Liked Songs (Spotify)" - 21
+ * chars - em DUAS linhas de 96px (report do dono 2026-08-15); o ajuste ao
+ * risco elimina o wrap em qualquer largura e so da display size a titulos
+ * que realmente cabem.
  */
 export const heroTitleType = (containerWidth: number, titleLength: number): HeroTitleType => {
-  const ramp = [96, 72, 32] as const;
-  const base = HERO_TITLE_RAMP[mainBucket(containerWidth)];
-  const damped =
-    titleLength > 24 ? (ramp[ramp.indexOf(base as (typeof ramp)[number]) + 1] ?? 32) : base;
-  return { fontSize: damped, lineHeight: damped + 4 };
+  const cap = HERO_TITLE_RAMP[mainBucket(containerWidth)];
+  // Largura util do bloco de texto na fila do hero (Hero.tsx): artwork
+  // 160..232 (18% do pane), gap 24 e padding horizontal 24 de cada lado.
+  const art = Math.min(232, Math.max(160, containerWidth * 0.18));
+  const textWidth = Math.max(200, containerWidth - art - 96);
+  // ~0.58em por glifo a weight 900 com tracking negativo.
+  const fit = textWidth / (0.58 * Math.max(titleLength, 1));
+  const steps = [96, 80, 64, 56, 48, 40, 36, 32] as const;
+  const snapped = steps.find((step) => step <= Math.min(cap, fit)) ?? 30;
+  return { fontSize: snapped, lineHeight: Math.round(snapped * 1.08) };
 };
 
 // ---------------------------------------------------------------------------

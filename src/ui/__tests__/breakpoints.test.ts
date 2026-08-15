@@ -164,24 +164,39 @@ describe("heroMinHeight (desktop only)", () => {
 });
 
 describe("heroTitleType (desktop only)", () => {
-  it("walks the plan's 96/72/32 ramp by main bucket", () => {
+  it("keeps the bucket as a ceiling: sm never passes 32, a wide pane reaches 96", () => {
     expect(heroTitleType(599, 10).fontSize).toBe(32);
-    expect(heroTitleType(600, 10).fontSize).toBe(72);
-    expect(heroTitleType(765, 10).fontSize).toBe(96);
     expect(heroTitleType(1200, 10).fontSize).toBe(96);
   });
 
-  it("long titles step down one rung instead of wrapping at display size", () => {
-    const long = "a".repeat(25).length;
-    expect(heroTitleType(1200, long).fontSize).toBe(72);
-    expect(heroTitleType(700, long).fontSize).toBe(32);
-    expect(heroTitleType(500, long).fontSize).toBe(32);
+  it("fits the one-line rule: 21 chars at 1200px sit well below display size", () => {
+    const liked = "Liked Songs (Spotify)".length;
+    const { fontSize } = heroTitleType(1200, liked);
+    expect(fontSize).toBeLessThanOrEqual(64);
+    expect(fontSize).toBeGreaterThanOrEqual(48);
   });
 
-  it("line height rides 4px above the size", () => {
+  it("never wraps: the snapped size always fits the estimated text width", () => {
+    for (const width of [600, 765, 1000, 1440, 1900]) {
+      for (const length of [6, 12, 21, 30, 45]) {
+        const { fontSize } = heroTitleType(width, length);
+        const art = Math.min(232, Math.max(160, width * 0.18));
+        const textWidth = Math.max(200, width - art - 96);
+        if (fontSize > 32) expect(fontSize * 0.58 * length).toBeLessThanOrEqual(textWidth);
+      }
+    }
+  });
+
+  it("long titles keep stepping down instead of cliff-jumping", () => {
+    const sizes = [10, 18, 26, 40].map((length) => heroTitleType(1440, length).fontSize);
+    for (let i = 1; i < sizes.length; i += 1) expect(sizes[i]).toBeLessThanOrEqual(sizes[i - 1]);
+    expect(new Set(sizes).size).toBeGreaterThan(2);
+  });
+
+  it("line height rides ~8% above the size", () => {
     for (const width of [500, 700, 1200]) {
       const { fontSize, lineHeight } = heroTitleType(width, 10);
-      expect(lineHeight).toBe(fontSize + 4);
+      expect(lineHeight).toBe(Math.round(fontSize * 1.08));
     }
   });
 });
