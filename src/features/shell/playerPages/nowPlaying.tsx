@@ -1,6 +1,6 @@
 import React from "react";
-import { NowPlayingScroll } from "../PlayerPager";
+import { NowPlayingScreen } from "../PlayerPager";
 
 export default function NowPlayingPage() {
-  return <NowPlayingScroll />;
+  return <NowPlayingScreen />;
 }

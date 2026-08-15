@@ -1,12 +1,9 @@
 import React from "react";
-import QueueBody from "@/features/player/queue";
-import { PlayerSubpage } from "../PlayerPager";
+import { setPlayerMode } from "@/features/player/mode";
+import { NowPlayingScreen } from "../PlayerPager";
 
-/** Full-screen queue, opened from the row on the now playing scroll. */
+/** Como a rota das letras: escolhe o modo, o player faz o resto. */
 export default function QueuePage() {
-  return (
-    <PlayerSubpage>
-      <QueueBody />
-    </PlayerSubpage>
-  );
+  setPlayerMode("queue");
+  return <NowPlayingScreen />;
 }

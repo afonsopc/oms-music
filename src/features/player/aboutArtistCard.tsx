@@ -69,20 +69,25 @@ export const AboutArtistCard = ({ embedded = false }: { embedded?: boolean } = {
             contentFit="cover"
             transition={150}
           />
-          <Text
+          {/* Pilula, nao sombra de texto: por cima de uma foto clara (o
+              caso do screenshot do dono, 2026-08-15) a sombra nao chegava e
+              o rotulo lia-se mal - alem de nascer colado ao canto redondo.
+              Um fundo escuro proprio da contraste em qualquer fotografia. */}
+          <View
             style={{
               position: "absolute",
               top: 12,
-              left: 16,
-              color: "#ffffff",
-              fontSize: 13,
-              fontWeight: "700",
-              textShadowColor: "rgba(0,0,0,0.6)",
-              textShadowRadius: 6,
+              left: 12,
+              paddingHorizontal: 10,
+              paddingVertical: 5,
+              borderRadius: 999,
+              backgroundColor: "rgba(0,0,0,0.55)",
             }}
           >
-            {t("native.player.aboutArtist")}
-          </Text>
+            <Text style={{ color: "#ffffff", fontSize: 12, fontWeight: "700" }}>
+              {t("native.player.aboutArtist")}
+            </Text>
+          </View>
         </View>
       ) : null}
 

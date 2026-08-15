@@ -45,6 +45,15 @@ const TABS: TabDef[] = [
 ];
 
 
+/**
+ * Tinta dos rotulos. O `mutedForeground` e um cinzento pensado para fundos
+ * OPACOS; por cima do vidro, com a Home a refractar por baixo, desaparecia.
+ * A tab inactiva passa a ser o proprio foreground esbatido, que herda o
+ * contraste do tema em vez de o adivinhar.
+ */
+const tabInk = (foreground: string, primary: string, active: boolean): string =>
+  active ? primary : foreground;
+
 const TabItem = ({
   active,
   label,
@@ -76,9 +85,10 @@ const TabItem = ({
       </View>
       <Text
         style={{
-          color: active ? tokens.primary : tokens.mutedForeground,
+          color: tabInk(tokens.foreground, tokens.primary, active),
+          opacity: active ? 1 : 0.75,
           fontSize: 10,
-          fontWeight: active ? "700" : "500",
+          fontWeight: active ? "700" : "600",
         }}
       >
         {label}
@@ -118,6 +128,12 @@ export const GlobalTabBar = () => {
   const glass =
     scheme === "dark" ? "rgba(22, 22, 24, 0.92)" : "rgba(248, 248, 250, 0.92)";
   const Capsule = liquid ? GlassView : View;
+  // O vidro puro deixava a Home passar atraves da barra e os rotulos
+  // desapareciam por cima das capas (screenshot do dono 2026-08-15). Duas
+  // correccoes: um tint que da corpo ao vidro, e o colorScheme explicito -
+  // a app tem o SEU proprio interruptor de tema, e sem isto o vidro segue o
+  // do sistema e pode renderizar claro dentro de uma app escura.
+  const tint = scheme === "dark" ? "rgba(10, 10, 12, 0.55)" : "rgba(255, 255, 255, 0.6)";
 
   return (
     <View
@@ -134,7 +150,14 @@ export const GlobalTabBar = () => {
       }}
     >
       <Capsule
-        {...(liquid ? { glassEffectStyle: "regular" as const, isInteractive: true } : null)}
+        {...(liquid
+          ? {
+              glassEffectStyle: "regular" as const,
+              isInteractive: true,
+              tintColor: tint,
+              colorScheme: scheme,
+            }
+          : null)}
         style={{
           flexDirection: "row",
           borderRadius: 26,
@@ -164,7 +187,7 @@ export const GlobalTabBar = () => {
           >
             <TabIcon
               name={tab.key}
-              color={active === tab.key ? tokens.primary : tokens.mutedForeground}
+              color={tabInk(tokens.foreground, tokens.primary, active === tab.key)}
             />
           </TabItem>
         ))}

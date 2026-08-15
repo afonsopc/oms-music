@@ -45,6 +45,8 @@ export interface ArtworkImageProps {
   recyclingKey?: string | null;
   contentFit?: "cover" | "contain";
   transitionMs?: number;
+  /** Desfoque em px (fundo imersivo do player). Passa ao expo-image. */
+  blurRadius?: number;
 }
 
 interface ResolvedArtwork {
@@ -121,6 +123,7 @@ export const ArtworkImage = ({
   recyclingKey,
   contentFit = "cover",
   transitionMs = 120,
+  blurRadius,
 }: ArtworkImageProps) => {
   const resolved = resolveArtwork(source, nodeId, uri, songId);
   const [failedUri, setFailedUri] = useState<string | null>(null);
@@ -163,6 +166,7 @@ export const ArtworkImage = ({
       placeholderContentFit={contentFit}
       contentFit={contentFit}
       transition={transition}
+      blurRadius={blurRadius}
       recyclingKey={recyclingKey ?? undefined}
       onError={() => {
         if (resolved.uri) setFailedUri(resolved.uri);

@@ -241,11 +241,17 @@ const PersonRow = ({
 // Screen
 // ---------------------------------------------------------------------------
 
-export default function JamScreen() {
+/** `embedded`: montado numa folha (features/jam/sheet), nao como ecra do
+ *  shell - a folha ja trata da area segura e das margens, por isso os
+ *  espacamentos do shell (que contam com a ilha dinamica e a barra de tabs)
+ *  sairiam a dobrar. A rota nao passa prop nenhuma, logo o default vale. */
+export default function JamScreen({ embedded = false }: { embedded?: boolean } = {}) {
   const t = useT();
   const { tokens } = useTheme();
-  const bottomPadding = useContentBottomPadding();
-  const topPadding = useContentTopPadding();
+  const shellBottomPadding = useContentBottomPadding();
+  const shellTopPadding = useContentTopPadding();
+  const bottomPadding = embedded ? 24 : shellBottomPadding;
+  const topPadding = embedded ? 4 : shellTopPadding;
   const myId = useSessionStore((s) => s.user?.id ?? null);
   const jam = useJamStore((s) => s.jam);
   const isHost = useJamStore(selectIsHost);
@@ -276,7 +282,7 @@ export default function JamScreen() {
 
   return (
     <ScrollView
-      style={{ flex: 1, backgroundColor: tokens.background }}
+      style={{ flex: 1, backgroundColor: embedded ? "transparent" : tokens.background }}
       contentContainerStyle={{ padding: 16, paddingTop: topPadding, paddingBottom: bottomPadding, gap: 16 }}
     >
       <Text style={{ color: tokens.foreground, fontSize: 28, fontWeight: "800" }}>

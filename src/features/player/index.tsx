@@ -47,6 +47,9 @@ import {
   useContainerWidth,
   useDesktopShell,
 } from "@/ui";
+import { JamSheet } from "@/features/jam/sheet";
+import { ImmersiveArtwork } from "./immersive";
+import { togglePlayerMode, usePlayerModeStore } from "./mode";
 import { PlayerSettingsSheet } from "./settingsSheet";
 import { Slider } from "./Slider";
 
@@ -264,24 +267,32 @@ export default function NowPlayingBody() {
   const artistsLine = formatArtists(song) || t(`${NP}.unknownArtist`);
   const artistSegment = primaryArtistSegment(song);
   const liked = (likedIds.data ?? []).includes(song.id);
-  const CastButton = getShellSlots().castButton;
-  const artworkSize = Math.min(
-    containerWidth - 64,
-    Math.round(height * 0.42),
-    desktopShell ? DESKTOP_ARTWORK_MAX : Number.POSITIVE_INFINITY,
-  );
+  // A capa IMERSIVA e quadrada e a largura toda; no shell desktop mantem o
+  // tecto antigo para nao virar outdoor num monitor de 1440p.
+  const artworkSize = desktopShell
+    ? Math.min(containerWidth - 64, Math.round(height * 0.42), DESKTOP_ARTWORK_MAX)
+    : containerWidth;
 
   return (
-    // Transparent on purpose: the (player) scroll paints ONE continuous
-    // accent gradient across body + lyrics card + queue, so there is no seam
-    // where the viewport ends (the old per-body gradient cut to black there).
     <View style={{ flex: 1 }}>
-      <View style={{ flex: 1, paddingHorizontal: 24, paddingBottom: 8 }}>
-        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-          <BreathingArtwork song={song} size={artworkSize} playing={playing} />
+      <View style={{ flex: 1 }}>
+        {/* Full-bleed e encostada ao topo (descricao do dono 2026-08-15): a
+            capa desvanece para o veu do fundo em vez de flutuar como cartao.
+            O `flexShrink` deixa-a ceder altura em ecras baixos - a fade
+            esconde o corte. */}
+        <View style={{ alignItems: "center", flexShrink: 1, overflow: "hidden" }}>
+          <ImmersiveArtwork song={song} width={artworkSize} height={artworkSize} />
         </View>
 
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 12 }}>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 8,
+            marginTop: 12,
+            paddingHorizontal: 24,
+          }}
+        >
           <View style={{ flex: 1 }}>
             <Pressable
               accessibilityRole="link"
@@ -323,8 +334,6 @@ export default function NowPlayingBody() {
             onPress={() => setMenuOpen(true)}
           />
         </View>
-
-        <PlayerChrome />
       </View>
 
       <SongMenu
@@ -350,17 +359,10 @@ export const PlayerChrome = () => {
   const song = usePlaybackView((v) => v.song);
   const playing = usePlaybackView((v) => v.playing);
   const buffering = usePlaybackView((v) => v.buffering);
-  const router = useRouter();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [jamOpen, setJamOpen] = useState(false);
+  const mode = usePlayerModeStore((s) => s.mode);
   const CastButton = getShellSlots().castButton;
-
-  const openInMain = useCallback(
-    (route: Href) => {
-      if (router.canDismiss()) router.dismissAll();
-      router.push(route);
-    },
-    [router],
-  );
 
   return (
     <View>
@@ -405,7 +407,9 @@ export const PlayerChrome = () => {
         <VolumeRow />
       </View>
 
-      {/* A fila de toggles do fundo, espacada como a do AM. */}
+      {/* A fila de toggles do fundo, espacada como a do AM. Letra e Fila sao
+          MODOS, nao paginas: acendem-se e trocam o palco por cima (ver
+          ./mode.ts); carregar no que ja esta aceso volta a capa. */}
       <View
         style={{
           flexDirection: "row",
@@ -416,9 +420,21 @@ export const PlayerChrome = () => {
       >
         {CastButton ? <CastButton /> : null}
         <GhostIconButton
+          icon="mic-vocal"
+          active={mode === "lyrics"}
+          accessibilityLabel={t(`${NP}.lyrics`)}
+          onPress={() => togglePlayerMode("lyrics")}
+        />
+        <GhostIconButton
+          icon="list-music"
+          active={mode === "queue"}
+          accessibilityLabel={t(`${NP}.queue`)}
+          onPress={() => togglePlayerMode("queue")}
+        />
+        <GhostIconButton
           icon="users"
           accessibilityLabel={t(`${BB}.jam`)}
-          onPress={() => openInMain("/jam")}
+          onPress={() => setJamOpen(true)}
         />
         <GhostIconButton
           icon="audio-waveform"
@@ -432,6 +448,10 @@ export const PlayerChrome = () => {
         onClose={() => setSettingsOpen(false)}
         song={song}
       />
+      {/* A jam era um ecra inteiro alcancado por dismissAll + push - saltar
+          para fora do player para depois voltar. Passa a folha, como as
+          definicoes de reproducao (pedido do dono 2026-08-15). */}
+      <JamSheet visible={jamOpen} onClose={() => setJamOpen(false)} />
     </View>
   );
 };

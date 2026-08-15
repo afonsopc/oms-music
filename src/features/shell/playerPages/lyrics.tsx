@@ -1,12 +1,13 @@
 import React from "react";
-import LyricsBody from "@/features/lyrics";
-import { PlayerSubpage } from "../PlayerPager";
+import { setPlayerMode } from "@/features/player/mode";
+import { NowPlayingScreen } from "../PlayerPager";
 
-/** Full-screen lyrics, opened from the card on the now playing scroll. */
+/**
+ * A rota das letras existe para links directos e para a web. Ja nao e uma
+ * pagina propria: pousa o modo no store e o player desenha as letras no
+ * lugar da capa (decisao do dono 2026-08-15).
+ */
 export default function LyricsPage() {
-  return (
-    <PlayerSubpage>
-      <LyricsBody />
-    </PlayerSubpage>
-  );
+  setPlayerMode("lyrics");
+  return <NowPlayingScreen />;
 }
