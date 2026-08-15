@@ -18,7 +18,6 @@
 import React from "react";
 import { View } from "react-native";
 import { Stack } from "expo-router";
-import { ProfileDrawerHost } from "@/features/home/ProfileDrawer";
 import { DesktopShell } from "@/features/shell/desktop/DesktopShell";
 import { useServiceUsagePing } from "@/features/shell/useServiceUsagePing";
 import { useTheme } from "@/theme/provider";
@@ -37,9 +36,6 @@ export default function MainLayout() {
             contentStyle: { backgroundColor: tokens.background },
           }}
         />
-        {/* Shell-level mount so the tab bar avatar (and Home's header
-            avatar) can open the profile drawer from ANY tab. */}
-        <ProfileDrawerHost />
       </View>
     </DesktopShell>
   );

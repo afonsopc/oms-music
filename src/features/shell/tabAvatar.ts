@@ -21,8 +21,14 @@ import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
 import { avatarUrl } from "@/api/mediaUrl";
 import type { UserId } from "@/domain/ids";
 
-/** 3x de um icone de 28pt: nitido no Pro Max, leve na memoria. */
-const EDGE = 84;
+/**
+ * PIXEIS, que a UITabBar le como PONTOS. A primeira tentativa gravou 84
+ * (a pensar em 3x de 28pt) e a cara continuou a ocupar a barra toda: o
+ * ficheiro nao traz metadados de escala, por isso 84px viraram 84pt. 28 e o
+ * tamanho de um icone de separador; fica algo suave num ecra 3x, e esse e o
+ * preco de nao haver como carimbar a escala num ficheiro solto.
+ */
+const EDGE = 28;
 
 /** Um utilizador, um ficheiro - a barra remonta a cada troca de tab. */
 const cache = new Map<string, string>();

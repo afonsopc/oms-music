@@ -12,7 +12,7 @@
  *
  * Cada trigger aponta para um GRUPO e nao para um ecra: e o que poe as 21
  * rotas empurradas dentro da stack da respectiva tab e mantem a barra
- * visivel la (ver (home,search,library)/_layout.tsx).
+ * visivel la (ver (home,search,library,account)/_layout.tsx).
  *
  * So NATIVO. A web tem o fork _layout.web.tsx: as native tabs renderizam
  * la (via @radix-ui/react-tabs) mas desenham uma pilula fixa no TOPO da
@@ -23,7 +23,6 @@ import React from "react";
 import { Platform } from "react-native";
 import { NativeTabs } from "expo-router/unstable-native-tabs";
 import { useSessionStore } from "@/auth/session";
-import { openProfileDrawer } from "@/features/home/ProfileDrawer";
 import { useT } from "@/i18n";
 import { useTabAvatarIcon } from "@/features/shell/tabAvatar";
 import { useTheme } from "@/theme/provider";
@@ -68,16 +67,11 @@ export default function TabsLayout() {
         />
       </NativeTabs.Trigger>
 
-      {/* O "Perfil" abre a gaveta, nao navega. Como a barra nativa so aceita
-          rotas, e um trigger `disabled` (o preventNativeSelection do
-          react-native-screens: o item fica visivel, o toque emite tabPress e
-          o nativo NAO navega) apoiado na rota-fantasma account.tsx. */}
-      <NativeTabs.Trigger
-        name="account"
-        disabled
-        listeners={{ tabPress: () => openProfileDrawer() }}
-        disableAutomaticContentInsets={OWN_INSETS}
-      >
+      {/* O "Perfil" e uma tab a serio desde 2026-08-15: era um item
+          nao-navegavel que abria uma gaveta, e o dono quis pagina. Ganhar
+          rota resolveu de caminho a barra da WEB, que nunca teve este item
+          por nao haver rota para lhe dar. */}
+      <NativeTabs.Trigger name="(account)" disableAutomaticContentInsets={OWN_INSETS}>
         <NativeTabs.Trigger.Label>{t("native.shell.tabProfile")}</NativeTabs.Trigger.Label>
         {/* A foto vem REDUZIDA a tamanho de icone (features/shell/tabAvatar):
             entregue crua, a UITabBar desenhava-a ao tamanho natural e a cara

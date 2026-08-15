@@ -27,7 +27,7 @@ import { join, relative } from "node:path";
 const APP_ROOT = new URL("../../app/", import.meta.url).pathname;
 const MAIN = join(APP_ROOT, "(main)");
 const TABS = join(MAIN, "(tabs)");
-const SHARED = join(TABS, "(home,search,library)");
+const SHARED = join(TABS, "(home,search,library,account)");
 
 /** Nomes directos de uma pasta, com "/" a marcar as sub-pastas. */
 const entries = (dir: string): string[] =>
@@ -83,13 +83,13 @@ describe("route tree (native tabs)", () => {
 
   it("forks the tabs layout by platform and groups every tab", () => {
     expect(entries(TABS)).toEqual([
+      "(account)/",
       "(home)/",
-      "(home,search,library)/",
+      "(home,search,library,account)/",
       "(library)/",
       "(search)/",
       "_layout.tsx",
       "_layout.web.tsx",
-      "account.tsx",
     ]);
   });
 
@@ -97,6 +97,8 @@ describe("route tree (native tabs)", () => {
     expect(entries(join(TABS, "(home)"))).toEqual(["home.tsx"]);
     expect(entries(join(TABS, "(search)"))).toEqual(["search.tsx"]);
     expect(entries(join(TABS, "(library)"))).toEqual(["library.tsx"]);
+    // O Perfil entrou na mesma regra quando deixou de ser gaveta (2026-08-15).
+    expect(entries(join(TABS, "(account)"))).toEqual(["account.tsx"]);
   });
 
   it("puts every pushed screen inside the shared group", () => {

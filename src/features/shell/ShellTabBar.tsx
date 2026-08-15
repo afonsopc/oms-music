@@ -41,5 +41,15 @@ export const ShellTabBar = (props: BottomTabBarProps) => {
   // tras do modal, e o scroll das listas saltava ao fechar.
   if (segments.includes("(tabs)") && !atTabRoot) return null;
 
-  return <BottomTabBar {...props} />;
+  // Folga por baixo dos rotulos. O BottomTabBar so paga area segura onde o
+  // sistema a declara, e num browser de secretaria (e no Safari em janela)
+  // ela e ZERO - os rotulos ficavam colados ao rebordo da barra (screenshot
+  // do dono 2026-08-15). O safeAreaInsets do proprio componente e o sitio
+  // certo para isto: soma-se ao que ja la esta em vez de lutar com ele.
+  return (
+    <BottomTabBar
+      {...props}
+      insets={{ ...props.insets, bottom: Math.max(props.insets.bottom, 10) }}
+    />
+  );
 };
