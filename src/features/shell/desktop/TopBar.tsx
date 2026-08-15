@@ -23,8 +23,11 @@ import { GhostIconButton } from "@/ui";
 import { AccountMenu } from "./AccountMenu";
 import { TopBarSearch } from "./TopBarSearch";
 
-/** Largura dos semaforos do macOS + folga (overlay title bar). */
-const TRAFFIC_LIGHTS_INSET = 72;
+/** Largura dos semaforos do macOS + folga (overlay title bar). Os 72 do
+ *  primeiro corte deixavam o chevron de "recuar" colado a luz verde
+ *  (medicao no ecra do dono, 2026-08-15): os botoes acabam por volta dos
+ *  76pt da margem esquerda da janela. */
+const TRAFFIC_LIGHTS_INSET = 96;
 
 export const DesktopTopBar = () => {
   const t = useT();

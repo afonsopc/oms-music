@@ -18,6 +18,8 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { hydrateQueryCache, startQueryCachePersistence } from "@/api/persistCache";
 import { queryClient, wireQueryClient } from "@/api/queryClient";
 import { useSessionStore } from "@/auth/session";
+import { isMiniplayerWindow } from "@/desktop/miniplayer";
+import { MiniplayerApp } from "@/features/miniplayer/MiniplayerApp";
 import { SessionGate } from "@/features/shell/SessionGate";
 import { routeTitle } from "@/features/shell/routeTitles";
 import { SlotProviders } from "@/features/shell/slots";
@@ -91,13 +93,28 @@ const RootNavigator = () => {
 };
 
 export default function RootLayout() {
+  // A janela do mini-player do shell desktop nao e a app: e um espelho de
+  // eventos (features/miniplayer). Fica ACIMA do SessionGate de proposito -
+  // sem sessao, sem queries, sem navegador - por isso o return e o primeiro
+  // acto deste componente, antes de qualquer hook de arranque.
+  const miniplayer = isMiniplayerWindow();
+
   useEffect(() => {
+    if (miniplayer) return;
     wireQueryClient();
     // Local-first boot: yesterday's library renders in the FIRST frame the
     // authed screens mount; the network only revalidates it afterwards.
     hydrateQueryCache();
     startQueryCachePersistence();
-  }, []);
+  }, [miniplayer]);
+
+  if (miniplayer) {
+    return (
+      <ThemeProvider>
+        <MiniplayerApp />
+      </ThemeProvider>
+    );
+  }
 
   return (
     <>

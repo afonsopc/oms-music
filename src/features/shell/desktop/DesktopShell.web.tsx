@@ -26,6 +26,7 @@
  */
 import React, { useState } from "react";
 import { useWindowDimensions, View } from "react-native";
+import { isDesktopShell as isTauriShell } from "@/desktop/tauri";
 import { useT } from "@/i18n";
 import { useTheme } from "@/theme/provider";
 import { BREAKPOINTS, ContainerWidthProvider, useDesktopShell, useRightPanelWide } from "@/ui";
@@ -83,6 +84,8 @@ export const DesktopShell = ({ children }: DesktopShellProps) => {
   const { tokens, scheme } = useTheme();
   const { width: windowWidth } = useWindowDimensions();
   const t = useT();
+  /** Dentro do shell Tauri a janela nao tem barra de titulo propria. */
+  const tauri = isTauriShell();
 
   // Remembered shape, hydrated synchronously so the first frame is already
   // right (4.5 persistence; kv is localStorage here).
@@ -201,6 +204,21 @@ export const DesktopShell = ({ children }: DesktopShellProps) => {
 
   return (
     <div style={outer}>
+      {/* Janela do Tauri ESTREITA (abaixo dos 900, onde o shell mostra o
+          layout mobile - o dono confirmou que isso esta certo): os semaforos
+          do sistema continuam a flutuar sobre o conteudo porque a barra de
+          titulo e overlay, e sem esta faixa aterravam em cima dos filtros da
+          biblioteca (screenshot 2026-08-15). A altura e a MESMA banda da
+          topbar do desktop (padding do grid + 56), para uma unica posicao de
+          semaforo servir os dois regimes; e tambem a unica zona de arrasto
+          que a janela tem neste tamanho. */}
+      {tauri && !desktop ? (
+        <div
+          key="tauri-title-strip"
+          data-tauri-drag-region="true"
+          style={{ height: TOPBAR_HEIGHT + GAP, flex: "0 0 auto", backgroundColor: tokens.background }}
+        />
+      ) : null}
       {desktop ? (
         <DesktopShortcuts
           key="shortcuts"

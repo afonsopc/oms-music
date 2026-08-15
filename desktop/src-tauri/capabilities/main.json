@@ -6,6 +6,7 @@
   "permissions": [
     "core:default",
     "window-state:default",
-    "updater:default"
+    "updater:default",
+    "core:window:allow-start-dragging"
   ]
 }

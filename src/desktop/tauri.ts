@@ -41,6 +41,10 @@ export interface TauriGlobals {
       event: string,
       handler: (event: TauriEventPayload) => void,
     ) => Promise<() => void>;
+    /** Difunde a TODAS as janelas do processo, a propria incluida. E o que
+     *  liga a janela principal a do mini-player (ver ./miniplayer.ts).
+     *  Opcional porque um shell mais antigo pode nao o expor. */
+    emit?: (event: string, payload?: unknown) => Promise<void>;
   };
 }
 

@@ -84,6 +84,12 @@ fn ensure_window<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<tauri::Webview
     .resizable(false)
     .maximizable(false)
     .minimizable(false)
+    // Sem barra de titulo: num rectangulo de 420x240 uma barra do sistema
+    // com semaforos come a altura toda e o mini-player deixa de ter onde
+    // desenhar. A janela arrasta pelo fundo (data-tauri-drag-region na UI) e
+    // fecha-se pelo mesmo Cmd+Shift+M / menu Vista que a abriu.
+    .decorations(false)
+    .shadow(true)
     // Fallback honesto fora do macOS; no macOS o to_panel abaixo substitui
     // isto por um NSPanel a serio.
     .always_on_top(true)

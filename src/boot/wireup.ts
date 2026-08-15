@@ -65,6 +65,7 @@ import { registerJamSurfaces } from "@/features/jam/register";
 import { registerAddToPlaylistHost } from "@/features/playlists/register";
 import { registerRadioSongMenuSlots } from "@/features/radios/register";
 import { registerDesktopBridge } from "@/desktop/register";
+import { isMiniplayerWindow } from "@/desktop/miniplayer";
 import { registerLibraryWarmup } from "@/api/warmup";
 import { getJamManager } from "@/jam/channel";
 import { registerPlayerEngine } from "@/player/register";
@@ -124,6 +125,15 @@ let wired = false;
 /** Idempotent; the root layout imports this module for its side effect. */
 export const wireUp = (): void => {
   if (wired) return;
+  // A janela do mini-player corre o mesmo bundle e NAO quer nada disto: um
+  // segundo motor de audio, uma segunda sessao de cache local e um segundo
+  // canal de presenca no mesmo processo seriam trabalho a disputar recursos
+  // para desenhar tres botoes. Ela e um espelho por eventos
+  // (features/miniplayer) e mais nada.
+  if (isMiniplayerWindow()) {
+    wired = true;
+    return;
+  }
   wired = true;
 
   // 0a. The last-user memo, before ANYTHING reads it. The persisted query

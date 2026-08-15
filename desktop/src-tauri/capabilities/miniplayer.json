@@ -4,6 +4,7 @@
   "description": "O miniplayer so precisa dos eventos e comandos do shell (transporte, metadata). Nada de updater nem window-state: e a janela mais exposta (sempre visivel, todos os Spaces) e a que menos permissoes justifica.",
   "windows": ["miniplayer"],
   "permissions": [
-    "core:default"
+    "core:default",
+    "core:window:allow-start-dragging"
   ]
 }
