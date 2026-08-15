@@ -25,10 +25,32 @@ const washRgb = (scheme: "light" | "dark"): string =>
   scheme === "dark" ? "0, 0, 0" : "255, 255, 255";
 
 /**
+ * Paragens do veu. `dense` e para as vistas cheias de texto (letras, fila,
+ * definicoes, jam): uma capa CLARA por baixo deixava a tela quase branca e os
+ * cinzentos da app - rotulos "A SEGUIR", duracoes, chips - desapareciam nela
+ * (screenshots do dono, 2026-08-15). Os tokens de texto sao calibrados contra
+ * o fundo quase preto da app, por isso a resposta certa e devolver a tela a
+ * essa luminancia quando ha texto, em vez de recolorir cada componente.
+ *
+ * O modo da capa fica com o veu leve: e a pagina onde a artwork manda e onde
+ * ha pouco texto para proteger.
+ */
+const washStops = (rgb: string, dense: boolean): string =>
+  dense
+    ? `linear-gradient(to bottom, rgba(${rgb}, 0.74) 0%, rgba(${rgb}, 0.82) 45%, rgba(${rgb}, 0.92) 80%, rgba(${rgb}, 0.96) 100%)`
+    : `linear-gradient(to bottom, rgba(${rgb}, 0.34) 0%, rgba(${rgb}, 0.58) 40%, rgba(${rgb}, 0.88) 78%, rgba(${rgb}, 0.95) 100%)`;
+
+/**
  * A copia desfocada, esticada a pagina inteira, mais o veu que garante o
  * contraste. `pointerEvents none`: e cenario, nunca apanha toques.
  */
-export const ImmersiveBackdrop = ({ song }: { song: Song | null }) => {
+export const ImmersiveBackdrop = ({
+  song,
+  dense = false,
+}: {
+  song: Song | null;
+  dense?: boolean;
+}) => {
   const { scheme } = useTheme();
   const rgb = washRgb(scheme);
   return (
@@ -57,14 +79,7 @@ export const ImmersiveBackdrop = ({ song }: { song: Song | null }) => {
           }}
         />
       ) : null}
-      <View
-        style={[
-          StyleSheet.absoluteFill,
-          gradientBackground(
-            `linear-gradient(to bottom, rgba(${rgb}, 0.30) 0%, rgba(${rgb}, 0.55) 40%, rgba(${rgb}, 0.86) 78%, rgba(${rgb}, 0.94) 100%)`,
-          ),
-        ]}
-      />
+      <View style={[StyleSheet.absoluteFill, gradientBackground(washStops(rgb, dense))]} />
     </View>
   );
 };
