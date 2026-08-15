@@ -104,12 +104,15 @@ rustls = { version = "0.23", default-features = false, features = ["ring"] }
 # rev PINADA porque o branch v2 ja partiu API duas vezes (cocoa -> objc2).
 # Noutras plataformas cai numa janela normal always-on-top.
 tauri-nspanel = { git = "https://github.com/ahkohd/tauri-nspanel", rev = "18ffb9a201fbf6fedfaa382fd4b92315ea30ab1a" }
-# O @try/@catch de Objective-C exposto ao Rust (o mesmo shim C que o crate
-# objc usa por baixo da feature "exception", que nao exporta o modulo). Sem
-# isto, uma NSException na promocao a NSPanel do mini-player atravessa frames
-# Rust e o runtime aborta o processo inteiro ("Rust cannot catch foreign
-# exceptions") - visto no macOS 26 beta, 2026-08-15.
-objc_exception = "0.1"
+# O @try/@catch de Objective-C exposto ao Rust. Tem de ser o objc2 (que o
+# proprio tauri/wry ja traz; isto so liga a feature "exception"): o shim
+# antigo objc_exception 0.1 invoca a closure por extern "C", que o Rust
+# moderno marca nounwind - a NSException abortava com "panic in a function
+# that cannot unwind" antes de chegar ao @catch. O objc2 usa "C-unwind".
+# Sem catch nenhum, a NSException na promocao a NSPanel atravessava frames
+# Rust e abortava o processo ("Rust cannot catch foreign exceptions") -
+# ambos vistos no macOS 26 beta, 2026-08-15.
+objc2 = { version = "0.6", features = ["exception"] }
 
 [profile.dev]
 # Mesma razao do spike 4: um debug puro contamina medicoes de CPU/RSS sem

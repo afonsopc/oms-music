@@ -110,10 +110,11 @@ fn promote_to_panel<R: Runtime>(window: &tauri::WebviewWindow<R>) {
     // NSException a atravessar frames Rust nao e apanhavel - o runtime
     // aborta o processo inteiro ("Rust cannot catch foreign exceptions",
     // report do dono 2026-08-15, destapado assim que o init do plugin deixou
-    // o to_panel correr). Com o catch, o pior caso volta a ser o fallback
+    // o to_panel correr). Tem de ser o catch do objc2 (extern "C-unwind");
+    // ver a nota no Cargo.toml. Com ele, o pior caso volta a ser o fallback
     // documentado: janela normal always-on-top.
-    let outcome = unsafe {
-        objc_exception::r#try(|| match window.to_panel() {
+    let outcome = objc2::exception::catch(std::panic::AssertUnwindSafe(|| {
+        match window.to_panel() {
             Ok(panel) => {
                 // NSFloatingWindowLevel = 3: acima das janelas normais, abaixo
                 // de menus/dock, que e onde um mini-player pertence.
@@ -133,8 +134,8 @@ fn promote_to_panel<R: Runtime>(window: &tauri::WebviewWindow<R>) {
                 // normal, que e o mesmo fallback das outras plataformas.
                 eprintln!("miniplayer: to_panel falhou, fica janela normal: {error:?}");
             }
-        })
-    };
+        }
+    }));
     if outcome.is_err() {
         eprintln!("miniplayer: NSException na promocao a NSPanel; fica janela normal");
     }
