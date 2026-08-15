@@ -72,7 +72,7 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
 pub fn run() {
     let specta = specta_builder();
 
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
         // Primeiro plugin de proposito: um segundo lancamento nao pode chegar
         // a criar webview nenhum (dois processos disputariam o dispositivo de
         // audio, plano 3.5); foca a janela existente e morre.
@@ -97,7 +97,16 @@ pub fn run() {
         // O protocolo de media, na variante ASSINCRONA. A sincrona corre na
         // thread da UI e faria a janela engasgar-se a cada seek, que e
         // exactamente o gesto que isto existe para tornar instantaneo.
-        .register_asynchronous_uri_scheme_protocol(cache::SCHEME, cache::protocol::handle)
+        .register_asynchronous_uri_scheme_protocol(cache::SCHEME, cache::protocol::handle);
+
+    // O manager de paineis do tauri-nspanel. Sem este init o to_panel() do
+    // miniplayer chama state() antes de manage() e o processo INTEIRO morre
+    // em panico ao clicar no toggle (report do dono 2026-08-15) - o fallback
+    // "fica janela normal" do promote_to_panel nunca chegava a correr.
+    #[cfg(target_os = "macos")]
+    let builder = builder.plugin(tauri_nspanel::init());
+
+    builder
         .invoke_handler(specta.invoke_handler())
         .setup(move |app| {
             specta.mount_events(app);
