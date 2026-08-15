@@ -81,7 +81,7 @@ export const NowPlayingScreen = () => {
       {/* A propria capa, desfocada e esticada, e o fundo - e o veu por cima
           dela e que garante o contraste das barras, em vez do accent
           extraido que dava fundos imprevisiveis (queixa do dono). */}
-      <ImmersiveBackdrop song={song} />
+      <ImmersiveBackdrop song={song} dense={mode !== "artwork"} />
       <View style={{ flex: 1, paddingBottom: Math.max(insets.bottom, 12) }}>
         {/* A PEGA. E o que diz "isto puxa-se para baixo" antes de o
             utilizador tentar, e como vive acima do palco vale em TODAS as
