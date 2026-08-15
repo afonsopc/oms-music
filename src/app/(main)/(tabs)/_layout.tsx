@@ -22,10 +22,10 @@
 import React from "react";
 import { Platform } from "react-native";
 import { NativeTabs } from "expo-router/unstable-native-tabs";
-import { avatarUrl } from "@/api/mediaUrl";
 import { useSessionStore } from "@/auth/session";
 import { openProfileDrawer } from "@/features/home/ProfileDrawer";
 import { useT } from "@/i18n";
+import { useTabAvatarIcon } from "@/features/shell/tabAvatar";
 import { useTheme } from "@/theme/provider";
 
 export const unstable_settings = { anchor: "(home)" };
@@ -41,6 +41,7 @@ export default function TabsLayout() {
   const t = useT();
   const { tokens } = useTheme();
   const userId = useSessionStore((s) => s.user?.id ?? s.session?.user_id ?? null);
+  const avatarIcon = useTabAvatarIcon(userId);
 
   return (
     // minimizeBehavior "never": a pill do mini-player e nossa e flutua num
@@ -78,10 +79,13 @@ export default function TabsLayout() {
         disableAutomaticContentInsets={OWN_INSETS}
       >
         <NativeTabs.Trigger.Label>{t("native.shell.tabProfile")}</NativeTabs.Trigger.Label>
-        {/* A UITabBar nao tem mascara, por isso o avatar sai QUADRADO. Sem
-            sessao (ou sem foto) vale mais o simbolo redondo do sistema. */}
-        {userId ? (
-          <NativeTabs.Trigger.Icon src={{ uri: avatarUrl(userId) }} renderingMode="original" />
+        {/* A foto vem REDUZIDA a tamanho de icone (features/shell/tabAvatar):
+            entregue crua, a UITabBar desenhava-a ao tamanho natural e a cara
+            ocupava a barra inteira. Ate estar pronta - e se falhar - fica o
+            simbolo do sistema, que tambem e o estado certo sem sessao.
+            Sai QUADRADA: a barra nativa nao aplica mascara. */}
+        {avatarIcon ? (
+          <NativeTabs.Trigger.Icon src={{ uri: avatarIcon }} renderingMode="original" />
         ) : (
           <NativeTabs.Trigger.Icon sf="person.crop.circle" md="account_circle" />
         )}
