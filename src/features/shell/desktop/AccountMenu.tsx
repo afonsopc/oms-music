@@ -68,6 +68,10 @@ export const AccountMenu = () => {
     const { pageX, pageY } = event.nativeEvent;
     setAnchor({ x: pageX ?? 0, y: pageY ?? 0 });
   };
+  // Rotas NUAS, sem prefixo de grupo: com stacks por tab o expo-router
+  // escolhe a copia da rota que vive na tab focada comparando os segmentos de
+  // grupo, por isso o menu abre o perfil DENTRO da tab onde o utilizador
+  // estava. Prefixar com (home) mandava toda a navegacao para o Inicio.
   const go = (route: Href): void => {
     setAnchor(null);
     router.push(route);
@@ -98,23 +102,23 @@ export const AccountMenu = () => {
           icon="user"
           label={t("native.home.viewProfile")}
           onPress={() =>
-            go({ pathname: "/(main)/profile/[idOrHandle]", params: { idOrHandle: user.handle } })
+            go({ pathname: "/profile/[idOrHandle]", params: { idOrHandle: user.handle } })
           }
         />
         <AccountMenuRow
           icon="users"
           label={t("native.friends.title")}
-          onPress={() => go("/(main)/friends")}
+          onPress={() => go("/friends")}
         />
         <AccountMenuRow
           icon="download"
           label={t("native.shell.tabDownloads")}
-          onPress={() => go("/(main)/settings/downloads-overview")}
+          onPress={() => go("/settings/downloads-overview")}
         />
         <AccountMenuRow
           icon="settings"
           label={t("native.library.settings")}
-          onPress={() => go("/(main)/settings")}
+          onPress={() => go("/settings")}
         />
       </Popover>
     </>

@@ -1,37 +1,45 @@
 /**
- * Default bottom tab bar wrapped in a measuring View: the real rendered
- * height feeds metrics.ts so the overlay host can float the MiniPlayer pill
- * exactly above the bar without hardcoding platform heights.
+ * A barra classica do navegador de tabs. SO a web abaixo de 900px:
  *
- * In the DESKTOP shell (web, >= 900px of window) the bar does not render at
- * all: the sidebar owns navigation there. On NATIVE it does not render
- * either: the GlobalTabBar (mounted at (main)/_layout) is THE bar, visible
- * across tabs and pushes alike (Apple Music idiom, owner request
- * 2026-08-14), and it owns the measured-height feed there. Only the mobile
- * WEB shell below 900px keeps this classic in-navigator bar.
+ *  - no shell DESKTOP (web, >= 900px) nao renderiza, quem navega la e a
+ *    sidebar;
+ *  - no NATIVO tambem nao, e desde 2026-08-15 nem sequer chega la: a barra
+ *    passou a ser a do SISTEMA (expo-router/unstable-native-tabs) e quem
+ *    importa este ficheiro e o (tabs)/_layout.web.tsx, nao o layout nativo.
+ *    A guarda de Platform fica na mesma, que o bundler nao e o contrato.
+ *
+ * Ja nao mede a propria altura (mediu ate 2026-08-15 para o metrics.ts
+ * pousar a pill do MiniPlayer): a barra e uma LINHA do navegador (flex
+ * column), portanto a cena da tab - onde o OverlayHost agora vive - acaba
+ * exactamente onde a barra comeca e nao ha altura nenhuma a somar. Se
+ * alguma vez voltar a ser precisa, o proprio BottomTabView ja a publica em
+ * BottomTabBarHeightContext.
  */
 import React from "react";
-import { Platform, View } from "react-native";
+import { Platform } from "react-native";
 import { BottomTabBar, type BottomTabBarProps } from "expo-router/js-tabs";
+import { useSegments } from "expo-router";
 import { useDesktopShell } from "@/ui/shellLayout";
-import { setMeasuredTabBarHeight } from "./metrics";
+import { useAtTabRoot } from "./metrics";
 
 export const ShellTabBar = (props: BottomTabBarProps) => {
   const desktop = useDesktopShell();
+  const atTabRoot = useAtTabRoot();
+  const segments = useSegments() as string[];
+
   if (desktop) return null;
-  // NATIVO: a barra do navegador de tabs abdica - a GlobalTabBar (montada
-  // no (main)/_layout) e A barra, visivel tambem nos pushes (Apple Music
-  // idiom, pedido do dono 2026-08-14). A web abaixo de 900px mantem a barra
-  // classica congelada.
   if (Platform.OS !== "web") return null;
-  return (
-    <View
-      onLayout={(event) => setMeasuredTabBarHeight(Math.round(event.nativeEvent.layout.height))}
-      style={{ flexDirection: "row", alignItems: "stretch" }}
-    >
-      <View style={{ flex: 1 }}>
-        <BottomTabBar {...props} />
-      </View>
-    </View>
-  );
+  // Congelado de proposito: ate 2026-08-15 as ~21 rotas empurradas eram
+  // IRMAS do navegador de tabs e esta barra nao existia nelas. Agora vivem
+  // DENTRO das tabs, e sem esta guarda a web mobile ganhava uma barra que
+  // nunca teve.
+  //
+  // A guarda pede as duas coisas (dentro das tabs E fora de uma raiz) em vez
+  // so de "fora de uma raiz": no player, no jam e na galeria o foco sai do
+  // navegador de tabs e ai a barra sempre continuou montada por baixo do
+  // modal. Desmonta-la nesses ecras encolhia e esticava a cena da tab por
+  // tras do modal, e o scroll das listas saltava ao fechar.
+  if (segments.includes("(tabs)") && !atTabRoot) return null;
+
+  return <BottomTabBar {...props} />;
 };

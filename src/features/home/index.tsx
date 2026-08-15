@@ -170,7 +170,7 @@ export default function HomeScreen() {
       key: "liked",
       title: t("components.music.Sidebar.liked"),
       artwork: { kind: "likedHeart" },
-      onPress: () => router.push("/(main)/liked"),
+      onPress: () => router.push("/liked"),
     },
     ...recentTiles.slice(0, QUICK_GRID_RECENTS),
   ];
@@ -283,7 +283,7 @@ export default function HomeScreen() {
           <Rail
             title={t("components.music.Home.yourArtists")}
             showAllLabel={t("components.music.Home.showAll")}
-            onShowAll={() => router.push("/(main)/artists")}
+            onShowAll={() => router.push("/artists")}
           >
             {topArtists.map((row, i) => {
               const name =
@@ -340,7 +340,7 @@ export default function HomeScreen() {
           <Rail
             title={t("components.music.Home.yourPlaylists")}
             showAllLabel={t("components.music.Home.showAll")}
-            onShowAll={() => router.push("/(main)/playlists")}
+            onShowAll={() => router.push("/playlists")}
           >
             {playlistsQuery.isLoading ? (
               <RailSkeletons />

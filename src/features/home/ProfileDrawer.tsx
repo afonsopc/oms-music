@@ -162,7 +162,7 @@ export const ProfileDrawer = ({
           accessibilityRole="button"
           accessibilityLabel={t("native.home.viewProfile")}
           onPress={() => {
-            if (user) go({ pathname: "/(main)/profile/[idOrHandle]", params: { idOrHandle: user.handle } });
+            if (user) go({ pathname: "/profile/[idOrHandle]", params: { idOrHandle: user.handle } });
           }}
           style={({ pressed }) => ({
             flexDirection: "row",
@@ -200,16 +200,16 @@ export const ProfileDrawer = ({
 
         <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: tokens.border, marginBottom: 8 }} />
 
-        <Row first icon="users" label={t("native.friends.title")} onPress={() => go("/(main)/friends")} />
+        <Row first icon="users" label={t("native.friends.title")} onPress={() => go("/friends")} />
         <Row
           icon="download"
           label={t("native.shell.tabDownloads")}
-          onPress={() => go("/(main)/settings/downloads-overview")}
+          onPress={() => go("/settings/downloads-overview")}
         />
         <Row
           icon="settings"
           label={t("native.library.settings")}
-          onPress={() => go("/(main)/settings")}
+          onPress={() => go("/settings")}
         />
       </Animated.View>
     </Modal>

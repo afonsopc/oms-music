@@ -11,7 +11,7 @@ export default function ArtistRadioScreen() {
   const params = useLocalSearchParams<{ artist: string }>();
   const artist = (params.artist ?? "").trim();
   if (!artist || artist === "null") {
-    return <Redirect href="/(main)/(tabs)/home" />;
+    return <Redirect href="/home" />;
   }
   return <RadioScreen kind="artist" artist={artist} />;
 }

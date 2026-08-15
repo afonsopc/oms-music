@@ -203,7 +203,7 @@ export default function ArtistsHubScreen() {
       ) : null}
 
       <Pressable
-        onPress={() => router.push("/(main)/artists-roster")}
+        onPress={() => router.push("/artists-roster")}
         accessibilityRole="button"
         style={({ pressed }) => ({
           flexDirection: "row",

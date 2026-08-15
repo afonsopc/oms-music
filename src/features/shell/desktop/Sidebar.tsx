@@ -64,13 +64,17 @@ export interface DesktopSidebarProps {
 interface NavItem {
   key: TabIconName;
   labelKey: string;
-  route: "/(main)/(tabs)/home" | "/(main)/(tabs)/search" | "/(main)/(tabs)/library";
+  // Rotas NUAS, sem prefixo de grupo: desde a migracao para native tabs cada
+  // tab tem a sua stack e cada uma destas tres so existe no seu grupo, por
+  // isso a forma nua e inequivoca. Prefixar com o grupo passaria a ser um
+  // caminho invalido nos typed routes.
+  route: "/home" | "/search" | "/library";
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { key: "home", labelKey: "native.shell.tabHome", route: "/(main)/(tabs)/home" },
-  { key: "search", labelKey: "native.shell.tabSearch", route: "/(main)/(tabs)/search" },
-  { key: "library", labelKey: "native.shell.tabLibrary", route: "/(main)/(tabs)/library" },
+  { key: "home", labelKey: "native.shell.tabHome", route: "/home" },
+  { key: "search", labelKey: "native.shell.tabSearch", route: "/search" },
+  { key: "library", labelKey: "native.shell.tabLibrary", route: "/library" },
 ];
 
 const NavRow = ({

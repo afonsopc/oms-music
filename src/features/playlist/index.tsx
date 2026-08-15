@@ -54,7 +54,7 @@ export default function PlaylistScreen() {
   const params = useLocalSearchParams<{ id: string }>();
   const playlistId = Number(params.id);
   if (!Number.isInteger(playlistId) || playlistId <= 0) {
-    return <Redirect href="/(main)/playlists" />;
+    return <Redirect href="/playlists" />;
   }
   return <PlaylistBody playlistId={playlistId as PlaylistId} />;
 }
@@ -308,7 +308,7 @@ const PlaylistBody = ({ playlistId }: { playlistId: PlaylistId }) => {
           deleteMutation.mutate(playlistId, {
             onSuccess: () => {
               setConfirmDelete(false);
-              router.replace("/(main)/playlists");
+              router.replace("/playlists");
             },
             onError: () => setConfirmDelete(false),
           })

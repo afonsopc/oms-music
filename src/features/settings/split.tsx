@@ -12,7 +12,7 @@
  */
 import React from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, type Href } from "expo-router";
 import { useT } from "@/i18n";
 import { useTheme } from "@/theme/provider";
 import { RADIUS } from "@/theme/tokens";
@@ -35,64 +35,76 @@ interface SectionEntry {
   icon: IconName;
   /** Reuses the hub rows' exact labels - one vocabulary, two layouts. */
   labelKey: string;
-  route: string;
+  /**
+   * `Href`, nao `string`: era `string` mais um `as never` no router.replace, e
+   * o cast escondia qualquer rota que deixasse de existir. Com os typed routes
+   * a validarem esta tabela, mover ou renomear um ecra de definicoes parte o
+   * typecheck em vez de so dar 404 em runtime.
+   */
+  route: Href;
 }
 
-/** Same order and same icons as the mobile hub's rows. */
+/**
+ * Same order and same icons as the mobile hub's rows.
+ *
+ * Rotas NUAS, sem prefixo de grupo: desde 2026-08-15 cada tab tem a sua stack
+ * e estas rotas existem uma vez por tab. A forma nua faz o expo-router
+ * escolher a copia da tab focada, que e o que mantem o utilizador onde estava.
+ */
 const SECTIONS: SectionEntry[] = [
   {
     id: "general",
     icon: "settings",
     labelKey: "native.desktop.settingsGeneral",
-    route: "/(main)/settings",
+    route: "/settings",
   },
   {
     id: "import",
     icon: "download",
     labelKey: "components.music.Settings.import",
-    route: "/(main)/settings/import",
+    route: "/settings/import",
   },
   {
     id: "songs",
     icon: "music",
     labelKey: "components.music.Settings.songs",
-    route: "/(main)/settings/songs",
+    route: "/settings/songs",
   },
   {
     id: "artists",
     icon: "user",
     labelKey: "components.music.Settings.artists",
-    route: "/(main)/settings/artists",
+    route: "/settings/artists",
   },
   {
     id: "playback",
     icon: "audio-waveform",
     labelKey: "components.music.Settings.PlaybackPage.title",
-    route: "/(main)/settings/playback",
+    route: "/settings/playback",
   },
   {
     id: "downloads-overview",
     icon: "download",
     labelKey: "native.shell.tabDownloads",
-    route: "/(main)/settings/downloads-overview",
+    route: "/settings/downloads-overview",
   },
   {
     id: "downloads",
     icon: "cloud-check",
     labelKey: "native.settings.hub.rowDownloads",
-    route: "/(main)/settings/downloads",
+    route: "/settings/downloads",
   },
   {
     id: "devices",
     icon: "cast",
     labelKey: "native.settings.hub.rowDevices",
-    route: "/(main)/settings/devices",
+    route: "/settings/devices",
   },
   {
     id: "passkeys",
     icon: "circle-check",
     labelKey: "native.settings.hub.rowPasskeys",
-    route: "/(main)/settings/passkeys",
+    route: "/settings/passkeys",
   },
 ];
 
@@ -146,7 +158,7 @@ export const SettingsRouteShell = ({ section, children }: SettingsRouteShellProp
             <Pressable
               key={entry.id}
               onPress={() => {
-                if (!active) router.replace(entry.route as never);
+                if (!active) router.replace(entry.route);
               }}
               accessibilityRole="button"
               accessibilityState={{ selected: active }}

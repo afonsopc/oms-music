@@ -1,11 +1,36 @@
 /**
- * Overlay geometry (FR-16). The overlay host floats the MiniPlayer pill above
- * the tab bar (tab screens) or above the bottom safe area (pushed screens);
- * every scrollable screen pads its bottom with useContentBottomPadding() so
- * list tails are never covered - the bottom-padding convention feature
- * packages code against.
+ * Geometria dos overlays (FR-16). O host flutua a pill do MiniPlayer acima da
+ * barra de tabs e todos os ecras rolaveis pagam useContentBottomPadding() no
+ * fundo, para a cauda das listas nunca ficar tapada - a convencao contra a
+ * qual as features estao escritas.
+ *
+ * A FONTE de verdade mudou em 2026-08-15, por duas razoes que se somam:
+ *
+ *  1. no nativo a barra deixou de ser nossa (era um capsulo em vidro nosso,
+ *     medido com um onLayout) e passou a ser a do SISTEMA
+ *     (expo-router/unstable-native-tabs), que nao se mede e que nem sequer
+ *     publica BottomTabBarHeightContext (o useBottomTabBarHeight() ATIRA
+ *     dentro das native tabs);
+ *  2. o OverlayHost desceu do (main) para dentro da stack de CADA tab, ou
+ *     seja passou a viver DENTRO da cena da tab em todas as plataformas.
+ *
+ * O (2) e o que decide as contas: a cena da tab ja acaba onde a barra
+ * comeca, por isso o offset da pill deixou de ser "altura da barra" e passou
+ * a ser so o que falta do safe area DENTRO da cena. Por plataforma:
+ *
+ *  - iOS: o UITabBarController estende a cena POR BAIXO da barra e injecta-a
+ *    no safe area do view controller filho (o NativeTabsView.ios monta um
+ *    SafeAreaProvider NOVO por tab), portanto insets.bottom medido aqui ja e
+ *    "barra + home indicator";
+ *  - Android: o NativeTabsView.android embrulha a cena num SafeAreaView
+ *    edges={{bottom:true}}, ou seja o conteudo ja vem recortado ACIMA da
+ *    barra e somar-lhe o inset seria paga-la a dobrar;
+ *  - web: a ShellTabBar e uma LINHA do navegador de tabs (flex column), nao
+ *    um overlay, e ela propria ja paga o insets.bottom. Nas raizes das tabs
+ *    a cena acaba no topo da barra e nao ha nada a somar; nas rotas
+ *    empurradas a barra nao renderiza (ver ShellTabBar), a cena volta a ser
+ *    o ecra todo e o inset de baixo (Safari em standalone) volta a contar.
  */
-import { useSyncExternalStore } from "react";
 import { Platform } from "react-native";
 import { useSegments } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -15,30 +40,6 @@ import { useDesktopShell } from "@/ui/shellLayout";
 export const OVERLAY_PILL_HEIGHT = 64;
 /** Gap between the pill and whatever it floats above (web: inset 8). */
 export const OVERLAY_MARGIN = 8;
-/** Fallback tab bar core height until the real bar reports its layout. */
-const TAB_BAR_FALLBACK = 49;
-
-let measuredTabBarHeight = 0;
-const listeners = new Set<() => void>();
-
-/** Reported by the shell tab bar wrapper's onLayout. */
-export const setMeasuredTabBarHeight = (height: number): void => {
-  if (height === measuredTabBarHeight) return;
-  measuredTabBarHeight = height;
-  for (const cb of listeners) cb();
-};
-
-const subscribe = (cb: () => void): (() => void) => {
-  listeners.add(cb);
-  return () => {
-    listeners.delete(cb);
-  };
-};
-
-const getHeight = (): number => measuredTabBarHeight;
-
-export const useMeasuredTabBarHeight = (): number =>
-  useSyncExternalStore(subscribe, getHeight, getHeight);
 
 /**
  * Bottom padding of the main pane's scrollables inside the DESKTOP shell:
@@ -47,27 +48,39 @@ export const useMeasuredTabBarHeight = (): number =>
  */
 const DESKTOP_CONTENT_BOTTOM = 24;
 
+/** As raizes das tres tabs; tudo o resto e um push dentro da stack de uma. */
+const TAB_ROOTS = new Set(["home", "search", "library"]);
+
+/**
+ * O ecra focado e a RAIZ de uma tab (e nao um push la dentro)? Desde a
+ * migracao para native tabs as ~21 rotas empurradas passaram a viver DENTRO
+ * das tabs, por isso `segments.includes("(tabs)")` passou a ser sempre
+ * verdadeiro e deixou de distinguir seja o que for.
+ */
+export const useAtTabRoot = (): boolean => {
+  const segments = useSegments() as string[];
+  return TAB_ROOTS.has(segments[segments.length - 1] ?? "");
+};
+
 /** Distance from the screen bottom to the overlay's bottom edge. */
 export const useOverlayBottomOffset = (): number => {
-  const segments = useSegments();
   const insets = useSafeAreaInsets();
-  const measured = useMeasuredTabBarHeight();
   const desktop = useDesktopShell();
-  // Desktop shell: the tab bar does not render, so its measured height (or
-  // the phone fallback) must not push the remaining overlays (offline
-  // banner, jam bar) anywhere - they float just above the pane's bottom
-  // edge. Without this gate the last MOBILE measurement leaks into desktop.
+  const atTabRoot = useAtTabRoot();
+
+  // Desktop shell: nao ha barra nenhuma nem pill (o transporte e uma LINHA
+  // da grelha), os overlays que restam (banner de offline, JamBar) flutuam
+  // logo acima do limite do painel.
   if (desktop) return OVERLAY_MARGIN;
-  const tabsFocused = (segments as string[]).includes("(tabs)");
-  // NATIVO: a GlobalTabBar flutua sobre TODOS os ecras do (main) desde
-  // 2026-08-14, por isso a pill afasta-se dela em todo o lado - so a web
-  // mobile mantem a barra classica das tabs (e o offset por segmento). Sem
-  // isto a pill do player colapsado aterrava EM CIMA da barra nas paginas
-  // que antes nao a tinham (report do dono).
-  if (Platform.OS !== "web" || tabsFocused) {
-    return (measured > 0 ? measured : TAB_BAR_FALLBACK + insets.bottom) + OVERLAY_MARGIN;
-  }
-  return insets.bottom + OVERLAY_MARGIN;
+
+  // Web: a barra classica ja paga o safe area por dentro dela, por isso nas
+  // raizes das tabs some-lo outra vez levantava a pill uma barra inteira
+  // acima do sitio de sempre.
+  if (Platform.OS === "web") return (atTabRoot ? 0 : insets.bottom) + OVERLAY_MARGIN;
+
+  // Nativo: no iOS a barra do sistema esta no safe area da cena; no Android
+  // a cena ja vem recortada acima dela.
+  return (Platform.OS === "ios" ? insets.bottom : 0) + OVERLAY_MARGIN;
 };
 
 /**

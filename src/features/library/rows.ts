@@ -72,7 +72,7 @@ export const likedLibraryRow = (name: string, kindLabel: string): LibraryRow => 
   name,
   subtitle: kindLabel,
   artwork: { kind: "likedHeart" },
-  route: "/(main)/liked",
+  route: "/liked",
   system: false,
   circular: false,
   pinned: true,

@@ -71,7 +71,7 @@ export const startDesktopBridge = (): boolean => {
     if (payload?.type === "cinema") {
       openCinema();
     } else if (payload?.type === "settings") {
-      router.push("/(main)/settings");
+      router.push("/settings");
     }
   });
 

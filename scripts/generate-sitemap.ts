@@ -16,9 +16,9 @@
  *    just be noise;
  *  - route-group aliases ((main)/(tabs)/home.html vs home.html) collapse to
  *    ONE canonical URL by stripping the (group) segments and deduping;
- *  - expo-router internals (+not-found, _sitemap), the generated 404.html
- *    and /oauth/* (robots.txt disallows it: ephemeral login tickets) stay
- *    out.
+ *  - expo-router internals (+not-found, _sitemap), the generated 404.html,
+ *    /oauth/* (robots.txt disallows it: ephemeral login tickets) and the
+ *    /account ghost route (the native tab bar's "Perfil" item) stay out.
  *
  * Writes <distDir>/sitemap.xml, the file robots.txt already points at.
  * Paths are joined with "/" directly: this is bun-side tooling for macOS /
@@ -60,6 +60,10 @@ const toRoute = (relPath: string): string | null => {
     if (segment.startsWith("[") || segment === "__dynamic") return null;
     // Router internals and the Pages 404 copy.
     if (segment === "+not-found" || segment === "_sitemap" || segment === "404") return null;
+    // A rota-fantasma por tras do item "Perfil" da barra nativa: o trigger e
+    // `disabled` e nunca a mostra, so existe para o navegador de tabs ter um
+    // filho valido. Renderiza um ecra vazio, logo nao pode ser indexada.
+    if (segment === "account") return null;
     kept.push(segment);
   }
   // OAuth return leg: robots.txt disallows it, so the sitemap must not list it.

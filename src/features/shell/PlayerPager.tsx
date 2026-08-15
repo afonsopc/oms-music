@@ -48,7 +48,7 @@ export const NowPlayingScreen = () => {
   // a Home e a porta nesse caso.
   const close = (): void => {
     if (router.canGoBack()) router.back();
-    else router.replace("/(main)/(tabs)/home");
+    else router.replace("/home");
   };
 
   // WEB: arrastar para baixo fecha, como no nativo. O browser nao traz o

@@ -67,14 +67,16 @@ describe("buildLibraryRows", () => {
   });
 
   // Routes are Href objects with RAW params: the router does the encoding.
+  // O pathname e NU (sem prefixo de grupo) de proposito: com uma stack por
+  // tab a rota existe tres vezes e a forma nua e a que aterra na tab focada.
   it("routes artists by slug and falls back to the plain name", () => {
     const rows = buildLibraryRows("artists", sources, "", labels);
     expect(rows[0].route).toEqual({
-      pathname: "/(main)/artist/[artist]",
+      pathname: "/artist/[artist]",
       params: { artist: "xutos-pontapes" },
     });
     expect(rows[1].route).toEqual({
-      pathname: "/(main)/artist/[artist]",
+      pathname: "/artist/[artist]",
       params: { artist: "Rui Veloso" },
     });
     expect(rows[0].circular).toBeTruthy();
@@ -95,7 +97,7 @@ describe("likedLibraryRow", () => {
     const row = likedLibraryRow("Liked Songs", "Playlist");
     expect(row.pinned).toBeTruthy();
     expect(row.artwork.kind).toBe("likedHeart");
-    expect(row.route).toBe("/(main)/liked");
+    expect(row.route).toBe("/liked");
     expect(row.subtitle).toBe("Playlist");
   });
 });

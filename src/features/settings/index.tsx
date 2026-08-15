@@ -134,19 +134,19 @@ export default function SettingsHubScreen() {
           icon="download"
           label={t("components.music.Settings.import")}
           detail={t("components.music.Settings.ImportPage.description")}
-          onPress={() => router.push("/(main)/settings/import")}
+          onPress={() => router.push("/settings/import")}
         />
         <SettingsRow
           icon="music"
           label={t("components.music.Settings.songs")}
           detail={t("components.music.Settings.SongsPage.description")}
-          onPress={() => router.push("/(main)/settings/songs")}
+          onPress={() => router.push("/settings/songs")}
         />
         <SettingsRow
           icon="user"
           label={t("components.music.Settings.artists")}
           detail={t("components.music.Settings.ArtistsPage.description")}
-          onPress={() => router.push("/(main)/settings/artists")}
+          onPress={() => router.push("/settings/artists")}
         />
       </SettingsSection>
 
@@ -156,13 +156,13 @@ export default function SettingsHubScreen() {
           icon="audio-waveform"
           label={t("components.music.Settings.PlaybackPage.title")}
           detail={t("components.music.Settings.PlaybackPage.subtitle")}
-          onPress={() => router.push("/(main)/settings/playback")}
+          onPress={() => router.push("/settings/playback")}
         />
         <SettingsRow
           icon="download"
           label={t("native.shell.tabDownloads")}
           detail={t("native.downloadsOverview.rowDetail")}
-          onPress={() => router.push("/(main)/settings/downloads-overview")}
+          onPress={() => router.push("/settings/downloads-overview")}
         />
         {/* Distinct label from the downloads OVERVIEW row above: both read
             "Transferências" before, and two identical rows in the same
@@ -170,17 +170,17 @@ export default function SettingsHubScreen() {
         <SettingsRow
           icon="cloud-check"
           label={t("native.settings.hub.rowDownloadSettings")}
-          onPress={() => router.push("/(main)/settings/downloads")}
+          onPress={() => router.push("/settings/downloads")}
         />
         <SettingsRow
           icon="cast"
           label={t("native.settings.hub.rowDevices")}
-          onPress={() => router.push("/(main)/settings/devices")}
+          onPress={() => router.push("/settings/devices")}
         />
         <SettingsRow
           icon="circle-check"
           label={t("native.settings.hub.rowPasskeys")}
-          onPress={() => router.push("/(main)/settings/passkeys")}
+          onPress={() => router.push("/settings/passkeys")}
         />
       </SettingsSection>
 

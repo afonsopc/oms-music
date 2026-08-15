@@ -11,7 +11,7 @@ export default function SongRadioScreen() {
   const params = useLocalSearchParams<{ id: string }>();
   const songId = Number(params.id);
   if (!Number.isInteger(songId) || songId <= 0) {
-    return <Redirect href="/(main)/(tabs)/home" />;
+    return <Redirect href="/home" />;
   }
   return <RadioScreen kind="song" songId={songId as SongId} />;
 }

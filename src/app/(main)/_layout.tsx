@@ -1,22 +1,25 @@
 /**
- * (main) stack + overlay host (FR-16): the MiniPlayer pill (or JamBar /
- * controller strip) floats above every screen. Also fires the FR-22
- * service-usage ping on first authed mount.
+ * (main) stack. Fires the FR-22 service-usage ping on first authed mount.
+ *
+ * Continua a ser um <Stack> por causa da `gallery`, a unica rota que ficou
+ * IRMA do navegador de tabs (e dev-only e inalcancavel por UI, triplica-la
+ * pelas tres tabs so engordava o export estatico).
+ *
+ * O OverlayHost desceu para dentro de cada tab a 2026-08-15 (as tabs
+ * passaram a ser nativas e a altura da barra do sistema so e observavel de
+ * dentro do ecra da tab). Aqui ficou o que TEM de ser unico e sobreviver a
+ * troca de tab: a gaveta de perfil, que e um Modal.
  *
  * The whole tree sits inside DesktopShell: a pass-through on native and on
  * web below 900px (the mobile shell stays EXACTLY as it was), and the
  * topbar / sidebar / main / right panel / transport grid on desktop web
- * (plano-uma-so-app 4.1). The Stack and the OverlayHost become the shell's
- * main pane; the pill hides itself there because the transport bar is a
- * grid row.
+ * (plano-uma-so-app 4.1). The Stack becomes the shell's main pane.
  */
 import React from "react";
 import { View } from "react-native";
 import { Stack } from "expo-router";
 import { ProfileDrawerHost } from "@/features/home/ProfileDrawer";
 import { DesktopShell } from "@/features/shell/desktop/DesktopShell";
-import { GlobalTabBar } from "@/features/shell/GlobalTabBar";
-import { OverlayHost } from "@/features/shell/OverlayHost";
 import { useServiceUsagePing } from "@/features/shell/useServiceUsagePing";
 import { useTheme } from "@/theme/provider";
 
@@ -34,11 +37,6 @@ export default function MainLayout() {
             contentStyle: { backgroundColor: tokens.background },
           }}
         />
-        {/* A barra global do nativo (Apple Music idiom): SEMPRE visivel,
-            tabs e pushes, so coberta pelo player modal. Montada ANTES do
-            OverlayHost para a pill do MiniPlayer flutuar por cima dela. */}
-        <GlobalTabBar />
-        <OverlayHost />
         {/* Shell-level mount so the tab bar avatar (and Home's header
             avatar) can open the profile drawer from ANY tab. */}
         <ProfileDrawerHost />

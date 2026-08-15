@@ -12,6 +12,13 @@
  *
  * A missing artist/album keeps the literal "null" segment: the album screen
  * maps it to `exact_search[album]="\b"` / no context artist.
+ *
+ * Os pathnames sao NUS - sem `(main)`, sem `(tabs)`, sem grupo de tab - de
+ * proposito. Desde 2026-08-15 cada tab tem a sua stack e as mesmas rotas
+ * existem tres vezes, uma por grupo; o expo-router escolhe a copia que esta na
+ * tab focada comparando os segmentos de grupo da posicao actual
+ * (getRouteConfigSorter). Prefixar com `(home)` mandava toda a navegacao para
+ * o Inicio, viesse ela de onde viesse.
  */
 import type { Href } from "expo-router";
 import { primaryArtistSegment } from "@/domain/format";
@@ -22,33 +29,33 @@ const NONE = "null";
 
 /** `slugOrName` may be an Artist.slug or a raw display name. */
 export const artistRoute = (slugOrName: string | null | undefined): Href => ({
-  pathname: "/(main)/artist/[artist]",
+  pathname: "/artist/[artist]",
   params: { artist: slugOrName || NONE },
 });
 
 export const artistRadioRoute = (slugOrName: string | null | undefined): Href => ({
-  pathname: "/(main)/radio/artist/[artist]",
+  pathname: "/radio/artist/[artist]",
   params: { artist: slugOrName || NONE },
 });
 
 export const songRadioRoute = (songId: number): Href => ({
-  pathname: "/(main)/radio/song/[id]",
+  pathname: "/radio/song/[id]",
   params: { id: songId },
 });
 
 export const playlistRoute = (playlistId: number): Href => ({
-  pathname: "/(main)/playlist/[id]",
+  pathname: "/playlist/[id]",
   params: { id: playlistId },
 });
 
 /** Mix slugs contain ":" and MUST reach the router unencoded. */
 export const mixRoute = (slug: string): Href => ({
-  pathname: "/(main)/mix/[slug]",
+  pathname: "/mix/[slug]",
   params: { slug },
 });
 
 export const profileRoute = (idOrHandle: string): Href => ({
-  pathname: "/(main)/profile/[idOrHandle]",
+  pathname: "/profile/[idOrHandle]",
   params: { idOrHandle },
 });
 
@@ -61,7 +68,7 @@ export const albumRoute = (
   album: string | null | undefined,
   highlight?: string | null,
 ): Href => ({
-  pathname: "/(main)/album/[artist]/[album]",
+  pathname: "/album/[artist]/[album]",
   params: {
     artist: artistSlugOrName || NONE,
     album: album || NONE,

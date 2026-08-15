@@ -166,7 +166,7 @@ export const TopBarSearch = () => {
     if (!term) return;
     rememberSearch(term);
     close();
-    router.push({ pathname: "/(main)/(tabs)/search", params: { query: term } });
+    router.push({ pathname: "/search", params: { query: term } });
   };
 
   const activate = (suggestion: SearchSuggestion): void => {

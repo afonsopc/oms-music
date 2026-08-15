@@ -40,7 +40,7 @@ export default function MixScreen() {
   useEffect(() => {
     if (!rotatedAway) return;
     void queryClient.invalidateQueries({ queryKey: keys.mixes.list });
-    router.replace("/(main)/(tabs)/home");
+    router.replace("/home");
   }, [rotatedAway, queryClient, router]);
 
   const title = mix ? mixTitle(mix, t) : "";

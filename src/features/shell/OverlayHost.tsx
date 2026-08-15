@@ -2,7 +2,13 @@
  * Overlay host (FR-16 shell): floats above every (main) screen. Renders the
  * MiniPlayer pill, the controller strip slot attached above it (WP9), or the
  * JamBar slot replacing the pill entirely while following a jam (WP10).
- * Mounted once in (main)/_layout, as a sibling of the Stack.
+ *
+ * MUDOU DE CASA em 2026-08-15: era irmao do Stack no (main)/_layout, passou a
+ * ser irmao do Stack de CADA tab ((tabs)/(home,search,library)/_layout). A
+ * razao e a barra do sistema: com native tabs a altura dela so e observavel
+ * de DENTRO do ecra da tab (no iOS o UITabBarController injecta-a no safe
+ * area do view controller filho; ver metrics.ts). Fica montado uma vez por
+ * grupo, mas so o da tab focada e que esta visivel.
  *
  * Desktop shell (web >= 900px): the PILL alone disappears - the transport
  * bar is a grid row of the shell, so a floating duplicate would sit right on

@@ -7,51 +7,62 @@ import { parseDeepLink, type DeepLinkTarget } from "@/lib/deepLinks";
 
 const enc = encodeURIComponent;
 
+/**
+ * Prefixo de grupo EXPLICITO, ao contrario de lib/routes.ts: um deep link
+ * chega sem tab focada, e sem o grupo o expo-router desempatava as tres copias
+ * de cada rota pela ordem da arvore - uma escolha por acaso, nao por decisao.
+ * Fixar o Inicio faz com que um link para uma playlist acenda sempre a mesma
+ * tab e deixe a Home por baixo como ecra de saida.
+ */
+const HOME = "/(main)/(tabs)/(home)";
+
 export const routeForTarget = (target: DeepLinkTarget): string => {
   switch (target.kind) {
     case "home":
-      return "/(main)/(tabs)/home";
+      return `${HOME}/home`;
     case "liked":
-      return "/(main)/liked";
+      return `${HOME}/liked`;
     case "artists":
-      return "/(main)/artists";
+      return `${HOME}/artists`;
     case "playlists":
-      return "/(main)/playlists";
+      return `${HOME}/playlists`;
     case "search":
+      // A Pesquisa vive na sua propria tab, por isso este e o unico destino
+      // que sai do grupo do Inicio.
       return target.query
-        ? `/(main)/(tabs)/search?query=${enc(target.query)}`
-        : "/(main)/(tabs)/search";
+        ? `/(main)/(tabs)/(search)/search?query=${enc(target.query)}`
+        : "/(main)/(tabs)/(search)/search";
     case "playlist":
-      return `/(main)/playlist/${target.id}`;
+      return `${HOME}/playlist/${target.id}`;
     case "mix":
       // Mix slugs contain ":" and MUST be URL-encoded (FR-121).
-      return `/(main)/mix/${enc(target.slug)}`;
+      return `${HOME}/mix/${enc(target.slug)}`;
     case "radioArtist":
-      return `/(main)/radio/artist/${enc(target.artist)}`;
+      return `${HOME}/radio/artist/${enc(target.artist)}`;
     case "radioSong":
-      return `/(main)/radio/song/${target.id}`;
+      return `${HOME}/radio/song/${target.id}`;
     case "artist":
-      return `/(main)/artist/${enc(target.artist)}`;
+      return `${HOME}/artist/${enc(target.artist)}`;
     case "album": {
       // The literal "null" segment is preserved: the album screen maps it to
       // exact_search[album]="\b" (unknown album) / no context artist.
       const artist = target.artist === null ? "null" : enc(target.artist);
       const album = target.album === null ? "null" : enc(target.album);
       const highlight = target.highlight ? `?highlight=${enc(target.highlight)}` : "";
-      return `/(main)/album/${artist}/${album}${highlight}`;
+      return `${HOME}/album/${artist}/${album}${highlight}`;
     }
     case "settings":
       switch (target.page) {
         case "import":
-          return "/(main)/settings/import";
+          return `${HOME}/settings/import`;
         case "songs":
-          return "/(main)/settings/songs";
+          return `${HOME}/settings/songs`;
         case "artists":
-          return "/(main)/settings/artists";
+          return `${HOME}/settings/artists`;
         case "playback":
-          return "/(main)/settings/playback";
+          return `${HOME}/settings/playback`;
         case "downloads":
-          return "/(main)/settings/downloads";
+          return `${HOME}/settings/downloads`;
       }
   }
 };
