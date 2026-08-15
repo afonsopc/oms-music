@@ -15,7 +15,7 @@
  * painel direito do desktop.
  */
 import React from "react";
-import { Platform, ScrollView, View } from "react-native";
+import { ScrollView, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   runOnJS,
@@ -51,14 +51,10 @@ export const NowPlayingScreen = () => {
     else router.replace("/(main)/(tabs)/home");
   };
 
-  // WEB: arrastar para baixo fecha, como no nativo. O browser nao traz o
-  // gesto da folha e por isso aqui vivia um chevron - que o dono nao quer
-  // ver. A gesture-handler funciona na web, portanto o gesto existe nas duas
-  // plataformas e o botao desaparece (2026-08-15).
-  //
-  // No NATIVO fica desligado de proposito: a folha ja tem o gesto do
-  // sistema, e dois a competir pelo mesmo dedo davam fechos a meio.
-  const web = Platform.OS === "web";
+  // Arrastar para baixo fecha, nas DUAS plataformas. Passou a ser assim
+  // quando o player virou ecra inteiro (app/_layout): ja nao ha folha do
+  // sistema a tratar do gesto, portanto este e o unico, e por isso tambem
+  // deixa de haver risco de dois gestos disputarem o mesmo dedo.
   const dragY = useSharedValue(0);
   const dismissGesture = (enabled: boolean) =>
     Gesture.Pan()
@@ -83,13 +79,14 @@ export const NowPlayingScreen = () => {
           extraido que dava fundos imprevisiveis (queixa do dono). */}
       <ImmersiveBackdrop song={song} dense={mode !== "artwork"} />
       <View style={{ flex: 1, paddingBottom: Math.max(insets.bottom, 12) }}>
-        {/* A PEGA. E o que diz "isto puxa-se para baixo" antes de o
-            utilizador tentar, e como vive acima do palco vale em TODAS as
-            vistas - letras, fila, definicoes ou capa (pedido do dono
-            2026-08-15). No nativo e so a afordancia: quem fecha e o gesto da
-            folha do sistema. */}
-        <GestureDetector gesture={dismissGesture(web)}>
-          <View style={{ paddingTop: insets.top + 10, paddingBottom: 10, alignItems: "center" }}>
+        {/* A PEGA. Diz "isto puxa-se para baixo" antes de o utilizador
+            tentar, e como vive acima do palco vale em TODAS as vistas -
+            letras, fila, definicoes ou capa. Encostada a barra de estado,
+            como no Apple Music: com a folha do sistema ela caia 70pt abaixo
+            porque a area segura ja vinha aplicada pela folha e nos
+            somavamos-lhe a nossa (report do dono 2026-08-15). */}
+        <GestureDetector gesture={dismissGesture(true)}>
+          <View style={{ paddingTop: insets.top + 6, paddingBottom: 10, alignItems: "center" }}>
             <View
               style={{
                 width: 38,
@@ -105,7 +102,7 @@ export const NowPlayingScreen = () => {
             de fechar so vale aqui no modo da capa - nas outras vistas o
             conteudo rola, e arrastar para baixo la dentro e para subir a
             lista, nao para sair. */}
-        <GestureDetector gesture={dismissGesture(web && mode === "artwork")}>
+        <GestureDetector gesture={dismissGesture(mode === "artwork")}>
           <View style={{ flex: 1, minHeight: 0 }}>
             {mode === "lyrics" ? (
               <LyricsBody />

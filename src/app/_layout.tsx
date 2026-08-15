@@ -70,16 +70,19 @@ const RootNavigator = () => {
       >
         <Stack.Protected guard={authed}>
           <Stack.Screen name="(main)" />
-          {/* "modal", not "fullScreenModal": on iOS only the sheet
-              presentation can be dragged down to dismiss, and a now playing
-              screen that can only be closed by hunting for a small chevron at
-              the top reads as broken. The grabber comes for free. */}
+          {/* ECRA INTEIRO, como o player do Apple Music (screenshots do dono,
+              2026-08-15): a folha de sistema deixava uma faixa da pagina de
+              tras visivel no topo e empurrava a area segura para dentro, o que
+              punha a nossa pega 70pt abaixo do sitio.
+              A razao pela qual isto era "modal" - so a folha se arrasta para
+              fechar - deixou de valer: o player traz o seu proprio gesto
+              (features/shell/PlayerPager), que e o mesmo nas duas plataformas
+              e nao depende da apresentacao. */}
           <Stack.Screen
             name="(player)"
             options={{
-              presentation: "modal",
+              presentation: "fullScreenModal",
               animation: "slide_from_bottom",
-              gestureEnabled: true,
             }}
           />
           <Stack.Screen name="jam" options={{ presentation: "modal" }} />
