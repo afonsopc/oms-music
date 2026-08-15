@@ -41,7 +41,20 @@ export const ImmersiveBackdrop = ({ song }: { song: Song | null }) => {
           // depois), so que desfocada - offline continua a haver fundo.
           blurRadius={40}
           contentFit="cover"
-          style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
+          // width/height/borderRadius EXPLICITOS: o ArtworkImage assume um
+          // quadrado de 40 com cantos redondos e junta o `style` a seguir, por
+          // isso ancorar so com top/left/right/bottom deixava-o com 40x40 - um
+          // quadradinho translucido encostado ao canto superior esquerdo, por
+          // cima do conteudo e imune a cliques (era cenario com pointerEvents
+          // none). Reportado pelo dono a 2026-08-15.
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            width: "100%",
+            height: "100%",
+            borderRadius: 0,
+          }}
         />
       ) : null}
       <View
