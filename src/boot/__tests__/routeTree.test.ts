@@ -51,6 +51,9 @@ const routeFiles = (dir: string): string[] => {
 
 /** As 21 rotas que sao empurradas por cima de qualquer tab. */
 const PUSHED_ROUTES = [
+  "home.tsx",
+  "library.tsx",
+  "search.tsx",
   // O perfil e uma rota empurrada, alcancavel de qualquer tab pelo avatar do
   // cabecalho (features/shell/HeaderAvatar). Ja foi tab e ja foi gaveta.
   "account.tsx",
@@ -86,19 +89,18 @@ describe("route tree (native tabs)", () => {
 
   it("forks the tabs layout by platform and groups every tab", () => {
     expect(entries(TABS)).toEqual([
-      "(home)/",
       "(home,search,library)/",
-      "(library)/",
-      "(search)/",
       "_layout.tsx",
       "_layout.web.tsx",
     ]);
   });
 
-  it("names each tab root exactly like its group, so the anchor resolves", () => {
-    expect(entries(join(TABS, "(home)"))).toEqual(["home.tsx"]);
-    expect(entries(join(TABS, "(search)"))).toEqual(["search.tsx"]);
-    expect(entries(join(TABS, "(library)"))).toEqual(["library.tsx"]);
+  it("keeps the three tab roots INSIDE the shared group, where the anchor looks", () => {
+    // Fora dele nao sao filhas deste layout e cada tab abria na primeira
+    // rota da arvore - o dono viu as Gostadas na Pesquisa e na Biblioteca.
+    for (const root of ["home.tsx", "search.tsx", "library.tsx"]) {
+      expect(routeFiles(SHARED)).toContain(root);
+    }
   });
 
   it("puts every pushed screen inside the shared group", () => {

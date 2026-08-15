@@ -23,17 +23,24 @@ import { useTheme } from "@/theme/provider";
 /**
  * A raiz de CADA copia deste layout, dita explicitamente.
  *
- * Sem isto, so a (home) abria no sitio certo e as outras duas tabs abriam
- * numa rota qualquer da stack - o dono viu as Gostadas na Pesquisa e na
- * Biblioteca (2026-08-16). A leitura ingenua e que o router adivinha a raiz
- * pelo nome do grupo; nao adivinha - o getRoutesCore so aceita a raiz de um
- * grupo partilhado por `unstable_settings[<grupo>].anchor`, e sem ela fica a
- * primeira rota da arvore, que aqui calha ser uma das paginas empurradas.
+ * As chaves sao o nome do grupo SEM parenteses: o getRoutesCore deriva-as
+ * com matchLastGroupName, que devolve "library" e nao "(library)". Com
+ * parenteses a definicao existe e e ignorada em silencio, que foi como as
+ * Gostadas continuaram a aparecer na Pesquisa e na Biblioteca depois da
+ * primeira tentativa (2026-08-16).
+ *
+ * O router tambem descobre a raiz sozinho - procura o FILHO cuja rota tem o
+ * nome do grupo - mas so olha para os filhos DESTE layout. Por isso as tres
+ * raizes vivem aqui dentro (home.tsx, search.tsx, library.tsx) e nao em
+ * pastas (home)/ (search)/ (library) proprias, como estiveram ate agora: la
+ * fora nao eram filhas de layout nenhum e cada tab caia na primeira rota da
+ * arvore. Esta declaracao e o cinto, a arrumacao dos ficheiros sao os
+ * suspensorios.
  */
 export const unstable_settings = {
-  "(home)": { anchor: "home" },
-  "(search)": { anchor: "search" },
-  "(library)": { anchor: "library" },
+  home: { anchor: "home" },
+  search: { anchor: "search" },
+  library: { anchor: "library" },
 };
 
 export default function TabStackLayout() {
