@@ -26,8 +26,6 @@ import { MIX_KIND_GRADIENTS, RADIUS } from "@/theme/tokens";
 import { artworkSourceUri, Icon, MixTileArtwork } from "@/ui";
 import { CollectionScreen } from "@/features/playlist/CollectionScreen";
 
-const HERO_ARTWORK_SIZE = 136;
-
 export default function MixScreen() {
   const params = useLocalSearchParams<{ slug: string }>();
   const slug = params.slug ?? "";
@@ -82,14 +80,11 @@ export default function MixScreen() {
       subtitle={t("components.music.MixView.mixLabel")}
       meta={meta}
       artworkSlot={
-        mix ? (
-          <MixTileArtwork
-            kind={mix.kind}
-            stamp={stamp}
-            artworkUri={artistUri}
-            size={HERO_ARTWORK_SIZE}
-          />
-        ) : undefined
+        mix
+          ? (size) => (
+              <MixTileArtwork kind={mix.kind} stamp={stamp} artworkUri={artistUri} size={size} />
+            )
+          : undefined
       }
       // With a real artist photo the hero samples it; the static-art mixes
       // fall back to the kind accent.

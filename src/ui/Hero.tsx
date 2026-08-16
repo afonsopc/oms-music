@@ -7,11 +7,18 @@
  * extracted from the backdrop/image (theme/accent.ts, dual-variant cache).
  */
 import React, { useEffect, useState } from "react";
-import { Text, useWindowDimensions, View, type StyleProp, type ViewStyle } from "react-native";
+import {
+  Pressable,
+  Text,
+  useWindowDimensions,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from "react-native";
 import { Image } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ArtworkImage, artworkSourceUri } from "./ArtworkImage";
-import { heroMinHeight, heroTitleType, heroTitleTypeMobile } from "./breakpoints";
+import { heroArtSizeMobile, heroMinHeight, heroTitleType, heroTitleTypeMobile } from "./breakpoints";
 import { InitialsAvatar } from "./InitialsAvatar";
 import { useContainerWidth, useDesktopShell } from "./shellLayout";
 import { gradientBackground, linearGradient } from "./uiTheme";
@@ -25,6 +32,17 @@ import { typeScale } from "@/theme/typography";
 
 export type HeroKind = "playlist" | "album" | "artist" | "mix" | "radio";
 
+/**
+ * Linha do dono a Spotify (ponto 16): avatar pequeno redondo + nome, entre o
+ * titulo e a linha de meta. Sem `avatarUri` desenha o disco de iniciais
+ * (album: o artista principal, que nao tem foto garantida).
+ */
+export interface HeroOwner {
+  name: string;
+  avatarUri?: string | null;
+  onPress?: () => void;
+}
+
 export interface HeroProps {
   kind: HeroKind;
   title: string;
@@ -32,12 +50,19 @@ export interface HeroProps {
   subtitle?: string;
   /** Dot-separated meta row (counts, links...) as text or nodes. */
   meta?: React.ReactNode;
+  /** Owner row under the title (playlist owner, album primary artist). */
+  owner?: HeroOwner;
   /** Square artwork (or circular avatar for artist without backdrop). */
   image?: ArtworkSource | null;
   /** Full-bleed backdrop photo URI (artist hero). */
   backdropUri?: string | null;
-  /** Custom artwork slot (editable playlist artwork, mix stamp tile...). */
-  artworkSlot?: React.ReactNode;
+  /**
+   * Custom artwork slot (editable playlist artwork, mix stamp tile...). A
+   * RENDER PROP: the hero decides the edge (centered ~60% of the window on
+   * mobile, 18% of the pane on desktop) and hands it to the slot, so the
+   * consumers stopped hard-coding 136.
+   */
+  artworkSlot?: (size: number) => React.ReactNode;
   /** Fixed accent (mixes, liked songs, radios without a photo). */
   accentColor?: string;
   /** Stable cache key for accent extraction (album key, artist id...). */
@@ -49,14 +74,16 @@ interface HeroContentProps {
   desktopRow: boolean;
   insetsTop: number;
   containerWidth: number;
+  windowWidth: number;
   artSize: number;
   artistAvatarFallback: boolean;
   isArtistBackdrop: boolean;
   image: ArtworkSource | null;
-  artworkSlot?: React.ReactNode;
+  artworkSlot?: (size: number) => React.ReactNode;
   title: string;
   kindLine: string;
   meta?: React.ReactNode;
+  owner?: HeroOwner;
   titleType: { fontSize: number; lineHeight: number };
   ink: string;
   kindInk: string;
@@ -65,17 +92,19 @@ interface HeroContentProps {
 }
 
 /**
- * The hero's content in its two arrangements. MOBILE keeps the shipped
- * vertical stack (artwork above the title, frozen below 900px). The DESKTOP
- * shell lays it out like Spotify's playlist header (owner screenshots
- * 2026-08-14): artwork on the LEFT, and to its right a bottom-aligned column
- * of kind line, display title and meta - the title beside the artwork, never
- * under it, so a 96px display face reads as a header instead of a wall.
+ * The hero's content in its two arrangements, both after Spotify's playlist
+ * header (owner screenshots 2026-08-14 + 2026-08-16 point 16). MOBILE: the
+ * cover sits CENTERED and large (~60% of the window) above a left-aligned
+ * text column - title, owner row, meta. DESKTOP shell: artwork on the LEFT,
+ * and to its right a bottom-aligned column of kind line, display title,
+ * owner row and meta - the title beside the artwork, never under it, so a
+ * 96px display face reads as a header instead of a wall.
  */
 const HeroContent = ({
   desktopRow,
   insetsTop,
   containerWidth,
+  windowWidth,
   artSize,
   artistAvatarFallback,
   isArtistBackdrop,
@@ -84,16 +113,24 @@ const HeroContent = ({
   title,
   kindLine,
   meta,
+  owner,
   titleType,
   ink,
   kindInk,
   metaInk,
   metaSize,
 }: HeroContentProps) => {
-  // Spotify scales the cover with the pane: ~18% of the width, clamped so a
-  // narrow pane still shows a real cover and an ultrawide does not poster it.
+  // Spotify scales the cover with the pane: ~18% of the width on desktop,
+  // ~60% of the window on mobile, both clamped so a narrow surface still
+  // shows a real cover and a wide one does not poster it. The artist
+  // avatar fallback keeps its shipped disc size - the artist page has its
+  // own redesign pending and is not part of the collection-header change.
   const rowArtSize = Math.round(Math.min(232, Math.max(160, containerWidth * 0.18)));
-  const size = desktopRow ? rowArtSize : artSize;
+  const size = desktopRow
+    ? rowArtSize
+    : artistAvatarFallback
+      ? artSize
+      : heroArtSizeMobile(windowWidth);
 
   const artwork = artistAvatarFallback ? (
     image && image.kind !== "initials" ? (
@@ -103,10 +140,29 @@ const HeroContent = ({
     )
   ) : !isArtistBackdrop ? (
     artworkSlot ? (
-      <View style={{ width: size, height: size }}>{artworkSlot}</View>
+      <View style={{ width: size, height: size }}>{artworkSlot(size)}</View>
     ) : image ? (
       <ArtworkImage source={image} size={size} borderRadius={RADIUS + 4} />
     ) : null
+  ) : null;
+
+  const ownerRow = owner ? (
+    <Pressable
+      onPress={owner.onPress}
+      disabled={!owner.onPress}
+      accessibilityRole={owner.onPress ? "link" : undefined}
+      hitSlop={6}
+      style={{ flexDirection: "row", alignItems: "center", gap: 8, alignSelf: "flex-start" }}
+    >
+      {owner.avatarUri ? (
+        <ArtworkImage uri={owner.avatarUri} size={20} shape="circle" />
+      ) : (
+        <InitialsAvatar name={owner.name} size={20} />
+      )}
+      <Text style={{ color: ink, fontSize: 13, fontWeight: "700" }} numberOfLines={1}>
+        {owner.name}
+      </Text>
+    </Pressable>
   ) : null;
 
   const textBlock = (
@@ -127,6 +183,7 @@ const HeroContent = ({
       >
         {title}
       </Text>
+      {ownerRow}
       {meta ? (
         <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
           {typeof meta === "string" ? (
@@ -166,7 +223,14 @@ const HeroContent = ({
         gap: 16,
       }}
     >
-      {artwork}
+      {/* A capa centra-se (Spotify mobile); o disco de iniciais do artista
+          mantem o alinhamento antigo ate a pagina de artista ter o seu
+          proprio redesenho. O texto fica sempre encostado a esquerda. */}
+      {artwork ? (
+        <View style={{ alignItems: artistAvatarFallback ? "flex-start" : "center" }}>
+          {artwork}
+        </View>
+      ) : null}
       {textBlock}
     </View>
   );
@@ -177,6 +241,7 @@ export const Hero = ({
   title,
   subtitle,
   meta,
+  owner,
   image,
   backdropUri,
   artworkSlot,
@@ -309,6 +374,7 @@ export const Hero = ({
         desktopRow={desktopShell && !isArtistBackdrop}
         insetsTop={insets.top}
         containerWidth={containerWidth}
+        windowWidth={width}
         artSize={artSize}
         artistAvatarFallback={artistAvatarFallback}
         isArtistBackdrop={isArtistBackdrop}
@@ -317,6 +383,7 @@ export const Hero = ({
         title={title}
         kindLine={subtitle ?? t(`components.music.Hero.${kind}`)}
         meta={meta}
+        owner={owner}
         titleType={titleType}
         ink={ink}
         kindInk={kindInk}

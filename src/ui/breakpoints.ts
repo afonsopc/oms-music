@@ -91,6 +91,16 @@ export const heroMinHeight = (containerWidth: number, artistBackdrop: boolean): 
   return Math.min(max, Math.max(min, Math.round(containerWidth * fraction)));
 };
 
+/**
+ * Mobile collection-cover edge (dono, ponto 16 do handoff de 2026-08-16: as
+ * vistas de playlist seguem o Spotify). A capa passa a viver CENTRADA no
+ * hero e ocupa ~60% da janela, com clamp para um telemovel pequeno guardar
+ * espaco de texto e um tablet nao a transformar em poster. So o shell
+ * mobile: a fila desktop mantem a conta de 18% do pane no Hero.tsx.
+ */
+export const heroArtSizeMobile = (windowWidth: number): number =>
+  Math.round(Math.min(280, Math.max(180, windowWidth * 0.6)));
+
 /** The plan's 96/72/32 entity-title ramp, one rung per main bucket. */
 const HERO_TITLE_RAMP: Record<MainBucket, number> = {
   sm: 32,

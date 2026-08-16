@@ -21,7 +21,10 @@ import {
   useReorderPlaylist,
 } from "@/api/queries/playlists";
 import { usePlaylistSongsInfinite, useRemovePlaylistSong } from "@/api/queries/playlistSongs";
+import { useUser } from "@/api/queries/users";
 import { keys } from "@/api/queryKeys";
+import { avatarUrl } from "@/api/mediaUrl";
+import { useSessionStore } from "@/auth/session";
 import type { SongMenuItem } from "@/contracts/songMenu";
 import { playlistArtworkSource } from "@/domain/artwork";
 import { splitDuration, totalDuration } from "@/domain/format";
@@ -79,6 +82,19 @@ const PlaylistBody = ({ playlistId }: { playlistId: PlaylistId }) => {
   const playlist = playlistQuery.data ?? null;
   const system = playlist ? isSystemPlaylist(playlist) : false;
   const likedMirror = playlist ? isLikedMirror(playlist) : false;
+
+  /**
+   * Linha do dono a Spotify (ponto 16): quase sempre e o proprio (a sessao
+   * ja tem o User carregado), mas uma playlist partilhada por outra conta
+   * resolve o dono por /users/:id - ate la a linha simplesmente nao aparece.
+   */
+  const sessionUser = useSessionStore((s) => s.user);
+  const ownerIsSelf = playlist != null && sessionUser?.id === playlist.user_id;
+  const ownerQuery = useUser(playlist?.user_id ?? null, playlist != null && !ownerIsSelf);
+  const ownerUser = ownerIsSelf ? sessionUser : (ownerQuery.data ?? null);
+  const owner = ownerUser
+    ? { name: ownerUser.name, avatarUri: avatarUrl(ownerUser.id) }
+    : undefined;
 
   const rows = useMemo(() => songsQuery.data?.pages.flat() ?? [], [songsQuery.data]);
   const songs = useMemo(() => rows.map((r) => r.song), [rows]);
@@ -247,18 +263,22 @@ const PlaylistBody = ({ playlistId }: { playlistId: PlaylistId }) => {
             : t("components.music.PlaylistView.playlistLabel")
         }
         meta={playlist ? meta : undefined}
+        owner={owner}
         image={playlist && !likedMirror && system ? playlistArtworkSource(playlist) : undefined}
         artworkSlot={
-          likedMirror ? (
-            <LikedArtwork size={136} />
-          ) : playlist && !system ? (
-            // Manual playlists only: system playlists never get an editing
-            // affordance (FR-53) - the server rejects the upload anyway.
-            <ChangePlaylistArtwork
-              playlistId={playlistId}
-              source={playlistArtworkSource(playlist)}
-            />
-          ) : undefined
+          likedMirror
+            ? (size) => <LikedArtwork size={size} />
+            : playlist && !system
+              ? // Manual playlists only: system playlists never get an editing
+                // affordance (FR-53) - the server rejects the upload anyway.
+                (size) => (
+                  <ChangePlaylistArtwork
+                    playlistId={playlistId}
+                    source={playlistArtworkSource(playlist)}
+                    size={size}
+                  />
+                )
+              : undefined
         }
         accentColor={likedMirror ? LIKED_ACCENT : undefined}
         accentKey={likedMirror ? undefined : `playlist:${playlistId}`}

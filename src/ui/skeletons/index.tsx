@@ -4,6 +4,8 @@
  */
 import React, { useEffect, useState } from "react";
 import { Animated, useWindowDimensions, View, type StyleProp, type ViewStyle } from "react-native";
+import { heroArtSizeMobile } from "../breakpoints";
+import { useDesktopShell } from "../shellLayout";
 import { SONG_ROW_HEIGHT } from "../SongRow";
 import { TILE_WIDTH } from "../Tile";
 import { useTheme } from "@/theme/provider";
@@ -97,7 +99,13 @@ export const SongTableSkeleton = ({ rows = 8 }: { rows?: number }) => (
 );
 
 export const HeroSkeleton = ({ artist = false }: { artist?: boolean }) => {
-  const { height } = useWindowDimensions();
+  const { height, width } = useWindowDimensions();
+  const desktopShell = useDesktopShell();
+  // Mesma geometria do Hero real (ponto 16): capa de coleccao grande e
+  // centrada no mobile; no desktop e no disco do artista, o tamanho antigo
+  // a esquerda - senao o esqueleto "salta" quando o hero verdadeiro monta.
+  const collectionCover = !artist && !desktopShell;
+  const art = collectionCover ? heroArtSizeMobile(width) : artist ? 136 : 176;
   return (
     <View
       style={{
@@ -108,7 +116,9 @@ export const HeroSkeleton = ({ artist = false }: { artist?: boolean }) => {
         gap: 16,
       }}
     >
-      <Skeleton width={136} height={136} circle={artist} borderRadius={RADIUS + 4} />
+      <View style={{ alignItems: collectionCover ? "center" : "flex-start" }}>
+        <Skeleton width={art} height={art} circle={artist} borderRadius={RADIUS + 4} />
+      </View>
       <View style={{ gap: 8 }}>
         <Skeleton width={80} height={10} />
         <Skeleton width={240} height={28} />

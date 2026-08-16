@@ -25,8 +25,6 @@ import { RADIUS, RADIO_KIND_GRADIENTS } from "@/theme/tokens";
 import { artworkSourceUri, Icon, MixTileArtwork } from "@/ui";
 import { CollectionScreen } from "@/features/playlist/CollectionScreen";
 
-const HERO_ARTWORK_SIZE = 136;
-
 /** Radio gradients reuse the mix families (theme/tokens keeps them in sync). */
 const MIX_KIND_FOR_RADIO: Record<"artist" | "song", MixKind> = {
   artist: "top_artist",
@@ -90,15 +88,15 @@ export const RadioScreen = (props: RadioScreenProps) => {
         title={radio?.title ?? ""}
         subtitle={t("components.music.RadioView.radioLabel")}
         meta={meta}
-        artworkSlot={
+        artworkSlot={(size) => (
           <MixTileArtwork
             kind={MIX_KIND_FOR_RADIO[props.kind]}
             stamp=""
             artworkUri={backdropUri}
-            size={HERO_ARTWORK_SIZE}
+            size={size}
             icon="radio"
           />
-        }
+        )}
         accentColor={backdropUri ? undefined : RADIO_KIND_GRADIENTS[props.kind].accent}
         // Keyed by the SEED, not the ephemeral slug: the payload is
         // regenerated per visit but the backdrop photo is not.

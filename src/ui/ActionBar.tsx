@@ -1,7 +1,10 @@
 /**
- * Control row under the hero (web ActionBar parity): 56px primary play FAB
- * plus ghost buttons - each renders ONLY when its handler is passed.
- * The overflow menu opens a bottom sheet with caller-provided items.
+ * Control row under the hero, arranged like Spotify's (owner point 16,
+ * 2026-08-16): the SMALL secondary actions (like, download, add, radio,
+ * overflow...) cluster on the LEFT, and playback - shuffle plus the 56px
+ * play FAB - sits LARGE on the RIGHT. Each control renders ONLY when its
+ * handler is passed. The overflow menu opens a bottom sheet with
+ * caller-provided items.
  */
 import React, { useState } from "react";
 import { Pressable, Text, View, type StyleProp, type ViewStyle } from "react-native";
@@ -35,7 +38,12 @@ export interface ActionBarProps {
   playLoading?: boolean;
   /** Overflow sheet items (e.g. delete playlist, copy to editable). */
   menuItems?: ActionBarMenuItem[];
-  rightSlot?: React.ReactNode;
+  /**
+   * Extra SMALL actions, rendered with the secondary cluster on the left
+   * (view-mode toggles, artist stories preview...). Was `rightSlot` before
+   * the Spotify arrangement moved play/shuffle to the right side.
+   */
+  secondarySlot?: React.ReactNode;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -52,7 +60,7 @@ export const ActionBar = ({
   isPlayingThisCollection = false,
   playLoading = false,
   menuItems,
-  rightSlot,
+  secondarySlot,
   style,
 }: ActionBarProps) => {
   const { tokens, ink } = useTheme();
@@ -74,35 +82,9 @@ export const ActionBar = ({
         style,
       ]}
     >
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-        {onPlay ? (
-          <PlayFab
-            playing={isPlayingThisCollection}
-            loading={playLoading}
-            onPress={onPlay}
-            size={56}
-            accessibilityLabel={
-              isPlayingThisCollection
-                ? t("components.music.ActionBar.pause")
-                : t("components.music.ActionBar.play")
-            }
-            style={{ marginRight: 8 }}
-          />
-        ) : null}
-        {onShuffle ? (
-          <GhostIconButton
-            icon="shuffle"
-            onPress={onShuffle}
-            accessibilityLabel={t("components.music.ActionBar.shuffle")}
-          />
-        ) : null}
-        {onStartRadio ? (
-          <GhostIconButton
-            icon="radio"
-            onPress={onStartRadio}
-            accessibilityLabel={t("components.music.ActionBar.startRadio")}
-          />
-        ) : null}
+      {/* Cluster secundario, pequeno, a ESQUERDA (ordem a Spotify: gosto,
+          download, adicionar, radio, extras, overflow no fim). */}
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 4, flexShrink: 1 }}>
         {onLike ? (
           <GhostIconButton
             icon="heart"
@@ -110,13 +92,6 @@ export const ActionBar = ({
             active={liked}
             filled={liked}
             accessibilityLabel={t("components.music.ActionBar.like")}
-          />
-        ) : null}
-        {onAdd ? (
-          <GhostIconButton
-            icon="plus"
-            onPress={onAdd}
-            accessibilityLabel={addLabel ?? t("components.music.ActionBar.add")}
           />
         ) : null}
         {onToggleOffline ? (
@@ -131,6 +106,21 @@ export const ActionBar = ({
             }
           />
         ) : null}
+        {onAdd ? (
+          <GhostIconButton
+            icon="plus"
+            onPress={onAdd}
+            accessibilityLabel={addLabel ?? t("components.music.ActionBar.add")}
+          />
+        ) : null}
+        {onStartRadio ? (
+          <GhostIconButton
+            icon="radio"
+            onPress={onStartRadio}
+            accessibilityLabel={t("components.music.ActionBar.startRadio")}
+          />
+        ) : null}
+        {secondarySlot}
         {menuItems && menuItems.length > 0 ? (
           <GhostIconButton
             icon="more-horizontal"
@@ -139,9 +129,30 @@ export const ActionBar = ({
           />
         ) : null}
       </View>
-      {rightSlot ? (
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>{rightSlot}</View>
-      ) : null}
+      {/* Reproducao GRANDE a DIREITA: shuffle em ghost maior junto ao FAB. */}
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+        {onShuffle ? (
+          <GhostIconButton
+            icon="shuffle"
+            size={26}
+            onPress={onShuffle}
+            accessibilityLabel={t("components.music.ActionBar.shuffle")}
+          />
+        ) : null}
+        {onPlay ? (
+          <PlayFab
+            playing={isPlayingThisCollection}
+            loading={playLoading}
+            onPress={onPlay}
+            size={56}
+            accessibilityLabel={
+              isPlayingThisCollection
+                ? t("components.music.ActionBar.pause")
+                : t("components.music.ActionBar.play")
+            }
+          />
+        ) : null}
+      </View>
 
       {menuItems && menuItems.length > 0 ? (
         <BottomSheet visible={menuOpen} onClose={() => setMenuOpen(false)}>

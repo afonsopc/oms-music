@@ -43,6 +43,8 @@ import {
   type ActionBarMenuItem,
   type CollectionViewMode,
   type HeroKind,
+  type HeroOwner,
+  type IconName,
   type SongRowColumn,
 } from "@/ui";
 import { useContentBottomPadding } from "@/features/shell/metrics";
@@ -71,8 +73,11 @@ export interface CollectionScreenProps {
   title: string;
   subtitle?: string;
   meta?: React.ReactNode;
+  /** Owner row under the title (playlist owner, album primary artist). */
+  owner?: HeroOwner;
   image?: ArtworkSource | null;
-  artworkSlot?: React.ReactNode;
+  /** Render prop: the Hero decides the artwork edge (see HeroProps). */
+  artworkSlot?: (size: number) => React.ReactNode;
   accentColor?: string;
   accentKey?: string;
   /** Accent-extraction URI when the artwork slot hides the real image. */
@@ -82,6 +87,8 @@ export interface CollectionScreenProps {
   isError?: boolean;
   errorText?: string;
   emptyText?: string;
+  /** Empty-state glyph (liked keeps its heart); defaults to EmptyState's. */
+  emptyIcon?: IconName;
   onRetry?: () => void;
   columns?: SongRowColumn[];
   addedAtFor?: (song: Song, index: number) => string | undefined;
@@ -115,6 +122,7 @@ export const CollectionScreen = ({
   title,
   subtitle,
   meta,
+  owner,
   image,
   artworkSlot,
   accentColor,
@@ -125,6 +133,7 @@ export const CollectionScreen = ({
   isError = false,
   errorText,
   emptyText,
+  emptyIcon,
   onRetry,
   columns = ["index", "title", "album", "addedAt", "duration"],
   addedAtFor,
@@ -268,9 +277,16 @@ export const CollectionScreen = ({
       : Math.round(height * (kind === "artist" ? 0.42 : 0.36))) + ACTION_BAR_APPROX_HEIGHT;
   const measuredHeaderHeight = headerHeight > 0 ? headerHeight : estimatedHeaderHeight;
 
+  /**
+   * O sticky no mobile tambem passa a derivar da MEDICAO: com a capa
+   * centrada a Spotify o hero e dimensionado pelo conteudo e a antiga
+   * fraccao da janela subestimava-o, fazendo o titulo fixo aparecer com o
+   * hero ainda inteiro no ecra. O corte e quando o titulo do hero (acima da
+   * ActionBar) desliza para fora, com a folga de 60 de sempre.
+   */
   const heroThreshold = desktopShell
     ? Math.max(0, measuredHeaderHeight - DESKTOP_STICKY_BAR_HEIGHT)
-    : Math.round(height * (kind === "artist" ? 0.42 : 0.36)) - 60;
+    : Math.max(0, measuredHeaderHeight - ACTION_BAR_APPROX_HEIGHT - 60);
   /**
    * Predictive prefetch, half one: publish the roster.
    *
@@ -377,6 +393,7 @@ export const CollectionScreen = ({
         title={title}
         subtitle={subtitle}
         meta={meta}
+        owner={owner}
         image={image}
         artworkSlot={artworkSlot}
         accentColor={accentColor}
@@ -394,7 +411,7 @@ export const CollectionScreen = ({
         isPlayingThisCollection={isPlayingThisCollection}
         playLoading={playLoading}
         menuItems={menuItems}
-        rightSlot={viewModeSlot}
+        secondarySlot={viewModeSlot}
       />
     </View>
   );
@@ -406,7 +423,7 @@ export const CollectionScreen = ({
   ) : showOnlyDownloaded && songs.length > 0 ? (
     <EmptyState text={t("components.music.MediaCollectionView.onlyDownloadedEmpty")} />
   ) : (
-    <EmptyState text={emptyText ?? t("components.music.MediaCollectionView.empty")} />
+    <EmptyState icon={emptyIcon} text={emptyText ?? t("components.music.MediaCollectionView.empty")} />
   );
 
   if (isLoading && !title) {

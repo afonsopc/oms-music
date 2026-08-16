@@ -54,7 +54,7 @@ export {
 export { EmptyState, type EmptyStateProps } from "./EmptyState";
 export { ErrorState, type ErrorStateProps } from "./ErrorState";
 export { FilterPills, type FilterPill, type FilterPillsProps } from "./FilterPills";
-export { Hero, type HeroKind, type HeroProps } from "./Hero";
+export { Hero, type HeroKind, type HeroOwner, type HeroProps } from "./Hero";
 export { Icon, iconForHint, iconUri, type IconName, type IconProps } from "./icons";
 export { InitialsAvatar, type InitialsAvatarProps } from "./InitialsAvatar";
 export { LikedArtwork, type LikedArtworkProps } from "./LikedArtwork";

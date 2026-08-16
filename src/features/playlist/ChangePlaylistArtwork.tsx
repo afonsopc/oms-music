@@ -34,7 +34,7 @@ const OVERLAY_INK = preferredOn(CONTROL_SCRIM, ON_DARK);
 export interface ChangePlaylistArtworkProps {
   playlistId: PlaylistId;
   source: ArtworkSource | null;
-  /** Hero artwork edge (136 today); the overlay scales with it. */
+  /** Hero artwork edge (the Hero's render prop passes it); overlay scales. */
   size?: number;
 }
 
