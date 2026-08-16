@@ -493,6 +493,118 @@ describe("queue ops that fill an empty queue", () => {
   });
 });
 
+/**
+ * Owner report 2026-08-16, point 1: "tapping a song and nothing happens".
+ *
+ * The FR-59 same-song guard is right about state churn and was wrong about
+ * the user: `setQueue`/`setQueueIndex` mean "play this", and when "this" was
+ * already the current song the tap was swallowed whole.
+ */
+describe("re-picking the song that is already current", () => {
+  beforeEach(() => resetPlayerStore());
+
+  it("resumes it when it is loaded but paused", async () => {
+    const ctx = setup();
+    const song = makeSong(1);
+    urlFor(ctx, song);
+    ctx.engine.setQueue([song]);
+    await flush();
+    ctx.player.emitLoaded(200);
+    expect(ctx.player.playing).toBe(true);
+
+    ctx.engine.pause();
+    expect(ctx.player.playing).toBe(false);
+
+    // The user taps the same row again.
+    ctx.engine.setQueue([song]);
+    await flush();
+
+    expect(ctx.player.playing).toBe(true);
+    ctx.engine.dispose();
+  });
+
+  it("re-resolves it when a controller stint cleared the source", async () => {
+    const ctx = setup();
+    const song = makeSong(1);
+    urlFor(ctx, song);
+    ctx.engine.setQueue([song]);
+    await flush();
+    ctx.player.emitLoaded(200);
+
+    // Another device took over: source gone, but the song is still "current"
+    // and `lastHandledSongId` still names it (only the logout wipe clears it).
+    ctx.engine.stopAndClearSource();
+    expect(ctx.player.uri).toBeNull();
+
+    ctx.engine.setQueue([song]);
+    await flush();
+
+    expect(ctx.player.uri).not.toBeNull();
+    expect(ctx.player.playing).toBe(true);
+    ctx.engine.dispose();
+  });
+
+  it("does not restart a song that is already playing", async () => {
+    const ctx = setup();
+    const song = makeSong(1);
+    urlFor(ctx, song);
+    ctx.engine.setQueue([song]);
+    await flush();
+    ctx.player.emitLoaded(200);
+    ctx.player.currentTime = 90;
+    const replaces = ctx.player.replaceLog.length;
+
+    ctx.engine.setQueue([song]);
+    await flush();
+
+    expect(ctx.player.replaceLog.length).toBe(replaces);
+    expect(ctx.player.currentTime).toBe(90);
+    ctx.engine.dispose();
+  });
+
+  it("the play button re-resolves a cleared source instead of doing nothing", async () => {
+    const ctx = setup();
+    const song = makeSong(1);
+    urlFor(ctx, song);
+    ctx.engine.setQueue([song]);
+    await flush();
+    ctx.player.emitLoaded(200);
+    ctx.player.currentTime = 30;
+    playerStore.setState({ position: 30 });
+
+    ctx.engine.stopAndClearSource();
+    expect(ctx.player.uri).toBeNull();
+
+    // Every play button in the app lands on toggle() -> play(). Only the
+    // remote decorator used to know how to come back from here.
+    ctx.engine.toggle();
+    await flush();
+
+    expect(ctx.player.uri).not.toBeNull();
+    expect(ctx.player.playing).toBe(true);
+    ctx.engine.dispose();
+  });
+
+  it("appending to the queue while paused still starts nothing", async () => {
+    const ctx = setup();
+    const s1 = makeSong(1);
+    const s2 = makeSong(2);
+    urlFor(ctx, s1);
+    urlFor(ctx, s2);
+    ctx.engine.setQueue([s1]);
+    await flush();
+    ctx.player.emitLoaded(200);
+    ctx.engine.pause();
+
+    // Queue churn is NOT a request to play (the guard's original purpose).
+    ctx.engine.addToQueue(s2);
+    await flush();
+
+    expect(ctx.player.playing).toBe(false);
+    ctx.engine.dispose();
+  });
+});
+
 describe("buffering flag (FR-6 spinner honesty)", () => {
   beforeEach(() => resetPlayerStore());
 

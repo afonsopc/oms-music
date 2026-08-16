@@ -107,6 +107,24 @@ export const createExpoAudioAdapter = (): AudioAdapter => {
   if (typeof window === "undefined") return createInertPrerenderAdapter();
   const player: AudioPlayer = createAudioPlayer(null, {
     updateInterval: STATUS_INTERVAL_MS,
+    // iOS only, and load-bearing for this app (owner report 2026-08-16,
+    // points 1 and 4: taps that take a second or two, pauses out of nowhere).
+    //
+    // expo-audio's default is to DEACTIVATE the audio session whenever a
+    // player pauses: `pause` arms a task that, 100 ms later, calls
+    // `AVAudioSession.setActive(false, .notifyOthersOnDeactivation)` unless
+    // something is playing by then. That default suits a sound-effect player.
+    // This is a music app with ONE player for its whole lifetime, and
+    // `handleSongTransition` pauses before every swap - so every single track
+    // change armed a session teardown that then raced the start of the track
+    // the user had just asked for, and any start slower than 100 ms (a
+    // network item, a cold decode, a mixer prepare) ran straight into it.
+    //
+    // Keeping the session active makes the session follow the APP rather than
+    // the gaps between songs. Nothing here needs the polite-deactivation
+    // behaviour: this player is the audio the user came for, not a chirp over
+    // someone else's video.
+    keepAudioSessionActive: true,
   });
   player.shouldCorrectPitch = false;
   let sourceUri: string | null = null;

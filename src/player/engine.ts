@@ -321,13 +321,15 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
     const shuffle = opts?.shuffle ?? this.q.shuffle;
     this.q = ops.setQueue(songs, shuffle, startIndex);
     this.syncQueue();
-    this.handleSongTransition("user");
+    // `reassert`: this call means "play THIS", so landing on the song that is
+    // already current must still produce audio (see handleSongTransition).
+    this.handleSongTransition("user", { reassert: true });
   }
 
   setQueueIndex(visibleIndex: number): void {
     this.q = ops.setQueueIndex(this.q, visibleIndex);
     this.syncQueue();
-    this.handleSongTransition("user");
+    this.handleSongTransition("user", { reassert: true });
   }
 
   setShuffle(on: boolean): void {
@@ -432,6 +434,22 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
     // writes, so the store traffic there is byte-identical to before.
     if (playerStore.getState().autoplayBlocked) {
       playerStore.setState({ autoplayBlocked: false });
+    }
+    // A cleared source is re-resolved here, not just asked to play (owner
+    // report 2026-08-16, point 1). `stopAndClearSource` leaves a current song
+    // with nothing behind it - a controller stint is the common way in - and
+    // `player.play()` on an empty player does nothing at all. The re-resolve
+    // existed as `playFromIdle`, but only the REMOTE decorator ever called
+    // it, and every play button in the app goes through `toggle()`, which
+    // lands here: MiniPlayer, Now Playing, the desktop bar and the queue.
+    // So the one control the user reaches for was a permanent no-op in
+    // exactly the state that needed it most.
+    const song = ops.currentSongOf(this.q);
+    if (!this.player.hasSource && song) {
+      const position = playerStore.getState().position;
+      this.pendingSeek = position > 0 ? position : null;
+      this.beginLoad(song, { autoplay: true, fresh: false });
+      return;
     }
     this.player.play();
   }
@@ -544,18 +562,13 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
     this.sleepTimer.set(t);
   }
 
+  /**
+   * Kept as the named entry point the remote decorator calls, but no longer
+   * the ONLY way back from a cleared source: `play()` does the re-resolve
+   * itself now, because that is where every play button in the app arrives.
+   */
   playFromIdle(): void {
-    const song = ops.currentSongOf(this.q);
-    if (this.player.hasSource || !song) {
-      this.play();
-      return;
-    }
-    // The source was cleared (controller stint); re-resolve at the last
-    // known position, then play.
-    const position = playerStore.getState().position;
-    this.pendingSeek = position > 0 ? position : null;
-    this.intendedPlay = true;
-    this.beginLoad(song, { autoplay: true, fresh: false });
+    this.play();
   }
 
   stopAndClearSource(): void {
@@ -915,14 +928,17 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
 
   private handleSongTransition(
     cause: TransitionCause,
-    opts?: { seed?: TransitionSeed; suppressAutoplay?: boolean },
+    opts?: { seed?: TransitionSeed; suppressAutoplay?: boolean; reassert?: boolean },
   ): void {
     const song = ops.currentSongOf(this.q);
     const songChanged = (song?.id ?? null) !== this.lastHandledSongId;
     const hasSeed = opts?.seed !== undefined;
     // Same-song re-runs must not restart or autoplay (FR-59) - only a real
     // transition or a seeded adoption proceeds.
-    if (!songChanged && !hasSeed) return;
+    if (!songChanged && !hasSeed) {
+      if (opts?.reassert) this.reassertCurrent();
+      return;
+    }
     this.lastHandledSongId = song?.id ?? null;
 
     if (!song) {
@@ -981,6 +997,46 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
     this.emit("songChanged", { song });
     this.deps.onLockScreenUpdate?.(song);
     this.beginLoad(song, { autoplay, fresh: false });
+  }
+
+  /**
+   * A user picked the song that is ALREADY current (owner report 2026-08-16,
+   * point 1: "tapping a song and nothing happens").
+   *
+   * The FR-59 guard above exists so that state churn - a queue patch, an
+   * append, a re-sync - never restarts or un-pauses the song under the user.
+   * But `setQueue` / `setQueueIndex` are not churn: they are the user saying
+   * "play this", and when the answer was the current song the guard swallowed
+   * the tap whole. Three ways that produced a dead tap, all reachable in
+   * twenty minutes of use:
+   *
+   *  - the song is current but PAUSED: tapping its row did nothing, because
+   *    nothing about the queue changed;
+   *  - the source was cleared by a controller stint (stopAndClearSource does
+   *    not reset `lastHandledSongId` - only the logout wipe does), so the
+   *    song is still "current" with no source behind it, and the tap could
+   *    not bring it back;
+   *  - the song was marked failed and the user retried it by tapping.
+   *
+   * This is deliberately the SMALLEST correct response, not a reload: a song
+   * that is already playing keeps playing from where it is (re-taps must not
+   * restart it), a loaded-but-paused one resumes, and only a missing source
+   * is re-resolved. `addToQueue` and friends still pass through the guard
+   * untouched, so appending while paused stays silent.
+   */
+  private reassertCurrent(): void {
+    const song = ops.currentSongOf(this.q);
+    if (!song) return;
+    if (!this.player.hasSource) {
+      // Resume where the store says we were; a fresh pick starts at 0.
+      const position = playerStore.getState().position;
+      this.pendingSeek = position > 0 ? position : null;
+      this.intendedPlay = true;
+      this.beginLoad(song, { autoplay: true, fresh: false });
+      return;
+    }
+    if (this.intendedPlay && this.player.playing) return;
+    this.play();
   }
 
   /** Point the player at the song's best source (candidate ladder). */
