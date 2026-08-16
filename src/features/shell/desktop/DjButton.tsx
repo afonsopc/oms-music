@@ -33,12 +33,20 @@ export const DjButton = ({ disabled }: { disabled: boolean }) => {
         const transport = getTransport();
         const wasPlaying = view.playing;
         if (wasPlaying) transport.pause();
-        await new Promise<void>((resolve) => {
-          const audio = new Audio(`data:audio/wav;base64,${clip.audio_base64}`);
-          audio.onended = () => resolve();
-          audio.onerror = () => resolve();
-          void audio.play().catch(() => resolve());
-        });
+        // Blob e nao data:: a CSP do shell so permite blob: em media-src, e o
+        // data: falhava MUDO (pausa+retoma = o "small jump" que o dono viu).
+        const bytes = Uint8Array.from(atob(clip.audio_base64), (c) => c.charCodeAt(0));
+        const url = URL.createObjectURL(new Blob([bytes], { type: "audio/wav" }));
+        try {
+          await new Promise<void>((resolve) => {
+            const audio = new Audio(url);
+            audio.onended = () => resolve();
+            audio.onerror = () => resolve();
+            void audio.play().catch(() => resolve());
+          });
+        } finally {
+          URL.revokeObjectURL(url);
+        }
         if (wasPlaying) transport.play();
       } catch {
         // Sem toast próprio na superfície de teste: o botão volta a ficar
