@@ -13,11 +13,11 @@ import {
   readLibraryViewMode,
   writeLibraryViewMode,
 } from "@/features/shell/desktop/layoutPrefs";
-import { HeaderAvatar } from "@/features/shell/HeaderAvatar";
+import { TabHeader } from "@/features/shell/TabHeader";
 import { useContentBottomPadding, useContentTopPadding } from "@/features/shell/metrics";
 import { useT } from "@/i18n";
 import { useTheme } from "@/theme/provider";
-import { typeScale } from "@/theme/typography";
+
 import {
   ArtworkImage,
   collectionGridColumns,
@@ -286,21 +286,9 @@ export default function LibraryScreen() {
     // area, and stacking both is where the huge blank band above the title
     // came from.
     <View style={{ gap: 16, paddingBottom: 12 }}>
-      <View
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          paddingHorizontal: 24,
-        }}
-      >
-        <Text style={[typeScale.sectionHeader, { color: tokens.foreground, flex: 1 }]}>
-          {t("components.music.Sidebar.libraryTitle")}
-        </Text>
-        {/* O avatar a direita do titulo, onde o Spotify o tem. E a porta
-            para /account desde que a barra de tabs passou a ser a do sistema
-            e deixou de poder carrega-lo (2026-08-16). */}
-        <HeaderAvatar />
-      </View>
+      {/* Avatar a esquerda, titulo a direita: o TabHeader partilhado
+          (pedido do dono 2026-08-18) - antes era o contrario. */}
+      <TabHeader title={t("components.music.Sidebar.libraryTitle")} />
 
       {/* Desktop pairs the view-mode cluster WITH the pills - the controls
           sit on the line of the rows they reshape, not up by the title.

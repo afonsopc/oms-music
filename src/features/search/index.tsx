@@ -38,6 +38,7 @@ import {
 import { formatArtists } from "@/domain/format";
 import type { Song } from "@/domain/song";
 import { useContentBottomPadding, useContentTopPadding } from "@/features/shell/metrics";
+import { TabHeader } from "@/features/shell/TabHeader";
 import { useT } from "@/i18n";
 import {
   forgetSearch,
@@ -540,11 +541,9 @@ export default function SearchScreen() {
       }}
       keyboardShouldPersistTaps="handled"
     >
-      <Text
-        style={[typeScale.sectionHeader, { color: tokens.foreground, paddingHorizontal: 24 }]}
-      >
-        {t("native.shell.tabSearch")}
-      </Text>
+      {/* Avatar a esquerda + titulo: o TabHeader partilhado das tabs
+          (pedido do dono 2026-08-18). */}
+      <TabHeader title={t("native.shell.tabSearch")} />
       {/* Desktop already has THE search field in the topbar; a second big
           one here was pure duplication (owner report 2026-08-14). */}
       {searchField}

@@ -34,7 +34,6 @@ import { useT } from "@/i18n";
 import { mixDescription, mixStampText, mixTitle } from "@/i18n/mixLabels";
 import { albumRoute, artistRadioRoute, artistRoute, mixRoute, playlistRoute } from "@/lib/routes";
 import { useTheme } from "@/theme/provider";
-import { FONT_DRUK_WIDE } from "@/theme/typography";
 import {
   artworkSourceUri,
   FilterPills,
@@ -49,7 +48,7 @@ import {
   type TopTileItem,
 } from "@/ui";
  import { getRecentCollections, subscribeRecentCollections } from "@/lib/recentCollections";
-import { HeaderAvatar } from "@/features/shell/HeaderAvatar";
+import { TabHeader } from "@/features/shell/TabHeader";
 import { useFriendsStripActive, useFriendsStripSlot } from "./friendsSlot";
 
 type HomeFilter = "all" | "playlists" | "albums" | "artists";
@@ -251,39 +250,19 @@ export default function HomeScreen() {
         />
       }
     >
-      {/* O topo da Home a Spotify: as pills SAO o cabecalho, com o avatar no
-          canto. Ele saiu daqui a 2026-08-14 para a barra de tabs e voltou a
-          2026-08-16, quando a barra passou a ser a do sistema e deixou de
-          poder carregar uma fotografia redonda. */}
-      {/* Cabecalho proprio POR CIMA das pills (pedido do dono 2026-08-16):
-          a marca a esquerda em Druk Wide, a mesma do omelhorsite.pt, e o
-          avatar no canto. Ao lado das pills nao dava - a tira rola e a
-          ultima era cortada a meio da palavra ao bater no avatar. */}
-      <View
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "space-between",
-          paddingHorizontal: 24,
-        }}
-      >
-        <Text
-          style={{
-            color: tokens.foreground,
-            fontFamily: FONT_DRUK_WIDE,
-            fontSize: 15,
-            letterSpacing: 0.5,
-          }}
-        >
-          OMS Music
-        </Text>
-        <HeaderAvatar />
-      </View>
-      <FilterPills
-        pills={pills}
-        activeKey={filter}
-        onChange={(key) => setFilter(key as HomeFilter)}
-      />
+      {/* O topo a Spotify (pedido do dono, 2026-08-18): avatar a esquerda,
+          as pills logo ao lado - o TabHeader e o mesmo das outras tabs e so
+          muda o que vai a direita. O wordmark Druk Wide saiu daqui com esta
+          troca; o pedido novo substitui o de 2026-08-16. */}
+      <TabHeader>
+        <FilterPills
+          pills={pills}
+          activeKey={filter}
+          onChange={(key) => setFilter(key as HomeFilter)}
+          contentPaddingHorizontal={0}
+          style={{ flexGrow: 0 }}
+        />
+      </TabHeader>
 
       {filter === "all" ? (
         recentAlbumsQuery.isLoading && playlistsQuery.isLoading ? (
