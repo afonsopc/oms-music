@@ -1307,6 +1307,9 @@
       "menuVocals": "Descarregar voz",
       "menuInstrumental": "Descarregar instrumental",
       "failed": "Não foi possível descarregar o ficheiro"
+    },
+    "dj": {
+      "speak": "O Melhor DJ: falar agora"
     }
   }
 }

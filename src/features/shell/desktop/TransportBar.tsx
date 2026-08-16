@@ -38,6 +38,7 @@ import { useRemoteStore } from "@/remote/store";
 import { useTheme } from "@/theme/provider";
 import { ArtworkImage, GhostIconButton, PlayFab } from "@/ui";
 import { CinemaOverlay, toggleCinema } from "@/features/player/cinema";
+import { DjButton } from "./DjButton";
 import { PlayerSettingsSheet } from "@/features/player/settingsSheet";
 import { Slider } from "@/features/player/Slider";
 import type { RightPanelTenant } from "./rightPanelModel";
@@ -355,6 +356,8 @@ export const DesktopTransportBar = ({
             EQ, sleep timer): o cog do player mobile, aqui como botao da
             barra - sem ele o desktop nao tinha COMO chegar a estas opcoes
             (feedback do dono 2026-08-14). */}
+        {/* Teste de O Melhor DJ (dono, 2026-08-16); integracao a serio na vaga 2. */}
+        <DjButton disabled={!song} />
         <GhostIconButton
           icon="audio-waveform"
           size={17}

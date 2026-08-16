@@ -1307,6 +1307,9 @@
       "menuVocals": "Download vocals",
       "menuInstrumental": "Download instrumental",
       "failed": "Could not download the file"
+    },
+    "dj": {
+      "speak": "O Melhor DJ: speak now"
     }
   }
 }

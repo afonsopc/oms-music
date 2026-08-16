@@ -1307,6 +1307,9 @@
       "menuVocals": "Lejupielādēt vokālu",
       "menuInstrumental": "Lejupielādēt instrumentālo",
       "failed": "Neizdevās lejupielādēt failu"
+    },
+    "dj": {
+      "speak": "O Melhor DJ: runāt tagad"
     }
   }
 }
