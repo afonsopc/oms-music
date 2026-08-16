@@ -79,6 +79,15 @@ fn ensure_window<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<tauri::Webview
         MINIPLAYER_LABEL,
         WebviewUrl::App("index.html?miniplayer=1".into()),
     )
+    // O query param acima NAO chega ao JS no shell construido: o protocolo
+    // `tauri://` percent-encoda o `?` e a janela aterra com o path
+    // `/index.html%3Fminiplayer=1` e search vazio, o que atirava o bundle
+    // para o navegador ("Unmatched Route", dono 2026-08-17) numa janela sem
+    // decoracoes nem botao de fechar. A flag viaja por injeccao, o mesmo
+    // mecanismo do `__OMS_DESKTOP__` (lib.rs): corre antes de o bundle ser
+    // lido e nao depende de como o protocolo trata URLs. O query fica para o
+    // dev server, onde sobrevive e a injeccao tambem corre.
+    .initialization_script("window.__OMS_MINIPLAYER__=true;")
     .title("OMS Music")
     .inner_size(width, height)
     .resizable(false)

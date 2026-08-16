@@ -203,6 +203,7 @@ const Identity = ({ state, big }: { state: MiniplayerState; big: boolean }) => {
 
 export const MiniplayerApp = () => {
   const { tokens } = useTheme();
+  const t = useT();
   const state = useMiniplayerState();
   const height = useWindowHeight();
   const layout = height <= BAR_MAX_HEIGHT ? "bar" : height <= RECT_MAX_HEIGHT ? "rect" : "square";
@@ -224,6 +225,20 @@ export const MiniplayerApp = () => {
         justifyContent: "center",
       }}
     >
+      {/* A saida da janela. Ela nao tem decoracoes (miniplayer.rs) e ja
+          esteve presa por nao ter porta nenhuma (dono, 2026-08-17): o X
+          esconde-a pelo mesmo comando do menu Vista/Cmd+Shift+M, e fica em
+          TODOS os layouts de proposito - mesmo que o resto do espelho parta,
+          este botao nao depende de estado nenhum. */}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={t("native.desktop.miniplayerClose")}
+        hitSlop={8}
+        onPress={() => void getTauriGlobals()?.core.invoke("miniplayer_toggle")}
+        style={{ position: "absolute", top: 6, right: 8, zIndex: 1, padding: 2 }}
+      >
+        <Icon name="x" size={14} color={tokens.mutedForeground} />
+      </Pressable>
       {layout === "bar" ? (
         <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
           <Artwork uri={state.artworkUrl} size={44} />
