@@ -73,7 +73,9 @@
         "uploading": "Augšupielādē…",
         "uploadFailed": "Neizdevās augšupielādēt",
         "previewStories": "Mākslinieka priekšskatījums",
-        "previewKicker": "Priekšskatījums:"
+        "previewKicker": "Priekšskatījums:",
+        "dailySyncOn": "Ieslēgt ikdienas sinhronizāciju",
+        "dailySyncOff": "Izslēgt ikdienas sinhronizāciju"
       },
       "ArtistMultiSelect": {
         "addArtist": "Pievienot izpildītāju",

@@ -15,6 +15,12 @@ import { ScrollView, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useArtist, useArtistMetadata } from "@/api/queries/artists";
 import { useTopSongs } from "@/api/queries/playEvents";
+import {
+  findArtistSync,
+  useArtistSyncs,
+  useDisableArtistSync,
+  useEnableArtistSync,
+} from "@/api/queries/artistSyncs";
 import { useArtistAlbums, useArtistPictures, useArtistSongs } from "@/api/queries/songs";
 import { useLikedIds } from "@/api/queries/likedSongs";
 import { getTransport } from "@/contracts/transport";
@@ -184,6 +190,33 @@ export default function ArtistScreen() {
   // cima da foto do artista - o segundo inquilino do StoryPager.
   const [previewOpen, setPreviewOpen] = useState(false);
 
+  // Sync diário (3.5): a row casa por nome porque o cliente não guarda
+  // spotify ids; ligar resolve o id pela pesquisa de imports. Enquanto o
+  // backend do docs/propostas não estiver aplicado, a lista 404-a em
+  // silêncio (guardedQueryFn) e o item do menu simplesmente não aparece.
+  const artistSyncsQuery = useArtistSyncs(enabled);
+  const enableSync = useEnableArtistSync();
+  const disableSync = useDisableArtistSync();
+  const syncRow = findArtistSync(artistSyncsQuery.data?.items, artistName);
+  const syncBusy = enableSync.isPending || disableSync.isPending;
+  const syncMenuItems =
+    artistSyncsQuery.isSuccess && artistName
+      ? [
+          {
+            id: "daily-sync",
+            label: syncRow
+              ? t("components.music.ArtistView.dailySyncOff")
+              : t("components.music.ArtistView.dailySyncOn"),
+            icon: "cloud-check",
+            disabled: syncBusy,
+            onPress: () => {
+              if (syncRow) disableSync.mutate(syncRow.id);
+              else enableSync.mutate(artistName);
+            },
+          },
+        ]
+      : undefined;
+
   // Descarregar o artista INTEIRO (dono, 2026-08-17): a mesma ponte offline
   // dos ecrãs de playlist/álbum, com a chave "artist:<slug>". Só com o slug
   // resolvido - a chave tem de bater com a que o autoSync deriva das músicas
@@ -269,6 +302,7 @@ export default function ArtistScreen() {
           onToggleOffline={handleToggleOffline}
           isOffline={artistIsOffline}
           isPlayingThisCollection={isPlayingThisArtist}
+          menuItems={syncMenuItems}
           rightSlot={
             topSongs.length > 0 ? (
               <GhostIconButton

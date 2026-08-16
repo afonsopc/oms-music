@@ -73,7 +73,9 @@
         "uploading": "A carregar...",
         "uploadFailed": "Falha ao carregar",
         "previewStories": "Preview do artista",
-        "previewKicker": "Preview de"
+        "previewKicker": "Preview de",
+        "dailySyncOn": "Ligar sync diário deste artista",
+        "dailySyncOff": "Desligar sync diário"
       },
       "ArtistMultiSelect": {
         "addArtist": "Adicionar artista",
