@@ -368,9 +368,50 @@ export default function LyricsBody() {
   }
 
   if (!hasContent) {
+    // Sem letra em lado nenhum, a mesma máquina do sync (FR-80) gera-a a
+    // partir do áudio: o backend separa as vozes e o transcript do whisper
+    // passa a ser a letra (plain + synced). O mesmo syncRun serve os dois
+    // caminhos; no sucesso a invalidação da query troca esta view pela
+    // letra sem mais estado.
     return (
-      <View style={{ flex: 1, justifyContent: "center" }}>
+      <View style={{ flex: 1, justifyContent: "center", gap: 20 }}>
         <EmptyState icon="music" text={t(`${K}.noLyricsFound`)} />
+        {syncing ? (
+          <View style={{ alignItems: "center", gap: 10, paddingHorizontal: 32 }}>
+            <ActivityIndicator size="small" color={tokens.mutedForeground} />
+            <Text style={{ color: tokens.mutedForeground, fontSize: 12, textAlign: "center" }}>
+              {t(`${K}.generateRunning`)}
+            </Text>
+          </View>
+        ) : (
+          <View style={{ alignItems: "center", gap: 10 }}>
+            {syncRun?.phase === "done" && !syncRun.ok && syncRun.songId === songId ? (
+              <Text style={{ color: tokens.mutedForeground, fontSize: 12, textAlign: "center" }}>
+                {t(`${K}.generateFailed`)}
+              </Text>
+            ) : null}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t(`${K}.generateFromAudio`)}
+              onPress={generateSync}
+              style={({ pressed }) => ({
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 8,
+                paddingHorizontal: 18,
+                paddingVertical: 10,
+                borderRadius: 999,
+                backgroundColor: tokens.secondary,
+                opacity: pressed ? 0.7 : 1,
+              })}
+            >
+              <Icon name="audio-waveform" size={16} color={tokens.foreground} />
+              <Text style={{ color: tokens.foreground, fontSize: 13, fontWeight: "700" }}>
+                {t(`${K}.generateFromAudio`)}
+              </Text>
+            </Pressable>
+          </View>
+        )}
       </View>
     );
   }

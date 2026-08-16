@@ -298,7 +298,10 @@
         "translationOff": "Izslēgt tulkojumu",
         "generateSync": "Sinhronizēt vārdus ar dziesmu",
         "syncGenerated": "Vārdi sinhronizēti",
-        "syncFailed": "Neizdevās sinhronizēt vārdus"
+        "syncFailed": "Neizdevās sinhronizēt vārdus",
+        "generateFromAudio": "Ģenerēt vārdus no audio",
+        "generateRunning": "Klausās dziesmu un raksta vārdus… tas var aizņemt dažas minūtes.",
+        "generateFailed": "Neizdevās ģenerēt šīs dziesmas vārdus"
       },
       "Home": {
         "filterAll": "Visi",

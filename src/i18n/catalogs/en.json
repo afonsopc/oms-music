@@ -298,7 +298,10 @@
         "translationOff": "Turn off translation",
         "generateSync": "Sync lyrics to the song",
         "syncGenerated": "Lyrics synchronized",
-        "syncFailed": "Could not synchronize the lyrics"
+        "syncFailed": "Could not synchronize the lyrics",
+        "generateFromAudio": "Generate lyrics from the audio",
+        "generateRunning": "Listening to the song and writing the lyrics… this can take a few minutes.",
+        "generateFailed": "Could not generate lyrics for this track"
       },
       "Home": {
         "filterAll": "All",

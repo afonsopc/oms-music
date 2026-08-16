@@ -1,0 +1,47 @@
+# Manifest flatpak do shell desktop (workflow release.yml). Segue a receita
+# oficial do Tauri v2 (https://v2.tauri.app/distribute/flatpak/): NAO
+# compila Rust dentro da sandbox - reempacota o .deb que o job Linux ja
+# construiu. O runtime GNOME e o unico dos runtimes flathub que traz o
+# webkit2gtk-4.1 de que o Tauri precisa; 46 e a versao que a doc valida.
+#
+# O CI copia o .deb para "oms-music.deb" AO LADO deste ficheiro antes de
+# correr o flatpak-builder (sources com path sao relativos ao manifest).
+id: pt.omelhorsite.music.desktop
+runtime: org.gnome.Platform
+runtime-version: "46"
+sdk: org.gnome.Sdk
+command: oms-music-desktop
+finish-args:
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+  - --share=ipc
+  - --share=network
+  - --socket=pulseaudio
+modules:
+  - name: oms-music
+    buildsystem: simple
+    sources:
+      - type: file
+        path: oms-music.deb
+    build-commands:
+      - ar -x oms-music.deb
+      - tar -xf data.tar.gz
+      - install -Dm755 usr/bin/oms-music-desktop /app/bin/oms-music-desktop
+      # O flatpak so exporta ficheiros com o nome do app id: o .desktop e os
+      # icones do deb (nome do produto, com espaco) sao renomeados aqui. Os
+      # loops com "$f" aguentam o espaco de "OMS Music.desktop".
+      - |
+        set -eu
+        for f in usr/share/applications/*.desktop; do
+          install -Dm644 "$f" /app/share/applications/pt.omelhorsite.music.desktop.desktop
+        done
+        sed -i 's/^Icon=.*/Icon=pt.omelhorsite.music.desktop/' \
+          /app/share/applications/pt.omelhorsite.music.desktop.desktop
+      - |
+        set -eu
+        for f in usr/share/icons/hicolor/*/apps/*.png; do
+          size=${f#usr/share/icons/hicolor/}
+          size=${size%%/*}
+          install -Dm644 "$f" "/app/share/icons/hicolor/$size/apps/pt.omelhorsite.music.desktop.png"
+        done

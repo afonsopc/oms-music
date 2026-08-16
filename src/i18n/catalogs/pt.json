@@ -298,7 +298,10 @@
         "translationOff": "Desligar tradução",
         "generateSync": "Sincronizar letra com a música",
         "syncGenerated": "Letra sincronizada",
-        "syncFailed": "Não foi possível sincronizar a letra"
+        "syncFailed": "Não foi possível sincronizar a letra",
+        "generateFromAudio": "Gerar a letra a partir do áudio",
+        "generateRunning": "A ouvir a música e a escrever a letra… pode demorar uns minutos.",
+        "generateFailed": "Não foi possível gerar a letra desta música"
       },
       "Home": {
         "filterAll": "Tudo",
