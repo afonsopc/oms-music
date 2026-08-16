@@ -34,6 +34,8 @@ const buildRows = (mac: boolean): ShortcutRow[] => {
   const join = mac ? "" : "+";
   return [
     { combo: "Space", labelKey: "native.desktop.shortcutPlayPause" },
+    { combo: "← / →", labelKey: "native.desktop.shortcutSeek" },
+    { combo: "↑ / ↓", labelKey: "native.desktop.shortcutBareVolume" },
     { combo: `${mod}${join}← / ${mod}${join}→`, labelKey: "native.desktop.shortcutPrevNext" },
     { combo: `${mod}${join}↑ / ${mod}${join}↓`, labelKey: "native.desktop.shortcutVolume" },
     { combo: "M", labelKey: "native.desktop.shortcutMute" },

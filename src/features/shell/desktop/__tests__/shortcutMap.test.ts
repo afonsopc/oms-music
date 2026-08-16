@@ -36,9 +36,20 @@ describe("matchShortcut", () => {
     expect(matchShortcut(stroke({ key: " ", code: "Space", onEditable: true }))).toBeNull();
   });
 
-  test("bare arrows are NOT transport (they belong to lists)", () => {
-    expect(matchShortcut(stroke({ key: "ArrowRight" }))).toBeNull();
-    expect(matchShortcut(stroke({ key: "ArrowUp" }))).toBeNull();
+  // Pedido do dono (2026-08-17): as setas nuas portam o /music antigo -
+  // esquerda/direita saltam 5 s, cima/baixo mexem no volume. A primeira
+  // versão reservava-as para listas; a decisão foi revertida de propósito.
+  test("bare arrows seek and drive the volume, like the old /music", () => {
+    expect(matchShortcut(stroke({ key: "ArrowRight" }))).toBe("seekForward");
+    expect(matchShortcut(stroke({ key: "ArrowLeft" }))).toBe("seekBackward");
+    expect(matchShortcut(stroke({ key: "ArrowUp" }))).toBe("volumeUp");
+    expect(matchShortcut(stroke({ key: "ArrowDown" }))).toBe("volumeDown");
+  });
+
+  test("bare arrows still yield to inputs, buttons and shifted strokes", () => {
+    expect(matchShortcut(stroke({ key: "ArrowRight", onEditable: true }))).toBeNull();
+    expect(matchShortcut(stroke({ key: "ArrowRight", onButton: true }))).toBeNull();
+    expect(matchShortcut(stroke({ key: "ArrowUp", shiftKey: true }))).toBeNull();
   });
 
   test("Cmd/Ctrl+arrows drive transport and volume", () => {

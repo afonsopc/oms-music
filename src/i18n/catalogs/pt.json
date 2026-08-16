@@ -979,6 +979,8 @@
       "viewGrid": "Vista de grelha",
       "shortcutsTitle": "Atalhos de teclado",
       "shortcutPlayPause": "Reproduzir ou pausar",
+      "shortcutSeek": "Recuar / avançar 5 segundos",
+      "shortcutBareVolume": "Subir / descer o volume",
       "shortcutPrevNext": "Faixa anterior / seguinte",
       "shortcutVolume": "Subir / descer o volume",
       "shortcutMute": "Silenciar ou repor o som",

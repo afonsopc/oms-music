@@ -18,7 +18,13 @@ import { getTransport } from "@/contracts/transport";
 import { getPlaybackView } from "@/remote/mirror";
 import type { RightPanelTenant } from "./rightPanelModel";
 import { focusTopbarSearch } from "./searchFocus";
-import { isEditableTagName, matchShortcut, VOLUME_STEP, type ShortcutAction } from "./shortcutMap";
+import {
+  isEditableTagName,
+  matchShortcut,
+  SEEK_STEP_S,
+  VOLUME_STEP,
+  type ShortcutAction,
+} from "./shortcutMap";
 
 export interface DesktopShortcutsProps {
   /** Window fits the right panel (>= 1200px): panel toggles drive tenants. */
@@ -34,6 +40,8 @@ const REPEATABLE: ReadonlySet<ShortcutAction> = new Set([
   "volumeDown",
   "nextTrack",
   "previousTrack",
+  "seekForward",
+  "seekBackward",
 ]);
 
 /**
@@ -89,6 +97,17 @@ export const DesktopShortcuts = ({
           return;
         case "previousTrack":
           getTransport().previous();
+          return;
+        case "seekForward": {
+          const { position, duration } = getPlaybackView();
+          // O tecto -0.25 é o do /music antigo: saltar exactamente para o
+          // fim dispararia o ended e engoliria o fim da música.
+          const cap = duration > 0 ? duration - 0.25 : Number.POSITIVE_INFINITY;
+          getTransport().seek(Math.min(cap, position + SEEK_STEP_S));
+          return;
+        }
+        case "seekBackward":
+          getTransport().seek(Math.max(0, getPlaybackView().position - SEEK_STEP_S));
           return;
         case "volumeUp":
           getTransport().setVolume(clampVolume(getPlaybackView().volume + VOLUME_STEP));

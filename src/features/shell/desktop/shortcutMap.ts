@@ -17,6 +17,8 @@ export type ShortcutAction =
   | "togglePlay"
   | "nextTrack"
   | "previousTrack"
+  | "seekForward"
+  | "seekBackward"
   | "volumeUp"
   | "volumeDown"
   | "toggleMute"
@@ -46,6 +48,8 @@ export const isEditableTagName = (tagName: string): boolean =>
 
 /** Volume step per Cmd/Ctrl+Up/Down press (0..1 scale). */
 export const VOLUME_STEP = 0.1;
+/** Salto por seta nua Esquerda/Direita, o mesmo do /music antigo. */
+export const SEEK_STEP_S = 5;
 
 export const matchShortcut = (stroke: ShortcutStroke): ShortcutAction | null => {
   const primary = stroke.metaKey || stroke.ctrlKey;
@@ -77,6 +81,18 @@ export const matchShortcut = (stroke: ShortcutStroke): ShortcutAction | null => 
     // Space on a focused button clicks the button (the browser's own
     // binding); a second toggle from here would undo it.
     return stroke.onButton ? null : "togglePlay";
+  }
+  // Setas NUAS como no /music antigo (pedido do dono, 2026-08-17): esquerda/
+  // direita saltam 5 s, cima/baixo mexem no volume. Isto reverte a
+  // divergência deliberada da primeira versão deste mapa ("as setas são da
+  // navegação de listas") - o dono quer o comportamento do player antigo, e
+  // o guarda de onButton continua a deixar sliders e botões focados receber
+  // as suas próprias setas.
+  if (!stroke.shiftKey && !stroke.onButton) {
+    if (stroke.key === "ArrowRight") return "seekForward";
+    if (stroke.key === "ArrowLeft") return "seekBackward";
+    if (stroke.key === "ArrowUp") return "volumeUp";
+    if (stroke.key === "ArrowDown") return "volumeDown";
   }
   if (!stroke.shiftKey && stroke.code === "KeyM") return "toggleMute";
   return null;

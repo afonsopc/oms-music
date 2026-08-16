@@ -979,6 +979,8 @@
       "viewGrid": "Grid view",
       "shortcutsTitle": "Keyboard shortcuts",
       "shortcutPlayPause": "Play or pause",
+      "shortcutSeek": "Seek back / forward 5 seconds",
+      "shortcutBareVolume": "Volume up / down",
       "shortcutPrevNext": "Previous / next track",
       "shortcutVolume": "Volume up / down",
       "shortcutMute": "Mute or restore sound",
