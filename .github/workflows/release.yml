@@ -208,7 +208,9 @@ jobs:
 
   ios:
     name: ipa
-    runs-on: macos-15
+    # macos-26: o expo-glass-effect usa APIs do iOS 26 e precisa do Xcode 26
+    # (as imagens macos-15 ficam-se pelo 16.x).
+    runs-on: macos-26
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
