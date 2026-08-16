@@ -22,11 +22,12 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-# tray-icon: o tray nativo do core (plano 3.5); image-png para carregar o
-# icone do tray a partir dos bytes gerados por `tauri icon`. A feature
-# "specta" existe por causa do cache_subscribe: sem ela o tauri::ipc::Channel
-# nao implementa specta::Type e o comando nao entra no collect_commands!.
-tauri = { version = "2", features = ["tray-icon", "image-png", "specta"] }
+# A feature "specta" existe por causa do cache_subscribe: sem ela o
+# tauri::ipc::Channel nao implementa specta::Type e o comando nao entra no
+# collect_commands!. As features tray-icon/image-png sairam com o tray
+# (2026-08-17, "nao serve para nada" - dono): nada mais no crate toca em
+# tauri::tray nem descodifica PNG em runtime.
+tauri = { version = "2", features = ["specta"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 # Obrigatorio (plano 3.5): dois lancamentos disputariam o dispositivo de audio.

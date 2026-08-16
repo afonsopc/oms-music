@@ -1,6 +1,6 @@
 //! Shell Tauri de oms-music (plano "uma so app", F5, macOS primeiro).
 //!
-//! O que este shell E: a moldura nativa do export web - janela, tray,
+//! O que este shell E: a moldura nativa do export web - janela,
 //! mini-player NSPanel, teclas de media/Now Playing/MPRIS, single-instance,
 //! window-state e updater assinado. O que este shell NAO e: um player. O
 //! audio fica no webview nesta fase (spike 4: um <audio> activo marca o
@@ -16,7 +16,6 @@ mod cache;
 mod media;
 mod menubar;
 mod miniplayer;
-mod tray;
 
 use tauri::{Manager, WebviewWindowBuilder};
 use tauri_specta::{collect_commands, collect_events};
@@ -113,11 +112,10 @@ pub fn run() {
             // A janela e criada AQUI e nao pelo runtime (daí o `"create":
             // false` no tauri.conf.json), e e a primeira coisa do setup para
             // a ordem de arranque ficar igual a de antes: quem vem a seguir
-            // (tray, menubar) ja conta com uma janela "main" existente.
+            // (menubar) ja conta com uma janela "main" existente.
             build_main_window(app.handle())?;
             media::init(app.handle())?;
             menubar::init(app.handle())?;
-            tray::init(app.handle())?;
             Ok(())
         })
         .run(tauri::generate_context!())

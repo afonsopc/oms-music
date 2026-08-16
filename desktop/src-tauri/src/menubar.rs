@@ -1,7 +1,7 @@
 //! Barra de menus nativa do macOS (pedido do dono 2026-08-14): o shell deixa
 //! de arrancar com o menu default vazio do Tauri e ganha menus UTEIS. A
-//! mesma disciplina do tray: transporte emite MediaCommand (o unico ponto de
-//! entrada que o bridge ja escuta), e as accoes de UI (cinema, definicoes)
+//! mesma disciplina das teclas de media: transporte emite MediaCommand (o
+//! unico ponto de entrada que o bridge ja escuta), e as accoes de UI (cinema, definicoes)
 //! emitem um ShellCommand novo que o bridge encaminha para a navegacao.
 //!
 //! O menu "Editar" e obrigatorio no macOS: sem os predefined undo/copy/paste

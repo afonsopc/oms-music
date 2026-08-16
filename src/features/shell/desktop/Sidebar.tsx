@@ -41,7 +41,6 @@ import { TabIcon, type TabIconName } from "@/features/shell/TabIcon";
 import { useT } from "@/i18n";
 import { useTheme } from "@/theme/provider";
 import { RADIUS } from "@/theme/tokens";
-import { focusTopbarSearch } from "./searchFocus";
 import {
   ArtworkImage,
   EmptyState,
@@ -71,9 +70,12 @@ interface NavItem {
   route: "/home" | "/search" | "/library";
 }
 
+// Sem "Pesquisar" de proposito (dono, 2026-08-17): no desktop a pesquisa
+// vive na topbar (campo sempre visivel + Cmd+K), e uma linha de navegacao
+// para uma pagina cujo unico papel la e "ver todos" nao ganhava o lugar.
+// O ponto 18 tentou salva-la (navegar e focar); a resposta foi tirar de vez.
 const NAV_ITEMS: NavItem[] = [
   { key: "home", labelKey: "native.shell.tabHome", route: "/home" },
-  { key: "search", labelKey: "native.shell.tabSearch", route: "/search" },
   { key: "library", labelKey: "native.shell.tabLibrary", route: "/library" },
 ];
 
@@ -286,22 +288,7 @@ export const DesktopSidebar = ({ collapsed, onToggleCollapsed }: DesktopSidebarP
             item={item}
             active={activeTab === item.key}
             collapsed={collapsed}
-            // "Pesquisar" ABRE a pagina e so depois foca o campo da topbar
-            // (relato do dono 2026-08-16, ponto 18: "so poe o foco no campo
-            // de pesquisa", inutil). Focar sozinho nunca mudava de rota, o
-            // que deixava a linha impossivel de marcar como activa e dava a
-            // um item de navegacao um comportamento que nao e navegar - o
-            // atalho Cmd+K ja fazia esse trabalho. Navegar primeiro mantem a
-            // pagina como o destino de "ver todos" que ela ja era, e o foco
-            // a seguir deixa escrever sem um segundo clique.
-            onPress={
-              item.key === "search"
-                ? () => {
-                    router.push(item.route);
-                    focusTopbarSearch();
-                  }
-                : () => router.push(item.route)
-            }
+            onPress={() => router.push(item.route)}
           />
         ))}
       </View>
