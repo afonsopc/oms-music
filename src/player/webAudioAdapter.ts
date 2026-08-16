@@ -472,17 +472,39 @@ export const createWebAudioAdapter = (env: WebAudioAdapterEnv = {}): AudioAdapte
       setHandler("seekto", (details) => {
         if (details.seekTime != null) void seekTo(details.seekTime);
       });
-      setHandler("seekforward", (details) => {
-        void seekTo(
-          Math.min(media.currentTime + (details.seekOffset ?? SEEK_JUMP_S), safeDuration()),
-        );
-      });
-      setHandler("seekbackward", (details) => {
-        void seekTo(Math.max(media.currentTime - (details.seekOffset ?? SEEK_JUMP_S), 0));
-      });
+      // Track navigation OUTRANKS the seek jumps (owner report 2026-08-16,
+      // point 8). A media session advertises more actions than any lock
+      // screen has room for, and the platforms resolve that themselves:
+      // Safari draws its skip-interval buttons (15 s, its own default) in
+      // place of previous/next as soon as seekbackward/seekforward have
+      // handlers, which is exactly what left the owner unable to change
+      // track from the iOS lock screen. Registering the pair only when
+      // nothing owns next/previous keeps the jumps for the builds that have
+      // no track commands to lose, and the scrubber still seeks everywhere.
       const onTrack = env.onRemoteTrackCommand;
       setHandler("nexttrack", onTrack ? () => onTrack("next") : null);
       setHandler("previoustrack", onTrack ? () => onTrack("previous") : null);
+      setHandler(
+        "seekforward",
+        onTrack
+          ? null
+          : (details) => {
+              void seekTo(
+                Math.min(
+                  media.currentTime + (details.seekOffset ?? SEEK_JUMP_S),
+                  safeDuration(),
+                ),
+              );
+            },
+      );
+      setHandler(
+        "seekbackward",
+        onTrack
+          ? null
+          : (details) => {
+              void seekTo(Math.max(media.currentTime - (details.seekOffset ?? SEEK_JUMP_S), 0));
+            },
+      );
       updatePlaybackState();
       updatePositionState();
     },

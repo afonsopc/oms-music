@@ -175,9 +175,9 @@ export interface AudioAdapter {
    * mix.
    *
    * `passthrough` marks the EQ-only degenerate blend: BOTH uris are the main
-   * file and the adapter pins each node to PASSTHROUGH_GAIN (0.5) instead of
-   * the user's stem volumes, so the sum stays the original signal and only
-   * the EQ in the mixer graph colours it.
+   * file and the adapter pins the nodes to PASSTHROUGH_GAINS (one at unity,
+   * one silent) instead of the user's stem volumes, so the output stays the
+   * original signal and only the EQ in the mixer graph colours it.
    */
   replaceStems?(
     vocalsUri: string,

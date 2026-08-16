@@ -1352,7 +1352,20 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
     // first-byte window. A player NOT meant to be audible is never
     // "buffering" either: a paused network item reports isBuffering on its
     // one readyToPlay status and then goes silent, which pinned the spinner.
-    const mirroredBuffering = s.isBuffering && this.intendedPlay;
+    //
+    // "Meant to be audible but not yet audible" IS the spinner, and
+    // `s.isBuffering` alone does not say that (owner report 2026-08-16,
+    // point 2: "the bar shows PAUSE when it should show loading, and the
+    // play button does not respond"). `loadInFlight` goes false the instant
+    // replace() lands, which is BEFORE the item has loaded a byte; native
+    // players report `isBuffering: false` in that window, so the spinner
+    // cleared while nothing played. The store then held
+    // `{ playing: true, buffering: false }` - and every surface draws the
+    // PAUSE icon from `playing`, which is the lie the owner saw. Waiting on
+    // the player is the honest reading: intent to play with no playback yet,
+    // whether the cause is the resolve, the first byte, a mid-track drain or
+    // a wedged player the watchdogs are about to nudge.
+    const mirroredBuffering = this.intendedPlay && (!s.playing || s.isBuffering);
     if (!loadInFlight && playerStore.getState().buffering !== mirroredBuffering) {
       playerStore.setState({ buffering: mirroredBuffering });
     }

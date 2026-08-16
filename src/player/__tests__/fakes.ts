@@ -5,7 +5,7 @@
 import type { SongId } from "@/domain/ids";
 import type { EqBands, StemGains } from "@/domain/playback";
 import type { Song } from "@/domain/song";
-import { gainLaw } from "../gainLaw";
+import { gainLaw, PASSTHROUGH_GAINS } from "../gainLaw";
 import type {
   AudioAdapter,
   AudioAdapterStatus,
@@ -89,6 +89,13 @@ export class FakeAudioPlayer implements AudioAdapter {
   eqEnabled = false;
   masterVolume = 1;
   mixerMaster = 1;
+  /**
+   * What the adapter would actually write into the mixer's per-stem gains -
+   * the passthrough pins them (gainLaw.PASSTHROUGH_GAINS) instead of handing
+   * the user's stem volumes through, so this is the only field that can tell
+   * an EQ passthrough from a real blend at the point where it reaches audio.
+   */
+  mixerGains: StemGains = { vocal: 1, instrumental: 1 };
   mixerPlaying = false;
   mixerSeekLog: number[] = [];
   mixerRate = 1;
@@ -114,6 +121,12 @@ export class FakeAudioPlayer implements AudioAdapter {
     });
     this.volume = law.mainGain;
     this.mixerMaster = this.stemsOn ? law.master : 1;
+    // Mirrors expoAudioAdapter.applyGains: the passthrough pins the pair so
+    // one node carries the file at unity and the other stays silent, instead
+    // of handing the user's stem volumes through.
+    this.mixerGains = this.stemPassthrough
+      ? { ...PASSTHROUGH_GAINS }
+      : { vocal: law.vocal, instrumental: law.instrumental };
   }
 
   setVolume(v: number): void {

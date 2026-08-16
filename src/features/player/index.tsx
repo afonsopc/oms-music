@@ -21,7 +21,14 @@
  * ticks re-render that leaf only, never the whole screen.
  */
 import React, { useCallback, useEffect, useState } from "react";
-import { Pressable, Text, useWindowDimensions, View, type ViewStyle } from "react-native";
+import {
+  ActivityIndicator,
+  Pressable,
+  Text,
+  useWindowDimensions,
+  View,
+  type ViewStyle,
+} from "react-native";
 import { useRouter, type Href } from "expo-router";
 import { useLikedIds, useToggleLike } from "@/api/queries/likedSongs";
 import { getTransport } from "@/contracts/transport";
@@ -306,9 +313,10 @@ export default function NowPlayingBody() {
  */
 export const PlayerChrome = () => {
   const t = useT();
-  const { scheme } = useTheme();
+  const { scheme, tokens } = useTheme();
   useShellSlotsVersion();
   const playing = usePlaybackView((v) => v.playing);
+  const buffering = usePlaybackView((v) => v.buffering);
   const mode = usePlayerModeStore((s) => s.mode);
   const CastButton = getShellSlots().castButton;
 
@@ -341,14 +349,32 @@ export const PlayerChrome = () => {
             proprio simbolo (screenshots do dono 2026-08-15), e era o disco
             que fazia esta linha parecer um botao entre dois icones em vez de
             tres irmaos. */}
-        <GhostIconButton
-          icon={playing ? "pause" : "play"}
-          size={40}
-          filled
-          style={{ width: 64, height: 64 }}
-          accessibilityLabel={playing ? t(`${NP}.pause`) : t(`${NP}.play`)}
-          onPress={() => getTransport().toggle()}
-        />
+        {/* A carregar mostra-se, nao se disfarca (relato do dono
+            2026-08-16, ponto 2): sem este ramo o glifo vinha de `playing`
+            sozinho e a espera pelo primeiro byte lia-se como PAUSA. Continua
+            a ser um botao - toggle() corre por INTENCAO, portanto carregar
+            aqui cancela um arranque que esta a demorar de mais, que e
+            precisamente o que quem carrega quer dizer. */}
+        {buffering ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t(`${NP}.loading`)}
+            hitSlop={8}
+            onPress={() => getTransport().toggle()}
+            style={{ width: 64, height: 64, alignItems: "center", justifyContent: "center" }}
+          >
+            <ActivityIndicator color={tokens.foreground} />
+          </Pressable>
+        ) : (
+          <GhostIconButton
+            icon={playing ? "pause" : "play"}
+            size={40}
+            filled
+            style={{ width: 64, height: 64 }}
+            accessibilityLabel={playing ? t(`${NP}.pause`) : t(`${NP}.play`)}
+            onPress={() => getTransport().toggle()}
+          />
+        )}
         <GhostIconButton
           icon="skip-forward"
           size={34}

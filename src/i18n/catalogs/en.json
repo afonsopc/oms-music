@@ -260,6 +260,7 @@
       "NowPlayingSheet": {
         "nowPlaying": "Now Playing",
         "playingFrom": "Playing from",
+        "loading": "Loading",
         "close": "Close",
         "more": "More",
         "moreActions": "More actions",

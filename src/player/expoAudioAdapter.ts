@@ -21,14 +21,35 @@
  * Imported ONLY by player/register.ts - never by the engine or tests, so
  * the engine logic stays runnable under bun with a FakeAudioPlayer.
  */
+import { Platform } from "react-native";
 import { createAudioPlayer } from "expo-audio";
 import type { AudioPlayer, AudioStatus } from "expo-audio";
 import { getStemMixer } from "@/contracts/stemMixer";
 import type { EqBands, StemGains } from "@/domain/playback";
-import { clampEqBands, clampStemGains, clampUnit, gainLaw, PASSTHROUGH_GAIN } from "./gainLaw";
+import { clampEqBands, clampStemGains, clampUnit, gainLaw, PASSTHROUGH_GAINS } from "./gainLaw";
 import type { AudioAdapter, AudioAdapterStatus, LockScreenMetadata } from "./types";
 
 const STATUS_INTERVAL_MS = 250;
+
+/**
+ * Whether the lock screen offers the +-10 s skip buttons (owner report
+ * 2026-08-16, point 8: "the 15 second buttons take the place of
+ * previous/next, which stops me changing track").
+ *
+ * iOS draws at most three transport buttons either side of play/pause, and
+ * MPRemoteCommandCenter gives the skip-interval commands PRIORITY over
+ * nextTrack/previousTrack: enabling skipForward/skipBackward is what hid the
+ * two buttons `modules/oms-native` exists to provide, and the system's own
+ * default interval (15 s, since expo-audio pins no preferredIntervals) is
+ * what the owner saw. Changing tracks is worth more than a 10 s nudge the
+ * scrubber can do anyway, so iOS turns them off.
+ *
+ * Android keeps them: expo-audio strips the track-navigation commands from
+ * the only MediaSession the app has (docs/LOCKSCREEN-PATCH.md section 6), so
+ * there is no next/previous to make room FOR, and turning the skips off
+ * there would leave the notification with play/pause alone.
+ */
+const SHOW_LOCK_SCREEN_SEEK_BUTTONS = Platform.OS !== "ios";
 
 /**
  * How far the blend may sit from the muted reference clock before both stems
@@ -117,7 +138,14 @@ export const createExpoAudioAdapter = (): AudioAdapter => {
         passthrough
           ? // Same file on both nodes: the user's stem volumes must NOT
             // apply, or the "original" would quietly play at vocal+inst.
-            { vocal: PASSTHROUGH_GAIN, instrumental: PASSTHROUGH_GAIN, master: law.master }
+            // One node carries it at unity and the other is silent, so the
+            // output never depends on the two agreeing to the sample (see
+            // gainLaw.PASSTHROUGH_GAINS).
+            {
+              vocal: PASSTHROUGH_GAINS.vocal,
+              instrumental: PASSTHROUGH_GAINS.instrumental,
+              master: law.master,
+            }
           : { vocal: law.vocal, instrumental: law.instrumental, master: law.master },
       );
     }
@@ -232,8 +260,8 @@ export const createExpoAudioAdapter = (): AudioAdapter => {
     },
     setLockScreenActive(active: boolean, metadata?: LockScreenMetadata): void {
       player.setActiveForLockScreen(active, metadata, {
-        showSeekForward: true,
-        showSeekBackward: true,
+        showSeekForward: SHOW_LOCK_SCREEN_SEEK_BUTTONS,
+        showSeekBackward: SHOW_LOCK_SCREEN_SEEK_BUTTONS,
       });
     },
     updateLockScreenMetadata(metadata: LockScreenMetadata): void {

@@ -521,6 +521,55 @@ describe("buffering flag (FR-6 spinner honesty)", () => {
     expect(playerStore.getState().buffering).toBe(false);
     ctx.engine.dispose();
   });
+
+  /**
+   * Owner report 2026-08-16, point 2: "picking a song shows metadata and
+   * artwork but the bar shows PAUSE when it should show loading". The store
+   * drives every play/pause glyph off `playing`, so the only way to draw a
+   * spinner is for `buffering` to still be true. It used to clear here,
+   * because the source had been handed to the player (loadInFlight false)
+   * and a not-yet-loaded native item reports `isBuffering: false`.
+   */
+  it("stays raised after replace() until the player actually plays", async () => {
+    const ctx = setup();
+    const song = makeSong(1);
+    urlFor(ctx, song);
+    ctx.engine.setQueue([song]);
+    await flush();
+
+    // replace() has landed and play() was issued, but the item has not
+    // started: attached, silent, and NOT reporting isBuffering.
+    ctx.player.playing = false;
+    ctx.player.loaded = false;
+    ctx.player.buffering = false;
+    ctx.player.emitStatus();
+
+    expect(playerStore.getState().playing).toBe(false);
+    expect(playerStore.getState().buffering).toBe(true);
+
+    // First audible status clears it.
+    ctx.player.playing = true;
+    ctx.player.emitLoaded(200);
+    expect(playerStore.getState().playing).toBe(true);
+    expect(playerStore.getState().buffering).toBe(false);
+    ctx.engine.dispose();
+  });
+
+  it("a paused player is never buffering, however silent it is", async () => {
+    const ctx = setup();
+    const song = makeSong(1);
+    urlFor(ctx, song);
+    ctx.engine.setQueue([song]);
+    await flush();
+    ctx.player.emitLoaded(200);
+
+    ctx.engine.pause();
+    ctx.player.buffering = true; // a paused network item still reports this
+    ctx.player.emitStatus();
+
+    expect(playerStore.getState().buffering).toBe(false);
+    ctx.engine.dispose();
+  });
 });
 
 describe("logout wipe (FR-10)", () => {

@@ -31,7 +31,13 @@ export const PlayFab = ({
   return (
     <Pressable
       onPress={onPress}
-      disabled={loading}
+      // NOT disabled while loading (owner report 2026-08-16, points 1-2:
+      // "the play button does not respond in that interval"). The spinner
+      // says the engine is working on it, not that the control is dead:
+      // toggle() runs on INTENT (engine.toggle), so cancelling a load that
+      // is taking too long is exactly what a user pressing it then means,
+      // and disabling the one control that can cancel left them stuck
+      // watching a spinner with no way out.
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       hitSlop={4}

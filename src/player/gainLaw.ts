@@ -71,11 +71,24 @@ export const eqIsFlat = (bands: EqBands): boolean =>
 
 /**
  * EQ passthrough (FR-70 extension): to equalize a song with no stems, the
- * mixer is loaded with the MAIN local file on both player nodes. Two copies
- * of the same signal sum to +6 dB, so each node plays at 0.5 - the sum is
- * bit-identical to the original at unity.
+ * mixer is loaded with the MAIN local file on both player nodes, because
+ * `prepare` takes a pair and nothing else in the graph knows about this case.
+ *
+ * Only ONE of those nodes is ever audible. Summing two copies at 0.5 each is
+ * bit-identical to the original ONLY while the two nodes agree to the sample;
+ * the moment they do not, the sum is a comb filter, which is what the owner
+ * reported on 2026-08-16 as "the same song twice about 1 ms apart, with a
+ * robotic sound, only with the EQ on". The alignment the old law depended on
+ * is not something this layer can guarantee - it survives a render-cycle
+ * boundary, a varispeed phase difference or a format conversion only by luck,
+ * and a flanged song is a far worse failure than the decode it was saving.
+ *
+ * So the second node is silenced instead of balanced: one node carries the
+ * file at unity and the sum is the original by construction, with no
+ * alignment premise anywhere. The muted node still decodes (the mixer wants a
+ * pair and a shared clock), which costs a little CPU and buys immunity.
  */
-export const PASSTHROUGH_GAIN = 0.5;
+export const PASSTHROUGH_GAINS: StemGains = { vocal: 1, instrumental: 0 };
 
 export interface GainLawInput {
   /** The device's own output volume, 0..1 (never adopted from the cable). */

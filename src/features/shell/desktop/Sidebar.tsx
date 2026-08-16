@@ -41,7 +41,7 @@ import { TabIcon, type TabIconName } from "@/features/shell/TabIcon";
 import { useT } from "@/i18n";
 import { useTheme } from "@/theme/provider";
 import { RADIUS } from "@/theme/tokens";
-import { focusTopbarSearchOrNavigate } from "./searchFocus";
+import { focusTopbarSearch } from "./searchFocus";
 import {
   ArtworkImage,
   EmptyState,
@@ -286,12 +286,20 @@ export const DesktopSidebar = ({ collapsed, onToggleCollapsed }: DesktopSidebarP
             item={item}
             active={activeTab === item.key}
             collapsed={collapsed}
-            // "Pesquisar" foca a barra de cima em vez de abrir a pagina
-            // duplicada (plano 4.3): no desktop a topbar E a pesquisa, e a
-            // pagina fica so como destino de "ver todos".
+            // "Pesquisar" ABRE a pagina e so depois foca o campo da topbar
+            // (relato do dono 2026-08-16, ponto 18: "so poe o foco no campo
+            // de pesquisa", inutil). Focar sozinho nunca mudava de rota, o
+            // que deixava a linha impossivel de marcar como activa e dava a
+            // um item de navegacao um comportamento que nao e navegar - o
+            // atalho Cmd+K ja fazia esse trabalho. Navegar primeiro mantem a
+            // pagina como o destino de "ver todos" que ela ja era, e o foco
+            // a seguir deixa escrever sem um segundo clique.
             onPress={
               item.key === "search"
-                ? () => focusTopbarSearchOrNavigate(() => router.push(item.route))
+                ? () => {
+                    router.push(item.route);
+                    focusTopbarSearch();
+                  }
                 : () => router.push(item.route)
             }
           />
