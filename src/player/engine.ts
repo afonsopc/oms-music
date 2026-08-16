@@ -78,6 +78,8 @@ const STUCK_SILENT_MS = 20_000;
 const STUCK_LOAD_MS = 50_000;
 /** expo-audio rate ceiling on both mobile platforms. */
 const PLATFORM_MAX_RATE = 2;
+/** Tecto da espera pela hidratação do índice local do desktop (beginLoad). */
+const LOCAL_INDEX_WAIT_MS = 1_500;
 
 const clamp = (v: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, v));
 
@@ -1130,6 +1132,37 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
     // one file. loadCandidate re-syncs once the new source is in place.
     this.stemGen++;
     this.releaseStemBlend("off");
+
+    // GATING do arranque frio do desktop (handoff 2026-08-17, ponto 4): o
+    // índice local do Tauri é instalado sincronamente mas responde null até
+    // três round-trips de IPC aterrarem, portanto um toque nessa janela
+    // montava a escada SEM o candidato local e uma música em cache ia à
+    // rede (~4 s). Quando o índice declara que ainda está a hidratar,
+    // espera-se por ele - com tecto, porque um IPC encravado nunca pode
+    // custar mais do que o atraso que já existia. gen protege contra loads
+    // ultrapassados; fora do desktop `ready` não existe e nada muda.
+    const pending = getLocalFileIndex().ready?.();
+    if (pending) {
+      const capped = Promise.race([
+        pending,
+        new Promise<void>((resolve) => setTimeout(resolve, LOCAL_INDEX_WAIT_MS)),
+      ]);
+      void capped.then(() => {
+        if (gen !== this.transitionGen) return;
+        this.resolveAndLoad(song, key, gen, opts);
+      });
+      return;
+    }
+    this.resolveAndLoad(song, key, gen, opts);
+  }
+
+  /** Segunda metade do beginLoad: monta a escada e arranca o load. */
+  private resolveAndLoad(
+    song: Song,
+    key: SongKey,
+    gen: number,
+    opts: { autoplay: boolean; fresh: boolean },
+  ): void {
     const mode = playerStore.getState().playbackMode;
     const resolved = resolveSources(song, mode);
     const candidates = opts.fresh

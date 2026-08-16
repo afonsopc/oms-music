@@ -4,6 +4,7 @@
  * reconciliation, mode-switch continuity, interceptor consumption.
  */
 import { beforeEach, describe, expect, it } from "bun:test";
+import { setLocalFileIndex } from "@/contracts/localSource";
 import { setPlaybackInterceptor } from "@/contracts/playbackInterceptor";
 import { toSongKey } from "@/domain/ids";
 import type { Song } from "@/domain/song";
@@ -1031,5 +1032,73 @@ describe("autoplay blocked (web adapter channel)", () => {
     ctx.engine.stopAndClearSource();
     expect(playerStore.getState().autoplayBlocked).toBe(false);
     ctx.engine.dispose();
+  });
+});
+
+describe("local index gating (desktop cold start)", () => {
+  // O índice do Tauri instala-se sincronamente mas responde null até a
+  // hidratação por IPC aterrar; sem gating, um toque nessa janela montava a
+  // escada sem o candidato local e uma música em cache ia à rede (handoff
+  // 2026-08-17, ponto 4).
+  const inertIndex = { get: () => null, getArtworkByNodeId: () => null };
+
+  it("waits for a hydrating index, then builds the ladder with local files", async () => {
+    const ctx = setup();
+    const song = makeSong(1);
+    urlFor(ctx, song);
+    let release: () => void = () => {};
+    const pending = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let hydrated = false;
+    setLocalFileIndex({
+      get: () => (hydrated ? "file:///cache/1_mixed" : null),
+      getArtworkByNodeId: () => null,
+      ready: () => (hydrated ? null : pending),
+    });
+    try {
+      ctx.engine.setQueue([song]);
+      await flush();
+      expect(ctx.player.uri).toBeNull(); // ainda à espera da hidratação
+
+      hydrated = true;
+      release();
+      await flush();
+      expect(ctx.player.uri).toBe("file:///cache/1_mixed");
+    } finally {
+      setLocalFileIndex(inertIndex);
+      ctx.engine.dispose();
+    }
+  });
+
+  it("a superseded load never lands after the index settles", async () => {
+    const ctx = setup();
+    const s1 = makeSong(1);
+    const s2 = makeSong(2);
+    urlFor(ctx, s1);
+    urlFor(ctx, s2);
+    let release: () => void = () => {};
+    const pending = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let hydrated = false;
+    setLocalFileIndex({
+      get: (key) => (hydrated && key === "1" ? "file:///cache/1_mixed" : null),
+      getArtworkByNodeId: () => null,
+      ready: () => (hydrated ? null : pending),
+    });
+    try {
+      ctx.engine.setQueue([s1, s2]);
+      await flush();
+      ctx.engine.setQueueIndex(1); // o utilizador salta antes de hidratar
+      hydrated = true;
+      release();
+      await flush();
+      // O load da música 1 foi ultrapassado; toca a 2 (rede) e nunca a 1.
+      expect(ctx.player.uri?.startsWith("http://cdn/2")).toBe(true);
+    } finally {
+      setLocalFileIndex(inertIndex);
+      ctx.engine.dispose();
+    }
   });
 });

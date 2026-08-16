@@ -27,6 +27,33 @@ import type { CacheStatus, FileEntry } from "./bridge";
 const entryKey = (songKey: SongKey, kind: DownloadKind): string => `${songKey}::${kind}`;
 
 let origin = "";
+/**
+ * Hidratação pendente (contrato LocalFileIndex.ready): entre a instalação
+ * síncrona deste índice e o primeiro hydrateLocalIndex há três round-trips
+ * de IPC, e nessa janela um `get` responde null com convicção a ficheiros
+ * que EXISTEM - era o arranque frio de ~4 s do desktop (handoff 2026-08-17,
+ * ponto 4). O engine espera por esta promessa (com tecto) antes de montar a
+ * escada. Re-arma no reset (logout) porque a sessão seguinte volta a abrir
+ * a cache do zero.
+ */
+let hydrated = false;
+let hydrationResolve: (() => void) | null = null;
+let hydrationPromise: Promise<void> | null = null;
+
+const armHydration = (): void => {
+  hydrated = false;
+  hydrationPromise = new Promise<void>((resolve) => {
+    hydrationResolve = resolve;
+  });
+};
+armHydration();
+
+const settleHydration = (): void => {
+  hydrated = true;
+  hydrationResolve?.();
+  hydrationResolve = null;
+};
+
 /** "key::kind" for every row Rust reports as done. */
 const resident = new Set<string>();
 /** "key::kind" -> the media id those bytes came from, for the /m/ lookups. */
@@ -56,6 +83,7 @@ export const hydrateLocalIndex = (nextOrigin: string, files: FileEntry[]): void 
     if (file.status === "done") resident.add(key);
   }
   rebuildArtwork();
+  settleHydration();
 };
 
 /**
@@ -118,6 +146,7 @@ export const resetLocalIndex = (): void => {
   resident.clear();
   mediaIds.clear();
   residentArtwork.clear();
+  armHydration();
 };
 
 export const desktopLocalFileIndex: LocalFileIndex = {
@@ -133,4 +162,5 @@ export const desktopLocalFileIndex: LocalFileIndex = {
    */
   getArtworkByNodeId: (mediaId) =>
     origin && residentArtwork.has(mediaId) ? `${origin}/m/${mediaId}` : null,
+  ready: () => (hydrated ? null : hydrationPromise),
 };

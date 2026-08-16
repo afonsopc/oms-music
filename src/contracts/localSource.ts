@@ -16,6 +16,15 @@ export interface LocalFileIndex {
    * answer for them and their art would vanish offline (FR-91).
    */
   getArtworkByNodeId(nodeId: FsNodeId): string | null;
+  /**
+   * Ainda a hidratar? Devolve a promessa dessa hidratação, ou null quando o
+   * índice já responde com verdade. Existe por causa do desktop: o índice do
+   * Tauri instala-se sincronamente mas só responde depois de round-trips de
+   * IPC, e sem este sinal a escada de fontes montava-se sem os candidatos
+   * locais no arranque frio (handoff 2026-08-17, ponto 4). Os consumidores
+   * DEVEM impor um tecto à espera; os índices sem o membro nunca atrasam nada.
+   */
+  ready?(): Promise<void> | null;
 }
 
 const inertIndex: LocalFileIndex = {
