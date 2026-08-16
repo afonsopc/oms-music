@@ -27,6 +27,7 @@ import { RecoveryTracker } from "./recovery";
 import { ListenAccumulator } from "./recording";
 import { tracePlayback } from "./trace";
 import { SleepTimer } from "./sleepTimer";
+import { computeSleepFade } from "./sleepFade";
 import { playerStore, resetPlayerStore, type StemPhase } from "./store";
 import type {
   AudioAdapter,
@@ -160,6 +161,10 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
   private stallProbeTime = -1;
   /** Posição no momento em que o stuck checker armou; idem. */
   private stuckProbeTime = -1;
+  /** Relógio do modo adormecer (1 Hz, só com temporizador por minutos). */
+  private sleepFadeTimer: ReturnType<typeof setInterval> | null = null;
+  /** True depois de um tick ter mexido no player; o restore só corre então. */
+  private sleepFadeApplied = false;
   /** Last time a status reported isBuffering (RECENT_BUFFER_WINDOW_MS).
    *  -Infinity, not 0: "never buffered" must read as long-ago on any clock. */
   private lastBufferingAt = Number.NEGATIVE_INFINITY;
@@ -577,6 +582,57 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
 
   setSleepTimer(t: SleepTimerSetting): void {
     this.sleepTimer.set(t);
+    this.armSleepFade();
+  }
+
+  // ----- modo adormecer (sleepFade.ts tem a matemática e o porquê) ---------
+
+  /** 1 Hz só enquanto um temporizador por minutos existe; a aritmética é o
+   *  computeSleepFade e este relógio limita-se a aplicar o resultado. */
+  private armSleepFade(): void {
+    this.disarmSleepFade();
+    const state = this.sleepTimer.current;
+    if (!state || !("endsAt" in state)) return;
+    this.sleepFadeTimer = setInterval(() => this.tickSleepFade(), 1000);
+  }
+
+  private tickSleepFade(): void {
+    const store = playerStore.getState();
+    const targets = computeSleepFade(
+      this.sleepTimer.current,
+      this.now(),
+      store.volume,
+      store.rate,
+    );
+    if (!targets) {
+      // Fora da janela (ou o temporizador já morreu): devolve o player ao
+      // utilizador se algum tick anterior o tiver mexido.
+      if (this.sleepFadeApplied) this.restoreFromSleepFade();
+      return;
+    }
+    if (!this.sleepFadeApplied) tracePlayback("sleep.fade-start", { volume: store.volume });
+    this.sleepFadeApplied = true;
+    // Directo ao player DE PROPÓSITO: setVolume/setRate do engine persistem
+    // e publicam na loja, e o fade nunca pode reescrever a preferência do
+    // utilizador - é um véu por cima dela, levantado no restore.
+    this.player.setVolume(clamp(targets.volume, 0, 1));
+    this.player.setRate(this.platformRate(targets.rate));
+  }
+
+  /** Reaplica os valores do utilizador; seguro chamar sem fade activo. */
+  private restoreFromSleepFade(): void {
+    this.sleepFadeApplied = false;
+    const store = playerStore.getState();
+    this.player.setVolume(clamp(store.volume, 0, 1));
+    this.player.setRate(this.platformRate(store.rate));
+  }
+
+  private disarmSleepFade(): void {
+    if (this.sleepFadeTimer !== null) {
+      clearInterval(this.sleepFadeTimer);
+      this.sleepFadeTimer = null;
+    }
+    if (this.sleepFadeApplied) this.restoreFromSleepFade();
   }
 
   /**
@@ -913,6 +969,7 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
   resetForLogout(): void {
     this.stopAndClearSource();
     this.sleepTimer.set(null);
+    this.disarmSleepFade();
     this.resolver.reset();
     this.recovery.reset();
     this.accumulator.reset();
@@ -932,6 +989,7 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
   dispose(): void {
     this.disposed = true;
     if (this.stuckTimer !== null) clearInterval(this.stuckTimer);
+    if (this.sleepFadeTimer !== null) clearInterval(this.sleepFadeTimer);
     this.stemGen++;
     this.releaseStemBlend("off");
     this.statusUnsub();
@@ -1270,7 +1328,11 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
   }
 
   private pauseFromSleepTimer(): void {
+    tracePlayback("sleep.fire", {});
     this.pause();
+    // Depois da pausa, tirar o véu: acordar de manhã e dar play tem de soar
+    // ao volume e à velocidade do utilizador, não ao sussurro do fade.
+    this.disarmSleepFade();
   }
 
   // ----- failure recovery (FR-61) ------------------------------------------
