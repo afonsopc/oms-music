@@ -25,6 +25,10 @@ export const PROVEN_AUDIBLE_MS = 10_000;
 export const SONG_UNAVAILABLE_TOAST_KEY =
   "components.music.MusicProvider.songUnavailableSkipped";
 
+/** Web: a política de autoplay recusou o arranque; o play manual resolve. */
+export const AUTOPLAY_BLOCKED_TOAST_KEY =
+  "components.music.MusicProvider.autoplayBlocked";
+
 export type PlayerToastHandler = (messageKey: string) => void;
 
 let toastHandler: PlayerToastHandler = (key) => {
@@ -34,6 +38,11 @@ let toastHandler: PlayerToastHandler = (key) => {
 /** The shell registers the real toast (translating the key through t()). */
 export const setPlayerToastHandler = (handler: PlayerToastHandler): void => {
   toastHandler = handler;
+};
+
+/** Canal directo para avisos do player fora do tracker (ex.: autoplay). */
+export const playerToast = (messageKey: string): void => {
+  toastHandler(messageKey);
 };
 
 export class RecoveryTracker {

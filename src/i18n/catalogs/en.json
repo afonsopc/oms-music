@@ -780,6 +780,7 @@
         "separationServiceDown": "The separation service is having trouble - try again later.",
         "playbackError": "Could not play the audio.",
         "songUnavailableSkipped": "This song could not be loaded - skipping ahead.",
+        "autoplayBlocked": "The browser blocked audio. Press play to listen.",
         "stemsLoadFailed": "Could not load the separated tracks."
       },
       "JamProvider": {

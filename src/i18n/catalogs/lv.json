@@ -780,6 +780,7 @@
         "separationServiceDown": "Atdalīšanas serviss nedarbojas - mēģini vēlāk.",
         "playbackError": "Neizdevās atskaņot audio.",
         "songUnavailableSkipped": "Neizdevās ielādēt dziesmu - pārejam pie nākamās.",
+        "autoplayBlocked": "Pārlūks bloķēja skaņu. Nospied atskaņot, lai klausītos.",
         "stemsLoadFailed": "Neizdevās ielādēt atdalītos celiņus."
       },
       "JamProvider": {

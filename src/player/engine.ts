@@ -23,7 +23,7 @@ import { localKindsForMode, stemPairNodeIds, wantedNodeId } from "./modes";
 import { resolveSources, resolveStemSource, type MainSourceCandidate } from "./sources";
 import { eqIsFlat } from "./gainLaw";
 import { PresignedResolver } from "./resolver";
-import { RecoveryTracker } from "./recovery";
+import { AUTOPLAY_BLOCKED_TOAST_KEY, playerToast, RecoveryTracker } from "./recovery";
 import { ListenAccumulator } from "./recording";
 import { tracePlayback } from "./trace";
 import { SleepTimer } from "./sleepTimer";
@@ -1388,6 +1388,14 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
     this.intendedPlay = false;
     this.stallTicks = 0;
     this.stuckSince = null;
+    // A flag prometia uma affordance "toca para ouvir" e nada a consumia
+    // (handoff 2026-08-17, secção 5.1): a recusa desenhava um play normal
+    // sem explicação. Aviso na TRANSIÇÃO apenas - cada tentativa recusada
+    // re-chama isto, e um toast por tentativa seria spam.
+    if (!playerStore.getState().autoplayBlocked) {
+      tracePlayback("autoplay.blocked", {});
+      playerToast(AUTOPLAY_BLOCKED_TOAST_KEY);
+    }
     playerStore.setState({ playing: false, buffering: false, autoplayBlocked: true });
   }
 

@@ -780,6 +780,7 @@
         "separationServiceDown": "O serviço de separação está com problemas - tenta de novo mais tarde.",
         "playbackError": "Não foi possível reproduzir o áudio.",
         "songUnavailableSkipped": "Não foi possível carregar a música - a passar à seguinte.",
+        "autoplayBlocked": "O navegador bloqueou o som. Carrega em play para ouvir.",
         "stemsLoadFailed": "Não foi possível carregar as faixas separadas."
       },
       "JamProvider": {
