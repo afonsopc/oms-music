@@ -47,7 +47,15 @@ export const DjButton = ({ disabled }: { disabled: boolean }) => {
         } finally {
           URL.revokeObjectURL(url);
         }
-        if (wasPlaying) transport.play();
+        // O DJ apresentou a SEGUINTE: a app avança mesmo para ela quando ele
+        // acaba de falar - prometer Katy Perry e retomar a mesma faixa era
+        // mentir ao ouvinte (dono, 2026-08-16). Sem seguinte, retoma.
+        if (next) {
+          transport.next();
+          if (!wasPlaying) transport.play();
+        } else if (wasPlaying) {
+          transport.play();
+        }
       } catch {
         // Sem toast próprio na superfície de teste: o botão volta a ficar
         // activo e o dono tenta outra vez (o backend loga o motivo).
