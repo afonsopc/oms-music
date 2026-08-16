@@ -18,8 +18,13 @@ import { useTopSongs } from "@/api/queries/playEvents";
 import { useArtistAlbums, useArtistPictures, useArtistSongs } from "@/api/queries/songs";
 import { useLikedIds } from "@/api/queries/likedSongs";
 import { getTransport } from "@/contracts/transport";
+import { artistKey } from "@/domain/albumKey";
 import { artistBannerSource } from "@/domain/artwork";
 import type { Song } from "@/domain/song";
+import {
+  getOfflineCollectionsApi,
+  useOfflineCollectionsVersion,
+} from "@/features/playlist/offlineCollections";
 import { useLocale, useT } from "@/i18n";
 import { artistRadioRoute } from "@/lib/routes";
 import { usePlaybackView } from "@/remote/mirror";
@@ -173,6 +178,21 @@ export default function ArtistScreen() {
   const isPlayingThisArtist =
     playing && currentSongId != null && allSongs.some((s) => s.id === currentSongId);
 
+  // Descarregar o artista INTEIRO (dono, 2026-08-17): a mesma ponte offline
+  // dos ecrãs de playlist/álbum, com a chave "artist:<slug>". Só com o slug
+  // resolvido - a chave tem de bater com a que o autoSync deriva das músicas
+  // (primaryArtistSlug), e o segmento da rota pode ser um nome de exibição.
+  useOfflineCollectionsVersion();
+  const offlineApi = getOfflineCollectionsApi();
+  const artistCollectionKey =
+    artistResource?.slug && allSongs.length > 0 ? artistKey(artistResource.slug) : null;
+  const artistIsOffline =
+    offlineApi && artistCollectionKey ? offlineApi.isOfflineCollection(artistCollectionKey) : false;
+  const handleToggleOffline =
+    offlineApi && artistCollectionKey
+      ? () => void offlineApi.toggleOfflineCollection(artistCollectionKey, allSongs)
+      : undefined;
+
   const galleryUrls = artistResource?.gallery_image_urls ?? [];
   const bioParagraphs = useMemo(
     () => htmlToParagraphs(artistResource?.bio_html ?? metadataQuery.data?.bio_html),
@@ -240,6 +260,8 @@ export default function ArtistScreen() {
               ? () => router.push(artistRadioRoute(artistResource?.slug || artistName))
               : undefined
           }
+          onToggleOffline={handleToggleOffline}
+          isOffline={artistIsOffline}
           isPlayingThisCollection={isPlayingThisArtist}
         />
 

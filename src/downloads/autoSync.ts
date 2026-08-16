@@ -11,7 +11,7 @@
  */
 import type { Query, QueryKey } from "@tanstack/react-query";
 import { queryClient } from "@/api/queryClient";
-import { albumKey } from "@/domain/albumKey";
+import { albumKey, artistKey } from "@/domain/albumKey";
 import { primaryArtistSlug } from "@/domain/format";
 import type { Song } from "@/domain/song";
 import { syncOfflineCollection } from "./collections";
@@ -52,6 +52,21 @@ export const albumGroups = (songs: Song[]): Map<string, Song[]> => {
   return groups;
 };
 
+/** Groups artist-query results by the primary artist's slug (FR-87 artist
+ *  collections): the byArtist(role=primary) query only returns songs led by
+ *  that artist, but grouping keeps a stray feature row from polluting the
+ *  collection with someone else's song. */
+export const artistGroups = (songs: Song[]): Map<string, Song[]> => {
+  const groups = new Map<string, Song[]>();
+  for (const song of songs) {
+    const key = artistKey(primaryArtistSlug(song));
+    const bucket = groups.get(key);
+    if (bucket) bucket.push(song);
+    else groups.set(key, [song]);
+  }
+  return groups;
+};
+
 const handleQuery = (queryKey: QueryKey, data: unknown): void => {
   const key = queryKey as unknown[];
   if (key[0] === "playlistSongs" && typeof key[1] === "number") {
@@ -60,6 +75,13 @@ const handleQuery = (queryKey: QueryKey, data: unknown): void => {
   }
   if (key[0] === "songs" && key[1] === "byAlbum") {
     for (const [collectionKey, songs] of albumGroups(extractSongs(data))) {
+      void syncOfflineCollection(collectionKey, songs);
+    }
+  }
+  // Artista inteiro (dono, 2026-08-17): só o papel "primary" - marcar um
+  // artista offline significa "as músicas DELE", não tudo onde aparece.
+  if (key[0] === "songs" && key[1] === "byArtist" && key[3] === "primary") {
+    for (const [collectionKey, songs] of artistGroups(extractSongs(data))) {
       void syncOfflineCollection(collectionKey, songs);
     }
   }
