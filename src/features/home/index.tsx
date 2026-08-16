@@ -14,8 +14,8 @@
  *  - every section fades in with a small stagger (entering animations), and
  *    each collapses silently when its query settles empty.
  */
-import React, { useMemo, useState, useSyncExternalStore } from "react";
-import { ScrollView, Text, View } from "react-native";
+import React, { useCallback, useMemo, useState, useSyncExternalStore } from "react";
+import { RefreshControl, ScrollView, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -103,6 +103,37 @@ export default function HomeScreen() {
   const playlistsQuery = usePlaylists({ page: "1:20" });
   const recommendationsQuery = useRandomAlbums(10);
   const topArtistsQuery = useTopArtists("30d", 10);
+
+  // Puxar para refrescar: a valvula de escape do ecra. As tabs mantem a Home
+  // montada, portanto uma query que ERROU (rede fria no arranque) nunca mais
+  // era refeita por navegacao nenhuma - as seccoes colapsavam em silencio e o
+  // "Tudo" abria vazio ate se matar a app (dono, 2026-08-17). O retry do
+  // queryClient trata do caso comum sozinho; isto da ao utilizador o gesto
+  // universal para o resto.
+  const [refreshing, setRefreshing] = useState(false);
+  const refetchAll = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await Promise.allSettled([
+        recentAlbumsQuery.refetch(),
+        mixesQuery.refetch(),
+        playlistsQuery.refetch(),
+        recommendationsQuery.refetch(),
+        topArtistsQuery.refetch(),
+      ]);
+    } finally {
+      setRefreshing(false);
+    }
+    // As queries sao objectos novos por render; os refetch, nao. Depender das
+    // funcoes estaveis evita recriar o callback a cada frame de dados.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    recentAlbumsQuery.refetch,
+    mixesQuery.refetch,
+    playlistsQuery.refetch,
+    recommendationsQuery.refetch,
+    topArtistsQuery.refetch,
+  ]);
 
   const recentAlbums = useMemo(() => recentAlbumsQuery.data ?? [], [recentAlbumsQuery.data]);
   const playlists = playlistsQuery.data ?? [];
@@ -209,6 +240,14 @@ export default function HomeScreen() {
         paddingBottom: bottomPadding + 24,
         gap: 28,
       }}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={() => void refetchAll()}
+          tintColor={tokens.mutedForeground}
+          progressViewOffset={insets.top}
+        />
+      }
     >
       {/* O topo da Home a Spotify: as pills SAO o cabecalho, com o avatar no
           canto. Ele saiu daqui a 2026-08-14 para a barra de tabs e voltou a
@@ -285,10 +324,16 @@ export default function HomeScreen() {
         </Section>
       ) : null}
 
-      {showSection("albums") && railRecents.length > 0 ? (
+      {/* Como as outras rails: skeleton enquanto carrega, colapso so quando a
+          resposta CHEGOU vazia. Sem o ramo de loading estas duas seccoes
+          saltavam para dentro do ecra depois do primeiro frame. */}
+      {showSection("albums") && (recentAlbumsQuery.isLoading || railRecents.length > 0) ? (
         <Section order={2}>
           <Rail title={t("native.home.recentlyPlayed")}>
-            {railRecents.map((album, i) => (
+            {recentAlbumsQuery.isLoading ? (
+              <RailSkeletons />
+            ) : (
+            railRecents.map((album, i) => (
               <Tile
                 key={`recent-rail-${i}-${album.album ?? "null"}`}
                 title={album.album || t("components.music.Home.unknownAlbum")}
@@ -300,19 +345,23 @@ export default function HomeScreen() {
                   router.push(albumRoute(artistRouteSegment(album.artist), album.album))
                 }
               />
-            ))}
+            ))
+            )}
           </Rail>
         </Section>
       ) : null}
 
-      {showSection("artists") && topArtists.length > 0 ? (
+      {showSection("artists") && (topArtistsQuery.isLoading || topArtists.length > 0) ? (
         <Section order={3}>
           <Rail
             title={t("components.music.Home.yourArtists")}
             showAllLabel={t("components.music.Home.showAll")}
             onShowAll={() => router.push("/artists")}
           >
-            {topArtists.map((row, i) => {
+            {topArtistsQuery.isLoading ? (
+              <RailSkeletons />
+            ) : (
+            topArtists.map((row, i) => {
               const name =
                 artistDisplayName(row.artist) ?? t("components.music.Home.unknownArtist");
               const segment = artistRouteSegment(row.artist) ?? "null";
@@ -330,7 +379,8 @@ export default function HomeScreen() {
                   onPress={() => router.push(artistRoute(segment))}
                 />
               );
-            })}
+            })
+            )}
           </Rail>
         </Section>
       ) : null}

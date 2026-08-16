@@ -10,6 +10,11 @@ import { QueryClient, focusManager, onlineManager } from "@tanstack/react-query"
 import type { QueryKey } from "@tanstack/react-query";
 
 import { ApiError } from "@/domain/api";
+// Com retry a zero, um unico soluco de rede no arranque deixava as queries
+// da Home em erro, as seccoes colapsavam em silencio e - como as tabs mantem
+// o ecra montado e nada refazia o fetch - "Tudo" ficava vazio ate se matar a
+// app (dono, 2026-08-17). A politica vive em ./retryPolicy para o bun test.
+import { shouldRetryQuery } from "./retryPolicy";
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -22,9 +27,13 @@ export const queryClient = new QueryClient({
       // snapshot's max age (persistCache.ts).
       staleTime: 5 * 60 * 1000,
       gcTime: 7 * 24 * 60 * 60 * 1000,
-      retry: false,
+      retry: shouldRetryQuery,
       refetchOnWindowFocus: false,
-      refetchOnReconnect: false,
+      // Reconectar e um EVENTO raro, nao navegacao: refazer o que esta stale
+      // (e tudo o que errou esta stale) quando a rede volta e exactamente a
+      // medicina para o boot sem rede - e nao reintroduz o churn por
+      // navegacao que motivou os outros dois "false".
+      refetchOnReconnect: true,
     },
     mutations: {
       retry: false,
