@@ -26,6 +26,7 @@ export const SONG_MENU_SLOT_ORDER = [
   "proposeToJam", // P1; only while following a jam with queue_mode "everyone"
   "separateVocals", // P1; only when stems absent; disabled with elapsed while processing
   "download", // Download / "Downloading N%" (disabled) / Remove download
+  "exportFiles", // exportar música/original/stems para fora da app (dono, 2026-08-16)
 ] as const;
 
 export type SongMenuSlotId = (typeof SONG_MENU_SLOT_ORDER)[number];

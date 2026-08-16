@@ -1300,6 +1300,13 @@
       "cachePurge": "Notīrīt",
       "cacheWaste": "Iepriekš: {written} ielādēti, {wasted} atmesti neatskaņoti ({percent}%)",
       "cacheEmpty": "Kešā vēl nekā nav."
+    },
+    "exports": {
+      "menuSong": "Lejupielādēt dziesmu",
+      "menuOriginal": "Lejupielādēt oriģinālu",
+      "menuVocals": "Lejupielādēt vokālu",
+      "menuInstrumental": "Lejupielādēt instrumentālo",
+      "failed": "Neizdevās lejupielādēt failu"
     }
   }
 }

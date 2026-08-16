@@ -38,6 +38,7 @@
 // Side-effect registrations that run during the import phase, before this
 // module's body: downloads FIRST so its provider is the outermost one.
 import "@/downloads/register";
+import "@/exports/register";
 import "@/separation/register";
 // Predictive prefetch installs its platform host over the downloads manager,
 // so it imports AFTER downloads. No React, no provider, no slot: it only

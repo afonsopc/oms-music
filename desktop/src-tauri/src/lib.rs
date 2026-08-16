@@ -44,6 +44,7 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             cache::commands::cache_set_auth::<tauri::Wry>,
             cache::commands::cache_subscribe::<tauri::Wry>,
             cache::commands::cache_download::<tauri::Wry>,
+            cache::commands::cache_export::<tauri::Wry>,
             cache::commands::cache_predict::<tauri::Wry>,
             cache::commands::cache_cancel::<tauri::Wry>,
             cache::commands::cache_promote::<tauri::Wry>,

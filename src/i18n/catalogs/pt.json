@@ -1300,6 +1300,13 @@
       "cachePurge": "Limpar",
       "cacheWaste": "Antecipação: {written} descarregados, {wasted} descartados sem tocar ({percent}%)",
       "cacheEmpty": "Ainda sem nada em cache."
+    },
+    "exports": {
+      "menuSong": "Descarregar música",
+      "menuOriginal": "Descarregar original",
+      "menuVocals": "Descarregar voz",
+      "menuInstrumental": "Descarregar instrumental",
+      "failed": "Não foi possível descarregar o ficheiro"
     }
   }
 }

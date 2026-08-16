@@ -1300,6 +1300,13 @@
       "cachePurge": "Clear",
       "cacheWaste": "Ahead-of-time: {written} fetched, {wasted} dropped unplayed ({percent}%)",
       "cacheEmpty": "Nothing cached yet."
+    },
+    "exports": {
+      "menuSong": "Download song",
+      "menuOriginal": "Download original",
+      "menuVocals": "Download vocals",
+      "menuInstrumental": "Download instrumental",
+      "failed": "Could not download the file"
     }
   }
 }

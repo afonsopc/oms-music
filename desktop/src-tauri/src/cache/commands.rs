@@ -15,7 +15,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
 use std::sync::{Arc, Mutex};
 use tauri::ipc::Channel;
-use tauri::{AppHandle, Runtime, State};
+use tauri::{AppHandle, Manager, Runtime, State};
 
 use super::download::{self, EnqueueRequest};
 use super::events::CacheEvent;
@@ -803,6 +803,90 @@ pub async fn cache_purge<R: Runtime>(
     })
     .await
     .map_err(|e| format!("cache_purge: {e}"))?
+}
+
+/// Exporta um media para a pasta Downloads do sistema (pedido do dono,
+/// 2026-08-16: descarregar musica/original/stems do menu). E EXPORTACAO, nao
+/// offline: nada disto passa pelo indice nem pelos roots da cache. O webview
+/// nao tem plugins fs/http de proposito (capabilities/main.json), por isso o
+/// unico caminho para o disco do utilizador e este comando, com o mesmo
+/// guarda de janela dos restantes.
+#[tauri::command]
+#[specta::specta]
+pub async fn cache_export<R: Runtime>(
+    webview: tauri::Webview<R>,
+    app: AppHandle<R>,
+    state: State<'_, CacheState>,
+    media_id: String,
+    filename: String,
+) -> Result<String, String> {
+    guard(&webview)?;
+    let session = session_of(&state)?;
+    if media_id.is_empty() {
+        return Err("media_id vazio".into());
+    }
+
+    let url = session.auth_snapshot().media_url(&media_id);
+    let dir = app
+        .path()
+        .download_dir()
+        .map_err(|e| format!("sem pasta Downloads: {e}"))?;
+
+    // O nome vem do titulo da musica: pode trazer separadores e pontas que
+    // o sistema de ficheiros recusa.
+    let safe: String = filename
+        .chars()
+        .map(|c| match c {
+            '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|' => '_',
+            other => other,
+        })
+        .collect();
+    let safe = safe.trim().trim_end_matches('.').to_string();
+    let safe = if safe.is_empty() {
+        format!("oms-{media_id}")
+    } else {
+        safe
+    };
+
+    let response = session
+        .http
+        .get(&url)
+        .send()
+        .await
+        .map_err(|e| format!("download: {e}"))?;
+    if !response.status().is_success() {
+        return Err(format!("download: HTTP {}", response.status().as_u16()));
+    }
+    let ext = match response
+        .headers()
+        .get("content-type")
+        .and_then(|v| v.to_str().ok())
+    {
+        Some(ct) if ct.contains("flac") => "flac",
+        Some(ct) if ct.contains("wav") => "wav",
+        Some(ct) if ct.contains("ogg") => "ogg",
+        Some(ct) if ct.contains("mp4") || ct.contains("m4a") => "m4a",
+        _ => "mp3",
+    };
+
+    // Nunca sobrepor o que ja la esta: "nome (2).mp3", como os browsers.
+    let mut path = dir.join(format!("{safe}.{ext}"));
+    let mut n = 2u32;
+    while path.exists() {
+        path = dir.join(format!("{safe} ({n}).{ext}"));
+        n += 1;
+    }
+
+    // Um original FLAC cabe folgado em memoria de desktop; streaming aqui
+    // seria replicar o laco do transfer() por nada.
+    let bytes = response
+        .bytes()
+        .await
+        .map_err(|e| format!("download: {e}"))?;
+    tokio::fs::write(&path, &bytes)
+        .await
+        .map_err(|e| format!("escrita: {e}"))?;
+    Ok(path.to_string_lossy().into_owned())
 }
 
 #[cfg(test)]
