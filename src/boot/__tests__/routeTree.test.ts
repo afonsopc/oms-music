@@ -59,6 +59,9 @@ const PUSHED_ROUTES = [
   "account.tsx",
   "album/[artist]/[album].tsx",
   "artist/[artist].tsx",
+  // O chat do assistente (dono, 2026-08-17/18): empurrada, entra pelo
+  // banner da Home.
+  "assistant.tsx",
   "artists-roster.tsx",
   "artists.tsx",
   "friends.tsx",

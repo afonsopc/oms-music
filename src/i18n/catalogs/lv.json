@@ -877,6 +877,19 @@
         "close": "Aizvērt Rewind",
         "homeBanner": "Tava Rewind ir gatava",
         "homeBannerSubtitle": "Tava atskata stāstos."
+      },
+      "Assistant": {
+        "title": "O Melhor Assistente",
+        "subtitle": "Jautā par savu klausīšanos vai palūdz atskaņošanas sarakstu. Tas piedāvā; serveris apstiprina.",
+        "placeholder": "Raksti šeit…",
+        "send": "Sūtīt",
+        "error": "Asistents šobrīd nav pieejams. Pamēģini vēlāk.",
+        "suggestionPlaylist": "Izveido man mācību atskaņošanas sarakstu",
+        "suggestionHabits": "Ko es pēdējā laikā klausos visvairāk?",
+        "suggestionForgotten": "Labas dziesmas, ko sen neesmu atskaņojis",
+        "openPlaylist": "{count, plural, one {# dziesma · atvērt} other {# dziesmas · atvērt}}",
+        "homeBanner": "O Melhor Assistente",
+        "homeBannerSubtitle": "Palūdz atskaņošanas sarakstu vārdiem."
       }
     }
   },

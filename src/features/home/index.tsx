@@ -280,32 +280,55 @@ export default function HomeScreen() {
         )
       ) : null}
 
-      {/* A porta do Rewind (dono, 2026-08-18): um cartao-banner acima dos
-          mixes, so no "Tudo". */}
+      {/* As portas do Rewind e do assistente (dono, 2026-08-18): dois
+          cartoes-banner acima dos mixes, so no "Tudo". */}
       {filter === "all" ? (
         <Section order={1}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t("components.music.Rewind.homeBanner")}
-            onPress={() => router.push("/rewind")}
-            style={({ pressed }) => ({
-              marginHorizontal: 24,
-              borderRadius: 14,
-              padding: 18,
-              gap: 4,
-              opacity: pressed ? 0.85 : 1,
-              ...gradientBackground(
-                linearGradient("120deg", ...MIX_KIND_GRADIENTS.year_mix.colors),
-              ),
-            })}
-          >
-            <Text style={{ color: "#fff", fontSize: 18, fontWeight: "900", letterSpacing: -0.3 }}>
-              {t("components.music.Rewind.homeBanner")}
-            </Text>
-            <Text style={{ color: "rgba(255,255,255,0.85)", fontSize: 13 }}>
-              {t("components.music.Rewind.homeBannerSubtitle")}
-            </Text>
-          </Pressable>
+          <View style={{ flexDirection: "row", gap: 12, marginHorizontal: 24 }}>
+            {(
+              [
+                {
+                  key: "rewind",
+                  title: t("components.music.Rewind.homeBanner"),
+                  subtitle: t("components.music.Rewind.homeBannerSubtitle"),
+                  colors: MIX_KIND_GRADIENTS.year_mix.colors,
+                  route: "/rewind" as const,
+                },
+                {
+                  key: "assistant",
+                  title: t("components.music.Assistant.homeBanner"),
+                  subtitle: t("components.music.Assistant.homeBannerSubtitle"),
+                  colors: MIX_KIND_GRADIENTS.this_is.colors,
+                  route: "/assistant" as const,
+                },
+              ]
+            ).map((banner) => (
+              <Pressable
+                key={banner.key}
+                accessibilityRole="button"
+                accessibilityLabel={banner.title}
+                onPress={() => router.push(banner.route)}
+                style={({ pressed }) => ({
+                  flex: 1,
+                  borderRadius: 14,
+                  padding: 16,
+                  gap: 4,
+                  opacity: pressed ? 0.85 : 1,
+                  ...gradientBackground(linearGradient("120deg", ...banner.colors)),
+                })}
+              >
+                <Text
+                  style={{ color: "#fff", fontSize: 15, fontWeight: "900", letterSpacing: -0.3 }}
+                  numberOfLines={1}
+                >
+                  {banner.title}
+                </Text>
+                <Text style={{ color: "rgba(255,255,255,0.85)", fontSize: 12 }} numberOfLines={2}>
+                  {banner.subtitle}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
         </Section>
       ) : null}
 

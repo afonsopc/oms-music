@@ -877,6 +877,19 @@
         "close": "Close the Rewind",
         "homeBanner": "Your Rewind is ready",
         "homeBannerSubtitle": "Your look back, in stories."
+      },
+      "Assistant": {
+        "title": "O Melhor Assistente",
+        "subtitle": "Ask about your listening or request a playlist. It proposes; the server confirms.",
+        "placeholder": "Type here…",
+        "send": "Send",
+        "error": "The assistant is unavailable right now. Try again in a bit.",
+        "suggestionPlaylist": "Make me a study playlist",
+        "suggestionHabits": "What have I been playing most?",
+        "suggestionForgotten": "Good songs I have not played in ages",
+        "openPlaylist": "{count, plural, one {# song · open} other {# songs · open}}",
+        "homeBanner": "O Melhor Assistente",
+        "homeBannerSubtitle": "Ask for a playlist in plain words."
       }
     }
   },
