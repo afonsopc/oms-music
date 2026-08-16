@@ -16,9 +16,20 @@ Isto não é uma limitação a contornar; é o desenho do trabalho.
 | Não há | Consequência prática |
 | --- | --- |
 | iPhone / macOS / simulador | Nada de `xcodebuild`, `devicectl`, nem builds Tauri de macOS. Não escrevas "testado" sobre o que não correste. |
-| Safari e qualquer browser real | Não há prova visual. `bash scripts/build-web.sh` prova que o export CONSTRÓI, não que a UI está bem. |
-| `osnosite` CLI e credenciais | **Não publicas.** Nem staging, nem produção. Fazes commit e push; o dono publica. |
+| Safari | Os bugs específicos do Safari (o volume no iOS, por exemplo) confirmam-se com o dono, não aqui. |
+| Credenciais de publicação | **Não publicas.** Nem staging, nem produção. Fazes commit e push; o dono publica. A CLI do `osnosite` está instalada só para LER estado. |
 | Acesso ao repo `omelhorsite` | O backend Rails não está aqui. Onde for preciso mexer no servidor, escreve o patch proposto num ficheiro `docs/propostas/` em vez de o inventar às cegas. |
+
+**Mas TENS Chromium** (Playwright, em `/opt/pw-browsers`), e isso muda o que
+podes dar por verificado na web: constrói o export, serve o `dist/` e
+fotografa aos dois tamanhos que interessam (390x844 e 1440x900, os dois lados
+dos 900px onde o shell troca). A receita está em `docs/cloud-setup.md`. Sem
+sessão autenticada só vês os ecrãs de entrada, mas chega para apanhar layout
+partido, tipografia errada e regressões do shell.
+
+**Cuidado com uma ferramenta que a imagem traz**: o `prettier` está instalado
+globalmente e este repo não tem config nenhuma dele. Corrê-lo reformata tudo a
+80 colunas e afoga o diff real em ruído. Já aconteceu; não repitas.
 
 O que TENS, e que é a tua rede de segurança: `bun run typecheck`,
 `bun run lint` (0 erros e 0 avisos, sem excepções), `bun test`, e

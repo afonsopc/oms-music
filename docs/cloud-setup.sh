@@ -1,34 +1,30 @@
 #!/bin/bash
 set -uo pipefail
 
-# Ferramentas partilhadas pelos tres repos (oms-music, omelhorsite, osnosite).
-# Nada aqui e especifico de um projecto: as dependencias de cada um instalam-se
-# dentro dele, com o lockfile que ele traz.
+# Ubuntu 24.04 da cloud: node, bun, ruby, go, rust, python, playwright+chromium
+# e as ferramentas de dev ja vem na imagem. Este script so acrescenta o que
+# falta para os tres repos (oms-music, omelhorsite, osnosite) e diz o que ficou.
+#
+# NAO instala dependencias de projecto: cada repo faz o seu install quando for
+# aberto, com o lockfile que traz.
 
-# --- bun: gestor de pacotes e runner de testes
-if ! command -v bun >/dev/null 2>&1; then
-  curl -fsSL https://bun.sh/install | bash
+# --- CLI do osnosite: a unica ferramenta nossa que nao vem na imagem.
+#     Serve para LER estado (status, releases, deployments); publicar exige
+#     aprovacao do dono com passkey no dashboard.
+if ! command -v osnosite >/dev/null 2>&1; then
+  bun add -g osnosite >/dev/null 2>&1 || npm i -g osnosite >/dev/null 2>&1 || true
+  BIN="${BUN_INSTALL:-$HOME/.bun}/bin/osnosite"
+  [ -x "$BIN" ] && { ln -sf "$BIN" /usr/local/bin/osnosite 2>/dev/null \
+    || sudo ln -sf "$BIN" /usr/local/bin/osnosite 2>/dev/null; }
 fi
-export BUN_INSTALL="${BUN_INSTALL:-$HOME/.bun}"
-export PATH="$BUN_INSTALL/bin:$PATH"
-# O PATH acima morre com este script; o link e o que faz o bun existir para a
-# sessao que arranca a seguir.
-ln -sf "$BUN_INSTALL/bin/bun" /usr/local/bin/bun 2>/dev/null \
-  || sudo ln -sf "$BUN_INSTALL/bin/bun" /usr/local/bin/bun 2>/dev/null || true
 
-# --- CLI do osnosite (so para LER estado; publicar exige aprovacao do dono)
-bun add -g osnosite >/dev/null 2>&1 || true
-ln -sf "$BUN_INSTALL/bin/osnosite" /usr/local/bin/osnosite 2>/dev/null \
-  || sudo ln -sf "$BUN_INSTALL/bin/osnosite" /usr/local/bin/osnosite 2>/dev/null || true
+# --- bundler: o ruby 3.3.6 vem, o bundler nem sempre. Backend do omelhorsite.
+command -v bundle >/dev/null 2>&1 || gem install bundler --no-document >/dev/null 2>&1 || true
 
-# --- Ruby + bundler: backend Rails do omelhorsite
-if ! command -v ruby >/dev/null 2>&1; then
-  (sudo apt-get update -qq && sudo apt-get install -y -qq ruby-full build-essential libpq-dev) || true
-fi
-command -v gem >/dev/null 2>&1 && (gem install bundler --no-document >/dev/null 2>&1 || true)
-
-# --- Diagnostico: o que ficou disponivel, para nao haver surpresas depois.
+# --- Diagnostico. Se algo disser EM FALTA, e melhor saber agora do que a meio
+#     de uma tarefa.
 echo "--- ferramentas"
-for t in bun node ruby bundle osnosite git; do
+for t in bun node ruby bundle osnosite git rg; do
   printf '%-10s %s\n' "$t" "$(command -v "$t" 2>/dev/null || echo 'EM FALTA')"
 done
+printf '%-10s %s\n' "chromium" "$(ls -d /opt/pw-browsers/chromium* 2>/dev/null | head -1 || echo 'EM FALTA')"

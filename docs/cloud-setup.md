@@ -1,71 +1,18 @@
-# Ambiente da sessão cloud (Linux)
+# Ambiente da sessão cloud (Ubuntu 24.04)
 
-Pensado para servir os TRÊS repos - `oms-music`, `omelhorsite` e `osnosite` -
-e não só a app de música. Por isso o script instala ferramentas, não
-dependências de um projecto: cada repo faz o seu install quando for aberto.
+A imagem já traz quase tudo: node 22 + bun 1.3.11, ruby 3.3.6, python, go,
+rust, git, ripgrep, e **playwright com Chromium em `/opt/pw-browsers`**. O que
+falta para os nossos três repos é pouco, e é isso que o script faz.
 
----
-
-## Caixa "Setup script"
-
-```bash
-#!/bin/bash
-set -uo pipefail
-
-# Ferramentas partilhadas pelos três repos. Nada aqui é específico de um
-# projecto: as dependências de cada um instalam-se dentro dele, com o
-# lockfile que ele traz.
-
-# --- bun: gestor de pacotes e runner de testes do oms-music e do osnosite CLI
-if ! command -v bun >/dev/null 2>&1; then
-  curl -fsSL https://bun.sh/install | bash
-fi
-export BUN_INSTALL="${BUN_INSTALL:-$HOME/.bun}"
-export PATH="$BUN_INSTALL/bin:$PATH"
-# O PATH acima morre com este script; o link é o que faz o bun existir para a
-# sessão que arranca a seguir.
-ln -sf "$BUN_INSTALL/bin/bun" /usr/local/bin/bun 2>/dev/null \
-  || sudo ln -sf "$BUN_INSTALL/bin/bun" /usr/local/bin/bun 2>/dev/null || true
-
-# --- CLI do osnosite (publicação de sites; ver a nota sobre autenticação)
-bun add -g osnosite >/dev/null 2>&1 || true
-ln -sf "$BUN_INSTALL/bin/osnosite" /usr/local/bin/osnosite 2>/dev/null \
-  || sudo ln -sf "$BUN_INSTALL/bin/osnosite" /usr/local/bin/osnosite 2>/dev/null || true
-
-# --- Ruby + bundler: backend Rails do omelhorsite
-if ! command -v ruby >/dev/null 2>&1; then
-  (sudo apt-get update -qq && sudo apt-get install -y -qq ruby-full build-essential libpq-dev) || true
-fi
-command -v gem >/dev/null 2>&1 && (gem install bundler --no-document >/dev/null 2>&1 || true)
-
-# --- Diagnóstico: o que ficou disponível, para não haver surpresas depois.
-echo "--- ferramentas"
-for t in bun node ruby bundle osnosite git; do
-  printf '%-10s %s\n' "$t" "$(command -v "$t" 2>/dev/null || echo 'EM FALTA')"
-done
-```
-
-Notas sobre o que ele NÃO faz, de propósito:
-
-- **Não corre `bun install` nem `bundle install`.** Cada repo tem o seu
-  lockfile e a sessão instala quando abre o repo em que vai trabalhar; correr
-  os três à partida gasta minutos que muitas vezes não se usam.
-- **Não instala Xcode, Android SDK, watchman nem toolchain de Rust.** Numa
-  máquina Linux sem dispositivos nada disso se usa: não há builds de iOS nem
-  de macOS. O `desktop/` (Tauri) pode ser lido e editado; construir é trabalho
-  da máquina do dono.
-- **Não faz login em lado nenhum** (ver abaixo).
-
-Primeiro comando dentro do `oms-music`, quando lá chegar:
-`bun install --frozen-lockfile && bun run typecheck && bun run lint && bun test`
-(deve dar 0 erros, 0 avisos e 841 testes a passar).
+- **Script**: `docs/cloud-setup.sh` (colar inteiro na caixa "Setup script").
+- **Variáveis**: o bloco abaixo (caixa "Environment variables").
 
 ---
 
 ## Caixa "Environment variables"
 
-Formato `.env`, e a própria caixa avisa: **é visível a quem use o ambiente, não
-mete lá segredos.** Por isso só isto:
+Formato `.env`, e a própria caixa avisa que é visível a quem use o ambiente:
+**nada de segredos**.
 
 ```
 CI=true
@@ -73,37 +20,79 @@ EXPO_NO_TELEMETRY=1
 NODE_OPTIONS=--max-old-space-size=4096
 ```
 
-- `CI=true` cala prompts interactivos do Expo e do bundler, que de outra forma
-  ficam à espera de uma tecla que ninguém carrega.
-- `NODE_OPTIONS` só interessa se o export web (`scripts/build-web.sh`) morrer
-  por memória; é barato deixar lá.
-
-Nenhuma variável é precisa para compilar, correr testes ou fazer o export: a
-app aponta ao backend de produção por omissão. Se algum dia quiseres que ela
-aponte a outro, é `EXPO_PUBLIC_API_BASE_URL`.
+Nenhuma é obrigatória. `CI=true` cala prompts interactivos do Expo e do
+bundler; `NODE_OPTIONS` só interessa se o export web morrer por memória (15 GB
+chegam bem, mas é barato deixar). A app aponta ao backend de produção por
+omissão; para a mandar a outro sítio existe `EXPO_PUBLIC_API_BASE_URL`.
 
 ---
 
-## Autenticação: o que dá e o que não dá
+## O que o script instala, e porquê tão pouco
 
-O dono pediu "uma authzita". A resposta honesta tem duas partes.
+| Instala | Porquê |
+| --- | --- |
+| CLI do `osnosite` | Única ferramenta nossa fora da imagem. Só para LER estado. |
+| `bundler` | O ruby vem, o bundler nem sempre; o backend do omelhorsite precisa. |
 
-**O que dá, e é o que interessa:** acesso de escrita ao GitHub. Se o ambiente
-já traz credenciais de git (a maioria destas plataformas traz), a sessão faz
-push sozinha e não é preciso mais nada. É a única autenticação que ela
-realmente precisa para o trabalho que lhe foi dado.
+Não instala dependências de projecto de propósito: `bun install` e
+`bundle install` correm-se dentro do repo em que se vai trabalhar. No
+`oms-music` o primeiro comando é
 
-**O que não deve ser feito:** pôr o token do osnosite na caixa das variáveis.
-A própria caixa diz que é visível a quem use o ambiente; um token de
-publicação nessas condições é um segredo que deixou de o ser. E não ganharia
-grande coisa: **publicar em produção exige aprovação do dono no dashboard**
-(step-up com passkey), portanto o melhor que a sessão conseguiria era criar
-releases e staging - e mesmo isso é preferível ficar do lado de quem consegue
-depois olhar para o site e ver se está bem, que não é o caso de uma máquina
-sem browser.
+```bash
+bun install --frozen-lockfile && bun run typecheck && bun run lint && bun test
+```
 
-Por isso a CLI fica instalada (para ler estado: `osnosite website <slug>
-status`, `releases`, `deployments`) e a publicação continua a ser tua. Se
-mesmo assim quiseres dar-lhe o token, usa o mecanismo de SEGREDOS da
-plataforma se existir - nunca a caixa das variáveis - e conta com o passo de
-aprovação na mesma.
+e deve dar 0 erros, 0 avisos e 841 testes a passar.
+
+---
+
+## Duas armadilhas desta imagem
+
+**O `prettier` está instalado globalmente. Não o corras neste repo.** O
+`oms-music` não tem config de prettier e está escrito a ~100 colunas; o
+prettier assume 80 e reformata ficheiros inteiros, afogando o diff real em
+ruído. Já aconteceu uma vez e foi preciso reverter.
+
+**Não há `gh`.** O GitHub é pelo MCP. E não há daemon de docker, portanto nada
+de containers.
+
+---
+
+## A parte boa: dá para VER a web
+
+Havia a ideia de que a sessão cloud trabalhava às cegas. Com o Chromium do
+Playwright não é verdade para a web, e isso muda o que se pode dar por
+verificado. O export estático serve-se e fotografa-se:
+
+```bash
+bash scripts/build-web.sh                 # 2-3 min, produz dist/
+python3 -m http.server 4173 -d dist &     # servidor estático
+# depois, com playwright (node ou python), abrir e fotografar:
+#   http://localhost:4173/home            390x844   -> telemóvel
+#   http://localhost:4173/home            1440x900  -> shell desktop
+#   http://localhost:4173/playlist/<id>   nos dois tamanhos
+```
+
+Uma sessão SEM utilizador autenticado só vê os ecrãs de entrada; para ver a
+app a sério é preciso sessão, e essa não vive aqui. Ainda assim, é o
+suficiente para apanhar layout partido, tipografia errada (o caso do Druk
+Wide) e regressões do shell nos dois lados dos 900px.
+
+O que continua a não ter: iOS, macOS, Safari e qualquer build nativa. Nada de
+`xcodebuild` nem de Tauri; o `desktop/` lê-se e edita-se, constrói-se na
+máquina do dono.
+
+---
+
+## Autenticação
+
+O que a sessão precisa mesmo é de **escrita no GitHub** (via MCP), e isso
+chega para o trabalho que lhe foi dado: commit e push em `master`.
+
+O token do `osnosite` **não deve ir na caixa das variáveis** - é um segredo e
+aquela caixa é pública para quem use o ambiente. E daria pouco: publicar em
+produção exige aprovação do dono com passkey no dashboard, portanto o máximo
+seria criar releases e staging, e isso é melhor ficar de quem depois consegue
+abrir o site e olhar. A CLI fica instalada para leitura de estado. Se ainda
+assim quiseres dar-lhe o token, usa o mecanismo de SEGREDOS da plataforma, se
+existir, nunca a caixa das variáveis.
