@@ -97,6 +97,12 @@ export const keys = {
 
   jams: ["jams"] as QueryKey,
 
+  assistantChats: {
+    all: ["assistantChats"] as QueryKey,
+    list: ["assistantChats", "list"] as QueryKey,
+    detail: (id: number): QueryKey => ["assistantChats", "detail", id],
+  },
+
   externalSearch: (q: string, kind: string): QueryKey => ["externalSearch", q, kind],
   songImport: (id: number): QueryKey => ["songImports", "detail", id],
   songImports: (filters: unknown): QueryKey => ["songImports", "list", filters],

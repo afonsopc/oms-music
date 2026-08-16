@@ -875,6 +875,9 @@
         "outroKicker": "Tas arī viss, pagaidām",
         "outroBody": "Turpini klausīties. Nākamā Rewind uzrakstīsies pati.",
         "playCount": "{count, plural, one {# atskaņojums} other {# atskaņojumi}}",
+        "timeKicker": "Laiks, ko atdevi",
+        "timeUnit": "pilnas minūtes tavās piecās klausītākajās.",
+        "loyaltyLine": "{percent}% no tiem atskaņojumiem tika tavam numur vienam.",
         "emptyTitle": "Vēl nav stāsta",
         "emptyBody": "Paklausies mūziku un atgriezies - Rewind stāsta to, ko tu atskaņo.",
         "previous": "Iepriekšējā kartīte",
@@ -894,7 +897,15 @@
         "suggestionForgotten": "Labas dziesmas, ko sen neesmu atskaņojis",
         "openPlaylist": "{count, plural, one {# dziesma · atvērt} other {# dziesmas · atvērt}}",
         "homeBanner": "O Melhor Assistente",
-        "homeBannerSubtitle": "Palūdz atskaņošanas sarakstu vārdiem."
+        "homeBannerSubtitle": "Palūdz atskaņošanas sarakstu vārdiem.",
+        "newChat": "Jauna saruna",
+        "readOnlyBadge": "Tikai lasāma",
+        "readOnlyBar": "Šī saruna ir veca un tagad ir tikai lasāma.",
+        "listError": "Neizdevās ielādēt sarunas.",
+        "listEmpty": "Vēl nav sarunu ar asistentu. Sāc vienu - tas zina, ko tu klausies.",
+        "deleteChat": "Dzēst sarunu",
+        "deleteChatConfirm": "Dzēst šo sarunu? To nevar atsaukt.",
+        "chatLoadError": "Neizdevās ielādēt šo sarunu."
       }
     }
   },
@@ -1006,6 +1017,7 @@
       "tabHome": "Sākums",
       "tabSearch": "Meklēt",
       "tabLibrary": "Bibliotēka",
+      "tabAssistant": "Asistents",
       "tabDownloads": "Lejupielādes",
       "closePlayer": "Aizvērt atskaņotāju",
       "tabProfile": "Profils"

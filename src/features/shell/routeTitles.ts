@@ -31,6 +31,7 @@ const EXACT: Record<string, string> = {
   "/home": "Início",
   "/search": "Pesquisar",
   "/library": "Biblioteca",
+  "/assistant": "Assistente",
   "/liked": "Músicas Gostadas",
   "/playlists": "Playlists",
   "/artists": "Artistas",
@@ -46,6 +47,7 @@ const EXACT: Record<string, string> = {
 /** First-segment prefixes: dynamic patterns and whole sections. */
 const PREFIX: [string, string][] = [
   ["/settings", "Definições"],
+  ["/assistant/", "Assistente"],
   ["/artist/", "Artista"],
   ["/album/", "Álbum"],
   ["/playlist/", "Playlist"],

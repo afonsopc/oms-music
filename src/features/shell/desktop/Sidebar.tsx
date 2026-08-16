@@ -67,7 +67,7 @@ interface NavItem {
   // tab tem a sua stack e cada uma destas tres so existe no seu grupo, por
   // isso a forma nua e inequivoca. Prefixar com o grupo passaria a ser um
   // caminho invalido nos typed routes.
-  route: "/home" | "/search" | "/library";
+  route: "/home" | "/search" | "/library" | "/assistant";
 }
 
 // Sem "Pesquisar" de proposito (dono, 2026-08-17): no desktop a pesquisa
@@ -77,6 +77,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { key: "home", labelKey: "native.shell.tabHome", route: "/home" },
   { key: "library", labelKey: "native.shell.tabLibrary", route: "/library" },
+  { key: "assistant", labelKey: "native.shell.tabAssistant", route: "/assistant" },
 ];
 
 const NavRow = ({

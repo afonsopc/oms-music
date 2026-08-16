@@ -60,8 +60,8 @@ export const OVERLAY_MARGIN = 8;
  */
 const DESKTOP_CONTENT_BOTTOM = 24;
 
-/** As raizes das tres tabs; tudo o resto e um push dentro da stack de uma. */
-const TAB_ROOTS = new Set(["home", "search", "library"]);
+/** As raizes das quatro tabs; tudo o resto e um push dentro da stack de uma. */
+const TAB_ROOTS = new Set(["home", "search", "library", "assistant"]);
 
 /**
  * O ecra focado e a RAIZ de uma tab (e nao um push la dentro)? Desde a

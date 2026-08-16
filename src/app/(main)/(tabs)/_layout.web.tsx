@@ -58,6 +58,13 @@ export default function TabsLayoutWeb() {
           tabBarIcon: ({ color }) => <TabIcon name="library" color={color} />,
         }}
       />
+      <Tabs.Screen
+        name="(assistant)"
+        options={{
+          title: t("native.shell.tabAssistant"),
+          tabBarIcon: ({ color }) => <TabIcon name="assistant" color={color} />,
+        }}
+      />
     </Tabs>
   );
 }

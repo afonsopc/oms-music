@@ -4,7 +4,7 @@
  * JamBar slot replacing the pill entirely while following a jam (WP10).
  *
  * MUDOU DE CASA em 2026-08-15: era irmao do Stack no (main)/_layout, passou a
- * ser irmao do Stack de CADA tab ((tabs)/(home,search,library)/_layout). A
+ * ser irmao do Stack de CADA tab ((tabs)/(home,search,library,assistant)/_layout). A
  * razao e a barra do sistema: com native tabs a altura dela so e observavel
  * de DENTRO do ecra da tab (no iOS o UITabBarController injecta-a no safe
  * area do view controller filho; ver metrics.ts). Fica montado uma vez por

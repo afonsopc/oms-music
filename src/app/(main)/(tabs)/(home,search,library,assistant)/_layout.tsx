@@ -1,8 +1,9 @@
 /**
  * A stack de CADA tab. O expo-router expande o nome do grupo em array e gera
- * tres copias deste layout - (home), (search) e (library) - cada uma com o
- * seu anchor derivado do nome do grupo (o filho cujo `route` iguala o grupo:
- * (home)/home.tsx, (search)/search.tsx, (library)/library.tsx).
+ * quatro copias deste layout - (home), (search), (library) e (assistant) -
+ * cada uma com o seu anchor derivado do nome do grupo (o filho cujo `route`
+ * iguala o grupo: (home)/home.tsx, (search)/search.tsx, (library)/library.tsx,
+ * (assistant)/assistant.tsx).
  *
  * E isto que mantem a barra do sistema visivel nos ecras empurrados: a
  * playlist, o album, o artista e as definicoes deixaram de ser IRMAOS do
@@ -31,8 +32,9 @@ import { useTheme } from "@/theme/provider";
  * primeira tentativa (2026-08-16).
  *
  * O router tambem descobre a raiz sozinho - procura o FILHO cuja rota tem o
- * nome do grupo - mas so olha para os filhos DESTE layout. Por isso as tres
- * raizes vivem aqui dentro (home.tsx, search.tsx, library.tsx) e nao em
+ * nome do grupo - mas so olha para os filhos DESTE layout. Por isso as
+ * raizes vivem aqui dentro (home.tsx, search.tsx, library.tsx,
+ * assistant.tsx) e nao em
  * pastas (home)/ (search)/ (library) proprias, como estiveram ate agora: la
  * fora nao eram filhas de layout nenhum e cada tab caia na primeira rota da
  * arvore. Esta declaracao e o cinto, a arrumacao dos ficheiros sao os
@@ -42,6 +44,7 @@ export const unstable_settings = {
   home: { anchor: "home" },
   search: { anchor: "search" },
   library: { anchor: "library" },
+  assistant: { anchor: "assistant" },
 };
 
 export default function TabStackLayout() {

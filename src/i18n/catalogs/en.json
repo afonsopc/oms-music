@@ -875,6 +875,9 @@
         "outroKicker": "That is it, for now",
         "outroBody": "Keep listening. The next Rewind writes itself.",
         "playCount": "{count, plural, one {# play} other {# plays}}",
+        "timeKicker": "The time you gave",
+        "timeUnit": "full minutes on your five most played.",
+        "loyaltyLine": "{percent}% of those plays went to your number one.",
         "emptyTitle": "No story yet",
         "emptyBody": "Play some music and come back - the Rewind tells what you play.",
         "previous": "Previous card",
@@ -894,7 +897,15 @@
         "suggestionForgotten": "Good songs I have not played in ages",
         "openPlaylist": "{count, plural, one {# song · open} other {# songs · open}}",
         "homeBanner": "O Melhor Assistente",
-        "homeBannerSubtitle": "Ask for a playlist in plain words."
+        "homeBannerSubtitle": "Ask for a playlist in plain words.",
+        "newChat": "New chat",
+        "readOnlyBadge": "Read-only",
+        "readOnlyBar": "This chat is old and is now read-only.",
+        "listError": "Could not load your chats.",
+        "listEmpty": "No chats with the assistant yet. Start one - it knows what you listen to.",
+        "deleteChat": "Delete chat",
+        "deleteChatConfirm": "Delete this chat? This cannot be undone.",
+        "chatLoadError": "Could not load this chat."
       }
     }
   },
@@ -1006,6 +1017,7 @@
       "tabHome": "Home",
       "tabSearch": "Search",
       "tabLibrary": "Library",
+      "tabAssistant": "Assistant",
       "tabDownloads": "Downloads",
       "closePlayer": "Close player",
       "tabProfile": "Profile"

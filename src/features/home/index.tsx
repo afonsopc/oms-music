@@ -299,7 +299,10 @@ export default function HomeScreen() {
                   title: t("components.music.Assistant.homeBanner"),
                   subtitle: t("components.music.Assistant.homeBannerSubtitle"),
                   colors: MIX_KIND_GRADIENTS.this_is.colors,
-                  route: "/assistant" as const,
+                  // Qualificada com o grupo DE PROPOSITO: o assistente e uma
+                  // tab (2026-08-16) e o banner muda para ela em vez de
+                  // empurrar uma copia dentro do Inicio.
+                  route: "/(main)/(tabs)/(assistant)/assistant" as const,
                 },
               ]
             ).map((banner) => (

@@ -7,7 +7,7 @@
 import React from "react";
 import { View, type ColorValue } from "react-native";
 
-export type TabIconName = "home" | "search" | "library" | "downloads";
+export type TabIconName = "home" | "search" | "library" | "downloads" | "assistant";
 
 interface TabIconProps {
   name: TabIconName;
@@ -144,6 +144,36 @@ const DownloadsIcon = ({ color }: { color: ColorValue }) => (
   </View>
 );
 
+/** Sparkle do assistente: um losango grande e uma faisca pequena ao lado. */
+const AssistantIcon = ({ color }: { color: ColorValue }) => (
+  <View style={{ width: 24, height: 24 }}>
+    <View
+      style={{
+        position: "absolute",
+        top: 7,
+        left: 4,
+        width: 11,
+        height: 11,
+        borderRadius: 2,
+        backgroundColor: color,
+        transform: [{ rotate: "45deg" }],
+      }}
+    />
+    <View
+      style={{
+        position: "absolute",
+        top: 3,
+        right: 4,
+        width: 5,
+        height: 5,
+        borderRadius: 1,
+        backgroundColor: color,
+        transform: [{ rotate: "45deg" }],
+      }}
+    />
+  </View>
+);
+
 export const TabIcon = ({ name, color, size = 24 }: TabIconProps) => {
   const scale = size / 24;
   const icon =
@@ -153,6 +183,8 @@ export const TabIcon = ({ name, color, size = 24 }: TabIconProps) => {
       <SearchIcon color={color} />
     ) : name === "library" ? (
       <LibraryIcon color={color} />
+    ) : name === "assistant" ? (
+      <AssistantIcon color={color} />
     ) : (
       <DownloadsIcon color={color} />
     );

@@ -12,7 +12,7 @@
  *     expo-router (getRoutesCore procura um filho cujo `route` iguala o nome
  *     do grupo); renomear para index.tsx faria o anchor evaporar-se sem uma
  *     unica mensagem de erro.
- *  3. A pasta partilhada tem exactamente as 21 rotas empurradas. Uma rota
+ *  3. A pasta partilhada tem exactamente as rotas da lista literal. Uma rota
  *     nova criada fora dela nao ganha barra; a lista literal obriga a
  *     decisao a ser explicita.
  *
@@ -27,7 +27,7 @@ import { join, relative } from "node:path";
 const APP_ROOT = new URL("../../app/", import.meta.url).pathname;
 const MAIN = join(APP_ROOT, "(main)");
 const TABS = join(MAIN, "(tabs)");
-const SHARED = join(TABS, "(home,search,library)");
+const SHARED = join(TABS, "(home,search,library,assistant)");
 
 /** Nomes directos de uma pasta, com "/" a marcar as sub-pastas. */
 const entries = (dir: string): string[] =>
@@ -49,7 +49,7 @@ const routeFiles = (dir: string): string[] => {
   return out.sort();
 };
 
-/** As 21 rotas que sao empurradas por cima de qualquer tab. */
+/** Tudo o que vive na pasta partilhada: as 4 raizes + as rotas empurradas. */
 const PUSHED_ROUTES = [
   "home.tsx",
   "library.tsx",
@@ -59,9 +59,10 @@ const PUSHED_ROUTES = [
   "account.tsx",
   "album/[artist]/[album].tsx",
   "artist/[artist].tsx",
-  // O chat do assistente (dono, 2026-08-17/18): empurrada, entra pelo
-  // banner da Home.
+  // O assistente e a 4a tab (dono, 2026-08-16): a raiz e a lista de
+  // conversas, cada conversa e empurrada por cima dela.
   "assistant.tsx",
+  "assistant/[chatId].tsx",
   "artists-roster.tsx",
   "artists.tsx",
   "friends.tsx",
@@ -94,16 +95,16 @@ describe("route tree (native tabs)", () => {
 
   it("forks the tabs layout by platform and groups every tab", () => {
     expect(entries(TABS)).toEqual([
-      "(home,search,library)/",
+      "(home,search,library,assistant)/",
       "_layout.tsx",
       "_layout.web.tsx",
     ]);
   });
 
-  it("keeps the three tab roots INSIDE the shared group, where the anchor looks", () => {
+  it("keeps the four tab roots INSIDE the shared group, where the anchor looks", () => {
     // Fora dele nao sao filhas deste layout e cada tab abria na primeira
     // rota da arvore - o dono viu as Gostadas na Pesquisa e na Biblioteca.
-    for (const root of ["home.tsx", "search.tsx", "library.tsx"]) {
+    for (const root of ["home.tsx", "search.tsx", "library.tsx", "assistant.tsx"]) {
       expect(routeFiles(SHARED)).toContain(root);
     }
   });

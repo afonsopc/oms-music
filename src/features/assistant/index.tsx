@@ -1,259 +1,228 @@
 /**
- * "O Melhor Assistente" (3.8, dono 2026-08-17/18): chat que responde sobre
- * os hábitos de escuta e cria playlists. O cliente é deliberadamente burro:
- * guarda o histórico da sessão, envia-o inteiro em cada POST e desenha o
- * que voltar - toda a inteligência e TODA a validação vivem no servidor
- * (o modelo propõe ids, o backend confirma-os; ver a proposta). Sem o diff
- * do backend aplicado o POST responde 404 e o ecrã di-lo em vez de fingir.
+ * "O Melhor Assistente", agora uma TAB (dono, 2026-08-16): esta raiz é a
+ * lista de sessões guardadas no servidor, no molde visual da lista de
+ * playlists (linhas outline full-width, acção primária no cabeçalho, empty
+ * state que oferece a primeira conversa). Cada linha abre o chat da sessão;
+ * uma sessão cuja última mensagem tem mais de 2 dias vem `read_only` do
+ * servidor e ganha o selo "Só de leitura". O chat em si vive em ./Chat.tsx.
  */
-import React, { useCallback, useRef, useState } from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import React, { useCallback, useState } from "react";
+import { ActivityIndicator, FlatList, Pressable, Text, View } from "react-native";
 import { useRouter } from "expo-router";
-import {
-  askAssistant,
-  type AssistantAnswer,
-  type AssistantMessage,
-} from "@/api/endpoints/assistant";
+import { useAssistantChats, useDeleteAssistantChat } from "@/api/queries/assistantChats";
+import type { AssistantChatSummary } from "@/api/endpoints/assistant";
+import { timeAgo } from "@/features/friends/rows";
 import { useContentBottomPadding, useContentTopPadding } from "@/features/shell/metrics";
 import { useT } from "@/i18n";
-import { playlistRoute } from "@/lib/routes";
+import { assistantChatRoute } from "@/lib/routes";
 import { useTheme } from "@/theme/provider";
 import { RADIUS } from "@/theme/tokens";
-import { Icon } from "@/ui";
+import { ConfirmDialog, EmptyState, ErrorState, GhostIconButton, Icon } from "@/ui";
 
 const A = "components.music.Assistant";
 
-interface Bubble {
-  role: "user" | "assistant";
-  content: string;
-  playlist?: AssistantAnswer["playlist"];
-  error?: boolean;
-}
-
-export default function AssistantScreen() {
-  const t = useT();
-  const router = useRouter();
+const ChatRow = ({
+  chat,
+  onPress,
+  onDelete,
+}: {
+  chat: AssistantChatSummary;
+  onPress: () => void;
+  onDelete: () => void;
+}) => {
   const { tokens } = useTheme();
-  const topPadding = useContentTopPadding(12);
-  const bottomPadding = useContentBottomPadding();
-
-  const [bubbles, setBubbles] = useState<Bubble[]>([]);
-  const [input, setInput] = useState("");
-  const [pending, setPending] = useState(false);
-  const scrollRef = useRef<ScrollView>(null);
-
-  const send = useCallback(
-    (raw: string): void => {
-      const content = raw.trim();
-      if (!content || pending) return;
-      setInput("");
-      setPending(true);
-      const history: AssistantMessage[] = [
-        ...bubbles
-          .filter((b) => !b.error)
-          .map((b) => ({ role: b.role, content: b.content })),
-        { role: "user", content },
-      ];
-      setBubbles((prev) => [...prev, { role: "user", content }]);
-      askAssistant(history)
-        .then((answer) => {
-          setBubbles((prev) => [
-            ...prev,
-            { role: "assistant", content: answer.reply, playlist: answer.playlist ?? null },
-          ]);
-        })
-        .catch(() => {
-          setBubbles((prev) => [
-            ...prev,
-            { role: "assistant", content: t(`${A}.error`), error: true },
-          ]);
-        })
-        .finally(() => {
-          setPending(false);
-          scrollRef.current?.scrollToEnd({ animated: true });
-        });
-    },
-    [bubbles, pending, t],
-  );
-
-  const suggestions = [
-    t(`${A}.suggestionPlaylist`),
-    t(`${A}.suggestionHabits`),
-    t(`${A}.suggestionForgotten`),
-  ];
-
+  const t = useT();
+  const ago = timeAgo(chat.last_message_at, t);
   return (
-    <View style={{ flex: 1, backgroundColor: tokens.background }}>
-      <ScrollView
-        ref={scrollRef}
-        style={{ flex: 1 }}
-        contentContainerStyle={{
-          paddingTop: topPadding,
-          paddingBottom: 16,
-          paddingHorizontal: 16,
-          gap: 10,
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={chat.title}
+      style={({ pressed }) => ({
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 12,
+        padding: 12,
+        borderWidth: 1,
+        borderColor: tokens.border,
+        borderRadius: RADIUS,
+        opacity: pressed ? 0.7 : 1,
+      })}
+    >
+      <View
+        style={{
+          width: 44,
+          height: 44,
+          borderRadius: 22,
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: tokens.secondary,
         }}
-        onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
       >
-        <Text style={{ color: tokens.foreground, fontSize: 28, fontWeight: "900", letterSpacing: -0.5 }}>
-          {t(`${A}.title`)}
+        <Icon name="sparkles" size={20} color={tokens.primary} />
+      </View>
+      {/* minWidth 0 lets a long title truncate instead of stretching the row. */}
+      <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
+        <Text
+          style={{ color: tokens.foreground, fontSize: 15, fontWeight: "700" }}
+          numberOfLines={2}
+        >
+          {chat.title}
         </Text>
-        <Text style={{ color: tokens.mutedForeground, fontSize: 14, lineHeight: 20 }}>
-          {t(`${A}.subtitle`)}
-        </Text>
-
-        {bubbles.length === 0 ? (
-          <View style={{ gap: 8, marginTop: 12 }}>
-            {suggestions.map((suggestion) => (
-              <Pressable
-                key={suggestion}
-                accessibilityRole="button"
-                onPress={() => send(suggestion)}
-                style={({ pressed }) => ({
-                  alignSelf: "flex-start",
-                  paddingHorizontal: 14,
-                  paddingVertical: 9,
-                  borderRadius: 999,
-                  backgroundColor: tokens.secondary,
-                  opacity: pressed ? 0.7 : 1,
-                })}
-              >
-                <Text style={{ color: tokens.secondaryForeground, fontSize: 13 }}>
-                  {suggestion}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        ) : null}
-
-        {bubbles.map((bubble, i) => (
-          <View
-            key={`b-${i}`}
-            style={{
-              alignSelf: bubble.role === "user" ? "flex-end" : "flex-start",
-              maxWidth: "85%",
-              gap: 6,
-            }}
-          >
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          {ago ? (
+            <Text style={{ color: tokens.mutedForeground, fontSize: 12 }} numberOfLines={1}>
+              {ago}
+            </Text>
+          ) : null}
+          {chat.read_only ? (
             <View
               style={{
-                paddingHorizontal: 14,
-                paddingVertical: 10,
-                borderRadius: 16,
-                backgroundColor:
-                  bubble.role === "user"
-                    ? tokens.primary
-                    : bubble.error
-                      ? tokens.destructive
-                      : tokens.secondary,
+                paddingHorizontal: 8,
+                paddingVertical: 2,
+                borderRadius: 999,
+                backgroundColor: tokens.secondary,
               }}
             >
               <Text
-                style={{
-                  color:
-                    bubble.role === "user"
-                      ? tokens.primaryForeground
-                      : bubble.error
-                        ? tokens.destructiveForeground
-                        : tokens.foreground,
-                  fontSize: 14,
-                  lineHeight: 20,
-                }}
+                style={{ color: tokens.secondaryForeground, fontSize: 10, fontWeight: "700" }}
               >
-                {bubble.content}
+                {t(`${A}.readOnlyBadge`)}
               </Text>
             </View>
-            {bubble.playlist ? (
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => router.push(playlistRoute(bubble.playlist!.id))}
-                style={({ pressed }) => ({
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 10,
-                  padding: 12,
-                  borderRadius: RADIUS,
-                  borderWidth: 1,
-                  borderColor: tokens.border,
-                  opacity: pressed ? 0.7 : 1,
-                })}
-              >
-                <Icon name="list-music" size={18} color={tokens.primary} />
-                <View style={{ flexShrink: 1, minWidth: 0 }}>
-                  <Text
-                    style={{ color: tokens.foreground, fontSize: 14, fontWeight: "700" }}
-                    numberOfLines={1}
-                  >
-                    {bubble.playlist.name}
-                  </Text>
-                  <Text style={{ color: tokens.mutedForeground, fontSize: 12 }}>
-                    {t(`${A}.openPlaylist`, { count: bubble.playlist.song_count })}
-                  </Text>
-                </View>
-                <Icon name="chevron-right" size={16} color={tokens.mutedForeground} />
-              </Pressable>
-            ) : null}
-          </View>
-        ))}
-        {pending ? (
-          <View style={{ alignSelf: "flex-start", padding: 10 }}>
-            <ActivityIndicator color={tokens.mutedForeground} />
-          </View>
-        ) : null}
-      </ScrollView>
+          ) : null}
+        </View>
+      </View>
+      <GhostIconButton
+        icon="trash"
+        size={16}
+        color={tokens.mutedForeground}
+        accessibilityLabel={t(`${A}.deleteChat`)}
+        onPress={onDelete}
+      />
+      <Icon name="chevron-right" size={16} color={tokens.mutedForeground} />
+    </Pressable>
+  );
+};
 
+export default function AssistantSessionsScreen() {
+  const t = useT();
+  const { tokens } = useTheme();
+  const router = useRouter();
+  const bottomPadding = useContentBottomPadding();
+  const topPadding = useContentTopPadding(20);
+  const [toDelete, setToDelete] = useState<AssistantChatSummary | null>(null);
+
+  const chatsQuery = useAssistantChats();
+  const deleteMutation = useDeleteAssistantChat();
+  const chats = chatsQuery.data ?? [];
+
+  const startNew = useCallback(
+    () => router.push(assistantChatRoute("new")),
+    [router],
+  );
+
+  const renderItem = useCallback(
+    ({ item }: { item: AssistantChatSummary }) => (
+      <ChatRow
+        chat={item}
+        onPress={() => router.push(assistantChatRoute(item.id))}
+        onDelete={() => setToDelete(item)}
+      />
+    ),
+    [router],
+  );
+
+  const header = (
+    <View style={{ gap: 6, paddingBottom: 16 }}>
       <View
         style={{
           flexDirection: "row",
           alignItems: "center",
-          gap: 8,
-          paddingHorizontal: 16,
-          paddingTop: 8,
-          paddingBottom: bottomPadding + 8,
+          justifyContent: "space-between",
+          gap: 12,
         }}
       >
-        <TextInput
-          value={input}
-          onChangeText={setInput}
-          placeholder={t(`${A}.placeholder`)}
-          placeholderTextColor={tokens.mutedForeground}
-          onSubmitEditing={() => send(input)}
-          editable={!pending}
-          style={{
-            flex: 1,
-            color: tokens.foreground,
-            backgroundColor: tokens.secondary,
-            borderRadius: 999,
+        <Text
+          style={{ color: tokens.foreground, fontSize: 24, fontWeight: "800", flex: 1 }}
+          numberOfLines={1}
+        >
+          {t(`${A}.title`)}
+        </Text>
+        <Pressable
+          onPress={startNew}
+          accessibilityRole="button"
+          style={({ pressed }) => ({
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 8,
             paddingHorizontal: 16,
             paddingVertical: 10,
-            fontSize: 14,
-          }}
-        />
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t(`${A}.send`)}
-          onPress={() => send(input)}
-          disabled={pending || input.trim().length === 0}
-          style={({ pressed }) => ({
-            width: 40,
-            height: 40,
-            borderRadius: 20,
-            alignItems: "center",
-            justifyContent: "center",
+            borderRadius: 999,
             backgroundColor: tokens.primary,
-            opacity: pending || input.trim().length === 0 ? 0.4 : pressed ? 0.7 : 1,
+            opacity: pressed ? 0.8 : 1,
           })}
         >
-          <Icon name="chevron-right" size={18} color={tokens.primaryForeground} />
+          <Icon name="plus" size={16} color={tokens.primaryForeground} />
+          <Text style={{ color: tokens.primaryForeground, fontWeight: "700", fontSize: 14 }}>
+            {t(`${A}.newChat`)}
+          </Text>
         </Pressable>
       </View>
+      <Text style={{ color: tokens.mutedForeground, fontSize: 13, lineHeight: 18 }}>
+        {t(`${A}.subtitle`)}
+      </Text>
+    </View>
+  );
+
+  const empty = chatsQuery.isLoading ? (
+    <View style={{ paddingVertical: 40 }}>
+      <ActivityIndicator />
+    </View>
+  ) : chatsQuery.isError ? (
+    <ErrorState text={t(`${A}.listError`)} onRetry={() => void chatsQuery.refetch()} />
+  ) : (
+    <EmptyState
+      icon="sparkles"
+      text={t(`${A}.listEmpty`)}
+      actionLabel={t(`${A}.newChat`)}
+      onAction={startNew}
+    />
+  );
+
+  return (
+    <View style={{ flex: 1, backgroundColor: tokens.background }}>
+      <FlatList
+        data={chats}
+        renderItem={renderItem}
+        keyExtractor={(item) => String(item.id)}
+        ListHeaderComponent={header}
+        ListEmptyComponent={empty}
+        ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+        initialNumToRender={12}
+        windowSize={9}
+        removeClippedSubviews
+        contentContainerStyle={{
+          paddingHorizontal: 20,
+          paddingTop: topPadding,
+          paddingBottom: bottomPadding,
+        }}
+      />
+      <ConfirmDialog
+        visible={toDelete !== null}
+        title={t(`${A}.deleteChat`)}
+        message={t(`${A}.deleteChatConfirm`)}
+        confirmLabel={t(`${A}.deleteChat`)}
+        destructive
+        pending={deleteMutation.isPending}
+        onCancel={() => setToDelete(null)}
+        onConfirm={() => {
+          if (toDelete === null) return;
+          deleteMutation.mutate(toDelete.id, {
+            onSettled: () => setToDelete(null),
+          });
+        }}
+      />
     </View>
   );
 }

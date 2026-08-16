@@ -875,6 +875,9 @@
         "outroKicker": "É isto, por agora",
         "outroBody": "Continua a ouvir. O próximo Rewind escreve-se sozinho.",
         "playCount": "{count, plural, one {# reprodução} other {# reproduções}}",
+        "timeKicker": "O tempo que deste",
+        "timeUnit": "minutos inteiros nas tuas cinco mais ouvidas.",
+        "loyaltyLine": "{percent}% dessas reproduções foram para a número um.",
         "emptyTitle": "Ainda sem história",
         "emptyBody": "Ouve mais umas músicas e volta cá - o Rewind conta o que tu tocares.",
         "previous": "Cartão anterior",
@@ -894,7 +897,15 @@
         "suggestionForgotten": "Músicas boas que já não oiço há muito",
         "openPlaylist": "{count, plural, one {# música · abrir} other {# músicas · abrir}}",
         "homeBanner": "O Melhor Assistente",
-        "homeBannerSubtitle": "Pede uma playlist por palavras."
+        "homeBannerSubtitle": "Pede uma playlist por palavras.",
+        "newChat": "Nova conversa",
+        "readOnlyBadge": "Só de leitura",
+        "readOnlyBar": "Esta conversa é antiga e ficou só de leitura.",
+        "listError": "Não foi possível carregar as conversas.",
+        "listEmpty": "Ainda não tens conversas com o assistente. Começa uma - ele conhece o que ouves.",
+        "deleteChat": "Apagar conversa",
+        "deleteChatConfirm": "Apagar esta conversa? Não é possível desfazer.",
+        "chatLoadError": "Não foi possível carregar esta conversa."
       }
     }
   },
@@ -1006,6 +1017,7 @@
       "tabHome": "Início",
       "tabSearch": "Pesquisar",
       "tabLibrary": "Biblioteca",
+      "tabAssistant": "Assistente",
       "tabDownloads": "Transferências",
       "closePlayer": "Fechar leitor",
       "tabProfile": "Perfil"

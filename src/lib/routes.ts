@@ -48,6 +48,16 @@ export const playlistRoute = (playlistId: number): Href => ({
   params: { id: playlistId },
 });
 
+/**
+ * Uma conversa do assistente, empurrada por cima da tab Assistente (ou da
+ * tab onde o utilizador estiver). "new" abre um chat em branco; o id a serio
+ * so nasce no servidor com a primeira mensagem.
+ */
+export const assistantChatRoute = (chatId: number | "new"): Href => ({
+  pathname: "/assistant/[chatId]",
+  params: { chatId },
+});
+
 /** Mix slugs contain ":" and MUST reach the router unencoded. */
 export const mixRoute = (slug: string): Href => ({
   pathname: "/mix/[slug]",

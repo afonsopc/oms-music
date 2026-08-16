@@ -10,9 +10,9 @@
  * deixarem de o ser matam o vidro do sistema, que e exactamente o que se
  * veio aqui buscar.
  *
- * Cada trigger aponta para um GRUPO e nao para um ecra: e o que poe as 21
+ * Cada trigger aponta para um GRUPO e nao para um ecra: e o que poe as
  * rotas empurradas dentro da stack da respectiva tab e mantem a barra
- * visivel la (ver (home,search,library)/_layout.tsx).
+ * visivel la (ver (home,search,library,assistant)/_layout.tsx).
  *
  * So NATIVO. A web tem o fork _layout.web.tsx: as native tabs renderizam
  * la (via @radix-ui/react-tabs) mas desenham uma pilula fixa no TOPO da
@@ -63,14 +63,20 @@ export default function TabsLayout() {
         />
       </NativeTabs.Trigger>
 
-      {/* TRES tabs, e nao quatro. O perfil esteve aqui como quarto item -
-          primeiro um botao falso que abria uma gaveta, depois uma tab a
-          serio - e nenhuma das duas coisas resistiu ao teste: a UITabBar nao
-          mascara imagens, portanto a fotografia saia sempre quadrada, e uma
-          tab de "Definicoes" e peso morto, o ecra que se abre duas vezes por
-          mes ao lado dos que se abrem todos os dias. O Spotify e o Apple
-          Music resolvem isto da mesma maneira: o avatar vive no CABECALHO
-          dos ecras (features/home, features/library) e leva a /account, que
+      <NativeTabs.Trigger name="(assistant)" disableAutomaticContentInsets={OWN_INSETS}>
+        <NativeTabs.Trigger.Label>{t("native.shell.tabAssistant")}</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf="sparkles" md="auto_awesome" />
+      </NativeTabs.Trigger>
+
+      {/* QUATRO tabs (dono, 2026-08-16): o assistente ganhou o quarto lugar
+          porque e um ecra de todos os dias com estado proprio (as sessoes),
+          nao um atalho. O PERFIL continua fora - esteve aqui como quarto
+          item (primeiro um botao falso que abria uma gaveta, depois uma tab
+          a serio) e nenhuma das duas coisas resistiu ao teste: a UITabBar
+          nao mascara imagens, portanto a fotografia saia sempre quadrada, e
+          uma tab de "Definicoes" e peso morto. O Spotify e o Apple Music
+          resolvem isto da mesma maneira: o avatar vive no CABECALHO dos
+          ecras (features/home, features/library) e leva a /account, que
           junta perfil, amigos, transferencias e definicoes. */}
     </NativeTabs>
   );
