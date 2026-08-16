@@ -740,13 +740,19 @@
           "topArtist": "{artist} Mix",
           "repeatRewind": "Repeat Rewind",
           "timeCapsule": "{decade}s",
-          "discoveries": "Discoveries"
+          "discoveries": "Discoveries",
+          "thisIs": "This Is {artist}",
+          "monthlyRewind": "Your {month, plural, =1 {January} =2 {February} =3 {March} =4 {April} =5 {May} =6 {June} =7 {July} =8 {August} =9 {September} =10 {October} =11 {November} =12 {December} other {Month}}",
+          "yearMix": "{year} Mix"
         },
         "description": {
           "topArtist": "Your favourites from {artist}.",
           "repeatRewind": "Your most played of the last 90 days.",
           "timeCapsule": "Time capsule: your {decade}s side.",
-          "discoveries": "In your library, but you haven't played it yet."
+          "discoveries": "In your library, but you haven't played it yet.",
+          "thisIs": "The essential {artist}, by your own plays.",
+          "monthlyRewind": "What this month sounded like.",
+          "yearMix": "Your {year}, so far."
         }
       },
       "SongRow": {

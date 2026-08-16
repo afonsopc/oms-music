@@ -27,8 +27,11 @@ export const mixDescription = (mix: MixSummary, t: Translate): string =>
  * mix, the decade for a time capsule, else the (localized) title.
  */
 export const mixStampText = (mix: MixSummary, title: string): string => {
-  if (mix.kind === "top_artist" && mix.artist?.name) return mix.artist.name;
+  if ((mix.kind === "top_artist" || mix.kind === "this_is") && mix.artist?.name) {
+    return mix.artist.name;
+  }
   if (mix.kind === "time_capsule" && mix.seed != null) return `${mix.seed}s`;
+  if (mix.kind === "year_mix" && mix.seed != null) return `${mix.seed}`;
   return title;
 };
 

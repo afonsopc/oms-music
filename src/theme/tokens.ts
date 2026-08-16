@@ -157,13 +157,30 @@ export const SCRIM_BASE = "#000000";
 export interface KindGradient {
   colors: readonly [string, string, string];
   accent: string;
-  icon: "sparkles" | "music" | "clock" | "compass" | "radio";
+  icon: "sparkles" | "music" | "clock" | "compass" | "radio" | "disc" | "heart";
 }
 
 export const MIX_KIND_GRADIENTS: Record<MixKind, KindGradient> = {
   top_artist: {
     colors: ["#e11d48", "#c026d3", "#4338ca"], // rose-600 fuchsia-600 indigo-700
     accent: "#c026d3",
+    icon: "sparkles",
+  },
+  // "This Is <artista>" (dono, 2026-08-17): essenciais por plays, o idioma
+  // do Spotify - a moldura clara com a foto do artista vem do MixTile.
+  this_is: {
+    colors: ["#0f172a", "#334155", "#0ea5e9"], // slate-900 slate-700 sky-500
+    accent: "#0ea5e9",
+    icon: "disc",
+  },
+  monthly_rewind: {
+    colors: ["#0ea5e9", "#6366f1", "#a21caf"], // sky-500 indigo-500 fuchsia-800
+    accent: "#6366f1",
+    icon: "heart",
+  },
+  year_mix: {
+    colors: ["#f43f5e", "#d946ef", "#7c3aed"], // rose-500 fuchsia-500 violet-600
+    accent: "#d946ef",
     icon: "sparkles",
   },
   repeat_rewind: {

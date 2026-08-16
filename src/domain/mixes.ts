@@ -1,7 +1,14 @@
 import type { Artist } from "./artist";
 import type { Song } from "./song";
 
-export type MixKind = "top_artist" | "repeat_rewind" | "time_capsule" | "discoveries";
+export type MixKind =
+  | "top_artist"
+  | "this_is"
+  | "monthly_rewind"
+  | "year_mix"
+  | "repeat_rewind"
+  | "time_capsule"
+  | "discoveries";
 
 export interface MixSummary {
   /** "mix:kind:..." - URL-ENCODE when building the request path, contains colons. */

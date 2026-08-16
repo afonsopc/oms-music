@@ -34,8 +34,9 @@ export const mixStampText = (
   artistName?: string | null,
   seed?: string | number | null,
 ): string => {
-  if (kind === "top_artist" && artistName) return artistName;
+  if ((kind === "top_artist" || kind === "this_is") && artistName) return artistName;
   if (kind === "time_capsule" && seed != null) return `${seed}s`;
+  if (kind === "year_mix" && seed != null) return `${seed}`;
   return title;
 };
 

@@ -740,13 +740,19 @@
           "topArtist": "{artist} mikss",
           "repeatRewind": "Repeat Rewind",
           "timeCapsule": "{decade}. gadi",
-          "discoveries": "Atklājumi"
+          "discoveries": "Atklājumi",
+          "thisIs": "This Is {artist}",
+          "monthlyRewind": "Tavs {month, plural, =1 {janvāris} =2 {februāris} =3 {marts} =4 {aprīlis} =5 {maijs} =6 {jūnijs} =7 {jūlijs} =8 {augusts} =9 {septembris} =10 {oktobris} =11 {novembris} =12 {decembris} other {mēnesis}}",
+          "yearMix": "{year} mikss"
         },
         "description": {
           "topArtist": "Tavi iecienītākie no {artist}.",
           "repeatRewind": "Tavas visvairāk klausītās pēdējās 90 dienās.",
           "timeCapsule": "Laika kapsula: tava {decade}. gadu puse.",
-          "discoveries": "Tavā bibliotēkā, bet vēl neesi klausījies."
+          "discoveries": "Tavā bibliotēkā, bet vēl neesi klausījies.",
+          "thisIs": "{artist} būtiskākās dziesmas pēc taviem atskaņojumiem.",
+          "monthlyRewind": "Kā skanēja šis mēnesis.",
+          "yearMix": "Tavs {year} līdz šim."
         }
       },
       "SongRow": {

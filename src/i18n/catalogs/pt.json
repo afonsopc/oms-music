@@ -740,13 +740,19 @@
           "topArtist": "Mix de {artist}",
           "repeatRewind": "Repeat Rewind",
           "timeCapsule": "Anos {decade}",
-          "discoveries": "Descobertas"
+          "discoveries": "Descobertas",
+          "thisIs": "This Is {artist}",
+          "monthlyRewind": "O Teu {month, plural, =1 {Janeiro} =2 {Fevereiro} =3 {Março} =4 {Abril} =5 {Maio} =6 {Junho} =7 {Julho} =8 {Agosto} =9 {Setembro} =10 {Outubro} =11 {Novembro} =12 {Dezembro} other {Mês}}",
+          "yearMix": "Mix {year}"
         },
         "description": {
           "topArtist": "Os teus favoritos de {artist}.",
           "repeatRewind": "As tuas mais ouvidas dos últimos 90 dias.",
           "timeCapsule": "Cápsula do tempo: o teu lado {decade}s.",
-          "discoveries": "Da tua biblioteca, mas que ainda não tocaste."
+          "discoveries": "Da tua biblioteca, mas que ainda não tocaste.",
+          "thisIs": "As essenciais de {artist}, pelas tuas reproduções.",
+          "monthlyRewind": "O que este mês soou, pelas tuas contagens.",
+          "yearMix": "O teu {year}, até agora."
         }
       },
       "SongRow": {
