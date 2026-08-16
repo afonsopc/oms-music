@@ -782,13 +782,15 @@
         "playHere": "Play here",
         "offlineRecent": "Offline (recent)",
         "deviceFallback": "Device",
-        "needsInteraction": "Needs a tap to resume"
+        "needsInteraction": "Needs a tap to resume",
+        "lastSeen": "Seen {minutes} min ago"
       },
       "RemotePlayback": {
         "noActiveDevice": "No active device",
         "deviceNeedsTap": "{device} needs a tap to resume",
         "transferFailed": "Could not switch device - it may no longer be available.",
-        "deviceFallback": "Device"
+        "deviceFallback": "Device",
+        "youNeedTap": "This device needs a tap - press play to resume."
       },
       "MusicProvider": {
         "separationServiceDown": "The separation service is having trouble - try again later.",
@@ -1100,6 +1102,7 @@
     "downloads": {
       "noWifiRefused": "No WiFi - download refused.",
       "enqueueFailed": "Could not start the download.",
+      "storageCapRefused": "Music storage limit reached - download refused.",
       "menuDownload": "Download",
       "menuDownloading": "Downloading {percent}%",
       "menuRemove": "Remove download",
@@ -1131,6 +1134,9 @@
       "sleepOff": "Off",
       "sleepMinutes": "{minutes} min",
       "sleepEndOfSong": "End of song",
+      "abLoop": "Section loop",
+      "abLoopClear": "Clear",
+      "abLoopHint": "Mark A and then B during playback: the song repeats between the two points until you clear them or change tracks.",
       "playbackMode": "Playback",
       "modeOriginal": "Original",
       "modeInstrumental": "Instrumental",
@@ -1138,6 +1144,7 @@
       "modeCustom": "Custom blend",
       "modeCustomUnavailable": "Custom blend is not available on this device.",
       "stemsMissing": "Separate the vocals to unlock these modes.",
+      "modeUnavailableOffline": "Offline, the stem modes need their downloaded files - this song only has the mix on this device.",
       "blendActive": "The custom blend is playing.",
       "blendDownloading": "Downloading the separated tracks... {percent}%",
       "blendDownloadingHint": "The original keeps playing until both files are on this device.",
@@ -1169,14 +1176,17 @@
       "upNext": "Up next",
       "eqNeedsLocal": "EQ needs the song on this device - download it and it kicks in.",
       "aboutArtist": "About the artist",
-      "listeners": "{count} listeners"
+      "listeners": "{count} listeners",
+      "karaoke": "Karaoke",
+      "karaokeNeedsStems": "Karaoke - separate the vocals first",
+      "karaokeVoice": "Voice",
+      "karaokeNoSyncedLyrics": "This song has no synced lyrics yet. Generate them in the lyrics view."
     },
     "settings": {
       "hub": {
         "title": "Settings",
         "sectionLibrary": "Library",
         "sectionPlayback": "Playback and device",
-        "rowDownloads": "Downloads",
         "rowDevices": "Devices",
         "rowPasskeys": "Passkeys",
         "theme": "Theme",
@@ -1292,9 +1302,11 @@
       "legendCache": "Temporary cache {size}",
       "offlinePlaylists": "Offline playlists",
       "noOfflinePlaylists": "No playlist is kept offline yet - toggle it on any playlist page.",
+      "offlineAlbumsArtists": "Offline albums and artists",
       "rowDetail": "Storage, offline mode, kept playlists",
       "serverStorage": "Music storage",
       "serverStorageUsed": "{used} of {limit} used",
+      "storageCapExceeded": "Local downloads exceed the account's music storage - new downloads are refused.",
       "cacheTitle": "Temporary cache",
       "cacheDetail": "{files} files, {size} of {budget}",
       "cachePurge": "Clear",

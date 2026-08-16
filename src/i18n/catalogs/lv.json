@@ -782,13 +782,15 @@
         "playHere": "Atskaņot šeit",
         "offlineRecent": "Bezsaistē (nesenās)",
         "deviceFallback": "Ierīce",
-        "needsInteraction": "Nepieciešams pieskāriens, lai atsāktu"
+        "needsInteraction": "Nepieciešams pieskāriens, lai atsāktu",
+        "lastSeen": "Redzēta pirms {minutes} min"
       },
       "RemotePlayback": {
         "noActiveDevice": "Nav aktīvas ierīces",
         "deviceNeedsTap": "Ierīcei {device} ir vajadzīgs pieskāriens, lai atsāktu",
         "transferFailed": "Neizdevās nomainīt ierīci - tā, iespējams, vairs nav pieejama.",
-        "deviceFallback": "Ierīce"
+        "deviceFallback": "Ierīce",
+        "youNeedTap": "Šai ierīcei ir vajadzīgs pieskāriens - nospied atskaņot, lai atsāktu."
       },
       "MusicProvider": {
         "separationServiceDown": "Atdalīšanas serviss nedarbojas - mēģini vēlāk.",
@@ -1100,6 +1102,7 @@
     "downloads": {
       "noWifiRefused": "Nav WiFi - lejupielāde atteikta.",
       "enqueueFailed": "Neizdevās sākt lejupielādi.",
+      "storageCapRefused": "Sasniegts mūzikas krātuves limits - lejupielāde atteikta.",
       "menuDownload": "Lejupielādēt",
       "menuDownloading": "Lejupielādē {percent}%",
       "menuRemove": "Noņemt lejupielādi",
@@ -1131,6 +1134,9 @@
       "sleepOff": "Izslēgts",
       "sleepMinutes": "{minutes} min",
       "sleepEndOfSong": "Dziesmas beigās",
+      "abLoop": "Sadaļas cilpa",
+      "abLoopClear": "Notīrīt",
+      "abLoopHint": "Atskaņošanas laikā atzīmē A un tad B: dziesma atkārtojas starp abiem punktiem, līdz tos notīri vai nomaini dziesmu.",
       "playbackMode": "Atskaņošana",
       "modeOriginal": "Oriģināls",
       "modeInstrumental": "Instrumentālais",
@@ -1138,6 +1144,7 @@
       "modeCustom": "Pielāgots miksējums",
       "modeCustomUnavailable": "Pielāgotais miksējums šajā ierīcē nav pieejams.",
       "stemsMissing": "Atdali vokālu, lai atslēgtu šos režīmus.",
+      "modeUnavailableOffline": "Bezsaistē stem režīmiem vajadzīgi lejupielādētie faili - šai dziesmai šajā ierīcē ir tikai mikss.",
       "blendActive": "Skan pielāgotais miksējums.",
       "blendDownloading": "Lejupielādē atdalītos celiņus... {percent}%",
       "blendDownloadingHint": "Oriģināls turpina skanēt, līdz abi faili ir šajā ierīcē.",
@@ -1169,14 +1176,17 @@
       "upNext": "Nākamās",
       "eqNeedsLocal": "Ekvalaizeram dziesma ir vajadzīga šajā ierīcē - lejupielādē to, un tas sāks darboties.",
       "aboutArtist": "Par mākslinieku",
-      "listeners": "{count} klausītāji"
+      "listeners": "{count} klausītāji",
+      "karaoke": "Karaoke",
+      "karaokeNeedsStems": "Karaoke - vispirms atdali vokālus",
+      "karaokeVoice": "Balss",
+      "karaokeNoSyncedLyrics": "Šai dziesmai vēl nav sinhronizētu vārdu. Izveido tos vārdu skatā."
     },
     "settings": {
       "hub": {
         "title": "Iestatījumi",
         "sectionLibrary": "Bibliotēka",
         "sectionPlayback": "Atskaņošana un ierīce",
-        "rowDownloads": "Lejupielādes",
         "rowDevices": "Ierīces",
         "rowPasskeys": "Piekļuves atslēgas",
         "theme": "Motīvs",
@@ -1292,9 +1302,11 @@
       "legendCache": "Pagaidu kešs {size}",
       "offlinePlaylists": "Bezsaistes atskaņošanas saraksti",
       "noOfflinePlaylists": "Vēl neviens saraksts nav bezsaistē - ieslēdz to saraksta lapā.",
+      "offlineAlbumsArtists": "Bezsaistes albumi un izpildītāji",
       "rowDetail": "Vieta, bezsaiste, saglabātie saraksti",
       "serverStorage": "Mūzikas krātuve",
       "serverStorageUsed": "Izmantoti {used} no {limit}",
+      "storageCapExceeded": "Lokālās lejupielādes pārsniedz konta mūzikas krātuvi - jaunas lejupielādes tiek atteiktas.",
       "cacheTitle": "Pagaidu kešs",
       "cacheDetail": "{files} faili, {size} no {budget}",
       "cachePurge": "Notīrīt",

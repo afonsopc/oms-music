@@ -28,8 +28,10 @@ import type { Song } from "@/domain/song";
 import type { PrefetchHost } from "@/prefetch/driver";
 import type { PrefetchGates } from "@/prefetch/gates";
 import { LyricsFetchQueue } from "../lyricsQueue";
+import { NOTICE_KEYS, notifyDownloadNotice } from "../notices";
 import { isManualOffline, isOnline } from "../offlineLibrary";
 import { getDownloadSettings } from "../settings";
+import { assertUnderStorageCap, isStorageCapError } from "../storageCap";
 import {
   clearSongStatuses,
   getKindStatus,
@@ -398,6 +400,12 @@ export const downloadSong = async (
   // media ids at all, so they are never persisted anywhere.
   if (song.jam_song || song.audio_url) return;
 
+  // Storage cap (FR-94), a mesma regra do manager nativo: total local >= a
+  // quota de música da conta recusa o enfileiramento novo. Lança, como no
+  // nativo, e quem fala com o utilizador (a surface, o loop de colecções)
+  // traduz para o aviso - uma vez, nunca uma vez por música.
+  assertUnderStorageCap(current.usage.pinnedBytes + current.usage.evictableBytes);
+
   const includeStems = opts?.includeStems ?? getDownloadSettings().includeStems;
   const wants = wantsFor(song, includeStems);
   if (wants.length === 0) return;
@@ -515,7 +523,20 @@ export const desktopDownloadsSurface: DownloadsSurface = {
       files: pinned.files + evictable.files,
     };
   },
-  download: downloadSong,
+  // Nunca rejeita (paridade com a surface nativa): a recusa do cap (FR-94)
+  // sai pelo canal de avisos, para os `void surface.download(song)` não
+  // produzirem rejeições por tratar.
+  download: async (song, opts) => {
+    try {
+      await downloadSong(song, opts);
+    } catch (error) {
+      if (isStorageCapError(error)) {
+        notifyDownloadNotice(NOTICE_KEYS.storageCapRefused);
+        return;
+      }
+      throw error;
+    }
+  },
   remove: removeDownload,
   evictableBudget: () => session?.budgetBytes ?? null,
   // No waste ratio here: Rust counts the predicted bytes it writes and evicts,

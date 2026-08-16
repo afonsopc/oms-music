@@ -34,6 +34,7 @@ import {
 import { NOTICE_KEYS, notifyDownloadNotice } from "./notices";
 import { isOffline } from "./offlineLibrary";
 import { getMixedStatus } from "./status";
+import { isStorageCapError } from "./storageCap";
 import type { SongKey } from "@/domain/ids";
 import type { Song } from "@/domain/song";
 
@@ -105,7 +106,13 @@ export const downloadSongsSequentially = async (songs: readonly Song[]): Promise
     if (getMixedStatus(normalizeSongKey(song.id)) === "done") continue;
     try {
       await downloadSong(song, { skipWifiGate: true });
-    } catch {
+    } catch (error) {
+      // O cap (FR-94) é global como o gate de WiFi: a próxima música ia
+      // recusar igual, portanto um aviso e fim de loop, nunca N avisos.
+      if (isStorageCapError(error)) {
+        notifyDownloadNotice(NOTICE_KEYS.storageCapRefused);
+        return;
+      }
       notifyDownloadNotice(NOTICE_KEYS.enqueueFailed);
     }
   }
@@ -174,7 +181,10 @@ export const syncOfflineCollection = async (
       if (getMixedStatus(normalizeSongKey(song.id)) === "done") continue;
       try {
         await downloadSong(song, { skipWifiGate: true });
-      } catch {
+      } catch (error) {
+        // O cap é global (FR-94): continuar o loop só martelava a recusa.
+        // Este passo é silencioso por desenho, portanto pára sem aviso.
+        if (isStorageCapError(error)) return;
         // Per-song enqueue failures stay silent here by design.
       }
     }

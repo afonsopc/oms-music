@@ -7,20 +7,29 @@
  *  - "Play here" = transfer to OUR device id (disabled while already active);
  *  - every ONLINE other device as a transfer target, with a check on the
  *    active one and a "needs a tap" hint when it reported activation_blocked;
+ *    rows without a recent heartbeat dim to "seen X min ago" and eventually
+ *    hide (remote/presence.ts - device ids are per-launch, so relaunches
+ *    leave roster ghosts that otherwise look online forever);
  *  - offline recents as disabled rows (display-only: transfer requires an
  *    online registry row).
  *
  * The picker is hidden entirely while `role === "offline"` (logged out, or
  * no snapshot ever received): there is nothing to cast to.
  */
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { useT } from "@/i18n";
 import { AA_LARGE, ON_DARK, preferredOn } from "@/theme/contrast";
 import { EMERALD, RADIUS } from "@/theme/tokens";
 import { useTheme } from "@/theme/provider";
 import { GhostIconButton, Icon, BottomSheet, type IconName } from "@/ui";
-import { remoteTransferTo } from "@/remote/channel";
+import { remoteRequestSnapshot, remoteTransferTo } from "@/remote/channel";
+import {
+  devicePresence,
+  presenceAnchorMs,
+  PRESENCE_TICK_MS,
+  ROSTER_REFRESH_MS,
+} from "@/remote/presence";
 import {
   deviceDisplayLabel,
   remoteStore,
@@ -57,7 +66,9 @@ const DeviceRow = ({
   disabled,
   checked,
   online,
+  dimmed,
   hint,
+  hintMuted,
   first,
 }: {
   label: string;
@@ -65,7 +76,11 @@ const DeviceRow = ({
   disabled?: boolean;
   checked?: boolean;
   online?: boolean;
+  /** Stale presence: esbatida mas ainda tocável (o servidor confirma). */
+  dimmed?: boolean;
   hint?: string | null;
+  /** "seen X min ago" reads muted; the emerald tone stays for live hints. */
+  hintMuted?: boolean;
   first?: boolean;
 }) => {
   const { tokens, ink } = useTheme();
@@ -84,7 +99,7 @@ const DeviceRow = ({
         paddingVertical: 14,
         borderTopWidth: first ? 0 : 1,
         borderTopColor: tokens.border,
-        opacity: disabled ? 0.45 : pressed ? 0.7 : 1,
+        opacity: (disabled ? 0.45 : dimmed ? 0.5 : 1) * (pressed ? 0.7 : 1),
       })}
     >
       <Icon name={DEVICE_ICON} size={20} color={tokens.mutedForeground} />
@@ -93,7 +108,9 @@ const DeviceRow = ({
           {label}
         </Text>
         {hint ? (
-          <Text style={{ color: ink.sync, fontSize: 11 }}>{hint}</Text>
+          <Text style={{ color: hintMuted ? tokens.mutedForeground : ink.sync, fontSize: 11 }}>
+            {hint}
+          </Text>
         ) : null}
       </View>
       {checked ? (
@@ -124,10 +141,36 @@ export const DevicePickerBody = ({ onTransfer }: { onTransfer?: () => void }) =>
   const activeDeviceId = useRemoteStore((s) => s.activeDeviceId);
   const blockedDeviceId = useRemoteStore((s) => s.blockedDeviceId);
   const activeDevice = useRemoteStore(selectActiveDevice);
+  const devicesAt = useRemoteStore((s) => s.devicesAt);
+  const [nowMs, setNowMs] = useState(() => Date.now());
+
+  // Roster hygiene while the picker is actually on screen (sheet open, or
+  // the desktop Devices tenant selected): a fresh snapshot on mount makes
+  // the server reap dead rows, and the tick re-derives the presence ages
+  // below - re-requesting once the roster itself is too old to tell a dead
+  // row from a merely stale frame.
+  useEffect(() => {
+    remoteRequestSnapshot();
+    const timer = setInterval(() => {
+      setNowMs(Date.now());
+      if (Date.now() - remoteStore.getState().devicesAt > ROSTER_REFRESH_MS) {
+        remoteRequestSnapshot();
+      }
+    }, PRESENCE_TICK_MS);
+    return () => clearInterval(timer);
+  }, []);
 
   // Self is matched by id (the wire carries no is_self) and folded into
-  // "Play here" instead of being listed twice.
-  const onlineOthers = devices.filter((d) => d.online && d.id !== yourDeviceId);
+  // "Play here" instead of being listed twice. Rows long without a heartbeat
+  // (per-launch ids leave ghosts behind every relaunch) dim or drop; they
+  // stay tappable while dimmed because the roster may just be old, and a
+  // truly dead row now answers with the transfer_failed toast anyway.
+  const anchorMs = presenceAnchorMs(devices);
+  const rosterAgeMs = devicesAt > 0 ? nowMs - devicesAt : 0;
+  const onlineOthers = devices
+    .filter((d) => d.online && d.id !== yourDeviceId)
+    .map((device) => ({ device, presence: devicePresence(device, anchorMs, rosterAgeMs) }))
+    .filter(({ presence }) => presence.kind !== "gone");
   const recents = devices.filter((d) => !d.online);
 
   const transfer = (deviceId: string): void => {
@@ -160,18 +203,22 @@ export const DevicePickerBody = ({ onTransfer }: { onTransfer?: () => void }) =>
             onPress={() => transfer(yourDeviceId)}
           />
         ) : null}
-        {onlineOthers.map((device) => (
+        {onlineOthers.map(({ device, presence }) => (
           <DeviceRow
             key={device.id}
             label={deviceDisplayLabel(device, fallback)}
             disabled={!ready}
             checked={device.id === activeDeviceId}
-            online
+            online={presence.kind === "fresh"}
+            dimmed={presence.kind === "stale"}
             hint={
-              device.id === blockedDeviceId
-                ? t("components.music.DevicePicker.needsInteraction")
-                : null
+              presence.kind === "stale"
+                ? t("components.music.DevicePicker.lastSeen", { minutes: presence.minutes })
+                : device.id === blockedDeviceId
+                  ? t("components.music.DevicePicker.needsInteraction")
+                  : null
             }
+            hintMuted={presence.kind === "stale"}
             onPress={() => transfer(device.id)}
           />
         ))}

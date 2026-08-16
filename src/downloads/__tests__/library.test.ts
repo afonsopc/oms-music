@@ -6,15 +6,17 @@
 import { describe, expect, it } from "bun:test";
 import {
   applyPageWindow,
+  deriveCollectionIdentity,
   deriveOfflineAlbums,
   deriveOfflineArtists,
+  deriveOfflineCollections,
   filterOfflineSongs,
   matchesArtistIdentity,
   parsePageModifier,
   searchOfflineArtists,
   sortAlbumSongs,
 } from "../library";
-import type { SongId } from "@/domain/ids";
+import type { SongId, SongKey } from "@/domain/ids";
 import type { Song, SongArtistEntry } from "@/domain/song";
 
 const entry = (
@@ -189,5 +191,67 @@ describe("sortAlbumSongs", () => {
   it("orders by track position, nulls last", () => {
     const ordered = sortAlbumSongs(library());
     expect(ordered.map((s) => s.id)).toEqual([2, 1, 3]);
+  });
+});
+
+describe("offline collection identity (handoff 2026-08-18)", () => {
+  const stored = new Map<SongKey, Song>(
+    library().map((s) => ["" + s.id, s] as [SongKey, Song]),
+  );
+  const membership = new Map<string, SongKey[]>([
+    ["album:carlos-paiao:singles", ["2" as SongKey, "1" as SongKey]],
+    ["artist:carlos-paiao", ["1" as SongKey, "2" as SongKey]],
+    ["42", ["1" as SongKey]], // playlist: ignorada aqui, tem tabela própria
+  ]);
+  const collect = (keys: Iterable<string>) =>
+    deriveOfflineCollections(
+      keys,
+      (key) => membership.get(key) ?? [],
+      (songKey) => stored.get(songKey) ?? null,
+    );
+
+  it("derives the album's true casing, lead artist and artwork from a pinned song", () => {
+    const identity = deriveCollectionIdentity(
+      "album:carlos-paiao:singles",
+      [stored.get("2" as SongKey)!],
+      2,
+    );
+    expect(identity).toEqual({
+      key: "album:carlos-paiao:singles",
+      kind: "album",
+      name: "Singles",
+      subtitle: "Carlos Paião",
+      artworkMediaId: "cart-2",
+      songCount: 2,
+    });
+  });
+
+  it("derives the artist's name and image from the matching artist entry", () => {
+    const identity = deriveCollectionIdentity(
+      "artist:carlos-paiao",
+      [stored.get("1" as SongKey)!],
+      2,
+    );
+    expect(identity?.kind).toBe("artist");
+    expect(identity?.name).toBe("Carlos Paião");
+    expect(identity?.subtitle).toBeNull();
+  });
+
+  it("lists album and artist collections, skips playlist keys, sorts by name", () => {
+    const rows = collect(membership.keys());
+    expect(rows.map((r) => r.key)).toEqual([
+      "artist:carlos-paiao",
+      "album:carlos-paiao:singles",
+    ]);
+    expect(rows.every((r) => r.songCount === 2)).toBe(true);
+  });
+
+  it("answers nothing for a collection whose songs are not stored (no nameless rows)", () => {
+    const rows = deriveOfflineCollections(
+      ["album:carlos-paiao:singles"],
+      () => ["9" as SongKey],
+      () => null,
+    );
+    expect(rows).toEqual([]);
   });
 });

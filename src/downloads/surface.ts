@@ -40,6 +40,26 @@ export interface InFlightRow {
   progress: number;
 }
 
+/**
+ * Um álbum/artista mantido offline, como a overview o lista (handoff
+ * 2026-08-18: as playlists já apareciam por nome; estes não). A identidade é
+ * DERIVADA dos Songs pinados + da membership persistida (schema v4) em vez de
+ * ganhar uma tabela própria: ao contrário do nome de uma playlist, o nome de
+ * um álbum (song.album) e o de um artista (song.artists) viajam dentro de
+ * cada Song que a colecção já persiste, portanto uma tabela nova só
+ * duplicaria dados e exigiria mexer no DDL congelado.
+ */
+export interface OfflineCollectionSummary {
+  /** A chave da colecção ("album:<slug>:<album>" | "artist:<slug>"). */
+  key: string;
+  kind: "album" | "artist";
+  name: string;
+  /** Álbum: o artista principal; artistas não têm segunda linha própria. */
+  subtitle: string | null;
+  artworkMediaId: string | null;
+  songCount: number;
+}
+
 /** A downloaded playlist as the overview lists it (name + cover + count). */
 export interface OfflinePlaylistSummary {
   id: number;
@@ -59,6 +79,12 @@ export interface DownloadsSurface {
   available(): boolean;
   listDownloadedSongs(): Song[];
   downloadedPlaylists(): OfflinePlaylistSummary[];
+  /**
+   * Colecções de álbum/artista mantidas offline. OPCIONAL como os controlos
+   * do tier preditivo: uma plataforma sem colecções (a tab de browser) não
+   * implementa nada e a overview simplesmente não desenha a secção.
+   */
+  downloadedCollections?(): OfflineCollectionSummary[];
   listInFlight(): InFlightRow[];
   /** Bytes the user explicitly downloaded: never evicted, never TTL-purged. */
   pinnedUsage(): UsageTotals;

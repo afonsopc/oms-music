@@ -24,7 +24,11 @@ import { toSongId, toSongKey } from "@/domain/ids";
 import type { Playlist } from "@/domain/playlist";
 import type { Song } from "@/domain/song";
 import { albumGroups, extractSongs } from "../autoSync";
+import { deriveOfflineCollections } from "../library";
+import { NOTICE_KEYS, notifyDownloadNotice } from "../notices";
 import { isOffline } from "../offlineLibrary";
+import { isStorageCapError } from "../storageCap";
+import type { OfflineCollectionSummary } from "../surface";
 import {
   cacheCollectionsAdd,
   cacheCollectionsList,
@@ -37,6 +41,7 @@ import {
 import {
   downloadSong,
   getStatusFor,
+  getStoredSong,
   isDesktopCacheOpen,
   removeDownload,
 } from "./manager";
@@ -64,6 +69,18 @@ export const isOfflineCollection = (key: string): boolean => collections.has(key
 
 export const collectionSongKeys = (key: string): readonly SongKey[] =>
   membership.get(key) ?? [];
+
+/**
+ * Álbuns/artistas offline por nome para a overview (handoff 2026-08-18): a
+ * mesma derivação pura do nativo, sobre os espelhos em memória (o set de
+ * chaves, a membership hidratada do Rust e os Songs pinados do manager).
+ */
+export const desktopDownloadedCollections = (): OfflineCollectionSummary[] =>
+  deriveOfflineCollections(
+    collections,
+    (key) => membership.get(key) ?? [],
+    (songKey) => getStoredSong(songKey),
+  );
 
 const normalizeSongKey = (id: number | string): SongKey =>
   typeof id === "number" ? toSongKey(id) : toSongKey(toSongId(id));
@@ -122,7 +139,18 @@ const downloadSequentially = async (songs: readonly Song[]): Promise<void> => {
     // claimed to have downloaded it. Rust dedups the bytes itself, so the
     // call costs a row write and nothing more.
     if (getStatusFor(song.id) === "done") continue;
-    await downloadSong(song);
+    try {
+      await downloadSong(song);
+    } catch (error) {
+      // O cap (FR-94) é global: a próxima música recusava igual, portanto um
+      // aviso e fim de loop - o equivalente desktop da recusa de WiFi nativa.
+      if (isStorageCapError(error)) {
+        notifyDownloadNotice(NOTICE_KEYS.storageCapRefused);
+        return;
+      }
+      // Restantes falhas por música ficam silenciosas, como sempre foram
+      // neste ficheiro: um erro aqui custa um stream, nunca um ecrã partido.
+    }
   }
 };
 

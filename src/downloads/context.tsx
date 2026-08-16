@@ -33,6 +33,7 @@ import {
 import { NOTICE_KEYS, notifyDownloadNotice } from "./notices";
 import { getDownloadSettings, updateDownloadSettings, useDownloadSettings } from "./settings";
 import { subscribeDownloadStatus } from "./status";
+import { isStorageCapError } from "./storageCap";
 
 /** The frozen API (DESIGN 9.3). */
 export interface DownloadStatusApi {
@@ -54,7 +55,11 @@ const download = async (song: Song): Promise<void> => {
     await downloadSong(song);
   } catch (error) {
     notifyDownloadNotice(
-      isWifiRefusedError(error) ? NOTICE_KEYS.wifiRefused : NOTICE_KEYS.enqueueFailed,
+      isWifiRefusedError(error)
+        ? NOTICE_KEYS.wifiRefused
+        : isStorageCapError(error)
+          ? NOTICE_KEYS.storageCapRefused
+          : NOTICE_KEYS.enqueueFailed,
     );
   }
 };

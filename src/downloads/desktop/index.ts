@@ -50,6 +50,7 @@ import { subscribeDownloadProgress, subscribeDownloadStatus } from "../status";
 import { getDownloadsSurface, setDownloadsSurface } from "../surface";
 import { cacheSubscribe } from "./bridge";
 import {
+  desktopDownloadedCollections,
   hydrateDesktopCollections,
   isOfflineCollection,
   startDesktopCollectionAutoSync,
@@ -250,7 +251,12 @@ export const registerDesktopDownloads = (): void => {
     subscribeProgress: subscribeDownloadProgress,
   });
 
-  setDownloadsSurface(desktopDownloadsSurface);
+  // A leitura das colecções vive em collections.ts (que já importa o manager,
+  // dono da surface) - compor aqui é o que evita um ciclo manager<->collections.
+  setDownloadsSurface({
+    ...desktopDownloadsSurface,
+    downloadedCollections: desktopDownloadedCollections,
+  });
 
   // DownloadStatusProvider is registered for provider-order parity with
   // native (it is the outermost shell provider, DESIGN 2) and so the dev seam

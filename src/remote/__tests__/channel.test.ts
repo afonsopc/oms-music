@@ -291,6 +291,35 @@ describe("transfer (FR-111 owner report 2026-08-16)", () => {
   });
 });
 
+describe("activation_blocked notices (handoff 2026-08-17 §5.2)", () => {
+  it("announces the OTHER device that needs a tap, and stays silent on its own echo", () => {
+    const { cable, notices } = start();
+    cable.push(snapshotFrame({ active_device_id: OTHER }));
+    cable.push({ type: "activation_blocked", device_id: OTHER });
+    expect(notices).toEqual(["device_needs_tap"]);
+    expect(remoteStore.getState().blockedDeviceId).toBe(OTHER);
+
+    // A frame naming SELF is the echo of this device's own perform: the
+    // local warning already came from the activation watchdog, so the echo
+    // must not toast a second time.
+    cable.push({ type: "activation_blocked", device_id: ME });
+    expect(notices).toEqual(["device_needs_tap"]);
+  });
+});
+
+describe("roster receipt time (presence aging input)", () => {
+  it("stamps devicesAt when a frame carries a roster and leaves it alone otherwise", () => {
+    const { cable } = start();
+    expect(remoteStore.getState().devicesAt).toBe(0);
+    cable.push(snapshotFrame());
+    const stamped = remoteStore.getState().devicesAt;
+    expect(stamped).toBeGreaterThan(0);
+    // Roster-less frames must not make a stale roster look fresh.
+    cable.push({ type: "state_changed", active_device_id: OTHER, state: wireSnapshot() });
+    expect(remoteStore.getState().devicesAt).toBe(stamped);
+  });
+});
+
 describe("command routing (FR-109 executor)", () => {
   it("executes only commands targeted at this device", () => {
     const { cable, engine } = start();

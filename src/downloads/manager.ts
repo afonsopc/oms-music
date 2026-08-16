@@ -41,6 +41,7 @@ import {
   walkDirectoryBytes,
 } from "./paths";
 import { getDownloadSettings } from "./settings";
+import { assertUnderStorageCap } from "./storageCap";
 import {
   clearKindStatus,
   clearSongStatuses,
@@ -772,6 +773,12 @@ export const downloadSong = async (song: Song, opts?: DownloadOpts): Promise<voi
 
   const mixedNode = song.compressed_audio_media_id || song.audio_media_id;
   if (!mixedNode) return; // Nothing downloadable.
+
+  // Storage cap (FR-94): total local >= quota de música da conta -> recusa
+  // com explicação, nunca um enfileiramento silencioso. Antes do gate WiFi
+  // porque a recusa mais específica é a que o utilizador consegue resolver.
+  // sumDoneFileBytes é um SUM em SQL (invariante I2), nunca um walk do disco.
+  assertUnderStorageCap(storageUsageFast().bytes);
 
   if (!opts?.skipWifiGate) await wifiGate();
   if (session.closed) return;

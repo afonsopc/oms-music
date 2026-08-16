@@ -8,10 +8,13 @@
  * offline album row navigates to the same screen an online one does.
  */
 import type { AlbumSummary } from "@/domain/album";
+import { isAlbumKey, isArtistKey } from "@/domain/albumKey";
 import type { Artist } from "@/domain/artist";
 import type { ListModifiers } from "@/domain/api";
 import { primaryArtists } from "@/domain/format";
+import type { SongKey } from "@/domain/ids";
 import type { Song, SongArtistEntry } from "@/domain/song";
+import type { OfflineCollectionSummary } from "./surface";
 
 /** Accent- and case-insensitive comparison text (matches domain/rank). */
 const normalize = (value: string): string =>
@@ -203,6 +206,78 @@ export const deriveOfflineArtists = (songs: Song[]): Artist[] => {
   return [...map.values()]
     .map((artist) => ({ ...artist, songs_count: counts.get(artist.slug) ?? 0 }))
     .sort((a, b) => a.name.localeCompare(b.name));
+};
+
+/**
+ * A identidade de UMA colecção offline de álbum/artista, lida dos Songs que a
+ * membership persistida aponta (handoff 2026-08-18). A chave só guarda partes
+ * minúsculas ("album:<slug>:<album>" / "artist:<slug>"); a capitalização
+ * verdadeira, a arte e o nome do artista vêm do primeiro Song pinado que
+ * souber responder. Sem nenhum Song legível não há nada digno de desenhar e a
+ * resposta é null - uma linha sem nome seria pior do que linha nenhuma.
+ */
+export const deriveCollectionIdentity = (
+  key: string,
+  songs: readonly Song[],
+  songCount: number,
+): OfflineCollectionSummary | null => {
+  if (isAlbumKey(key)) {
+    const first = songs.find((s) => s.album != null) ?? songs[0] ?? null;
+    if (!first?.album) return null;
+    const primary = primaryArtists(first)[0] ?? null;
+    return {
+      key,
+      kind: "album",
+      name: first.album,
+      subtitle: primary?.name ?? null,
+      artworkMediaId: first.compressed_artwork_media_id ?? first.artwork_media_id ?? null,
+      songCount,
+    };
+  }
+  if (isArtistKey(key)) {
+    const slug = key.slice("artist:".length);
+    let entry: SongArtistEntry | null = null;
+    for (const song of songs) {
+      entry = (song.artists ?? []).find((a) => a.slug.toLowerCase() === slug) ?? null;
+      if (entry) break;
+    }
+    if (!entry) return null;
+    return {
+      key,
+      kind: "artist",
+      name: entry.name,
+      subtitle: null,
+      artworkMediaId: entry.compressed_image_media_id ?? entry.image_media_id ?? null,
+      songCount,
+    };
+  }
+  return null;
+};
+
+/**
+ * As colecções de álbum/artista da overview, derivadas com os lookups da
+ * plataforma (nativo: dl_songs + offline_collection_songs; desktop: os
+ * espelhos em memória do índice Rust). Chaves de playlist são ignoradas -
+ * essas têm a sua própria tabela de identidade (schema v2).
+ */
+export const deriveOfflineCollections = (
+  keys: Iterable<string>,
+  songKeysFor: (key: string) => readonly SongKey[],
+  songFor: (songKey: SongKey) => Song | null,
+): OfflineCollectionSummary[] => {
+  const out: OfflineCollectionSummary[] = [];
+  for (const key of keys) {
+    if (!isAlbumKey(key) && !isArtistKey(key)) continue;
+    const songKeys = songKeysFor(key);
+    const songs: Song[] = [];
+    for (const songKey of songKeys) {
+      const song = songFor(songKey);
+      if (song) songs.push(song);
+    }
+    const identity = deriveCollectionIdentity(key, songs, songKeys.length);
+    if (identity) out.push(identity);
+  }
+  return out.sort((a, b) => a.name.localeCompare(b.name));
 };
 
 /** True when the string identifies exactly this artist (detail lookup). */

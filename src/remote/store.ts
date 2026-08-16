@@ -27,6 +27,13 @@ export interface RemoteStoreState {
   yourDeviceId: string | null;
   activeDeviceId: string | null;
   devices: PlaybackDevice[];
+  /**
+   * Client receipt time (ms) of the last frame that carried a roster; 0
+   * before the first one. Presence aging (remote/presence.ts) needs it
+   * because `last_seen_at` is server time and only fresh relative to the
+   * frame it arrived in.
+   */
+  devicesAt: number;
   /** Always MERGED: slim state_changed frames get the last full queue_songs. */
   snapshot: PlaybackSnapshot | null;
   /** Interpolated display position while controlling (FR-109). */
@@ -47,6 +54,7 @@ export const initialRemoteState: RemoteStoreState = {
   yourDeviceId: null,
   activeDeviceId: null,
   devices: [],
+  devicesAt: 0,
   snapshot: null,
   controllerPosition: 0,
   controllerPaused: true,

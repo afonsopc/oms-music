@@ -36,4 +36,6 @@ export const notifyDownloadNotice = (messageKey: string): void => {
 export const NOTICE_KEYS = {
   wifiRefused: "native.downloads.noWifiRefused",
   enqueueFailed: "native.downloads.enqueueFailed",
+  /** FR-94: o total local excede a quota de música da conta. */
+  storageCapRefused: "native.downloads.storageCapRefused",
 } as const;

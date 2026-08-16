@@ -160,6 +160,14 @@ export default function DownloadsOverviewScreen() {
   );
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const playlists = useMemo(() => getDownloadsSurface().downloadedPlaylists(), [version]);
+  // Álbuns e artistas mantidos offline, por nome (handoff 2026-08-18): a
+  // identidade é derivada dos Songs pinados, portanto a lista acompanha o
+  // mesmo contador de versão que já refresca as músicas.
+  const collections = useMemo(
+    () => getDownloadsSurface().downloadedCollections?.() ?? [],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [version],
+  );
   // The evictable tier: the play cache and the predictive tier are the SAME
   // orphan rows (no stored-song row), which is the whole point of the design -
   // one cache with two admission reasons, not two caches.
@@ -350,6 +358,14 @@ export default function DownloadsOverviewScreen() {
                 limit: formatBytes(serverStorage.limit_bytes),
               })}
             </Text>
+            {/* Storage cap FR-94: quando o total local já excede a quota, os
+                enfileiramentos novos são recusados (manager) - e este é o
+                sítio onde esse estado se explica em vez de só recusar. */}
+            {serverStorage.limit_bytes > 0 && usage.bytes >= serverStorage.limit_bytes ? (
+              <Text style={{ color: tokens.destructive, fontSize: 12, marginTop: 2 }}>
+                {t("native.downloadsOverview.storageCapExceeded")}
+              </Text>
+            ) : null}
           </View>
         </View>
       ) : null}
@@ -435,6 +451,49 @@ export default function DownloadsOverviewScreen() {
           ))
         )}
       </View>
+
+      {/* Álbuns e artistas offline (handoff 2026-08-18). Sem estado vazio
+          próprio: ao contrário das playlists (que têm o seu toggle em todo o
+          lado), esta secção só existe quando há alguma coisa para listar. */}
+      {collections.length > 0 ? (
+        <View style={{ gap: 8 }}>
+          <Text style={{ color: tokens.foreground, fontSize: 15, fontWeight: "700" }}>
+            {t("native.downloadsOverview.offlineAlbumsArtists")}
+          </Text>
+          {collections.map((row) => (
+            <View
+              key={row.key}
+              style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 4 }}
+            >
+              <ArtworkImage
+                source={
+                  row.artworkMediaId
+                    ? { kind: "node", nodeId: row.artworkMediaId }
+                    : { kind: "placeholder" }
+                }
+                size={40}
+              />
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text
+                  style={{ color: tokens.foreground, fontSize: 14, fontWeight: "500" }}
+                  numberOfLines={1}
+                >
+                  {row.name}
+                </Text>
+                <Text
+                  style={{ color: tokens.mutedForeground, fontSize: 12 }}
+                  numberOfLines={1}
+                >
+                  {row.kind === "album" && row.subtitle
+                    ? row.subtitle
+                    : t("native.downloads.songCount", { count: row.songCount })}
+                </Text>
+              </View>
+              <Icon name="cloud-check" size={18} color={tokens.primary} />
+            </View>
+          ))}
+        </View>
+      ) : null}
     </ScrollView>
   );
 }

@@ -43,18 +43,22 @@ import {
 import { DownloadStatusProvider, downloadsApi } from "./context";
 import { registerDesktopDownloads } from "./desktop";
 import { getPlayerEngine } from "@/player/register";
+import { deriveOfflineCollections } from "./library";
 import {
   cachePlayback,
+  collectionSongKeys,
   currentUserId,
   downloadSong,
   downloadedPlaylists,
   evictableUsage,
   getProgressFor,
   getStatusFor,
+  getStoredSong,
   isStarted,
   isWifiRefusedError,
   listDownloadedSongs,
   listInFlight,
+  listOfflineCollections,
   localArtworkUriForNode,
   localUriFor,
   predictiveWaste,
@@ -74,6 +78,7 @@ import {
 } from "./offlineLibrary";
 import { runRepairPass } from "./repair";
 import { getDownloadSettings, subscribeDownloadSettings } from "./settings";
+import { isStorageCapError } from "./storageCap";
 import {
   getProgressVersion,
   getStatusVersion,
@@ -165,6 +170,14 @@ const nativeDownloadsSurface: DownloadsSurface = {
       songCount: row.song_count,
       sourceExternalId: row.source_external_id,
     })),
+  // Álbuns/artistas offline por nome (handoff 2026-08-18): identidade
+  // derivada da membership persistida + dl_songs, nunca uma tabela nova.
+  downloadedCollections: () =>
+    deriveOfflineCollections(
+      listOfflineCollections(),
+      collectionSongKeys,
+      (songKey) => getStoredSong(songKey)?.song ?? null,
+    ),
   listInFlight,
   pinnedUsage: () => {
     const total = storageUsageFast();
@@ -197,7 +210,11 @@ const nativeDownloadsSurface: DownloadsSurface = {
       await downloadSong(song, opts);
     } catch (error) {
       notifyDownloadNotice(
-        isWifiRefusedError(error) ? NOTICE_KEYS.wifiRefused : NOTICE_KEYS.enqueueFailed,
+        isWifiRefusedError(error)
+          ? NOTICE_KEYS.wifiRefused
+          : isStorageCapError(error)
+            ? NOTICE_KEYS.storageCapRefused
+            : NOTICE_KEYS.enqueueFailed,
       );
     }
   },

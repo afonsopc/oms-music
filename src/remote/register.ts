@@ -74,6 +74,11 @@ const emitNotice = (notice: RemoteNotice): void => {
     noticeHandler({ key: "components.music.RemotePlayback.transferFailed" });
     return;
   }
+  if (notice.kind === "you_need_tap") {
+    // Este dispositivo é o bloqueado: sem nome, a cópia diz "carrega em play".
+    noticeHandler({ key: "components.music.RemotePlayback.youNeedTap" });
+    return;
+  }
   noticeHandler({
     key: "components.music.RemotePlayback.deviceNeedsTap",
     params: { device: notice.deviceLabel },

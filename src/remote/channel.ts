@@ -68,7 +68,14 @@ export type RemoteNotice =
    * (owner report 2026-08-16, point 6): the tap had no acknowledgement
    * channel at all, so a refusal and a success were indistinguishable.
    */
-  | { kind: "transfer_failed" };
+  | { kind: "transfer_failed" }
+  /**
+   * ESTE dispositivo é o que precisa do toque para arrancar o áudio. O
+   * broadcast `activation_blocked` avisa toda a gente MENOS o próprio (o eco
+   * é saltado em onActivationBlocked), portanto o único aviso possível nasce
+   * localmente, no watchdog de activação (handoff 2026-08-17 §5.2).
+   */
+  | { kind: "you_need_tap" };
 
 export interface PlaybackChannelDeps {
   cable: CableClient;
@@ -312,9 +319,8 @@ export class PlaybackChannelManager {
     const prev = remoteStore.getState();
     const yours = asDeviceId(msg.your_device_id) ?? prev.yourDeviceId;
     const active = asDeviceId(msg.active_device_id);
-    const devices = Array.isArray(msg.devices)
-      ? (msg.devices as PlaybackDevice[])
-      : prev.devices;
+    const hasRoster = Array.isArray(msg.devices);
+    const devices = hasRoster ? (msg.devices as PlaybackDevice[]) : prev.devices;
     const state = asRecord(msg.state) as PlaybackSnapshot | null;
 
     let snapshot = prev.snapshot;
@@ -328,6 +334,8 @@ export class PlaybackChannelManager {
       yourDeviceId: yours,
       activeDeviceId: active,
       devices,
+      // Presence aging measures roster freshness from the frame's arrival.
+      ...(hasRoster ? { devicesAt: this.now() } : {}),
       snapshot,
       ...(state
         ? {
@@ -408,7 +416,9 @@ export class PlaybackChannelManager {
   private onDevicesChanged(msg: Record<string, unknown>): void {
     this.transferPending = false;
     applyRemote({
-      ...(Array.isArray(msg.devices) ? { devices: msg.devices as PlaybackDevice[] } : {}),
+      ...(Array.isArray(msg.devices)
+        ? { devices: msg.devices as PlaybackDevice[], devicesAt: this.now() }
+        : {}),
       // A devices_changed that carries only the ROSTER and omits the active
       // id must not read as "nobody is active": taken literally it demoted
       // every device to no_active, and the re-promotion that followed
@@ -443,6 +453,9 @@ export class PlaybackChannelManager {
     const blockedDeviceId = asDeviceId(msg.device_id);
     applyRemote({ blockedDeviceId });
     const state = remoteStore.getState();
+    // O caso próprio é o eco do nosso perform("activation_blocked"): o aviso
+    // local já saiu do watchdog no momento em que `blocked` se ligou, por
+    // isso o eco fica silencioso em vez de duplicar o toast.
     if (!blockedDeviceId || blockedDeviceId === state.yourDeviceId) return;
     const device = state.devices.find((d) => d.id === blockedDeviceId) ?? null;
     this.deps.notify?.({
@@ -588,6 +601,11 @@ export class PlaybackChannelManager {
       // keep publishes suppressed (no phantom paused:true).
       applyRemote({ activating: false, blocked: true, blockedDeviceId: state.yourDeviceId });
       this.perform("activation_blocked");
+      // O broadcast que este perform provoca avisa todos os OUTROS; o próprio
+      // - o único que pode resolver, com um toque em play - descobria-o
+      // apenas abrindo o picker (handoff 2026-08-17 §5.2). O aviso local
+      // nasce aqui, no único sítio onde `blocked` se liga.
+      this.deps.notify?.({ kind: "you_need_tap" });
     }, ACTIVATION_TIMEOUT_MS);
   }
 
