@@ -22,8 +22,9 @@
  * Web-only by construction: only DesktopShell.web.tsx imports this file.
  */
 import React, { useState } from "react";
-import { Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { useRouter } from "expo-router";
+import { songArtistRoute, songHighlightRoute } from "@/lib/routes";
 import { useLikedIds, useToggleLike } from "@/api/queries/likedSongs";
 import { getTransport } from "@/contracts/transport";
 import { songArtworkSource } from "@/domain/artwork";
@@ -180,16 +181,31 @@ export const DesktopTransportBar = ({
       >
         {song ? (
           <>
-            <ArtworkImage
-              source={songArtworkSource(song)}
-              songId={song.id}
-              size={48}
-              recyclingKey={String(song.id)}
-            />
+            {/* Artwork e titulo abrem o album JA COM a musica destacada
+                (songHighlightRoute, o hash do FR-44); o artista abre o
+                perfil dele - o idioma do Spotify, pedido do dono
+                (2026-08-17). Sao Pressable/onPress e nao links para
+                continuarem a viver dentro da linha da grelha. */}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t("components.music.SongCard.openAlbum")}
+              onPress={() => router.push(songHighlightRoute(song))}
+              style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
+            >
+              <ArtworkImage
+                source={songArtworkSource(song)}
+                songId={song.id}
+                size={48}
+                recyclingKey={String(song.id)}
+              />
+            </Pressable>
             <View style={{ flexShrink: 1, minWidth: 0 }}>
               <Text
                 style={{ color: tokens.foreground, fontSize: 13, fontWeight: "600" }}
                 numberOfLines={1}
+                accessibilityRole="button"
+                accessibilityLabel={t("components.music.SongCard.openAlbum")}
+                onPress={() => router.push(songHighlightRoute(song))}
               >
                 {song.title}
               </Text>
@@ -197,6 +213,9 @@ export const DesktopTransportBar = ({
                 <Text
                   style={{ color: tokens.mutedForeground, fontSize: 12, marginTop: 1 }}
                   numberOfLines={1}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("components.music.SongCard.openArtist")}
+                  onPress={() => router.push(songArtistRoute(song))}
                 >
                   {artistsLine}
                 </Text>
