@@ -43,6 +43,18 @@ import { ArtistGallery } from "./ArtistGallery";
 import { htmlToParagraphs } from "./bioHtml";
 import { hasOwnArtistImage, heroAvatarSource, heroBackdropUri } from "./images";
 
+/**
+ * The page's left edge, shared by every section, and equal to the one the
+ * Hero, the ActionBar and the StickyTitle already use.
+ *
+ * They did not agree before: hero/actionbar/sticky sat at 24 while the
+ * section titles, the bio and the album grid sat at 20, so the whole page
+ * stepped in by 4px halfway down and never lined up again. That misalignment
+ * is a good part of what the owner called a "hard" page on 2026-08-16
+ * (point 15) - nothing on screen is wrong, but no two things share an edge.
+ */
+const SECTION_PADDING = 24;
+
 const Section = ({ title, children }: { title: string; children: React.ReactNode }) => {
   const { tokens } = useTheme();
   return (
@@ -53,7 +65,7 @@ const Section = ({ title, children }: { title: string; children: React.ReactNode
           fontSize: 24,
           fontWeight: "700",
           letterSpacing: -0.4,
-          paddingHorizontal: 20,
+          paddingHorizontal: SECTION_PADDING,
         }}
       >
         {title}
@@ -171,7 +183,7 @@ export default function ArtistScreen() {
     return (
       <View style={{ flex: 1, backgroundColor: tokens.background }}>
         <HeroSkeleton artist />
-        <View style={{ paddingHorizontal: 20, gap: 12 }}>
+        <View style={{ paddingHorizontal: SECTION_PADDING, gap: 12 }}>
           <Skeleton width="40%" height={28} />
           <Skeleton width="70%" height={16} />
         </View>
@@ -286,7 +298,7 @@ export default function ArtistScreen() {
 
         {bioParagraphs.length > 0 || galleryUrls.length > 0 ? (
           <Section title={t("components.music.ArtistView.about")}>
-            <View style={{ paddingHorizontal: 20, gap: 12 }}>
+            <View style={{ paddingHorizontal: SECTION_PADDING, gap: 12 }}>
               {galleryUrls.length > 0 ? <ArtistGallery urls={galleryUrls} /> : null}
               {bioParagraphs.map((paragraph, index) => (
                 <Text

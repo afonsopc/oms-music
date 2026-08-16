@@ -24,7 +24,7 @@ import type { Jam } from "@/domain/jam";
 import { useContentBottomPadding, useContentTopPadding } from "@/features/shell/metrics";
 import { useT } from "@/i18n";
 import { jamCreate, jamEnd, jamInvite, jamJoin, jamLeave, jamUpdateRules } from "@/jam/channel";
-import { selectIsHost, useJamStore } from "@/jam/store";
+import { jamStore, selectIsHost, useJamStore } from "@/jam/store";
 import { artistNamesLine } from "@/social/display";
 import { useTheme } from "@/theme/provider";
 import { RADIUS } from "@/theme/tokens";
@@ -261,7 +261,12 @@ export default function JamScreen({ embedded = false }: { embedded?: boolean } =
 
   // The joinable list is only fetched while we are NOT already in a jam.
   const jamsQuery = useJams(!jam);
-  const relationships = useRelationships(!!jam);
+  // Friends are fetched EITHER WAY. Gating this on `!!jam` meant the invite
+  // list only existed once a jam did, so the jam view inside the player -
+  // which is where you are when the thought "let me get someone in on this"
+  // occurs - showed a description and a button and no people at all (owner
+  // report 2026-08-16, point 19).
+  const relationships = useRelationships();
 
   const friends = useMemo(
     () => (myId ? acceptedFriends(relationships.data ?? [], myId) : []),
@@ -279,6 +284,72 @@ export default function JamScreen({ embedded = false }: { embedded?: boolean } =
       setBusy(false);
     }
   };
+
+  /**
+   * Inviting someone IMPLIES starting the jam. Before, the invite list only
+   * existed once a jam did, so wanting to listen with a friend meant reading
+   * a paragraph, pressing "Começar jam", and only then meeting the people -
+   * two steps for one intention. The jam is created on demand and the invite
+   * follows it; an existing jam skips straight to the invite.
+   */
+  const inviteFriend = (friendId: UserId): void => {
+    void run(async () => {
+      if (!jamStore.getState().jam && !(await jamCreate())) return;
+      if (await jamInvite(friendId)) setInvited((prev) => [...prev, friendId]);
+    });
+  };
+
+  const inviteList = (
+    <View style={{ gap: 10 }}>
+      <Text style={{ color: tokens.mutedForeground, fontSize: 13, fontWeight: "600" }}>
+        {t(`${PANEL}.inviteFriends`)}
+      </Text>
+      {invitable.length === 0 ? (
+        <Text style={{ color: tokens.mutedForeground, fontSize: 12 }}>
+          {t("native.jam.noFriends")}
+        </Text>
+      ) : (
+        invitable.map((friend) => {
+          const sent = invited.includes(friend.id);
+          return (
+            <PersonRow
+              key={friend.id}
+              userId={friend.id}
+              name={friend.name || friend.handle}
+              trailing={
+                <Pressable
+                  accessibilityRole="button"
+                  disabled={sent || busy}
+                  onPress={() => inviteFriend(friend.id)}
+                  style={({ pressed }) => ({
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 4,
+                    paddingHorizontal: 10,
+                    paddingVertical: 6,
+                    borderRadius: RADIUS,
+                    backgroundColor: tokens.secondary,
+                    opacity: sent ? 0.5 : pressed ? 0.8 : 1,
+                  })}
+                >
+                  <Icon name="plus" size={12} color={tokens.secondaryForeground} />
+                  <Text
+                    style={{
+                      color: tokens.secondaryForeground,
+                      fontSize: 12,
+                      fontWeight: "600",
+                    }}
+                  >
+                    {t(sent ? `${PANEL}.invited` : `${PANEL}.invite`)}
+                  </Text>
+                </Pressable>
+              }
+            />
+          );
+        })
+      )}
+    </View>
+  );
 
   return (
     <ScrollView
@@ -299,6 +370,8 @@ export default function JamScreen({ embedded = false }: { embedded?: boolean } =
             disabled={busy}
             onPress={() => void run(() => jamCreate())}
           />
+          {/* The people, before the jam exists: inviting one starts it. */}
+          {inviteList}
           {joinable.length > 0 ? (
             <View style={{ gap: 8 }}>
               <Text style={{ color: tokens.mutedForeground, fontSize: 13, fontWeight: "600" }}>
@@ -429,59 +502,7 @@ export default function JamScreen({ embedded = false }: { embedded?: boolean } =
             ))}
           </View>
 
-          <View style={{ gap: 10 }}>
-            <Text style={{ color: tokens.mutedForeground, fontSize: 13, fontWeight: "600" }}>
-              {t(`${PANEL}.inviteFriends`)}
-            </Text>
-            {invitable.length === 0 ? (
-              <Text style={{ color: tokens.mutedForeground, fontSize: 12 }}>
-                {t("native.jam.noFriends")}
-              </Text>
-            ) : (
-              invitable.map((friend) => {
-                const sent = invited.includes(friend.id);
-                return (
-                  <PersonRow
-                    key={friend.id}
-                    userId={friend.id}
-                    name={friend.name || friend.handle}
-                    trailing={
-                      <Pressable
-                        accessibilityRole="button"
-                        disabled={sent}
-                        onPress={() => {
-                          void jamInvite(friend.id).then((ok) => {
-                            if (ok) setInvited((prev) => [...prev, friend.id]);
-                          });
-                        }}
-                        style={({ pressed }) => ({
-                          flexDirection: "row",
-                          alignItems: "center",
-                          gap: 4,
-                          paddingHorizontal: 10,
-                          paddingVertical: 6,
-                          borderRadius: RADIUS,
-                          backgroundColor: tokens.secondary,
-                          opacity: sent ? 0.5 : pressed ? 0.8 : 1,
-                        })}
-                      >
-                        <Icon name="plus" size={12} color={tokens.secondaryForeground} />
-                        <Text
-                          style={{
-                            color: tokens.secondaryForeground,
-                            fontSize: 12,
-                            fontWeight: "600",
-                          }}
-                        >
-                          {t(sent ? `${PANEL}.invited` : `${PANEL}.invite`)}
-                        </Text>
-                      </Pressable>
-                    }
-                  />
-                );
-              })
-            )}
-          </View>
+          {inviteList}
 
           <PrimaryButton
             destructive

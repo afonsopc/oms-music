@@ -15,7 +15,10 @@ import { albumRoute } from "@/lib/routes";
 import { collectionGridColumns, Tile, useContainerWidth } from "@/ui";
 
 const GUTTER = 8;
-const HORIZONTAL_PADDING = 40;
+/** Both edges together; half lands on each side. 48 = the page's 24 (see
+ *  features/artist/index.tsx SECTION_PADDING), so the grid's first tile
+ *  starts on the same line as every section title above it. */
+const HORIZONTAL_PADDING = 48;
 
 export interface AlbumGridProps {
   albums: AlbumSummary[];
