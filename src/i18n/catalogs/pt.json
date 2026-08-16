@@ -311,7 +311,8 @@
         "playlistSubtitle": "Playlist",
         "artistSubtitle": "Artista",
         "unknownAlbum": "Álbum Desconhecido",
-        "unknownArtist": "Artista Desconhecido"
+        "unknownArtist": "Artista Desconhecido",
+        "radiosForYou": "Rádios para ti"
       },
       "Playlists": {
         "title": "As tuas playlists",

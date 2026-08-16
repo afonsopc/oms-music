@@ -311,7 +311,8 @@
         "playlistSubtitle": "Spējliste",
         "artistSubtitle": "Izpildītājs",
         "unknownAlbum": "Nezināms Albums",
-        "unknownArtist": "Nezināms Izpildītājs"
+        "unknownArtist": "Nezināms Izpildītājs",
+        "radiosForYou": "Radio tev"
       },
       "Playlists": {
         "title": "Tavi atskaņošanas saraksti",

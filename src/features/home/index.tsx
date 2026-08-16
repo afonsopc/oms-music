@@ -15,7 +15,7 @@
  *    each collapses silently when its query settles empty.
  */
 import React, { useCallback, useMemo, useState, useSyncExternalStore } from "react";
-import { RefreshControl, ScrollView, Text, View } from "react-native";
+import { Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -32,16 +32,18 @@ import {
 import { useContentBottomPadding } from "@/features/shell/metrics";
 import { useT } from "@/i18n";
 import { mixDescription, mixStampText, mixTitle } from "@/i18n/mixLabels";
-import { albumRoute, artistRoute, mixRoute, playlistRoute } from "@/lib/routes";
+import { albumRoute, artistRadioRoute, artistRoute, mixRoute, playlistRoute } from "@/lib/routes";
 import { useTheme } from "@/theme/provider";
 import { FONT_DRUK_WIDE } from "@/theme/typography";
 import {
   artworkSourceUri,
   FilterPills,
   MixTile,
+  MixTileArtwork,
   Rail,
   Skeleton,
   Tile,
+  TILE_WIDTH,
   TileSkeleton,
   TopTileGrid,
   type TopTileItem,
@@ -388,6 +390,57 @@ export default function HomeScreen() {
               );
             })
             )}
+          </Rail>
+        </Section>
+      ) : null}
+
+      {/* Radios para ti (pedido do dono, 2026-08-18): seeds dos artistas que
+          o utilizador realmente ouve. So no "Tudo" - uma radio nao e artista
+          nem album, e um filtro que a mostrasse mentia. */}
+      {filter === "all" && topArtists.length > 0 ? (
+        <Section order={4}>
+          <Rail title={t("components.music.Home.radiosForYou")}>
+            {topArtists.slice(0, 8).map((row, i) => {
+              const name =
+                artistDisplayName(row.artist) ?? t("components.music.Home.unknownArtist");
+              const segment = artistRouteSegment(row.artist) ?? "null";
+              const uri =
+                typeof row.artist === "object"
+                  ? artworkSourceUri(artistImageSource(row.artist, "sm"))
+                  : null;
+              return (
+                <Pressable
+                  key={`radio-${i}-${name}`}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${t("components.music.Hero.radio")}: ${name}`}
+                  onPress={() => router.push(artistRadioRoute(segment))}
+                  style={({ pressed }) => ({
+                    width: TILE_WIDTH,
+                    gap: 8,
+                    opacity: pressed ? 0.7 : 1,
+                  })}
+                >
+                  <MixTileArtwork
+                    kind="top_artist"
+                    stamp={name}
+                    artworkUri={uri}
+                    size={TILE_WIDTH}
+                    icon="radio"
+                  />
+                  <View style={{ minWidth: 0 }}>
+                    <Text
+                      style={{ color: tokens.foreground, fontSize: 14, fontWeight: "600" }}
+                      numberOfLines={1}
+                    >
+                      {name}
+                    </Text>
+                    <Text style={{ color: tokens.mutedForeground, fontSize: 12 }}>
+                      {t("components.music.Hero.radio")}
+                    </Text>
+                  </View>
+                </Pressable>
+              );
+            })}
           </Rail>
         </Section>
       ) : null}
