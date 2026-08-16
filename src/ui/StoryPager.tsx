@@ -10,7 +10,7 @@
  * gestos.
  */
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Platform, Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useT } from "@/i18n";
 import { Icon } from "./icons";
@@ -69,6 +69,32 @@ export const StoryPager = ({
 
   const card = cards[index];
   const duration = card?.durationMs ?? DEFAULT_DURATION_MS;
+
+  // Teclado na web (o Rewind também vive no desktop): setas navegam
+  // cartões, Escape fecha. Em CAPTURE e com stopPropagation, porque as
+  // setas nuas são agora seek global (DesktopShortcuts) e dentro do visor
+  // navegar tem de ganhar ao motor.
+  useEffect(() => {
+    if (Platform.OS !== "web" || typeof window === "undefined") return;
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key !== "ArrowRight" && event.key !== "ArrowLeft" && event.key !== "Escape") {
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      if (event.key === "Escape") {
+        onClose();
+        return;
+      }
+      const target =
+        event.key === "ArrowRight"
+          ? nextStoryIndex(indexRef.current, cards.length)
+          : prevStoryIndex(indexRef.current);
+      goToRef.current(target);
+    };
+    window.addEventListener("keydown", onKeyDown, { capture: true });
+    return () => window.removeEventListener("keydown", onKeyDown, { capture: true });
+  }, [cards.length, onClose]);
 
   useEffect(() => {
     if (!card) return;
