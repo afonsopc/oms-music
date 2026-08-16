@@ -163,6 +163,8 @@ export const createWebAudioAdapter = (env: WebAudioAdapterEnv = {}): AudioAdapte
   let finishedEdge = false;
   /** One-shot error from a rejected play() (e.g. NotSupportedError). */
   let playError: string | null = null;
+  /** FR-64 default (pitch shift); o karaoke liga isto para abrandar afinado. */
+  let correctPitch = false;
   let pump: unknown = null;
   let removed = false;
   let msActive = false;
@@ -467,9 +469,14 @@ export const createWebAudioAdapter = (env: WebAudioAdapterEnv = {}): AudioAdapte
     seekTo,
     setRate(rate: number): void {
       media.playbackRate = rate;
-      // shouldCorrectPitch = false everywhere (FR-64 deliberate pitch shift).
-      media.preservesPitch = false;
+      // shouldCorrectPitch segue o flag: false por omissão (FR-64 deliberate
+      // pitch shift), true enquanto o karaoke pede rate sem desafinar.
+      media.preservesPitch = correctPitch;
       updatePositionState();
+    },
+    setPitchCorrection(on: boolean): void {
+      correctPitch = on;
+      media.preservesPitch = on;
     },
     onStatus(cb: (s: AudioAdapterStatus) => void): () => void {
       statusListeners.add(cb);

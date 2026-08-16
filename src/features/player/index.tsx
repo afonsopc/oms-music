@@ -87,6 +87,12 @@ const ScrubBar = () => {
   const { tokens } = useTheme();
   const position = usePlaybackView((v) => v.position);
   const duration = usePlaybackView((v) => v.duration);
+  const passive = usePlaybackView((v) => v.passive);
+  // Loop de secção A-B: marcas locais (o loop nunca viaja pelo cabo), por
+  // isso em modo controlador nao se desenham - a barra mostra a musica
+  // REMOTA e estes segundos pertencem ao player local silenciado.
+  const abLoopA = usePlayerStore((s) => s.abLoopA);
+  const abLoopB = usePlayerStore((s) => s.abLoopB);
   const [dragSeconds, setDragSeconds] = useState<number | null>(null);
 
   const shownSeconds = dragSeconds ?? position;
@@ -96,24 +102,49 @@ const ScrubBar = () => {
     fontSize: 12,
     fontVariant: ["tabular-nums" as const],
   };
+  const abMarks =
+    !passive && duration > 0
+      ? [abLoopA, abLoopB].filter((mark): mark is number => mark !== null)
+      : [];
 
   return (
     <View>
       {/* Capsula sem thumb (idioma Apple Music, pedido do dono 2026-08-14):
           o dedo define a posicao em qualquer ponto da barra; nada de botao
           a arrastar. A direita mostra o RESTANTE com sinal, nao o total. */}
-      <Slider
-        value={fraction}
-        accessibilityLabel={t(`${K}.progress`)}
-        disabled={duration <= 0}
-        height={7}
-        thumbSize={0}
-        onSlide={(value) => setDragSeconds(value * duration)}
-        onCommit={(value) => {
-          setDragSeconds(null);
-          getTransport().seek(value * duration);
-        }}
-      />
+      <View>
+        <Slider
+          value={fraction}
+          accessibilityLabel={t(`${K}.progress`)}
+          disabled={duration <= 0}
+          height={7}
+          thumbSize={0}
+          onSlide={(value) => setDragSeconds(value * duration)}
+          onCommit={(value) => {
+            setDragSeconds(null);
+            getTransport().seek(value * duration);
+          }}
+        />
+        {/* Traços verticais de A e B por cima da capsula (o Slider tem 32 de
+            altura com a faixa de 7 centrada; 16 centrado = top 8). Decorativos
+            e transparentes ao toque - o dedo continua a mandar na barra. */}
+        {abMarks.map((mark, i) => (
+          <View
+            key={i}
+            pointerEvents="none"
+            style={{
+              position: "absolute",
+              left: `${Math.min(1, Math.max(0, mark / duration)) * 100}%`,
+              top: 8,
+              width: 2,
+              height: 16,
+              marginLeft: -1,
+              borderRadius: 1,
+              backgroundColor: tokens.foreground,
+            }}
+          />
+        ))}
+      </View>
       <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 2 }}>
         <Text style={timeStyle}>{formatDuration(shownSeconds)}</Text>
         <Text style={timeStyle}>
@@ -326,6 +357,15 @@ export const PlayerChrome = () => {
   const buffering = usePlaybackView((v) => v.buffering);
   const mode = usePlayerModeStore((s) => s.mode);
   const CastButton = getShellSlots().castButton;
+  // O karaoke precisa dos dois stems da música ACTUAL: sem eles o botão
+  // fica visível mas apagado (a dica completa vive no item do SongMenu).
+  const karaokeReady = usePlaybackView(
+    (v) =>
+      v.song != null &&
+      !v.song.jam_song &&
+      !!v.song.vocals_media_id &&
+      !!v.song.instrumental_media_id,
+  );
 
   return (
     <View>
@@ -419,6 +459,17 @@ export const PlayerChrome = () => {
           style={modePill(scheme, mode === "queue")}
           accessibilityLabel={t(`${NP}.queue`)}
           onPress={() => togglePlayerMode("queue")}
+        />
+        <GhostIconButton
+          icon="mic"
+          active={mode === "karaoke"}
+          // Desactivado sem stems, EXCEPTO quando o modo já está aceso: o
+          // botão é também a saída (toggle volta à capa) e uma troca de
+          // música sem stems não pode trancar o utilizador lá dentro.
+          disabled={!karaokeReady && mode !== "karaoke"}
+          style={modePill(scheme, mode === "karaoke")}
+          accessibilityLabel={t(`${K}.karaoke`)}
+          onPress={() => togglePlayerMode("karaoke")}
         />
         <GhostIconButton
           icon="users"

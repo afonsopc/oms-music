@@ -27,6 +27,7 @@ import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import NowPlayingBody, { PlayerChrome } from "@/features/player";
 import { ImmersiveBackdrop } from "@/features/player/immersive";
+import KaraokeBody from "@/features/player/karaoke";
 import { usePlayerModeStore } from "@/features/player/mode";
 import QueueBody from "@/features/player/queue";
 import { PlayerSettingsBody } from "@/features/player/settingsSheet";
@@ -118,6 +119,11 @@ export const NowPlayingScreen = () => {
               </ScrollView>
             ) : mode === "jam" ? (
               <JamScreen embedded />
+            ) : mode === "karaoke" ? (
+              // Montar/desmontar É entrar/sair do karaoke: o corpo tira a
+              // fotografia do modo de stem + velocidade ao montar e
+              // restaura-os na limpeza (features/player/karaoke.tsx).
+              <KaraokeBody />
             ) : (
               <NowPlayingBody />
             )}

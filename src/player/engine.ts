@@ -18,6 +18,14 @@ import { getPlaybackInterceptor } from "@/contracts/playbackInterceptor";
 import { getStemFileProvider } from "@/contracts/stemFiles";
 import { getStemMixer } from "@/contracts/stemMixer";
 import * as ops from "./queueOps";
+import {
+  abLoopActive,
+  abLoopJumpTarget,
+  emptyAbLoop,
+  markA,
+  markB,
+  type AbLoopState,
+} from "./abLoop";
 import { getLocalFileIndex } from "@/contracts/localSource";
 import { localKindsForMode, stemPairNodeIds, wantedNodeId } from "./modes";
 import { resolveSources, resolveStemSource, type MainSourceCandidate } from "./sources";
@@ -170,6 +178,12 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
   /** Last time a status reported isBuffering (RECENT_BUFFER_WINDOW_MS).
    *  -Infinity, not 0: "never buffered" must read as long-ago on any clock. */
   private lastBufferingAt = Number.NEGATIVE_INFINITY;
+  /** Loop de secção A-B (abLoop.ts): session-only, limpo ao trocar de faixa. */
+  private abLoop: AbLoopState = emptyAbLoop();
+  /** True enquanto o seek do salto B->A não aterrou: os statuses continuam a
+   *  chegar com a posição velha (>= B) e sem esta guarda cada um re-dispararia
+   *  o mesmo salto. */
+  private abJumpInFlight = false;
   /** Wall-clock stuck checker state (see STUCK_CHECK_INTERVAL_MS). */
   private stuckSince: number | null = null;
   private readonly stuckTimer: ReturnType<typeof setInterval> | null = null;
@@ -550,6 +564,14 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
     this.deps.persistence.save({ loopMode: m });
   }
 
+  setPitchCorrection(on: boolean): void {
+    // Session-only por desenho: o flag vive no adapter (que o reaplica em
+    // cada setRate, incluindo os do sleep fade) e nunca na persistência -
+    // o karaoke liga-o ao entrar e desliga-o ao sair, e um arranque novo
+    // volta sempre ao pitch shift deliberado do FR-64.
+    this.player.setPitchCorrection?.(on);
+  }
+
   setPlaybackMode(m: PlaybackMode): void {
     const prev = playerStore.getState().playbackMode;
     if (m === prev) return;
@@ -585,6 +607,35 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
   setSleepTimer(t: SleepTimerSetting): void {
     this.sleepTimer.set(t);
     this.armSleepFade();
+  }
+
+  // ----- loop de secção A-B (abLoop.ts tem a aritmética e o porquê) --------
+  //
+  // Deliberadamente FORA do PlayerEngine/PlayerEngineExtras congelados e do
+  // transport: o loop pertence ao dispositivo que OUVE (a UI esconde-o em
+  // modo controlador, como as restantes definições locais) e nunca viaja
+  // pelo cabo, portanto o RemoteEngine não precisa de o conhecer.
+
+  /** Captura a posição actual do relógio do player como ponto A ou B. */
+  setAbLoopPoint(point: "a" | "b"): void {
+    const position = this.player.currentTime;
+    const duration = this.player.duration;
+    this.abLoop =
+      point === "a"
+        ? markA(this.abLoop, position, duration)
+        : markB(this.abLoop, position, duration);
+    this.publishAbLoop();
+  }
+
+  clearAbLoop(): void {
+    if (this.abLoop.a === null && this.abLoop.b === null) return;
+    this.abLoop = emptyAbLoop();
+    this.abJumpInFlight = false;
+    this.publishAbLoop();
+  }
+
+  private publishAbLoop(): void {
+    playerStore.setState({ abLoopA: this.abLoop.a, abLoopB: this.abLoop.b });
   }
 
   // ----- modo adormecer (sleepFade.ts tem a matemática e o porquê) ---------
@@ -648,6 +699,9 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
 
   stopAndClearSource(): void {
     this.transitionGen++;
+    // Virar controlador esconde a feature na UI; pontos órfãos no store
+    // voltariam a aparecer errados quando o áudio regressasse a este lado.
+    this.clearAbLoop();
     this.currentLoad = null;
     this.loadingSongKey = null;
     this.requestedNode = null;
@@ -1017,6 +1071,9 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
       return;
     }
     this.lastHandledSongId = song?.id ?? null;
+    // Trocar de música mata o loop A-B: os pontos são segundos DESTA faixa,
+    // e herdá-los prenderia a seguinte num troço aleatório dela.
+    this.clearAbLoop();
 
     if (!song) {
       this.transitionGen++;
@@ -1336,6 +1393,22 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
     // End-of-song sleep timer: pauses now and suppresses the autoplay of
     // whatever the loop logic lines up next.
     const sleepFired = this.sleepTimer.consumeEndOfSong();
+    // Com o loop A-B armado o fim da faixa É "chegámos a B" (um B marcado
+    // mesmo no fim pode ver o ended chegar antes do status que cruzaria o
+    // ponto): volta a A em vez de avançar a fila, com a mesma regra de
+    // ordenação do repeat-one - play() só depois de o rewind aterrar.
+    if (abLoopActive(this.abLoop)) {
+      const target = this.abLoop.a ?? 0;
+      if (sleepFired) {
+        void this.seekWithRetry(target, "ab-loop");
+        return;
+      }
+      this.intendedPlay = true;
+      void this.seekWithRetry(target, "ab-loop").then((landed) => {
+        if (landed && this.intendedPlay) this.player.play();
+      });
+      return;
+    }
     if (this.loopMode() === "one") {
       // Repeat-one on the ended event, NEVER a native loop flag: ended must
       // keep firing for the sleep timer and the accumulator reset.
@@ -1512,6 +1585,25 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
       this.pendingSeek = null;
       this.seekWithRetry(target, "pending");
       playerStore.setState({ position: target, duration: s.duration });
+    }
+
+    // Loop de secção A-B: chegou a B, volta a A. No pump de estados, não no
+    // slice de 4 Hz, para apanhar o cruzamento no primeiro status que o
+    // reporta. `pendingSeek === null` porque um seek parqueado ainda vai
+    // mover o relógio para onde o utilizador mandou - saltar por cima dele
+    // roubava esse scrub. O return final evita que o resto do pump processe
+    // uma posição que este salto acabou de abandonar.
+    if (!loadInFlight && this.pendingSeek === null && !this.abJumpInFlight) {
+      const target = abLoopJumpTarget(this.abLoop, s.currentTime);
+      if (target !== null) {
+        this.abJumpInFlight = true;
+        tracePlayback("abloop.jump", { from: s.currentTime, to: target });
+        void this.seekWithRetry(target, "ab-loop").then(() => {
+          this.abJumpInFlight = false;
+        });
+        playerStore.setState({ position: target });
+        return;
+      }
     }
 
     // Audible acceptance: the candidate is good; the song is proven again.

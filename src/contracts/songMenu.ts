@@ -23,6 +23,7 @@ export const SONG_MENU_SLOT_ORDER = [
   "addToPlaylist",
   "surfaceExtras", // items injected by the surface (e.g. Remove from playlist)
   "startRadio", // P1
+  "karaoke", // modo de palco karaoke; disabled com hint quando não há stems
   "proposeToJam", // P1; only while following a jam with queue_mode "everyone"
   "separateVocals", // P1; only when stems absent; disabled with elapsed while processing
   "download", // Download / "Downloading N%" (disabled) / Remove download

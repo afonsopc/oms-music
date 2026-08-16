@@ -64,6 +64,7 @@ import { registerDeviceSurfaces } from "@/features/devices/register";
 import { registerCoreSongMenuSlots } from "@/features/home/register";
 import { registerJamSurfaces } from "@/features/jam/register";
 import { registerAddToPlaylistHost } from "@/features/playlists/register";
+import { registerKaraokeSongMenuSlot } from "@/features/player/karaokeMenu";
 import { registerRadioSongMenuSlots } from "@/features/radios/register";
 import { registerDesktopBridge } from "@/desktop/register";
 import { isMiniplayerWindow } from "@/desktop/miniplayer";
@@ -169,6 +170,7 @@ export const wireUp = (): void => {
   // 7. Song-menu slots owned by feature packages.
   registerCoreSongMenuSlots();
   registerRadioSongMenuSlots();
+  registerKaraokeSongMenuSlot();
   gateSeparationSlotOnController();
 
   // 8. Local-first warm-up: after sign-in, sweep the library into the query

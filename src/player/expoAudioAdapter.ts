@@ -139,6 +139,8 @@ export const createExpoAudioAdapter = (): AudioAdapter => {
   let bands: EqBands = { low: 0, mid: 0, high: 0 };
   let eqEnabled = false;
   let rate = 1;
+  /** FR-64 default (varispeed); o karaoke liga isto para abrandar sem desafinar. */
+  let correctPitch = false;
   /** What we last told the mixer to do; the reference for external changes. */
   let mixerPlaying = false;
 
@@ -263,9 +265,17 @@ export const createExpoAudioAdapter = (): AudioAdapter => {
     },
     setRate(next: number): void {
       rate = next;
-      player.shouldCorrectPitch = false;
+      player.shouldCorrectPitch = correctPitch;
       player.setPlaybackRate(next);
       if (stemsOn) getStemMixer().setRate(next);
+    },
+    setPitchCorrection(on: boolean): void {
+      correctPitch = on;
+      player.shouldCorrectPitch = on;
+      // Reaplicar o rate é o que faz o AVPlayer/ExoPlayer trocar de
+      // algoritmo já com áudio a tocar; sem isto o flag só valia na
+      // próxima mudança de velocidade.
+      player.setPlaybackRate(rate);
     },
     onStatus(cb: (s: AudioAdapterStatus) => void): () => void {
       const sub = player.addListener("playbackStatusUpdate", (status: AudioStatus) => {

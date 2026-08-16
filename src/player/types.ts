@@ -97,6 +97,13 @@ export interface PlayerEngineExtras {
    * outside custom mode.
    */
   retryStemBlend(): void;
+  /**
+   * Karaoke half of FR-64: while ON the audio path preserves pitch across
+   * rate changes (time-stretch em vez do varispeed deliberado). Session-only,
+   * never persisted - quem liga é o modo karaoke e quem desliga é a saída
+   * dele, por isso um arranque novo volta sempre ao pitch shift do FR-64.
+   */
+  setPitchCorrection(on: boolean): void;
   /** Logout wipe (FR-10): queue, source, lock screen and store back to boot. */
   resetForLogout(): void;
 }
@@ -137,6 +144,14 @@ export interface AudioAdapter {
   seekTo(seconds: number): Promise<void>;
   /** Rate with shouldCorrectPitch=false (deliberate pitch shift, FR-64). */
   setRate(rate: number): void;
+  /**
+   * OPTIONAL override of the FR-64 default above: while ON, rate changes
+   * keep the original pitch (time-stretch). O modo karaoke abranda a música
+   * para treinar sem a desafinar; fora dele o pitch shift deliberado do
+   * FR-64 volta a mandar. Adapters remember the flag and re-apply it on
+   * every subsequent setRate.
+   */
+  setPitchCorrection?(on: boolean): void;
   onStatus(cb: (s: AudioAdapterStatus) => void): () => void;
   /**
    * WEB-ONLY channel (native adapters never implement it): the browser

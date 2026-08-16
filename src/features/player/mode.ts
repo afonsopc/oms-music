@@ -19,7 +19,7 @@ import { create } from "zustand";
  * segunda camada a disputar o mesmo gesto de arrastar. Dentro do player nao
  * ha folhas - ha modos.
  */
-export type PlayerMode = "artwork" | "lyrics" | "queue" | "settings" | "jam";
+export type PlayerMode = "artwork" | "lyrics" | "queue" | "settings" | "jam" | "karaoke";
 
 interface PlayerModeStore {
   mode: PlayerMode;

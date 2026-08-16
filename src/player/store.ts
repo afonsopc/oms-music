@@ -72,6 +72,13 @@ export interface PlayerStoreState {
    */
   eqActive: boolean;
   sleepTimer: { minutes: number; endsAt: number } | { endOfSong: true } | null;
+  /**
+   * Loop de secção A-B (player/abLoop.ts): pontos em segundos, null = por
+   * marcar. SESSION-ONLY e local ao dispositivo que ouve - nunca persiste
+   * nem viaja pelo cabo; a UI esconde a feature em modo controlador.
+   */
+  abLoopA: number | null;
+  abLoopB: number | null;
   failedSongKeys: ReadonlySet<SongKey>;
 }
 
@@ -103,6 +110,8 @@ export const initialPlayerState: PlayerStoreState = {
   stemMixerAvailable: false,
   eqActive: false,
   sleepTimer: null,
+  abLoopA: null,
+  abLoopB: null,
   failedSongKeys: new Set<SongKey>(),
 };
 

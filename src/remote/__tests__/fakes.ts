@@ -192,6 +192,9 @@ export class FakeEngine implements RemoteEngine {
     this.record("setRate");
     this.rate = r;
   }
+  setPitchCorrection(): void {
+    this.record("setPitchCorrection");
+  }
   setLoopMode(m: LoopMode): void {
     this.record("setLoopMode");
     this.loopMode = m;
@@ -301,6 +304,8 @@ export class FakeLocalState implements LocalPlaybackState {
       stemMixerAvailable: false,
       eqActive: false,
       sleepTimer: null,
+      abLoopA: null,
+      abLoopB: null,
       failedSongKeys: new Set(),
       ...initial,
     };

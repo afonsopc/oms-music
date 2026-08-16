@@ -20,6 +20,7 @@
 import React from "react";
 import { Text, View } from "react-native";
 import { getTransport } from "@/contracts/transport";
+import { formatDuration } from "@/domain/format";
 import type { Song } from "@/domain/song";
 import { useT } from "@/i18n";
 import { getPlayerEngine } from "@/player/register";
@@ -28,7 +29,7 @@ import { useRemoteStore, type RemoteStoreState } from "@/remote/store";
 import { useTheme } from "@/theme/provider";
 import { BottomSheet, Icon } from "@/ui";
 import { EqualizerSection, SeparationSection } from "./separationSection";
-import { Chip, Section, SliderRow } from "./sheetControls";
+import { Chip, NoteLine, Section, SliderRow } from "./sheetControls";
 import { fractionToRate, rateToFraction } from "./blendMath";
 
 const K = "native.player";
@@ -56,6 +57,8 @@ export const PlayerSettingsBody = ({ song }: { song: Song | null }) => {
   const { tokens } = useTheme();
   const rate = usePlayerStore((s) => s.rate);
   const sleepTimer = usePlayerStore((s) => s.sleepTimer);
+  const abLoopA = usePlayerStore((s) => s.abLoopA);
+  const abLoopB = usePlayerStore((s) => s.abLoopB);
   // Controlling another device: this player owns no audio, so every setting
   // in this sheet would write state nobody ever hears (FR-109).
   const localDisabled = useRemoteStore(selectIsController);
@@ -147,6 +150,35 @@ export const PlayerSettingsBody = ({ song }: { song: Song | null }) => {
           />
         </View>
       </Section>
+
+      {/* Loop de secção A-B (v1 manual). ESCONDIDO, não acinzentado, em modo
+          controlador: as outras linhas continuam legíveis como espelho do que
+          o dispositivo activo faz, mas o loop nem sequer existe do lado de
+          lá (é do motor local e nunca viaja pelo cabo), portanto mostrá-lo
+          cinzento prometia uma definição que o outro aparelho não tem. */}
+      {!localDisabled ? (
+        <Section title={t(`${K}.abLoop`)}>
+          <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
+            <Chip
+              label={abLoopA !== null ? `A · ${formatDuration(abLoopA)}` : "A"}
+              selected={abLoopA !== null}
+              onPress={() => getPlayerEngine().setAbLoopPoint("a")}
+            />
+            <Chip
+              label={abLoopB !== null ? `B · ${formatDuration(abLoopB)}` : "B"}
+              selected={abLoopB !== null}
+              onPress={() => getPlayerEngine().setAbLoopPoint("b")}
+            />
+            <Chip
+              label={t(`${K}.abLoopClear`)}
+              selected={false}
+              disabled={abLoopA === null && abLoopB === null}
+              onPress={() => getPlayerEngine().clearAbLoop()}
+            />
+          </View>
+          <NoteLine text={t(`${K}.abLoopHint`)} />
+        </Section>
+      ) : null}
 
       {song && !isJamSong ? (
         <SeparationSection song={song} disabled={localDisabled} />

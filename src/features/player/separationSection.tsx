@@ -33,8 +33,10 @@ import { updateDownloadSettings, useDownloadSettings } from "@/downloads/setting
 import { formatDuration } from "@/domain/format";
 import type { EqBands, PlaybackMode } from "@/domain/playback";
 import type { Song } from "@/domain/song";
+import { useIsOffline } from "@/features/shell/OfflineBanner";
 import { useT } from "@/i18n";
 import { getPlayerEngine } from "@/player/register";
+import { stemModeResidentLocally } from "@/player/sources";
 import { usePlayerStore } from "@/player/store";
 import { useTheme } from "@/theme/provider";
 import {
@@ -176,6 +178,14 @@ export const SeparationSection = ({ song, disabled }: { song: Song; disabled: bo
   // run must never be masked by stems being ready (web parity, SongCard 48-50).
   const busy = status.phase === "pending" || status.phase === "processing";
   const inCustom = playbackMode === "custom";
+  const offline = useIsOffline();
+  // Costura stem/cache (handoff 2026-08-17): offline, um modo de stem cujo
+  // ficheiro não está no disco tocaria o mixed cacheado (player/sources.ts) -
+  // o chip diz isso em vez de fingir que o modo funciona.
+  const stemModeOfflineUnavailable = (mode: PlaybackMode): boolean =>
+    offline &&
+    (mode === "instrumental" || mode === "vocals") &&
+    !stemModeResidentLocally(song, mode);
 
   // No enable switch: "off" is exactly the Original mode below it, so the
   // switch and the mode chips were two controls for one choice, and turning it
@@ -199,7 +209,9 @@ export const SeparationSection = ({ song, disabled }: { song: Song; disabled: bo
                   disabled ||
                   (mode !== "original" && !stemsReady) ||
                   // No mixer in this build: custom would play the plain mix.
-                  (mode === "custom" && !stemMixerAvailable)
+                  (mode === "custom" && !stemMixerAvailable) ||
+                  // Offline sem o ficheiro do stem: o modo tocaria o mixed.
+                  stemModeOfflineUnavailable(mode)
                 }
                 onPress={() => getPlayerEngine().setPlaybackMode(mode)}
               />
@@ -207,6 +219,11 @@ export const SeparationSection = ({ song, disabled }: { song: Song; disabled: bo
           </View>
 
           {!stemsReady ? <NoteLine text={t(`${K}.stemsMissing`)} /> : null}
+          {stemsReady &&
+          (stemModeOfflineUnavailable("instrumental") ||
+            stemModeOfflineUnavailable("vocals")) ? (
+            <NoteLine text={t(`${K}.modeUnavailableOffline`)} />
+          ) : null}
           {stemsReady && !stemMixerAvailable && !inCustom ? (
             <NoteLine text={t(`${K}.modeCustomUnavailable`)} />
           ) : null}
