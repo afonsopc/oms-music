@@ -1233,7 +1233,10 @@
       "plays": "{count} atskaņojumi",
       "playsLastMonth": "{count} atskaņojumi pēdējās 30 dienās",
       "yourProfile": "Tavs profils",
-      "friendBadge": "Draugi"
+      "friendBadge": "Draugi",
+      "friendsCount": "{count, plural, one {# draugs} other {# draugi}}",
+      "editProfile": "Rediģēt profilu",
+      "settingsAction": "Iestatījumi"
     },
     "lyrics": {
       "cardTitle": "Dziesmas vārdi"

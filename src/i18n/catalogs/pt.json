@@ -1233,7 +1233,10 @@
       "plays": "{count} reproduções",
       "playsLastMonth": "{count} reproduções nos últimos 30 dias",
       "yourProfile": "O teu perfil",
-      "friendBadge": "Amigos"
+      "friendBadge": "Amigos",
+      "friendsCount": "{count, plural, one {# amigo} other {# amigos}}",
+      "editProfile": "Editar perfil",
+      "settingsAction": "Definições"
     },
     "lyrics": {
       "cardTitle": "Letra"

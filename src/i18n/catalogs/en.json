@@ -1233,7 +1233,10 @@
       "plays": "{count} plays",
       "playsLastMonth": "{count} plays in the last 30 days",
       "yourProfile": "Your profile",
-      "friendBadge": "Friends"
+      "friendBadge": "Friends",
+      "friendsCount": "{count, plural, one {# friend} other {# friends}}",
+      "editProfile": "Edit profile",
+      "settingsAction": "Settings"
     },
     "lyrics": {
       "cardTitle": "Lyrics"

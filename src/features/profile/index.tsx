@@ -15,8 +15,8 @@
  * never through `imageUrl()`, and never cached beyond the query.
  */
 import React, { useMemo } from "react";
-import { ScrollView, Text, View } from "react-native";
-import { useLocalSearchParams } from "expo-router";
+import { Pressable, ScrollView, Text, View } from "react-native";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { avatarUrl } from "@/api/mediaUrl";
 import { acceptedFriends } from "@/api/endpoints/relationships";
 import { useRelationships } from "@/api/queries/relationships";
@@ -123,58 +123,104 @@ const ProfileHeader = ({
   person,
   isSelf,
   isFriend,
+  friendsCount,
+  plays30d,
 }: {
   person: ProfilePerson;
   isSelf: boolean;
   isFriend: boolean;
+  /** null = desconhecido (perfis alheios); nunca inventar zeros. */
+  friendsCount: number | null;
+  plays30d: number | null;
 }) => {
   const t = useT();
+  const router = useRouter();
   const { tokens } = useTheme();
+  // A linha de números do Spotify ("0 seguidores · A seguir 7"), com os
+  // números que a API consegue jurar: amigos e plays de 30 dias.
+  const stats = [
+    friendsCount !== null ? t(`${PROFILE}.friendsCount`, { count: friendsCount }) : null,
+    plays30d !== null ? t(`${PROFILE}.playsLastMonth`, { count: plays30d }) : null,
+  ].filter(Boolean);
   return (
-    <View style={{ flexDirection: "row", alignItems: "center", gap: 16 }}>
-      {person.id ? (
-        <ArtworkImage uri={avatarUrl(person.id)} size={96} shape="circle" />
-      ) : (
-        <InitialsAvatar name={person.name} size={96} />
-      )}
-      <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
-        <Text
-          numberOfLines={2}
-          style={{ color: tokens.foreground, fontSize: 26, fontWeight: "800" }}
-        >
-          {person.name}
-        </Text>
-        {person.handle ? (
-          <Text numberOfLines={1} style={{ color: tokens.mutedForeground, fontSize: 14 }}>
-            @{person.handle}
-          </Text>
-        ) : null}
-        {isSelf ? (
-          <Text style={{ color: tokens.mutedForeground, fontSize: 12 }}>
-            {t(`${PROFILE}.yourProfile`)}
-          </Text>
-        ) : isFriend ? (
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              alignSelf: "flex-start",
-              gap: 5,
-              paddingHorizontal: 10,
-              paddingVertical: 3,
-              borderRadius: 999,
-              backgroundColor: tokens.secondary,
-            }}
+    <View style={{ gap: 14 }}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 18 }}>
+        {person.id ? (
+          <ArtworkImage uri={avatarUrl(person.id)} size={112} shape="circle" />
+        ) : (
+          <InitialsAvatar name={person.name} size={112} />
+        )}
+        <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
+          <Text
+            numberOfLines={2}
+            style={{ color: tokens.foreground, fontSize: 28, fontWeight: "900", letterSpacing: -0.5 }}
           >
-            <Icon name="users" size={12} color={tokens.secondaryForeground} />
-            <Text
-              style={{ color: tokens.secondaryForeground, fontSize: 11, fontWeight: "700" }}
-            >
-              {t(`${PROFILE}.friendBadge`)}
+            {person.name}
+          </Text>
+          {person.handle ? (
+            <Text numberOfLines={1} style={{ color: tokens.mutedForeground, fontSize: 14 }}>
+              @{person.handle}
             </Text>
-          </View>
-        ) : null}
+          ) : null}
+          {stats.length > 0 ? (
+            <Text numberOfLines={1} style={{ color: tokens.mutedForeground, fontSize: 13 }}>
+              {stats.join(" • ")}
+            </Text>
+          ) : null}
+          {!isSelf && isFriend ? (
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                alignSelf: "flex-start",
+                gap: 5,
+                paddingHorizontal: 10,
+                paddingVertical: 3,
+                borderRadius: 999,
+                backgroundColor: tokens.secondary,
+              }}
+            >
+              <Icon name="users" size={12} color={tokens.secondaryForeground} />
+              <Text
+                style={{ color: tokens.secondaryForeground, fontSize: 11, fontWeight: "700" }}
+              >
+                {t(`${PROFILE}.friendBadge`)}
+              </Text>
+            </View>
+          ) : null}
+        </View>
       </View>
+      {/* A linha de acções SOB o hero, como no screenshot do dono
+          (2026-08-18). Só no próprio perfil: para os outros a API ainda não
+          tem mutações de amizade para prometer botões. */}
+      {isSelf ? (
+        <View style={{ flexDirection: "row", gap: 10 }}>
+          {(
+            [
+              { key: "edit", label: t(`${PROFILE}.editProfile`), route: "/account" as const },
+              { key: "settings", label: t(`${PROFILE}.settingsAction`), route: "/settings" as const },
+            ]
+          ).map((action) => (
+            <Pressable
+              key={action.key}
+              accessibilityRole="button"
+              onPress={() => router.push(action.route)}
+              style={({ pressed }) => ({
+                paddingHorizontal: 16,
+                paddingVertical: 8,
+                borderRadius: 999,
+                borderWidth: 1,
+                borderColor: tokens.border,
+                opacity: pressed ? 0.7 : 1,
+              })}
+            >
+              <Text style={{ color: tokens.foreground, fontSize: 13, fontWeight: "700" }}>
+                {action.label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
     </View>
   );
 };
@@ -203,7 +249,9 @@ export default function ProfileScreen() {
   const isSelf =
     !!selfUser &&
     (selfUser.id === idOrHandle || selfUser.handle.toLowerCase() === idOrHandle.toLowerCase());
-  const relationshipsQuery = useRelationships(!isSelf);
+  // Sempre ligada: no próprio perfil conta os amigos da linha de números;
+  // nos alheios resolve identidades como antes.
+  const relationshipsQuery = useRelationships(true);
 
   const person = useMemo<ProfilePerson>(() => {
     const needle = idOrHandle.toLowerCase();
@@ -249,7 +297,17 @@ export default function ProfileScreen() {
     >
       {/* The page opens as a PROFILE - the old bare "Música" heading made
           this look like a generic music page (owner report 2026-08-14). */}
-      <ProfileHeader person={person} isSelf={isSelf} isFriend={isFriend} />
+      <ProfileHeader
+        person={person}
+        isSelf={isSelf}
+        isFriend={isFriend}
+        friendsCount={
+          isSelf && selfUser
+            ? acceptedFriends(relationshipsQuery.data ?? [], selfUser.id).length
+            : null
+        }
+        plays30d={profile?.visible ? (profile.plays_30d ?? null) : null}
+      />
 
       {query.isLoading ? (
         <View style={{ gap: 8 }}>
