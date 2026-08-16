@@ -1048,7 +1048,7 @@
       "predictiveTitle": "Download ahead",
       "predictiveDetail": "Quietly fetches the next track and the row you are looking at, so tapping plays instantly. It lands in the temporary cache, never in your downloads.",
       "predictiveWifiTitle": "Ahead-of-time only over WiFi",
-      "predictiveWifiDetail": "On by default: guessing wrong on mobile data costs you bytes you never asked for.",
+      "predictiveWifiDetail": "Off by default: restricted to WiFi, the head start almost never runs on a phone. Turn it on if you would rather save mobile data.",
       "cacheTitle": "Temporary cache",
       "cacheDetail": "{size} of {budget}. Cleared oldest first; your downloads are never touched.",
       "cachePurge": "Clear cache",

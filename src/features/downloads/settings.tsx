@@ -6,17 +6,18 @@
  * suppress reorder while it is on).
  *
  * Plus, since 2026-08-14, the predictive tier: `predictiveEnabled` (the master
- * switch for downloading ahead of the tap) and `predictiveWifiOnly`, which
- * defaults ON even though `wifiOnly` defaults off. That asymmetry is
- * deliberate and worth stating: guessing wrong on cellular spends money on
- * bytes the user never asked for, while an explicit download only spends it on
- * bytes they did. The gate reads `wifiOnly || predictiveWifiOnly`.
+ * switch for downloading ahead of the tap) and `predictiveWifiOnly`. That
+ * second one shipped defaulting ON, to keep a wrong guess off cellular; the
+ * owner asked for it OFF on 2026-08-16, because restricted to WiFi the head
+ * start almost never runs on a phone and the whole tier was idle. `wifiOnly`
+ * still covers the cautious case - the gate reads
+ * `wifiOnly || predictiveWifiOnly`.
  *
  * Settings persist in kv-store and are read synchronously by the manager, so
  * a flip takes effect on the very next enqueue.
  */
-import React, { useCallback, useEffect, useState } from "react";
-import { Pressable, ScrollView, Switch, Text, View } from "react-native";
+import React, { useEffect, useState } from "react";
+import { ScrollView, Switch, Text, View } from "react-native";
 import { getDownloadsSurface } from "@/downloads/surface";
 import { updateDownloadSettings, useDownloadSettings } from "@/downloads/settings";
 import { useContentBottomPadding, useContentTopPadding } from "@/features/shell/metrics";
@@ -25,7 +26,6 @@ import { switchColors } from "@/theme/switchColors";
 import { useTheme } from "@/theme/provider";
 import { RADIUS } from "@/theme/tokens";
 import { formatBytes } from "./format";
-import { readPredictiveTier } from "./predictiveTier";
 
 const SettingsCard = ({ children }: { children: React.ReactNode }) => {
   const { tokens } = useTheme();
@@ -111,20 +111,11 @@ export default function DownloadSettingsScreen() {
     };
   }, []);
 
-  // The evictable tier's numbers are synchronous SUMs plus one native
-  // free-space property read, so they can sit in render state and be
-  // refreshed on the purge without going anywhere near a disk walk.
-  const [tier, setTier] = useState(() => readPredictiveTier());
-  const [freedBytes, setFreedBytes] = useState<number | null>(null);
-
-  const onPurge = useCallback(() => {
-    const run = tier.purge;
-    if (!run) return;
-    void run()
-      .then((freed) => setFreedBytes(freed))
-      .catch(() => undefined)
-      .finally(() => setTier(readPredictiveTier()));
-  }, [tier.purge]);
+  // The cache row (size, budget and "Limpar cache") used to live here TOO,
+  // which is the duplication the owner reported on 2026-08-16, point 10:
+  // both download screens carried it. It belongs to the overview, next to
+  // the storage bar and the waste ratio that give the number its meaning;
+  // this screen is switches. One concept, one place.
 
   return (
     <ScrollView
@@ -179,50 +170,6 @@ export default function DownloadSettingsScreen() {
           value={settings.predictiveWifiOnly}
           onValueChange={(value) => updateDownloadSettings({ predictiveWifiOnly: value })}
         />
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 12,
-            paddingHorizontal: 16,
-            paddingVertical: 14,
-            borderTopWidth: 1,
-            borderTopColor: tokens.border,
-          }}
-        >
-          <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
-            <Text style={{ color: tokens.foreground, fontSize: 15 }}>
-              {t("native.downloads.cacheTitle")}
-            </Text>
-            <Text style={{ color: tokens.mutedForeground, fontSize: 12, lineHeight: 17 }}>
-              {t("native.downloads.cacheDetail", {
-                size: formatBytes(tier.usage.bytes),
-                budget: tier.budget != null ? formatBytes(tier.budget) : "-",
-              })}
-            </Text>
-            {freedBytes != null ? (
-              <Text style={{ color: tokens.mutedForeground, fontSize: 12 }}>
-                {t("native.downloads.cachePurged", { size: formatBytes(freedBytes) })}
-              </Text>
-            ) : null}
-          </View>
-          <Pressable
-            onPress={onPurge}
-            disabled={tier.purge == null || tier.usage.files === 0}
-            accessibilityRole="button"
-            style={{
-              paddingHorizontal: 12,
-              paddingVertical: 8,
-              borderRadius: RADIUS,
-              backgroundColor: tokens.secondary,
-              opacity: tier.purge == null || tier.usage.files === 0 ? 0.4 : 1,
-            }}
-          >
-            <Text style={{ color: tokens.foreground, fontSize: 13, fontWeight: "600" }}>
-              {t("native.downloads.cachePurge")}
-            </Text>
-          </Pressable>
-        </View>
       </SettingsCard>
       ) : null}
 

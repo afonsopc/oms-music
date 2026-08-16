@@ -1048,7 +1048,7 @@
       "predictiveTitle": "Lejupielādēt uz priekšu",
       "predictiveDetail": "Klusi sagatavo nākamo dziesmu un to, ko tu skaties sarakstā, lai atskaņošana sāktos uzreiz. Nonāk pagaidu kešā, nevis lejupielādēs.",
       "predictiveWifiTitle": "Iepriekš tikai WiFi tīklā",
-      "predictiveWifiDetail": "Pēc noklusējuma ieslēgts: kļūdains minējums mobilajos datos maksā megabaitus, ko neviens neprasīja.",
+      "predictiveWifiDetail": "Pēc noklusējuma izslēgts: tikai WiFi tīklā iepriekšēja lejupielāde telefonā gandrīz nekad nenotiek. Ieslēdz, ja labāk taupīt mobilos datus.",
       "cacheTitle": "Pagaidu kešs",
       "cacheDetail": "{size} no {budget}. Tīra vecāko vispirms; lejupielādes netiek aiztiktas.",
       "cachePurge": "Notīrīt kešu",

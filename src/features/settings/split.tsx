@@ -91,7 +91,12 @@ const SECTIONS: SectionEntry[] = [
   {
     id: "downloads",
     icon: "cloud-check",
-    labelKey: "native.settings.hub.rowDownloads",
+    // NOT `hub.rowDownloads`: that key is the word "Transferências" too, so
+    // the split list showed the same label twice and the two rows were
+    // indistinguishable (owner report 2026-08-16, point 10). The mobile hub
+    // was fixed for this on 2026-08-14 and this list was missed; both now
+    // name the pair the same way - state above, switches below.
+    labelKey: "native.settings.hub.rowDownloadSettings",
     route: "/settings/downloads",
   },
   {

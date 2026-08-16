@@ -1048,7 +1048,7 @@
       "predictiveTitle": "Descarregar à frente",
       "predictiveDetail": "Vai buscando a música seguinte e a linha que estás a ver, para tocar sem esperar. Fica na cache temporária, nunca nas tuas transferências.",
       "predictiveWifiTitle": "Antecipar só por WiFi",
-      "predictiveWifiDetail": "Ligado por omissão: adivinhar mal em dados móveis gasta megabytes que nunca pediste.",
+      "predictiveWifiDetail": "Desligado por omissão: antecipar só em WiFi quase nunca chega a correr num telemóvel. Liga isto se preferires poupar dados móveis.",
       "cacheTitle": "Cache temporária",
       "cacheDetail": "{size} de {budget}. Limpa-se do mais antigo primeiro; as tuas transferências ficam intactas.",
       "cachePurge": "Limpar cache",
