@@ -114,7 +114,43 @@ Provavelmente uma corrida entre queries e o filtro (`HomeFilter`), ou secções
 que colapsam em silêncio quando a query ainda não resolveu. Reproduz-se por
 teste se conseguires isolar a condição.
 
-### 2.7 Limpezas pedidas
+### 2.7 Salto de ~3 em 3 segundos depois de outra app roubar o áudio
+
+O sintoma, nas palavras do dono: "do nada o playback começa de mais ou menos 3
+em 3 segundos a dar um skipzito ligeiro para a frente. É horrível e impossível
+de ouvir música assim". Depois esclareceu **quando** acontece, e é a parte que
+interessa: **abre um vídeo no Twitter, esse vídeo pausa a nossa reprodução, e
+ao sair do vídeo a música volta a tocar - é a partir daí que salta.**
+
+Ou seja, isto é o caminho de INTERRUPÇÃO da sessão de áudio, não o caminho
+normal de reprodução. Três razões para começar por aqui e não por outro lado:
+
+1. **Isto é território mexido ontem.** O `keepAudioSessionActive: true` entrou
+   em `src/player/expoAudioAdapter.ts:127` para resolver as "pausas do nada"
+   (ver `docs/handoff-2026-08-17.md`, ponto 1, causa 4). Manter a sessão activa
+   muda exactamente o que acontece quando outra app pede o áudio e o devolve.
+   Uma correcção pode ter comprado outra avaria; confirma isso antes de
+   assumir que são coisas independentes.
+2. **A app tem lógica explícita para pausas externas** em
+   `src/player/engine.ts:1418-1435`: quando vê `playing` a passar a falso sem
+   ser por buffering, marca `intendedPlay = false` para nunca auto-retomar.
+   Se o retorno da interrupção fizer o player voltar a tocar por si (a sessão
+   ficou activa), o motor e o sistema passam a discordar sobre quem manda, e
+   é assim que nascem correcções periódicas de posição.
+3. **Há vigilantes periódicos que corrigem posição.** O `checkStuckPlayback`
+   corre de 5 em 5 segundos (`STUCK_CHECK_INTERVAL_MS`, engine.ts:61) e a
+   escada de recuperação re-resolve e volta a colocar a fonte. Um salto
+   regular "para a frente" é a assinatura de alguém a re-aplicar uma posição
+   guardada, ou de duas fontes a tocar e a corrigir-se uma à outra. Vale a
+   pena instrumentar: regista cada `seekTo` com quem o chamou e ver o padrão.
+
+Nota honesta: nenhuma destas três é uma conclusão, são as três hipóteses que a
+leitura do código sustenta. Reproduz-se com uma interrupção real, portanto **é
+dos poucos pontos desta lista que precisa mesmo do telefone do dono** - o teu
+trabalho aqui é isolar a causa por leitura e instrumentação, e deixar escrito o
+que ele tem de confirmar.
+
+### 2.8 Limpezas pedidas
 
 - Tirar "Pesquisar" da sidebar do desktop/web desktop (só põe foco no campo).
   O ponto 18 da lista anterior já mexeu nisto; confirma o que ficou e remove o
