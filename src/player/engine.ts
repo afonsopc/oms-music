@@ -25,6 +25,7 @@ import { eqIsFlat } from "./gainLaw";
 import { PresignedResolver } from "./resolver";
 import { RecoveryTracker } from "./recovery";
 import { ListenAccumulator } from "./recording";
+import { tracePlayback } from "./trace";
 import { SleepTimer } from "./sleepTimer";
 import { playerStore, resetPlayerStore, type StemPhase } from "./store";
 import type {
@@ -46,6 +47,16 @@ const POSITION_EMIT_MS = 250;
 /** ~6 statuses at the 4 Hz cadence before the stall watchdog nudges. */
 const STALL_TICKS = 6;
 const STALL_NUDGE_MIN_MS = 4_000;
+/**
+ * Um player cuja posição AVANÇA não está preso, por definição - e um nudge
+ * (seek para a posição actual + play) num player a andar é um micro-salto
+ * audível. Depois de uma interrupção (o vídeo do Twitter, dono 2026-08-17)
+ * o expo-audio pode ficar a reportar `playing: false` com o áudio a andar;
+ * sem esta guarda os dois vigilantes tratavam esse estado como "preso" e
+ * corrigiam-no a cada ~4 s, que é exactamente o skipzito periódico
+ * relatado. O epsilon distingue avanço real de jitter de leitura.
+ */
+const ADVANCE_EPSILON_S = 0.05;
 /**
  * A playing->stopped flip this soon after a buffering status is a buffer
  * DRAIN the 4 Hz sampler half-missed, not an external pause: keep the
@@ -145,6 +156,10 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
   /** Stall watchdog (owner report 2026-08-10): consecutive wedged statuses. */
   private stallTicks = 0;
   private lastStallNudgeAt = 0;
+  /** Posição do último status wedged; -1 = fora de uma janela wedged. */
+  private stallProbeTime = -1;
+  /** Posição no momento em que o stuck checker armou; idem. */
+  private stuckProbeTime = -1;
   /** Last time a status reported isBuffering (RECENT_BUFFER_WINDOW_MS).
    *  -Infinity, not 0: "never buffered" must read as long-ago on any clock. */
   private lastBufferingAt = Number.NEGATIVE_INFINITY;
@@ -427,6 +442,7 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
   // ----- transport ----------------------------------------------------------
 
   play(): void {
+    tracePlayback("intent.play", { pos: this.player.currentTime });
     this.intendedPlay = true;
     // Pressing play IS the user gesture the autoplay affordance asked for;
     // if the policy still refuses, the adapter's channel raises it again.
@@ -455,6 +471,7 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
   }
 
   pause(): void {
+    tracePlayback("intent.pause", { pos: this.player.currentTime });
     this.intendedPlay = false;
     this.player.pause();
   }
@@ -474,7 +491,7 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
   previous(): void {
     const r = ops.previousIndex(this.q, this.loopMode(), this.player.currentTime);
     if (r.restart) {
-      this.seekWithRetry(0);
+      this.seekWithRetry(0, "prev-restart");
       return;
     }
     this.q = ops.setQueueIndex(this.q, r.index);
@@ -488,7 +505,7 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
     // seeking it discards the user's scrub (the new source starts at 0).
     // Park the target in pendingSeek instead; it applies when metadata lands.
     if (!this.loadInFlight() && this.player.duration > 0) {
-      void this.seekWithRetry(target);
+      void this.seekWithRetry(target, "user");
     } else {
       this.pendingSeek = target;
     }
@@ -1043,6 +1060,7 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
   private beginLoad(song: Song, opts: { autoplay: boolean; fresh: boolean }): void {
     const gen = ++this.transitionGen;
     const key = toSongKey(song.id);
+    tracePlayback("load.begin", { song: key, autoplay: opts.autoplay, fresh: opts.fresh });
     // A transition that intends audio doubles as the gesture the autoplay
     // affordance was waiting for (user tapped a song); if the policy still
     // refuses, the adapter's channel raises it again. Guarded read: inert
@@ -1200,11 +1218,11 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
       // ordering rule as repeat-one - play() only after the rewind lands,
       // or it asks a player parked at the end of the track to play.
       if (suppressAutoplay) {
-        void this.seekWithRetry(0);
+        void this.seekWithRetry(0, "loop-wrap");
         return;
       }
       this.intendedPlay = true;
-      void this.seekWithRetry(0).then((landed) => {
+      void this.seekWithRetry(0, "loop-wrap").then((landed) => {
         // play() against a player parked at the end is a documented no-op;
         // when the rewind failed, leave it to the watchdog's 0-nudge.
         if (landed && this.intendedPlay) this.player.play();
@@ -1236,11 +1254,11 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
       // play, which does nothing, so repeat-one simply stopped at the end of
       // every song.
       if (sleepFired) {
-        void this.seekWithRetry(0);
+        void this.seekWithRetry(0, "repeat-one");
         return;
       }
       this.intendedPlay = true;
-      void this.seekWithRetry(0).then((landed) => {
+      void this.seekWithRetry(0, "repeat-one").then((landed) => {
         // A failed rewind leaves the player parked at the end, where play()
         // is a no-op: the stall watchdog's 0-nudge picks it up instead of
         // this call pretending it worked.
@@ -1296,6 +1314,7 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
     const song = ops.currentSongOf(this.q);
     if (!song) return;
     const key = toSongKey(song.id);
+    tracePlayback("recovery.stream-error", { song: key, pos: this.player.currentTime });
     this.emit("streamError", { songKey: key });
     if (this.recovery.beginRecoveryAttempt(key)) {
       // First failure: remember the position, mint a genuinely fresh URL,
@@ -1388,7 +1407,7 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
     ) {
       const target = Math.min(this.pendingSeek, s.duration);
       this.pendingSeek = null;
-      this.seekWithRetry(target);
+      this.seekWithRetry(target, "pending");
       playerStore.setState({ position: target, duration: s.duration });
     }
 
@@ -1419,6 +1438,7 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
     // buffering window covers the drain the 4 Hz sampler half-missed: a
     // flip that lands moments after ANY buffering status is still a stall.
     if (s.playing !== this.prevPlaying) {
+      tracePlayback("status.flip", { playing: s.playing, pos: s.currentTime, buf: s.isBuffering });
       this.prevPlaying = s.playing;
       playerStore.setState({ playing: s.playing });
       if (
@@ -1428,6 +1448,7 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
         !s.isBuffering &&
         this.now() - this.lastBufferingAt > RECENT_BUFFER_WINDOW_MS
       ) {
+        tracePlayback("external.pause", { pos: s.currentTime });
         this.intendedPlay = false; // interruption: never auto-resume
       }
       this.emit("playStateChanged", { playing: s.playing });
@@ -1466,18 +1487,30 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
     // END (repeat-one whose rewind failed) is nudged to 0, not back to the
     // end it is stuck at.
     if (s.isLoaded && this.intendedPlay && !s.playing && !s.isBuffering && !loadInFlight) {
-      this.stallTicks++;
+      // Posição a avançar = não está preso (ver ADVANCE_EPSILON_S): um
+      // status a dizer "parado" com o tempo a andar é o estado dessincronizado
+      // pós-interrupção, e um nudge aqui SERIA o salto que se ouve.
+      const advancing =
+        this.stallProbeTime >= 0 && s.currentTime > this.stallProbeTime + ADVANCE_EPSILON_S;
+      this.stallProbeTime = s.currentTime;
+      if (advancing) {
+        this.stallTicks = 0;
+      } else {
+        this.stallTicks++;
+      }
       const at = this.now();
       if (this.stallTicks >= STALL_TICKS && at - this.lastStallNudgeAt >= STALL_NUDGE_MIN_MS) {
         this.stallTicks = 0;
         this.lastStallNudgeAt = at;
         const target = s.duration > 0 && s.currentTime >= s.duration - 1 ? 0 : s.currentTime;
-        void this.seekWithRetry(target).then(() => {
+        tracePlayback("watchdog.stall-nudge", { to: target });
+        void this.seekWithRetry(target, "stall-nudge").then(() => {
           if (this.intendedPlay) this.player.play();
         });
       }
     } else {
       this.stallTicks = 0;
+      this.stallProbeTime = -1;
     }
 
     // Listen accumulator (FR-62): forward deltas only; jam songs skipped.
@@ -1566,16 +1599,28 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
     const at = this.now();
     if (this.stuckSince === null) {
       this.stuckSince = at;
+      this.stuckProbeTime = this.player.currentTime;
+      return;
+    }
+    // "Silencioso" mas com a posição a andar não é preso, é o flag playing
+    // dessincronizado (pós-interrupção): re-arma em vez de escalar, senão a
+    // escada re-resolve e re-seeka uma reprodução perfeitamente audível.
+    if (this.player.currentTime > this.stuckProbeTime + ADVANCE_EPSILON_S) {
+      this.stuckSince = at;
+      this.stuckProbeTime = this.player.currentTime;
       return;
     }
     if (at - this.stuckSince < (inFlight ? STUCK_LOAD_MS : STUCK_SILENT_MS)) return;
     this.stuckSince = null;
+    tracePlayback("watchdog.stuck-escalate", { inFlight, pos: this.player.currentTime });
     this.handleStreamError();
   }
 
   /** Resolves TRUE once the seek has landed, FALSE when all three attempts
-   *  failed - repeat-one must not play() a player still parked at the end. */
-  private async seekWithRetry(seconds: number): Promise<boolean> {
+   *  failed - repeat-one must not play() a player still parked at the end.
+   *  O `reason` vai para o trace: cada seek tem um autor identificável. */
+  private async seekWithRetry(seconds: number, reason = "unspecified"): Promise<boolean> {
+    tracePlayback(`seek.${reason}`, { to: seconds });
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
         await this.player.seekTo(seconds);

@@ -667,7 +667,10 @@
           "subtitle": "Definições de reprodução entre dispositivos e sociais.",
           "shareListeningTitle": "Partilhar o que oiço com amigos",
           "shareListeningDescription": "Os teus amigos podem ver o que estás a ouvir no feed de actividade e no teu perfil. Desliga para ouvir em privado.",
-          "shareListeningError": "Não foi possível actualizar a definição."
+          "shareListeningError": "Não foi possível actualizar a definição.",
+          "diagnosticsTitle": "Diagnóstico de reprodução",
+          "diagnosticsDescription": "Copia os últimos eventos do motor de áudio, para colar num relatório de bug.",
+          "diagnosticsCopied": "Copiado. Cola onde precisares."
         }
       },
       "Sidebar": {

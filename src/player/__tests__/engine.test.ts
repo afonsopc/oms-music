@@ -852,6 +852,64 @@ describe("stall watchdog", () => {
     expect(ctx.player.playing).toBe(false);
     ctx.engine.dispose();
   });
+
+  // O skipzito pós-interrupção (dono 2026-08-17): depois de outra app
+  // devolver o áudio, o expo-audio pode ficar a reportar playing:false com
+  // o áudio a andar. Um player cuja posição AVANÇA não está preso, e um
+  // nudge (seek + play) em cima dele é um salto audível a cada ~4 s.
+  it("statuses saying paused while the position ADVANCES never nudge", async () => {
+    const ctx = wedgedSetup();
+    const song = makeSong(1);
+    urlFor(ctx, song);
+    ctx.engine.setQueue([song]);
+    await flush();
+    ctx.player.emitLoaded(200);
+    ctx.player.currentTime = 30;
+    ctx.player.emitStatus();
+
+    // O resume aterra mas o flag playing fica dessincronizado em false.
+    ctx.engine.pause();
+    ctx.player.emitStatus();
+    ctx.player.ignorePlay = true;
+    ctx.engine.play();
+    await flush();
+    const seeksBefore = ctx.player.seekLog.length;
+
+    ctx.advance(30_000);
+    for (let i = 0; i < 12; i++) {
+      ctx.player.currentTime += 0.25; // a posição anda: o áudio está vivo
+      ctx.player.emitStatus();
+    }
+    await flush();
+
+    expect(ctx.player.seekLog.length).toBe(seeksBefore);
+    ctx.engine.dispose();
+  });
+
+  it("a frozen position with the same statuses still nudges (the real stall)", async () => {
+    const ctx = wedgedSetup();
+    const song = makeSong(1);
+    urlFor(ctx, song);
+    ctx.engine.setQueue([song]);
+    await flush();
+    ctx.player.emitLoaded(200);
+    ctx.player.currentTime = 30;
+    ctx.player.emitStatus();
+
+    ctx.engine.pause();
+    ctx.player.emitStatus();
+    ctx.player.ignorePlay = true;
+    ctx.engine.play();
+    await flush();
+    const seeksBefore = ctx.player.seekLog.length;
+
+    ctx.advance(30_000);
+    for (let i = 0; i < 12; i++) ctx.player.emitStatus(); // posição congelada
+    await flush();
+
+    expect(ctx.player.seekLog.length).toBeGreaterThan(seeksBefore);
+    ctx.engine.dispose();
+  });
 });
 
 describe("autoplay blocked (web adapter channel)", () => {

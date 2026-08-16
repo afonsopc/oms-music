@@ -667,7 +667,10 @@
           "subtitle": "Cross-device and social playback settings.",
           "shareListeningTitle": "Share my listening with friends",
           "shareListeningDescription": "Friends can see what you're listening to in their activity feed and on your profile. Turn it off to listen privately.",
-          "shareListeningError": "Could not update the setting."
+          "shareListeningError": "Could not update the setting.",
+          "diagnosticsTitle": "Playback diagnostics",
+          "diagnosticsDescription": "Copies the audio engine's recent events, ready to paste into a bug report.",
+          "diagnosticsCopied": "Copied. Paste it wherever you need."
         }
       },
       "Sidebar": {

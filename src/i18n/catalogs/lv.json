@@ -667,7 +667,10 @@
           "subtitle": "Atskaņošanas iestatījumi starp ierīcēm un sociālie.",
           "shareListeningTitle": "Kopīgot manu klausīšanos ar draugiem",
           "shareListeningDescription": "Draugi var redzēt, ko tu klausies, savā aktivitāšu plūsmā un tavā profilā. Izslēdz, lai klausītos privāti.",
-          "shareListeningError": "Neizdevās atjaunināt iestatījumu."
+          "shareListeningError": "Neizdevās atjaunināt iestatījumu.",
+          "diagnosticsTitle": "Atskaņošanas diagnostika",
+          "diagnosticsDescription": "Nokopē audio dzinēja pēdējos notikumus, gatavus ielīmēšanai kļūdas ziņojumā.",
+          "diagnosticsCopied": "Nokopēts. Ielīmē, kur nepieciešams."
         }
       },
       "Sidebar": {

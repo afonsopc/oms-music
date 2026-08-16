@@ -4,13 +4,14 @@
  * multipart PATCH /users/:id. Optimistic flip with rollback + inline error.
  */
 import React, { useState } from "react";
-import { ScrollView, Text } from "react-native";
+import { Platform, ScrollView, Share, Text } from "react-native";
 import { useUpdateUser } from "@/api/queries/users";
 import { refreshAccount, useSessionStore } from "@/auth/session";
 import { useContentBottomPadding, useContentTopPadding } from "@/features/shell/metrics";
 import { useT } from "@/i18n";
+import { playbackTraceText } from "@/player/trace";
 import { useTheme } from "@/theme/provider";
-import { NoticeBanner, SettingsSection, SwitchRow } from "./ui";
+import { NoticeBanner, SettingsRow, SettingsSection, SwitchRow } from "./ui";
 
 export default function PlaybackSettingsScreen() {
   const t = useT();
@@ -26,6 +27,23 @@ export default function PlaybackSettingsScreen() {
 
   const accountValue = user?.share_listening ?? true;
   const value = override ?? accountValue;
+  const [diagnosticsNote, setDiagnosticsNote] = useState<string | null>(null);
+
+  // O trace do motor (player/trace.ts) existe para os bugs que só acontecem
+  // no bolso do dono: copiar daqui e colar num issue substitui "liga o
+  // profiler e tenta reproduzir". Na web vai para o clipboard; no nativo a
+  // folha de partilha e o caminho universal sem dependências novas.
+  const exportDiagnostics = (): void => {
+    const text = playbackTraceText() || "(sem eventos ainda)";
+    if (Platform.OS === "web") {
+      void navigator.clipboard
+        ?.writeText(text)
+        .then(() => setDiagnosticsNote(t("components.music.Settings.PlaybackPage.diagnosticsCopied")))
+        .catch(() => setDiagnosticsNote(text.slice(0, 200)));
+    } else {
+      void Share.share({ message: text }).catch(() => undefined);
+    }
+  };
 
   const toggle = (next: boolean): void => {
     if (!user) return;
@@ -71,6 +89,16 @@ export default function PlaybackSettingsScreen() {
           value={value}
           onValueChange={toggle}
           disabled={!user || updateUser.isPending}
+        />
+      </SettingsSection>
+
+      <SettingsSection>
+        <SettingsRow
+          first
+          icon="audio-waveform"
+          label={t("components.music.Settings.PlaybackPage.diagnosticsTitle")}
+          detail={diagnosticsNote ?? t("components.music.Settings.PlaybackPage.diagnosticsDescription")}
+          onPress={exportDiagnostics}
         />
       </SettingsSection>
     </ScrollView>
