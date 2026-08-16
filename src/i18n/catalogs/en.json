@@ -71,7 +71,9 @@
         "editImage": "Edit image",
         "editBanner": "Edit banner",
         "uploading": "Uploading...",
-        "uploadFailed": "Upload failed"
+        "uploadFailed": "Upload failed",
+        "previewStories": "Artist preview",
+        "previewKicker": "Previewing"
       },
       "ArtistMultiSelect": {
         "addArtist": "Add artist",

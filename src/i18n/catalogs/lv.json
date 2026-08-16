@@ -71,7 +71,9 @@
         "editImage": "Rediģēt attēlu",
         "editBanner": "Rediģēt banneri",
         "uploading": "Augšupielādē…",
-        "uploadFailed": "Neizdevās augšupielādēt"
+        "uploadFailed": "Neizdevās augšupielādēt",
+        "previewStories": "Mākslinieka priekšskatījums",
+        "previewKicker": "Priekšskatījums:"
       },
       "ArtistMultiSelect": {
         "addArtist": "Pievienot izpildītāju",

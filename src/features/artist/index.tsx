@@ -34,6 +34,7 @@ import {
   ActionBar,
   artworkSourceUri,
   EmptyState,
+  GhostIconButton,
   ErrorState,
   Hero,
   HeroSkeleton,
@@ -44,6 +45,7 @@ import {
 } from "@/ui";
 import { useContentBottomPadding } from "@/features/shell/metrics";
 import { AlbumGrid } from "./AlbumGrid";
+import { ArtistPreviewStories } from "./PreviewStories";
 import { ArtistGallery } from "./ArtistGallery";
 import { htmlToParagraphs } from "./bioHtml";
 import { hasOwnArtistImage, heroAvatarSource, heroBackdropUri } from "./images";
@@ -178,6 +180,10 @@ export default function ArtistScreen() {
   const isPlayingThisArtist =
     playing && currentSongId != null && allSongs.some((s) => s.id === currentSongId);
 
+  // Preview em stories (dono, 2026-08-18): excertos das top músicas por
+  // cima da foto do artista - o segundo inquilino do StoryPager.
+  const [previewOpen, setPreviewOpen] = useState(false);
+
   // Descarregar o artista INTEIRO (dono, 2026-08-17): a mesma ponte offline
   // dos ecrãs de playlist/álbum, com a chave "artist:<slug>". Só com o slug
   // resolvido - a chave tem de bater com a que o autoSync deriva das músicas
@@ -263,6 +269,23 @@ export default function ArtistScreen() {
           onToggleOffline={handleToggleOffline}
           isOffline={artistIsOffline}
           isPlayingThisCollection={isPlayingThisArtist}
+          rightSlot={
+            topSongs.length > 0 ? (
+              <GhostIconButton
+                icon="sparkles"
+                size={18}
+                accessibilityLabel={t("components.music.ArtistView.previewStories")}
+                onPress={() => setPreviewOpen(true)}
+              />
+            ) : undefined
+          }
+        />
+        <ArtistPreviewStories
+          visible={previewOpen}
+          onClose={() => setPreviewOpen(false)}
+          artistName={artistName}
+          imageUri={backdropUri ?? artworkSourceUri(avatarSource)}
+          songs={topSongs}
         />
 
         {topSongs.length > 0 ? (

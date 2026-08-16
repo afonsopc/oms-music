@@ -71,7 +71,9 @@
         "editImage": "Editar imagem",
         "editBanner": "Editar banner",
         "uploading": "A carregar...",
-        "uploadFailed": "Falha ao carregar"
+        "uploadFailed": "Falha ao carregar",
+        "previewStories": "Preview do artista",
+        "previewKicker": "Preview de"
       },
       "ArtistMultiSelect": {
         "addArtist": "Adicionar artista",
