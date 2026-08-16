@@ -11,6 +11,7 @@ import {
   collectionGridColumns,
   heroMinHeight,
   heroTitleType,
+  heroTitleTypeMobile,
   isDesktopShellWidth,
   isRightPanelWidth,
   mainBucket,
@@ -159,6 +160,50 @@ describe("heroMinHeight (desktop only)", () => {
       const value = heroMinHeight(width, false);
       expect(value).toBeGreaterThanOrEqual(previous);
       previous = value;
+    }
+  });
+});
+
+/**
+ * Owner report 2026-08-16, point 14: the playlist title was STILL too large
+ * on the phone. The rule it replaces was a two-step cliff (34, or 28 past 24
+ * characters), so a 20-character title got display type and a long one
+ * dropped once and then never again.
+ */
+describe("heroTitleTypeMobile", () => {
+  // iPhone 15 / 14 Pro / SE, in points.
+  const PHONES = [393, 390, 375, 320];
+
+  it("caps at 28, where Spotify sets the same title on the same phone", () => {
+    for (const width of PHONES) {
+      expect(heroTitleTypeMobile(width, 6).fontSize).toBeLessThanOrEqual(28);
+    }
+    expect(heroTitleTypeMobile(393, 6).fontSize).toBe(28);
+  });
+
+  it("never wraps: the snapped size always fits the column it has", () => {
+    for (const width of PHONES) {
+      for (const length of [4, 10, 16, 24, 32, 48]) {
+        const { fontSize } = heroTitleTypeMobile(width, length);
+        // The floor (18) is allowed to overflow into the second line; every
+        // step above it must genuinely fit.
+        if (fontSize > 18) {
+          expect(fontSize * 0.58 * length).toBeLessThanOrEqual(width - 48);
+        }
+      }
+    }
+  });
+
+  it("steps down instead of cliff-jumping", () => {
+    const sizes = [8, 16, 24, 36].map((n) => heroTitleTypeMobile(393, n).fontSize);
+    for (let i = 1; i < sizes.length; i += 1) expect(sizes[i]).toBeLessThanOrEqual(sizes[i - 1]);
+    expect(new Set(sizes).size).toBeGreaterThan(2);
+  });
+
+  it("is never larger than the old rule, at any length", () => {
+    for (const length of [4, 10, 20, 24, 25, 40]) {
+      const old = length > 24 ? 28 : 34;
+      expect(heroTitleTypeMobile(393, length).fontSize).toBeLessThanOrEqual(old);
     }
   });
 });

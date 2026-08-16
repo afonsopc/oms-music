@@ -17,6 +17,7 @@
 import React from "react";
 import { View } from "react-native";
 import { Stack } from "expo-router";
+import { BackAffordance } from "@/features/shell/BackAffordance";
 import { OverlayHost } from "@/features/shell/OverlayHost";
 import { useTheme } from "@/theme/provider";
 
@@ -53,6 +54,9 @@ export default function TabStackLayout() {
           contentStyle: { backgroundColor: tokens.background },
         }}
       />
+      {/* Acima da Stack, abaixo do OverlayHost: a seta flutua sobre o ecra
+          empurrado mas nunca sobre a pill nem sobre a JamBar. */}
+      <BackAffordance />
       <OverlayHost />
     </View>
   );

@@ -67,6 +67,11 @@ export const OverlayHost = () => {
   const desktop = useDesktopShell();
   const slots = getShellSlots();
   const showPill = !desktop;
+  // The desktop shell renders the controller strip ATTACHED to its transport
+  // card (DesktopShell.web.tsx), where it is flush and full width. Floating a
+  // second copy over the main pane is what the owner reported as an enormous
+  // gap on 2026-08-16, point 17.
+  const strip = desktop ? null : slots.controllerStrip;
 
   return (
     <>
@@ -76,9 +81,9 @@ export const OverlayHost = () => {
         style={{ position: "absolute", left: 8, right: 8, bottom }}
       >
         {slots.jamBar ? (
-          <JamSwitch jam={slots.jamBar} strip={slots.controllerStrip} showPill={showPill} />
+          <JamSwitch jam={slots.jamBar} strip={strip} showPill={showPill} />
         ) : (
-          <PillStack strip={slots.controllerStrip} showPill={showPill} />
+          <PillStack strip={strip} showPill={showPill} />
         )}
       </View>
     </>

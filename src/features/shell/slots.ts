@@ -36,6 +36,15 @@ export interface OverlaySlot {
   isActive(): boolean;
   subscribe(cb: () => void): () => void;
   Component: ComponentType;
+  /**
+   * Flush variant, for a shell that has somewhere to ATTACH the surface
+   * instead of floating it. The desktop shell renders the controller strip
+   * inside the transport card, where floating left it stranded over the main
+   * pane with ~22px of dead space and a card edge below it (owner report
+   * 2026-08-16, point 17). Optional: a slot without one simply keeps
+   * floating everywhere.
+   */
+  Attached?: ComponentType;
 }
 
 export type ShellProvider = ComponentType<{ children?: ReactNode }>;
@@ -111,6 +120,22 @@ export const registerCastButton = (component: ComponentType): void => {
 
 export const useOverlaySlotActive = (slot: OverlaySlot): boolean =>
   useSyncExternalStore(slot.subscribe, slot.isActive, slot.isActive);
+
+const noSubscribe = (): (() => void) => () => {};
+const alwaysInactive = (): boolean => false;
+
+/**
+ * Same read for a slot that may not be registered yet. A caller that needs
+ * the answer to size its LAYOUT (the desktop transport row grows by the
+ * strip's height) cannot put the hook behind an `if`, so the null case is
+ * absorbed here with stable no-op arguments rather than at each call site.
+ */
+export const useOverlaySlotActiveOrNull = (slot: OverlaySlot | null): boolean =>
+  useSyncExternalStore(
+    slot ? slot.subscribe : noSubscribe,
+    slot ? slot.isActive : alwaysInactive,
+    slot ? slot.isActive : alwaysInactive,
+  );
 
 /**
  * Root provider slot (DESIGN 2: ... > SessionGate > DownloadStatusProvider >

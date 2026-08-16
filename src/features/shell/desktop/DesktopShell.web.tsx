@@ -49,6 +49,11 @@ import {
   SIDEBAR_WIDTH_MIN,
   sidebarWidthCeiling,
 } from "./layoutModel";
+// Only the strip's HEIGHT, so the transport row can be sized before the slot
+// renders. The component itself still arrives through the slot registry, the
+// same way RightPanel.tsx already reaches into this package for a body.
+import { CONTROLLER_STRIP_HEIGHT } from "@/features/devices/DevicePicker";
+import { getShellSlots, useOverlaySlotActiveOrNull, useShellSlotsVersion } from "../slots";
 import { DesktopShortcuts } from "./DesktopShortcuts";
 import { PanelResizer } from "./PanelResizer";
 import { DesktopRightPanel } from "./RightPanel";
@@ -98,6 +103,15 @@ export const DesktopShell = ({ children }: DesktopShellProps) => {
   // Cmd/Ctrl+/ overlay (4.4). Session state on purpose: a shortcuts sheet
   // that survives reload would greet every launch.
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+
+  // The controller strip rides INSIDE the transport card here, so the row it
+  // lives in has to grow by exactly its height - a fixed 88px row would
+  // simply clip it (owner report 2026-08-16, point 17).
+  useShellSlotsVersion();
+  const stripSlot = getShellSlots().controllerStrip;
+  const stripActive = useOverlaySlotActiveOrNull(stripSlot);
+  const AttachedStrip = stripActive ? (stripSlot?.Attached ?? null) : null;
+  const playerRowHeight = TRANSPORT_HEIGHT + (AttachedStrip ? CONTROLLER_STRIP_HEIGHT : 0);
 
   const toggleSidebar = (): void => {
     setCollapsed((prev) => {
@@ -171,7 +185,7 @@ export const DesktopShell = ({ children }: DesktopShellProps) => {
         minHeight: 0,
         display: "grid",
         gridTemplateColumns: `${sidebarWidth}px minmax(0, 1fr) ${panelWidth}px`,
-        gridTemplateRows: `${TOPBAR_HEIGHT}px minmax(0, 1fr) ${TRANSPORT_HEIGHT}px`,
+        gridTemplateRows: `${TOPBAR_HEIGHT}px minmax(0, 1fr) ${playerRowHeight}px`,
         gridTemplateAreas: `"topbar topbar topbar" "sidebar main rightpanel" "player player player"`,
         gap: GAP,
         padding: GAP,
@@ -332,6 +346,9 @@ export const DesktopShell = ({ children }: DesktopShellProps) => {
       ) : null}
       {desktop ? (
         <div key="player" style={{ ...card, gridArea: "player" }}>
+          {/* Encostada: primeira linha do MESMO cartao do transporte, sem
+              margem nem cantos, portanto sem folga nenhuma por baixo. */}
+          {AttachedStrip ? <AttachedStrip /> : null}
           <DesktopTransportBar
             panelAvailable={panelWide}
             panelOpen={panelOpen}

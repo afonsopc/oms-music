@@ -114,6 +114,34 @@ export interface HeroTitleType {
  * risco elimina o wrap em qualquer largura e so da display size a titulos
  * que realmente cabem.
  */
+/**
+ * Mobile entity-title size. Same idea as the desktop ladder below, different
+ * geometry: on the phone the artwork sits ABOVE the text, so the title has
+ * the full column (minus the hero's 24px padding either side) and the only
+ * question is how big it can be without wrapping.
+ *
+ * The old mobile rule was a two-step cliff - 34 normally, 28 past 24
+ * characters - which is what the owner kept calling too large (report
+ * 2026-08-16, point 14, "ainda demasiado grande"): 34pt at weight 900 is
+ * display type, a 20-character title still got it, and `numberOfLines={3}`
+ * let it eat 114pt of the screen before the first track row. The cap comes
+ * down to 28, which is where Spotify sets the same title on the same device
+ * (owner's reference screenshots), and everything below it is a fit rather
+ * than a guess.
+ */
+export const heroTitleTypeMobile = (
+  containerWidth: number,
+  titleLength: number,
+): HeroTitleType => {
+  // Hero.tsx pads the mobile column by 24 on each side.
+  const textWidth = Math.max(160, containerWidth - 48);
+  // ~0.58em per glyph at weight 900 with negative tracking, as desktop.
+  const fit = textWidth / (0.58 * Math.max(titleLength, 1));
+  const steps = [28, 26, 24, 22, 20] as const;
+  const snapped = steps.find((step) => step <= fit) ?? 18;
+  return { fontSize: snapped, lineHeight: Math.round(snapped * 1.14) };
+};
+
 export const heroTitleType = (containerWidth: number, titleLength: number): HeroTitleType => {
   const cap = HERO_TITLE_RAMP[mainBucket(containerWidth)];
   // Largura util do bloco de texto na fila do hero (Hero.tsx): artwork

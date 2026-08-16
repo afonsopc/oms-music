@@ -36,6 +36,18 @@ import { useSegments } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useDesktopShell } from "@/ui/shellLayout";
 
+/** Diameter of the floating back arrow's scrim disc (BackAffordance). */
+export const BACK_BUTTON_SIZE = 36;
+/** Gap between the safe-area top and that disc. */
+export const BACK_BUTTON_TOP_GAP = 4;
+/**
+ * Vertical room a self-headed pushed screen adds so its own title clears the
+ * floating back arrow. Lives here, with the other overlay geometry, so
+ * `useContentTopPadding` can spend it without importing the component (which
+ * reads `useAtTabRoot` from this file - the other direction would be a cycle).
+ */
+export const BACK_AFFORDANCE_ROOM = BACK_BUTTON_SIZE + BACK_BUTTON_TOP_GAP + 4;
+
 /** Pill height (web mobile mini player: 64px, rounded-xl). */
 export const OVERLAY_PILL_HEIGHT = 64;
 /** Gap between the pill and whatever it floats above (web: inset 8). */
@@ -116,5 +128,13 @@ const DESKTOP_CONTENT_TOP = 32;
 export const useContentTopPadding = (extra = 16): number => {
   const insets = useSafeAreaInsets();
   const desktop = useDesktopShell();
-  return desktop ? DESKTOP_CONTENT_TOP : insets.top + extra;
+  const atTabRoot = useAtTabRoot();
+  if (desktop) return DESKTOP_CONTENT_TOP;
+  // A pushed screen carries the floating back arrow (BackAffordance), which
+  // occupies the top-left corner these screens draw their own title into.
+  // Paying for it HERE is what keeps the arrow out of every screen's code:
+  // the fourteen self-headed pages already call this hook, so they all make
+  // room without knowing the arrow exists. Hero screens deliberately do not
+  // call it - there the arrow is meant to float over the artwork.
+  return insets.top + extra + (atTabRoot ? 0 : BACK_AFFORDANCE_ROOM);
 };

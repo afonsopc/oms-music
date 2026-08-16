@@ -11,7 +11,7 @@ import { Text, useWindowDimensions, View, type StyleProp, type ViewStyle } from 
 import { Image } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ArtworkImage, artworkSourceUri } from "./ArtworkImage";
-import { heroMinHeight, heroTitleType } from "./breakpoints";
+import { heroMinHeight, heroTitleType, heroTitleTypeMobile } from "./breakpoints";
 import { InitialsAvatar } from "./InitialsAvatar";
 import { useContainerWidth, useDesktopShell } from "./shellLayout";
 import { gradientBackground, linearGradient } from "./uiTheme";
@@ -120,7 +120,10 @@ const HeroContent = ({
           fontWeight: "900",
           letterSpacing: -0.5,
         }}
-        numberOfLines={desktopRow ? 2 : 3}
+        // Two lines on the phone too (was three): the mobile size is now a
+        // FIT, so a third line only ever happened to titles long enough that
+        // the hero became a wall of type before the first track row.
+        numberOfLines={2}
       >
         {title}
       </Text>
@@ -183,7 +186,7 @@ export const Hero = ({
 }: HeroProps) => {
   const { tokens, scheme } = useTheme();
   const t = useT();
-  const { height } = useWindowDimensions();
+  const { height, width } = useWindowDimensions();
 
   const isArtistBackdrop = kind === "artist" && !!backdropUri;
   const artistAvatarFallback = kind === "artist" && !backdropUri;
@@ -242,10 +245,7 @@ export const Hero = ({
     : Math.round(height * (isArtistBackdrop ? 0.42 : 0.36)) + insets.top;
   const titleType = desktopShell
     ? heroTitleType(containerWidth, title.length)
-    : {
-        fontSize: title.length > 24 ? 28 : 34,
-        lineHeight: title.length > 24 ? 32 : 38,
-      };
+    : heroTitleTypeMobile(width, title.length);
   const artSize = 136;
 
   return (

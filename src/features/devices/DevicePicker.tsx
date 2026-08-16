@@ -267,8 +267,24 @@ export const CastButton = () => {
 // Controller strip (overlay slot, above the MiniPlayer pill)
 // ---------------------------------------------------------------------------
 
-/** Emerald "Playing on X" bar; tapping it opens the picker. */
-export const ControllerStrip = () => {
+/**
+ * Height of the ATTACHED strip, exported so the desktop shell can grow its
+ * transport row by exactly this much instead of guessing.
+ */
+export const CONTROLLER_STRIP_HEIGHT = 28;
+
+/**
+ * Emerald "Playing on X" bar; tapping it opens the picker.
+ *
+ * Two forms of the same thing. FLOATING is the mobile one: a rounded pill
+ * that sits above the MiniPlayer with a 6px gap, over whatever the screen is
+ * showing. ATTACHED is for a shell with a transport bar of its own to sit on
+ * - square, full width, no margin - because on desktop the floating form was
+ * anchored to the MAIN pane and ended up stranded with a stack of gaps under
+ * it: its own 6px margin, the overlay's 8px inset, the grid's 8px gutter, and
+ * the bottom edge of a different card (owner report 2026-08-16, point 17).
+ */
+const ControllerStripBody = ({ attached = false }: { attached?: boolean }) => {
   const t = useT();
   const fallback = useFallbackLabel();
   const activeDevice = useRemoteStore(selectActiveDevice);
@@ -281,10 +297,11 @@ export const ControllerStrip = () => {
         onPress={() => setOpen(true)}
         style={({ pressed }) => ({
           backgroundColor: EMERALD,
-          borderRadius: RADIUS,
+          borderRadius: attached ? 0 : RADIUS,
           paddingHorizontal: 12,
           paddingVertical: 6,
-          marginBottom: 6,
+          marginBottom: attached ? 0 : 6,
+          height: attached ? CONTROLLER_STRIP_HEIGHT : undefined,
           flexDirection: "row",
           alignItems: "center",
           gap: 8,
@@ -306,9 +323,13 @@ export const ControllerStrip = () => {
   );
 };
 
+export const ControllerStrip = () => <ControllerStripBody />;
+export const ControllerStripAttached = () => <ControllerStripBody attached />;
+
 /** Overlay slot consumed by the shell host (WP2). */
 export const controllerStripSlot: OverlaySlot = {
   isActive: () => remoteStore.getState().role === "controller",
   subscribe: (cb: () => void) => remoteStore.subscribe(cb),
   Component: ControllerStrip,
+  Attached: ControllerStripAttached,
 };
