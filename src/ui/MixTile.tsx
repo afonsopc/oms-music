@@ -121,6 +121,10 @@ export interface MixTileProps {
   stamp: string;
   artworkUri?: string | null;
   onPress: () => void;
+  /** Nome do artista DENTRO da descrição; com onPressArtist, esse troço
+   *  torna-se clicável e abre o perfil (pedido do dono, 2026-08-17). */
+  artistName?: string | null;
+  onPressArtist?: () => void;
   width?: number;
   style?: StyleProp<ViewStyle>;
 }
@@ -132,11 +136,42 @@ export const MixTile = ({
   stamp,
   artworkUri,
   onPress,
+  artistName,
+  onPressArtist,
   width = TILE_WIDTH,
   style,
 }: MixTileProps) => {
   const { tokens, scheme } = useTheme();
   const artSize = width - 24;
+
+  // O nome do artista na descrição abre o perfil dele; o resto do cartão
+  // continua a abrir o mix. Nested Text e não um layout novo: a descrição
+  // continua a truncar como um parágrafo de duas linhas. Se a string
+  // localizada não contiver o nome (um catálogo que o parafraseie), o cartão
+  // degrada para texto simples em vez de partir.
+  const descriptionContent = (() => {
+    if (!artistName || !onPressArtist) return description;
+    const at = description.indexOf(artistName);
+    if (at < 0) return description;
+    return (
+      <>
+        {description.slice(0, at)}
+        <Text
+          accessibilityRole="link"
+          style={{ color: tokens.foreground, fontWeight: "600" }}
+          onPress={(event) => {
+            // Na web o clique borbulharia ate ao Pressable do cartao e
+            // abriria o mix por cima da navegacao para o artista.
+            (event as { stopPropagation?: () => void }).stopPropagation?.();
+            onPressArtist();
+          }}
+        >
+          {artistName}
+        </Text>
+        {description.slice(at + artistName.length)}
+      </>
+    );
+  })();
   return (
     <Pressable
       onPress={onPress}
@@ -162,7 +197,7 @@ export const MixTile = ({
           style={[typeScale.tileSubtitle, { color: tokens.mutedForeground }]}
           numberOfLines={2}
         >
-          {description}
+          {descriptionContent}
         </Text>
       </View>
     </Pressable>

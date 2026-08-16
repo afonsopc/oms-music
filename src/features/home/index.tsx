@@ -305,6 +305,7 @@ export default function HomeScreen() {
             ) : (
               mixes.map((mix) => {
                 const title = mixTitle(mix, t);
+                const artistSegment = mix.artist ? artistRouteSegment(mix.artist) : null;
                 return (
                   <MixTile
                     key={mix.slug}
@@ -316,6 +317,12 @@ export default function HomeScreen() {
                       mix.artist ? artworkSourceUri(artistImageSource(mix.artist, "sm")) : null
                     }
                     onPress={() => router.push(mixRoute(mix.slug))}
+                    artistName={mix.artist?.name ?? null}
+                    onPressArtist={
+                      artistSegment
+                        ? () => router.push(artistRoute(artistSegment))
+                        : undefined
+                    }
                   />
                 );
               })

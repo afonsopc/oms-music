@@ -211,7 +211,9 @@
       "MixView": {
         "mixLabel": "Mikss",
         "songs": "dziesmas",
-        "errorLoadingMix": "Kļūda ielādējot miksu"
+        "errorLoadingMix": "Kļūda ielādējot miksu",
+        "saveAsPlaylist": "Saglabāt kā atskaņošanas sarakstu",
+        "saveAsPlaylistError": "Neizdevās saglabāt miksu kā atskaņošanas sarakstu."
       },
       "RadioView": {
         "radioLabel": "Radio",

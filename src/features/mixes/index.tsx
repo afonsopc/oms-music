@@ -9,17 +9,21 @@
  * than staring at an error for something that was correct an hour ago. There
  * is deliberately no manual refresh affordance.
  */
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { Pressable, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useMix } from "@/api/queries/mixes";
+import { useCreatePlaylist } from "@/api/queries/playlists";
 import { keys } from "@/api/queryKeys";
 import { isApiError } from "@/domain/api";
 import { artistImageSource } from "@/domain/artwork";
 import { useT } from "@/i18n";
 import { mixDescription, mixStampText, mixTitle } from "@/i18n/mixLabels";
-import { MIX_KIND_GRADIENTS } from "@/theme/tokens";
-import { artworkSourceUri, MixTileArtwork } from "@/ui";
+import { playlistRoute } from "@/lib/routes";
+import { useTheme } from "@/theme/provider";
+import { MIX_KIND_GRADIENTS, RADIUS } from "@/theme/tokens";
+import { artworkSourceUri, Icon, MixTileArtwork } from "@/ui";
 import { CollectionScreen } from "@/features/playlist/CollectionScreen";
 
 const HERO_ARTWORK_SIZE = 136;
@@ -52,7 +56,26 @@ export default function MixScreen() {
     ? `${mixDescription(mix, t)} • ${songs.length} ${t("components.music.MixView.songs")}`
     : undefined;
 
+  // Um mix roda a cada 24h; guardar como playlist congela-o na biblioteca
+  // (pedido do dono, 2026-08-17). O mesmo caminho do save das rádios: o
+  // create semeia song_ids por ordem, e navega-se para a cópia.
+  const { tokens } = useTheme();
+  const [saveError, setSaveError] = useState(false);
+  const createPlaylist = useCreatePlaylist();
+  const saveAsPlaylist = (): void => {
+    if (!mix || songs.length === 0) return;
+    setSaveError(false);
+    createPlaylist.mutate(
+      { name: title, song_ids: songs.map((song) => song.id) },
+      {
+        onSuccess: (playlist) => router.push(playlistRoute(playlist.id)),
+        onError: () => setSaveError(true),
+      },
+    );
+  };
+
   return (
+    <View style={{ flex: 1 }}>
     <CollectionScreen
       kind="mix"
       title={title}
@@ -85,6 +108,35 @@ export default function MixScreen() {
       onRetry={() => void mixQuery.refetch()}
       columns={["index", "title", "album", "duration"]}
       surface="mix"
+      onAdd={songs.length > 0 && !createPlaylist.isPending ? saveAsPlaylist : undefined}
+      addLabel={t("components.music.MixView.saveAsPlaylist")}
     />
+    {saveError ? (
+      // Mesmo aviso in-place da RadioView: nao ha host global de toasts.
+      <Pressable
+        onPress={() => setSaveError(false)}
+        accessibilityRole="button"
+        style={{
+          position: "absolute",
+          left: 20,
+          right: 20,
+          bottom: 24,
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 10,
+          paddingHorizontal: 14,
+          paddingVertical: 12,
+          borderRadius: RADIUS,
+          backgroundColor: tokens.destructive,
+        }}
+      >
+        <Icon name="alert-circle" size={16} color={tokens.destructiveForeground} />
+        <Text style={{ flex: 1, color: tokens.destructiveForeground, fontSize: 13 }}>
+          {t("components.music.MixView.saveAsPlaylistError")}
+        </Text>
+        <Icon name="x" size={16} color={tokens.destructiveForeground} />
+      </Pressable>
+    ) : null}
+    </View>
   );
 }

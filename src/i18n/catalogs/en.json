@@ -211,7 +211,9 @@
       "MixView": {
         "mixLabel": "Mix",
         "songs": "songs",
-        "errorLoadingMix": "Error loading mix"
+        "errorLoadingMix": "Error loading mix",
+        "saveAsPlaylist": "Save as playlist",
+        "saveAsPlaylistError": "Could not save the mix as a playlist."
       },
       "RadioView": {
         "radioLabel": "Radio",
