@@ -543,8 +543,18 @@ export class PlaybackChannelManager {
     }
     const ageMs = this.now() - tick.receivedAtMs;
     const fresh = ageMs >= 0 && ageMs <= STALE_TICK_MS;
-    const position =
-      fresh && !tick.paused ? tick.position + ageMs / 1000 : fresh ? tick.position : snapshot.position;
+    const raw =
+      fresh && !tick.paused
+        ? tick.position + ageMs / 1000
+        : fresh
+          ? tick.position
+          : snapshot.position;
+    // Rounded to a tenth: the extrapolation is an estimate of where the other
+    // device has got to, and a seek lands on a frame boundary anyway, so the
+    // extra digits are noise. Rounding also keeps a tick seeded from the very
+    // frame being adopted (age ~1 ms) reading as the position that frame
+    // stated, instead of a millisecond past it.
+    const position = Math.round(raw * 10) / 10;
     return { ...snapshot, paused: tick.paused, position };
   }
 

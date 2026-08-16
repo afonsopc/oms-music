@@ -163,6 +163,15 @@ export interface AudioAdapter {
   // as the muted original, and `replace` (a new main source) always releases
   // the mixer first - stems can never survive a track change.
 
+  /**
+   * Whether setVolume actually reaches output. False only on iOS Safari,
+   * where HTMLMediaElement.volume is read-only and the write is ignored; the
+   * web adapter discovers this by reading the value back rather than by
+   * sniffing the user agent. Absent (native, and every other browser) means
+   * yes.
+   */
+  supportsVolume?(): boolean;
+
   /** True while the mixer, not the main player, is producing the audio. */
   readonly stemsActive?: boolean;
   /** Whether a real stem mixer backs this adapter in this build. */

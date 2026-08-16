@@ -166,6 +166,12 @@ export const createWebAudioAdapter = (env: WebAudioAdapterEnv = {}): AudioAdapte
   let pump: unknown = null;
   let removed = false;
   let msActive = false;
+  /**
+   * Cleared the first time a volume write does not stick (iOS Safari). Starts
+   * optimistic: assuming the platform works until it demonstrably does not is
+   * the only reading that cannot be wrong about a platform we have not met.
+   */
+  let volumeWritable = true;
   const statusListeners = new Set<(s: AudioAdapterStatus) => void>();
   const blockedListeners = new Set<() => void>();
 
@@ -419,7 +425,21 @@ export const createWebAudioAdapter = (env: WebAudioAdapterEnv = {}): AudioAdapte
       return sourceUri !== null;
     },
     setVolume(v: number): void {
-      media.volume = clampUnit(v);
+      const wanted = clampUnit(v);
+      media.volume = wanted;
+      // iOS Safari makes HTMLMediaElement.volume READ-ONLY: the assignment
+      // above is silently ignored and output stays wherever the hardware
+      // buttons put it, which is why the owner's volume bar did nothing there
+      // (report 2026-08-16, point 7). Probing the read-back is how we learn -
+      // no user-agent sniffing, which would be a guess about a behaviour we
+      // can simply observe, and would go stale the day WebKit changes its
+      // mind. One failed write is enough to know for the whole session.
+      if (volumeWritable && Math.abs(media.volume - wanted) > 0.01) {
+        volumeWritable = false;
+      }
+    },
+    supportsVolume(): boolean {
+      return volumeWritable;
     },
     play,
     pause,

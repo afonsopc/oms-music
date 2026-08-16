@@ -380,3 +380,32 @@ describe("autoplay unlock (first-gesture silent WAV)", () => {
     expect(() => doc.fire("keydown")).not.toThrow();
   });
 });
+
+/**
+ * Owner report 2026-08-16, point 7: the volume bar does nothing in Safari on
+ * iOS. HTMLMediaElement.volume is read-only there - the assignment is
+ * silently ignored - so the adapter finds out by reading the value back,
+ * rather than by sniffing a user agent for a behaviour it can observe.
+ */
+describe("volume support probe", () => {
+  it("reports supported while writes stick", () => {
+    const { adapter } = setup();
+    expect(adapter.supportsVolume?.()).toBe(true);
+    adapter.setVolume(0.4);
+    expect(adapter.supportsVolume?.()).toBe(true);
+  });
+
+  it("latches unsupported the first time a write is ignored", () => {
+    const { adapter, media } = setup();
+    // The iOS Safari shape: assignable, never changes.
+    Object.defineProperty(media, "volume", {
+      get: () => 1,
+      set: () => {},
+      configurable: true,
+    });
+
+    adapter.setVolume(0.4);
+
+    expect(adapter.supportsVolume?.()).toBe(false);
+  });
+});

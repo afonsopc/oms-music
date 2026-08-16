@@ -639,10 +639,50 @@ describe("separation state: no self-contradictory publish", () => {
   });
 });
 
+/**
+ * Owner report 2026-08-16, point 5: "the EQ is not applied - you have to move
+ * a slider and put it back to its original value for it to take effect".
+ *
+ * The bands persist and the sliders draw them; `eqEnabled` did not and used
+ * to start false, so a saved curve was visible and inaudible, and the only
+ * thing that turns the EQ on is touching a band (the section has no switch).
+ * Hence the ritual. Enabled is derived from the bands now.
+ */
+describe("EQ enabled state across a relaunch", () => {
+  const bootWith = (bands: { eqLow: number; eqMid: number; eqHigh: number }) => {
+    resetPlayerStore();
+    const ctx = makeEngineDeps();
+    ctx.deps.persistence.load = () => ({
+      rate: 1,
+      volume: 1,
+      separationEnabled: false,
+      playbackMode: "original",
+      vocalVolume: 1,
+      instrumentalVolume: 1,
+      loopMode: "all",
+      ...bands,
+    });
+    return new PlayerEngineImpl(ctx.deps);
+  };
+
+  it("a saved curve comes back ON, without the user nudging anything", () => {
+    const engine = bootWith({ eqLow: 6, eqMid: 0, eqHigh: -3 });
+    expect(playerStore.getState().eqEnabled).toBe(true);
+    expect(playerStore.getState().eqLow).toBe(6);
+    engine.dispose();
+  });
+
+  it("a flat curve stays off: nothing to apply, nothing to engage", () => {
+    const engine = bootWith({ eqLow: 0, eqMid: 0, eqHigh: 0 });
+    expect(playerStore.getState().eqEnabled).toBe(false);
+    engine.dispose();
+  });
+});
+
 // ---------------------------------------------------------------------------
-// EQ passthrough (gainLaw.PASSTHROUGH_GAIN): outside custom mode an enabled
-// EQ routes the LOCAL main file through the mixer on both nodes, so the EQ
-// colours any downloaded song - no stems, no mode hop.
+// EQ passthrough (gainLaw.PASSTHROUGH_GAINS): outside custom mode an enabled
+// EQ routes the LOCAL main file through the mixer, one node at unity and the
+// other silent, so the EQ colours any downloaded song - no stems, no mode hop.
 // ---------------------------------------------------------------------------
 
 describe("EQ passthrough", () => {

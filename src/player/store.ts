@@ -42,6 +42,14 @@ export interface PlayerStoreState {
   autoplayBlocked: boolean;
   loopMode: LoopMode; // default "all"
   volume: number;
+  /**
+   * Whether the volume slider can do anything at all. False only on iOS
+   * Safari, where HTMLMediaElement.volume is read-only and output belongs to
+   * the hardware buttons - the owner reported the bar as simply broken there
+   * (2026-08-16, point 7). The surfaces hide the control rather than draw a
+   * slider that moves and changes nothing.
+   */
+  volumeSupported: boolean;
   rate: number; // 0.5..1.5 in the UI
   playbackMode: PlaybackMode;
   separationEnabled: boolean;
@@ -80,6 +88,7 @@ export const initialPlayerState: PlayerStoreState = {
   autoplayBlocked: false,
   loopMode: "all",
   volume: 1,
+  volumeSupported: true,
   rate: 1,
   playbackMode: "original",
   separationEnabled: false,

@@ -283,6 +283,7 @@ export class FakeLocalState implements LocalPlaybackState {
       duration: 0,
       playing: false,
       buffering: false,
+      volumeSupported: true,
       autoplayBlocked: false,
       loopMode: "all",
       volume: 1,

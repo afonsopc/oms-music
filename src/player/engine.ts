@@ -21,6 +21,7 @@ import * as ops from "./queueOps";
 import { getLocalFileIndex } from "@/contracts/localSource";
 import { localKindsForMode, stemPairNodeIds, wantedNodeId } from "./modes";
 import { resolveSources, resolveStemSource, type MainSourceCandidate } from "./sources";
+import { eqIsFlat } from "./gainLaw";
 import { PresignedResolver } from "./resolver";
 import { RecoveryTracker } from "./recovery";
 import { ListenAccumulator } from "./recording";
@@ -238,9 +239,31 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
       eqLow: clamp(settings.eqLow, -12, 12),
       eqMid: clamp(settings.eqMid, -12, 12),
       eqHigh: clamp(settings.eqHigh, -12, 12),
+      // DERIVED from the bands, not persisted (owner report 2026-08-16,
+      // point 5: "the EQ is not applied - you have to move a slider and put
+      // it back to its original value for it to take effect").
+      //
+      // That ritual is precisely this bug. The BANDS persist across launches
+      // and the sliders show them, but `eqEnabled` is session-only and used
+      // to start false, so a saved +6 dB low shelf was drawn on the dial and
+      // absent from the audio. Nothing turns the EQ on except touching a
+      // band (the UI has no switch - by its own reasoning "off" and "all
+      // bands at 0 are the same sound"), so the user had to nudge a slider
+      // and return it to where it already was.
+      //
+      // If that equivalence holds - and it is the rule the whole section is
+      // built on - then the enabled flag is not independent state at all: a
+      // non-flat band set IS an EQ that is on. Reset writes three zeroes and
+      // turns it off, so the next launch reads flat and agrees.
+      eqEnabled: !eqIsFlat({
+        low: settings.eqLow,
+        mid: settings.eqMid,
+        high: settings.eqHigh,
+      }),
       stemMixerAvailable: this.supportsStemMixing(),
     });
     this.player.setVolume(clamp(settings.volume, 0, 1));
+    this.publishVolumeSupport();
     this.player.setRate(this.platformRate(settings.rate));
     this.pushStemGains();
     this.pushEqualizer();
@@ -459,6 +482,16 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
     this.player.setVolume(volume);
     playerStore.setState({ volume });
     this.deps.persistence.save({ volume });
+    // The adapter only learns that volume is read-only by trying (iOS
+    // Safari); republish the verdict so the UI can retire the control.
+    this.publishVolumeSupport();
+  }
+
+  private publishVolumeSupport(): void {
+    const supported = this.player.supportsVolume?.() ?? true;
+    if (playerStore.getState().volumeSupported !== supported) {
+      playerStore.setState({ volumeSupported: supported });
+    }
   }
 
   setRate(r: number): void {

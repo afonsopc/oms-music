@@ -31,6 +31,7 @@ import { formatArtists, formatDuration } from "@/domain/format";
 import type { LoopMode } from "@/domain/playback";
 import { getShellSlots, useShellSlotsVersion } from "@/features/shell/slots";
 import { useT } from "@/i18n";
+import { usePlayerStore } from "@/player/store";
 import { usePlaybackView } from "@/remote/mirror";
 import { useRemoteStore } from "@/remote/store";
 import { useTheme } from "@/theme/provider";
@@ -93,6 +94,10 @@ const TransportScrub = () => {
 const TransportVolume = () => {
   const t = useT();
   const volume = usePlaybackView((v) => v.volume);
+  const supported = usePlayerStore((s) => s.volumeSupported);
+  // Same reason as the player's VolumeRow: on iOS Safari the write is
+  // ignored, so the control is retired rather than left lying.
+  if (!supported) return null;
   return (
     <View style={{ width: 96 }}>
       <Slider

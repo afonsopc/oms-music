@@ -38,6 +38,7 @@ import type { Song } from "@/domain/song";
 import { getShellSlots, useShellSlotsVersion } from "@/features/shell/slots";
 import { useT } from "@/i18n";
 import { songAlbumRoute, songArtistRoute } from "@/lib/routes";
+import { usePlayerStore } from "@/player/store";
 import { usePlaybackView } from "@/remote/mirror";
 import { getCachedAccent, resolveAccent } from "@/theme/accent";
 import { useTheme } from "@/theme/provider";
@@ -129,6 +130,12 @@ const VolumeRow = () => {
   // Volume is the ACTIVE device's output: shared, unlike the other listener
   // settings, so a controller drag shows and moves the remote value.
   const volume = usePlaybackView((v) => v.volume);
+  const supported = usePlayerStore((s) => s.volumeSupported);
+  // iOS Safari owns output volume itself (HTMLMediaElement.volume is
+  // read-only there): a slider that slides and changes nothing is worse than
+  // no slider, so the row goes away rather than lying (owner report
+  // 2026-08-16, point 7).
+  if (!supported) return null;
   return (
     // Altifalante pequeno a esquerda, alto a direita, capsula sem thumb: a
     // linha de volume do Apple Music.
