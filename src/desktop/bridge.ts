@@ -124,7 +124,7 @@ export const startDesktopBridge = (): boolean => {
     // metadata ja foi construido acima quando a musica mudou, por isso
     // reconstrui-lo aqui seria trabalho repetido - excepto no tique, onde nada
     // mudou e so a posicao viaja.
-    const miniKey = `${songKey ?? ""}|${state.playing}|${Math.round(state.duration)}`;
+    const miniKey = `${songKey ?? ""}|${state.playing}|${state.buffering}|${Math.round(state.duration)}`;
     if (miniKey !== lastMiniKey || (state.playing && nowMs - lastMiniSent >= MINIPLAYER_TICK_MS)) {
       lastMiniKey = miniKey;
       lastMiniSent = nowMs;
@@ -134,6 +134,7 @@ export const startDesktopBridge = (): boolean => {
         artist: meta?.artist ?? "",
         artworkUrl: meta?.artworkUrl ?? null,
         playing: state.playing,
+        buffering: state.buffering,
         position: state.position,
         duration: state.duration,
         hasSong: song !== null,

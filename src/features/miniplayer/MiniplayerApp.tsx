@@ -133,6 +133,7 @@ const Transport = ({ state, size }: { state: MiniplayerState; size: number }) =>
       />
       <PlayFab
         playing={state.playing}
+        loading={state.buffering === true}
         size={size + 10}
         accessibilityLabel={
           state.playing ? t("components.music.Player.pause") : t("components.music.Player.play")

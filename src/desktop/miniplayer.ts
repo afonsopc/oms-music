@@ -23,6 +23,10 @@ export interface MiniplayerState {
   artist: string;
   artworkUrl: string | null;
   playing: boolean;
+  /** O PlayFab da janela mostra spinner durante carregamentos (o campo
+   *  faltava e o mini-player era a unica superficie sem ele). Opcional no
+   *  wire: um shell mais antigo simplesmente nao o emite. */
+  buffering?: boolean;
   /** Segundos; a posicao autoritativa vive sempre no motor. */
   position: number;
   duration: number;
@@ -38,6 +42,7 @@ export const EMPTY_MINIPLAYER_STATE: MiniplayerState = {
   artist: "",
   artworkUrl: null,
   playing: false,
+  buffering: false,
   position: 0,
   duration: 0,
   hasSong: false,
@@ -84,6 +89,7 @@ export const toMiniplayerState = (payload: unknown): MiniplayerState | null => {
     artist: typeof raw.artist === "string" ? raw.artist : "",
     artworkUrl: typeof raw.artworkUrl === "string" ? raw.artworkUrl : null,
     playing: raw.playing === true,
+    buffering: raw.buffering === true,
     position: num(raw.position),
     duration: num(raw.duration),
     hasSong: raw.hasSong,
