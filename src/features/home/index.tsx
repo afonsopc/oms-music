@@ -15,7 +15,7 @@
  *    each collapses silently when its query settles empty.
  */
 import React, { useMemo, useState, useSyncExternalStore } from "react";
-import { ScrollView, View } from "react-native";
+import { ScrollView, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -34,6 +34,7 @@ import { useT } from "@/i18n";
 import { mixDescription, mixStampText, mixTitle } from "@/i18n/mixLabels";
 import { albumRoute, artistRoute, mixRoute, playlistRoute } from "@/lib/routes";
 import { useTheme } from "@/theme/provider";
+import { FONT_DRUK_WIDE } from "@/theme/typography";
 import {
   artworkSourceUri,
   FilterPills,
@@ -213,24 +214,35 @@ export default function HomeScreen() {
           canto. Ele saiu daqui a 2026-08-14 para a barra de tabs e voltou a
           2026-08-16, quando a barra passou a ser a do sistema e deixou de
           poder carregar uma fotografia redonda. */}
-      <View style={{ flexDirection: "row", alignItems: "center" }}>
-        {/* O avatar a ESQUERDA e as pills a seguir, que e onde o Spotify os
-            tem e onde esta Home ja os teve. A direita nao dava: a tira de
-            pills rola e era cortada a meio da ultima palavra quando batia no
-            avatar (screenshot do dono 2026-08-16). A esquerda ele e o
-            batente, e as pills correm ate a margem do ecra como deve ser. */}
-        <View style={{ paddingLeft: 24 }}>
-          <HeaderAvatar />
-        </View>
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <FilterPills
-            pills={pills}
-            activeKey={filter}
-            onChange={(key) => setFilter(key as HomeFilter)}
-            contentPaddingHorizontal={16}
-          />
-        </View>
+      {/* Cabecalho proprio POR CIMA das pills (pedido do dono 2026-08-16):
+          a marca a esquerda em Druk Wide, a mesma do omelhorsite.pt, e o
+          avatar no canto. Ao lado das pills nao dava - a tira rola e a
+          ultima era cortada a meio da palavra ao bater no avatar. */}
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+          paddingHorizontal: 24,
+        }}
+      >
+        <Text
+          style={{
+            color: tokens.foreground,
+            fontFamily: FONT_DRUK_WIDE,
+            fontSize: 15,
+            letterSpacing: 0.5,
+          }}
+        >
+          OMS Music
+        </Text>
+        <HeaderAvatar />
       </View>
+      <FilterPills
+        pills={pills}
+        activeKey={filter}
+        onChange={(key) => setFilter(key as HomeFilter)}
+      />
 
       {filter === "all" ? (
         recentAlbumsQuery.isLoading && playlistsQuery.isLoading ? (
