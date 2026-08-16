@@ -25,7 +25,12 @@ import type { PlaybackDevice, PlaybackSnapshot } from "@/domain/playback";
 import type { Song } from "@/domain/song";
 import { adoptForActivation, adoptForHydration, hasAdoptableQueue } from "./adoption";
 import { executeRemoteCommand } from "./commands";
-import { ControllerTicker, tickFromSnapshot, type PositionTick } from "./controller";
+import {
+  ControllerTicker,
+  STALE_TICK_MS,
+  tickFromSnapshot,
+  type PositionTick,
+} from "./controller";
 import type { LocalPlaybackState, RemoteEngine } from "./localPlayer";
 import { ActivePublisher } from "./publisher";
 import { mergeSlimState, normalizeWireSongId, snapshotCurrentSong } from "./snapshot";
@@ -54,7 +59,16 @@ export type ClaimMode = "if_none" | "steal";
 
 export type RemoteNotice =
   | { kind: "no_active_device" }
-  | { kind: "device_needs_tap"; deviceLabel: string };
+  | { kind: "device_needs_tap"; deviceLabel: string }
+  /**
+   * A `transfer` the server refused - almost always `device_offline`, because
+   * registry rows survive their device by up to 75 s and device ids are
+   * per-launch, so any relaunched phone or closed tab leaves a row that still
+   * looks online. Swallowing it is what made choosing a device "do nothing"
+   * (owner report 2026-08-16, point 6): the tap had no acknowledgement
+   * channel at all, so a refusal and a success were indistinguishable.
+   */
+  | { kind: "transfer_failed" };
 
 export interface PlaybackChannelDeps {
   cable: CableClient;
@@ -97,6 +111,8 @@ export class PlaybackChannelManager {
   private takeoverPending = false;
   /** Self-initiated if_none claim: already playing the hydrated queue. */
   private selfClaimPending = false;
+  /** A `transfer` was sent and neither a state change nor an error answered. */
+  private transferPending = false;
   /** Lock-screen override bookkeeping (avoid republishing the same song). */
   private overriddenSongId: string | null = null;
 
@@ -217,6 +233,9 @@ export class PlaybackChannelManager {
 
   /** Transfer to any ONLINE device, including self ("Play here"). */
   transferTo(deviceId: string): void {
+    // Remembered only so an `error` frame can be attributed to THIS tap; any
+    // frame that actually moves activeness clears it again.
+    this.transferPending = true;
     this.perform("transfer", { target_device_id: deviceId });
   }
 
@@ -275,7 +294,13 @@ export class PlaybackChannelManager {
         return;
       case "error":
         // The server rejected or clamped one of our sends: resync, never
-        // retry blindly (each blind retry is a rate-limit page).
+        // retry blindly (each blind retry is a rate-limit page). If the send
+        // we are still waiting on was a TRANSFER, say so - that tap moved
+        // nothing and the user is owed the news.
+        if (this.transferPending) {
+          this.transferPending = false;
+          this.deps.notify?.({ kind: "transfer_failed" });
+        }
         this.requestSnapshot();
         return;
       default:
@@ -335,6 +360,7 @@ export class PlaybackChannelManager {
   }
 
   private onStateChanged(msg: Record<string, unknown>): void {
+    this.transferPending = false;
     const state = asRecord(msg.state) as PlaybackSnapshot | null;
     // `?? ` chain matches the web: an absent top-level id falls back to the
     // one embedded in the state payload.
@@ -380,9 +406,21 @@ export class PlaybackChannelManager {
   }
 
   private onDevicesChanged(msg: Record<string, unknown>): void {
+    this.transferPending = false;
     applyRemote({
       ...(Array.isArray(msg.devices) ? { devices: msg.devices as PlaybackDevice[] } : {}),
-      activeDeviceId: asDeviceId(msg.active_device_id),
+      // A devices_changed that carries only the ROSTER and omits the active
+      // id must not read as "nobody is active": taken literally it demoted
+      // every device to no_active, and the re-promotion that followed
+      // re-entered promoteToActive with no takeover pending, re-adopting a
+      // snapshot on top of live local audio.
+      //
+      // Absent and explicitly-null are different answers, so this tests for
+      // the KEY, not for a falsy value: `{ active_device_id: null }` is the
+      // server saying the vacancy out loud and is still honoured.
+      ...("active_device_id" in msg
+        ? { activeDeviceId: asDeviceId(msg.active_device_id) }
+        : {}),
     });
     this.afterStateChange();
   }
@@ -467,7 +505,7 @@ export class PlaybackChannelManager {
     this.selfClaimPending = false;
     if (selfInitiated) return;
 
-    const snapshot = remoteStore.getState().snapshot;
+    const snapshot = this.snapshotForActivation();
     if (!snapshot) return;
     const resumesPlaying = adoptForActivation(this.deps.engine, snapshot);
     if (!resumesPlaying) return;
@@ -475,6 +513,39 @@ export class PlaybackChannelManager {
     // first audible status force-publishes the truth.
     applyRemote({ activating: true });
     this.startActivationTimer();
+  }
+
+  /**
+   * The snapshot to adopt on activation, with the newest tick folded in.
+   *
+   * `paused` and `position` are read from the last FULL `state_changed`, and
+   * position ticks - which arrive every second and carry both - never touch
+   * it. So a transfer mid-song adopted whatever the last full frame said,
+   * which is how the owner's music arrived on the phone paused and seconds
+   * behind (report 2026-08-16, point 6): the other device had said "playing,
+   * at 0:04" a minute earlier and nothing since had been allowed to update
+   * that. Every ambiguity in this path resolves to paused (`?? true` in
+   * adoption and in both frame handlers), so a stale frame is not a
+   * coin-flip, it is a reliable wrong answer.
+   *
+   * The tick is only trusted for the SAME song, and its position is only
+   * extrapolated while it is fresh enough to extrapolate (STALE_TICK_MS) and
+   * actually playing. `paused` is taken from it either way: however old the
+   * tick is, it is still younger than the frame it corrects.
+   */
+  private snapshotForActivation(): PlaybackSnapshot | null {
+    const snapshot = remoteStore.getState().snapshot;
+    if (!snapshot) return null;
+    const tick = this.lastTick;
+    if (!tick) return snapshot;
+    if (normalizeWireSongId(tick.songId) !== normalizeWireSongId(snapshot.song_id ?? null)) {
+      return snapshot;
+    }
+    const ageMs = this.now() - tick.receivedAtMs;
+    const fresh = ageMs >= 0 && ageMs <= STALE_TICK_MS;
+    const position =
+      fresh && !tick.paused ? tick.position + ageMs / 1000 : fresh ? tick.position : snapshot.position;
+    return { ...snapshot, paused: tick.paused, position };
   }
 
   /** FR-108: nobody is active, the account has a queue, this device does not. */

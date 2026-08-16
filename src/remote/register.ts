@@ -70,6 +70,10 @@ const emitNotice = (notice: RemoteNotice): void => {
     noticeHandler({ key: "components.music.RemotePlayback.noActiveDevice" });
     return;
   }
+  if (notice.kind === "transfer_failed") {
+    noticeHandler({ key: "components.music.RemotePlayback.transferFailed" });
+    return;
+  }
   noticeHandler({
     key: "components.music.RemotePlayback.deviceNeedsTap",
     params: { device: notice.deviceLabel },

@@ -14,6 +14,7 @@ interface Harness {
   local: FakeLocalState;
   channel: PlaybackChannelManager;
   lockScreenSongs: (string | null)[];
+  notices: string[];
 }
 
 let active: Harness | null = null;
@@ -23,6 +24,7 @@ const start = (over: Partial<{ localPlaying: boolean }> = {}): Harness => {
   const engine = new FakeEngine();
   const local = new FakeLocalState({ playing: !!over.localPlaying });
   const lockScreenSongs: (string | null)[] = [];
+  const notices: string[] = [];
   const channel = new PlaybackChannelManager({
     cable,
     engine,
@@ -30,9 +32,10 @@ const start = (over: Partial<{ localPlaying: boolean }> = {}): Harness => {
     deviceId: "device-abcdefgh",
     deviceLabel: "Pixel - Android",
     setLockScreenSong: (song) => lockScreenSongs.push(song ? String(song.id) : null),
+    notify: (notice) => notices.push(notice.kind),
   });
   channel.start();
-  const harness = { cable, engine, local, channel, lockScreenSongs };
+  const harness = { cable, engine, local, channel, lockScreenSongs, notices };
   active = harness;
   return harness;
 };
@@ -208,9 +211,83 @@ describe("controller mirroring (FR-109)", () => {
   });
 
   it("resyncs instead of retrying when the server rejects a send", () => {
-    const { cable } = start();
+    const { cable, notices } = start();
     cable.push({ type: "error", action: "state_changed", reason: "not_active_device" });
     expect(cable.last("request_snapshot")).toBeTruthy();
+    // Nothing was transferred, so nothing is announced.
+    expect(notices).toEqual([]);
+  });
+});
+
+/**
+ * Owner report 2026-08-16, point 6: "choosing another device does nothing, or
+ * it moves the music to the phone but PAUSED". Both halves are the same
+ * defect - the transfer had no acknowledgement channel, and every ambiguity
+ * in the path resolved to paused.
+ */
+describe("transfer (FR-111 owner report 2026-08-16)", () => {
+  it("says so when the server refuses the transfer", () => {
+    const { cable, notices } = start();
+    cable.push(snapshotFrame({ active_device_id: OTHER }));
+
+    // Registry rows outlive their device by up to 75 s and device ids are
+    // per-launch, so the picker happily offers a ghost. This is what the
+    // server answers, and it used to be swallowed whole.
+    active!.channel.transferTo(OTHER);
+    cable.push({ type: "error", action: "transfer", reason: "device_offline" });
+
+    expect(notices).toEqual(["transfer_failed"]);
+    expect(cable.last("request_snapshot")).toBeTruthy();
+  });
+
+  it("does not blame a transfer for an unrelated later error", () => {
+    const { cable, notices } = start();
+    cable.push(snapshotFrame({ active_device_id: OTHER }));
+    active!.channel.transferTo(ME);
+    // The transfer landed; anything failing after it is a different story.
+    cable.push({ type: "state_changed", active_device_id: ME, state: wireSnapshot() });
+    cable.push({ type: "error", action: "state_changed", reason: "not_active_device" });
+    expect(notices).toEqual([]);
+  });
+
+  it("adopts the NEWEST tick, not the last full frame", () => {
+    const { cable, engine } = start();
+    // The other device published "paused at 0" a while ago and has been
+    // ticking ever since - ticks carry position AND paused, and nothing was
+    // folding them into what an activation adopts.
+    cable.push(snapshotFrame({ active_device_id: OTHER }));
+    cable.push({ type: "position_tick", position: 42, paused: false, song_id: "1" });
+
+    // Activeness moves here WITHOUT a fresh state frame, which is exactly the
+    // case that used to adopt the minute-old truth.
+    cable.push({
+      type: "devices_changed",
+      active_device_id: ME,
+      devices: [{ id: ME, label: "Pixel", device_type: "mobile", online: true }],
+    });
+
+    expect(engine.adopted?.cause).toBe("activation");
+    expect(engine.adopted?.paused).toBe(false);
+    expect(engine.adopted?.position).toBeGreaterThanOrEqual(42);
+    expect(engine.adopted?.position).toBeLessThan(44);
+  });
+
+  it("keeps the roster's active device when a devices_changed omits it", () => {
+    const { cable, engine } = start();
+    cable.push(snapshotFrame({ active_device_id: OTHER }));
+    const adoptionsBefore = engine.adopted;
+
+    // Roster-only frame: no active_device_id KEY at all. Read literally it
+    // demoted everyone to no_active, and the re-promotion that followed
+    // re-adopted a snapshot on top of whatever was already playing.
+    cable.push({
+      type: "devices_changed",
+      devices: [{ id: OTHER, label: "Mac", device_type: "desktop", online: true }],
+    });
+
+    expect(remoteStore.getState().activeDeviceId).toBe(OTHER);
+    expect(remoteStore.getState().role).toBe("controller");
+    expect(engine.adopted).toBe(adoptionsBefore);
   });
 });
 

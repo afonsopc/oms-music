@@ -768,6 +768,7 @@
       "RemotePlayback": {
         "noActiveDevice": "Nav aktīvas ierīces",
         "deviceNeedsTap": "Ierīcei {device} ir vajadzīgs pieskāriens, lai atsāktu",
+        "transferFailed": "Neizdevās nomainīt ierīci - tā, iespējams, vairs nav pieejama.",
         "deviceFallback": "Ierīce"
       },
       "MusicProvider": {

@@ -768,6 +768,7 @@
       "RemotePlayback": {
         "noActiveDevice": "Sem dispositivo activo",
         "deviceNeedsTap": "O {device} precisa de um toque para retomar",
+        "transferFailed": "Não foi possível mudar de dispositivo - pode já não estar disponível.",
         "deviceFallback": "Dispositivo"
       },
       "MusicProvider": {
