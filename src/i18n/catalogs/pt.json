@@ -855,6 +855,26 @@
         "upNext": "A seguir",
         "pickedBy": "escolha de @{handle}",
         "proposeHint": "Carrega play em qualquer música da tua biblioteca para a propor à jam."
+      },
+      "Rewind": {
+        "introKicker": "A tua retrospectiva",
+        "introBody": "O que ouviste, quem não largaste, tudo pelas tuas contagens. Toca para avançar.",
+        "topArtistKicker": "O teu artista número um",
+        "artistsKicker": "Os teus artistas",
+        "topSongKicker": "A música que não largaste",
+        "songsKicker": "As tuas músicas",
+        "monthKicker": "O dono do teu último mês",
+        "monthBody": "Ninguém tocou mais nos últimos 30 dias.",
+        "outroKicker": "É isto, por agora",
+        "outroBody": "Continua a ouvir. O próximo Rewind escreve-se sozinho.",
+        "playCount": "{count, plural, one {# reprodução} other {# reproduções}}",
+        "emptyTitle": "Ainda sem história",
+        "emptyBody": "Ouve mais umas músicas e volta cá - o Rewind conta o que tu tocares.",
+        "previous": "Cartão anterior",
+        "next": "Cartão seguinte",
+        "close": "Fechar o Rewind",
+        "homeBanner": "O teu Rewind está pronto",
+        "homeBannerSubtitle": "A tua retrospectiva, em stories."
       }
     }
   },

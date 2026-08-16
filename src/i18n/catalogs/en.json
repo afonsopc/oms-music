@@ -855,6 +855,26 @@
         "upNext": "Up next",
         "pickedBy": "picked by @{handle}",
         "proposeHint": "Press play on any song in your library to propose it to the jam."
+      },
+      "Rewind": {
+        "introKicker": "Your look back",
+        "introBody": "What you played, who you kept coming back to - all by your own counts. Tap to move on.",
+        "topArtistKicker": "Your number one artist",
+        "artistsKicker": "Your artists",
+        "topSongKicker": "The song you could not drop",
+        "songsKicker": "Your songs",
+        "monthKicker": "Owner of your last month",
+        "monthBody": "Nobody played more in the last 30 days.",
+        "outroKicker": "That is it, for now",
+        "outroBody": "Keep listening. The next Rewind writes itself.",
+        "playCount": "{count, plural, one {# play} other {# plays}}",
+        "emptyTitle": "No story yet",
+        "emptyBody": "Play some music and come back - the Rewind tells what you play.",
+        "previous": "Previous card",
+        "next": "Next card",
+        "close": "Close the Rewind",
+        "homeBanner": "Your Rewind is ready",
+        "homeBannerSubtitle": "Your look back, in stories."
       }
     }
   },

@@ -855,6 +855,26 @@
         "upNext": "Nākamās",
         "pickedBy": "izvēlējās @{handle}",
         "proposeHint": "Nospied atskaņot uz jebkuras dziesmas savā bibliotēkā, lai to ieteiktu jam sesijai."
+      },
+      "Rewind": {
+        "introKicker": "Tava atskata",
+        "introBody": "Ko klausījies un pie kā atgriezies - viss pēc taviem skaitiem. Pieskaries, lai turpinātu.",
+        "topArtistKicker": "Tavs numur viens",
+        "artistsKicker": "Tavi mākslinieki",
+        "topSongKicker": "Dziesma, ko nevarēji atlaist",
+        "songsKicker": "Tavas dziesmas",
+        "monthKicker": "Tava pēdējā mēneša saimnieks",
+        "monthBody": "Neviens neskanēja vairāk pēdējās 30 dienās.",
+        "outroKicker": "Tas arī viss, pagaidām",
+        "outroBody": "Turpini klausīties. Nākamā Rewind uzrakstīsies pati.",
+        "playCount": "{count, plural, one {# atskaņojums} other {# atskaņojumi}}",
+        "emptyTitle": "Vēl nav stāsta",
+        "emptyBody": "Paklausies mūziku un atgriezies - Rewind stāsta to, ko tu atskaņo.",
+        "previous": "Iepriekšējā kartīte",
+        "next": "Nākamā kartīte",
+        "close": "Aizvērt Rewind",
+        "homeBanner": "Tava Rewind ir gatava",
+        "homeBannerSubtitle": "Tava atskata stāstos."
       }
     }
   },

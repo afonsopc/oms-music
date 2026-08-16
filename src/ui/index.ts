@@ -94,6 +94,7 @@ export {
 } from "./SongTable";
 export { StickyTitle, type StickyTitleProps } from "./StickyTitle";
 export { Tile, TILE_WIDTH, type TileProps } from "./Tile";
+export { StoryPager, type StoryCard } from "./StoryPager";
 export { TopTileGrid, type TopTileGridProps, type TopTileItem } from "./TopTileGrid";
 export { BottomSheet, type BottomSheetProps } from "./sheets/BottomSheet";
 export {

@@ -32,6 +32,21 @@ export const useTopArtists = (since: TopSince = "30d", limit = 10, enabled = tru
   });
 };
 
+/** Top global do utilizador (Rewind): sem filtro de artista. */
+export const useTopSongsOverall = (
+  since: TopSince = "all",
+  limit = 5,
+  enabled = true,
+) => {
+  const authReady = useAuthReady();
+  const key = keys.playEvents.top("song", since, null, limit);
+  return useQuery({
+    queryKey: key,
+    queryFn: guardedQueryFn(key, () => listTopSongs({ since, limit })),
+    enabled: authReady && enabled,
+  });
+};
+
 /** Artist "Popular" top 5 by all-time plays (FR-39). */
 export const useTopSongs = (
   artist: string | null,

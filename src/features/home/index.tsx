@@ -34,6 +34,8 @@ import { useT } from "@/i18n";
 import { mixDescription, mixStampText, mixTitle } from "@/i18n/mixLabels";
 import { albumRoute, artistRadioRoute, artistRoute, mixRoute, playlistRoute } from "@/lib/routes";
 import { useTheme } from "@/theme/provider";
+import { MIX_KIND_GRADIENTS } from "@/theme/tokens";
+import { gradientBackground, linearGradient } from "@/ui/uiTheme";
 import {
   artworkSourceUri,
   FilterPills,
@@ -276,6 +278,35 @@ export default function HomeScreen() {
             <TopTileGrid items={quickItems} />
           </Section>
         )
+      ) : null}
+
+      {/* A porta do Rewind (dono, 2026-08-18): um cartao-banner acima dos
+          mixes, so no "Tudo". */}
+      {filter === "all" ? (
+        <Section order={1}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t("components.music.Rewind.homeBanner")}
+            onPress={() => router.push("/rewind")}
+            style={({ pressed }) => ({
+              marginHorizontal: 24,
+              borderRadius: 14,
+              padding: 18,
+              gap: 4,
+              opacity: pressed ? 0.85 : 1,
+              ...gradientBackground(
+                linearGradient("120deg", ...MIX_KIND_GRADIENTS.year_mix.colors),
+              ),
+            })}
+          >
+            <Text style={{ color: "#fff", fontSize: 18, fontWeight: "900", letterSpacing: -0.3 }}>
+              {t("components.music.Rewind.homeBanner")}
+            </Text>
+            <Text style={{ color: "rgba(255,255,255,0.85)", fontSize: 13 }}>
+              {t("components.music.Rewind.homeBannerSubtitle")}
+            </Text>
+          </Pressable>
+        </Section>
       ) : null}
 
       {filter === "all" && (mixesQuery.isLoading || mixes.length > 0) ? (

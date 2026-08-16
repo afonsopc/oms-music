@@ -81,10 +81,12 @@ const PUSHED_ROUTES = [
 ].sort();
 
 describe("route tree (native tabs)", () => {
-  it("keeps nothing but the tabs host and the dev gallery beside (tabs)", () => {
-    // A gallery e a unica excepcao aprovada: e __DEV__, nao e alcancavel por
-    // UI nenhuma, e triplica-la pelas tres tabs so engordava o export.
-    expect(entries(MAIN)).toEqual(["(tabs)/", "_layout.tsx", "gallery.tsx"]);
+  it("keeps nothing but the tabs host, the dev gallery and the rewind beside (tabs)", () => {
+    // Duas excepcoes aprovadas: a gallery (__DEV__, inalcancavel por UI) e o
+    // rewind (dono 2026-08-18) - stories em ecra INTEIRO por cima do
+    // navegador, que dentro de uma tab herdaria a barra e o shell; e uma
+    // rota so, portanto triplica-la pelas tabs so engordava o export.
+    expect(entries(MAIN)).toEqual(["(tabs)/", "_layout.tsx", "gallery.tsx", "rewind.tsx"]);
   });
 
   it("forks the tabs layout by platform and groups every tab", () => {
