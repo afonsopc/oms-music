@@ -48,6 +48,8 @@ docker run --rm --platform linux/amd64 \
   -w /repo/desktop oms-linux-builder bash -c '
     set -e
     export CARGO_TARGET_DIR=/target
+    # linuxdeploy e um AppImage e nao ha FUSE dentro do docker.
+    export APPIMAGE_EXTRACT_AND_RUN=1
     bun install --frozen-lockfile
     export TAURI_SIGNING_PRIVATE_KEY="$(cat /repo/desktop/keys/updater.key)"
     export TAURI_SIGNING_PRIVATE_KEY_PASSWORD=""
