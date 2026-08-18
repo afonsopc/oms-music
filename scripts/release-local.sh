@@ -61,19 +61,39 @@ docker run --rm -v oms-linux-target:/target -v "${OUT}:/out" ubuntu:24.04 bash -
   cp /target/release/bundle/appimage/*.AppImage* /out/ 2>/dev/null || true'
 
 # --- flatpak (reempacota o deb; runtime GNOME em cache no volume) -----------
+# MONTADO A MAO, sem flatpak-builder: o bwrap nao consegue seccomp sob a
+# emulacao amd64 do Docker no Apple Silicon, e o nosso "build" e so copiar
+# ficheiros - build-init/finish/export/bundle nao precisam de sandbox
+# (aprendido na v1.0.0, 2026-08-18). Manter em sintonia com o manifest
+# desktop/flatpak/*.yml (command, finish-args, renomeacoes).
 FLATPAK_STAGE="$(mktemp -d /tmp/oms-flatpak-XXXX)"
-cp desktop/flatpak/pt.omelhorsite.music.desktop.yml "${FLATPAK_STAGE}/manifest.yml"
 cp "${OUT}"/*.deb "${FLATPAK_STAGE}/oms-music.deb"
 docker run --rm --privileged --platform linux/amd64 \
   -v "${FLATPAK_STAGE}:/work" -v oms-flatpak-cache:/var/lib/flatpak -w /work \
   ubuntu:24.04 bash -c '
     set -e
     apt-get update -qq >/dev/null
-    apt-get install -y -qq flatpak flatpak-builder elfutils binutils ca-certificates >/dev/null 2>&1
+    apt-get install -y -qq flatpak binutils ca-certificates >/dev/null 2>&1
     flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
     flatpak install -y --noninteractive flathub org.gnome.Platform//46 org.gnome.Sdk//46
-    flatpak-builder --force-clean --disable-rofiles-fuse --repo=repo build manifest.yml
-    flatpak build-bundle repo oms-music.flatpak pt.omelhorsite.music.desktop
+    rm -rf appdir repo extracted && mkdir extracted
+    (cd extracted && ar -x ../oms-music.deb && tar -xf data.tar.gz)
+    flatpak build-init --arch=x86_64 appdir pt.omelhorsite.music.desktop org.gnome.Sdk org.gnome.Platform 46
+    install -Dm755 extracted/usr/bin/oms-music-desktop appdir/files/bin/oms-music-desktop
+    for f in extracted/usr/share/applications/*.desktop; do
+      install -Dm644 "$f" appdir/files/share/applications/pt.omelhorsite.music.desktop.desktop
+    done
+    sed -i "s/^Icon=.*/Icon=pt.omelhorsite.music.desktop/" \
+      appdir/files/share/applications/pt.omelhorsite.music.desktop.desktop
+    for f in extracted/usr/share/icons/hicolor/*/apps/*.png; do
+      size=${f#extracted/usr/share/icons/hicolor/}; size=${size%%/*}
+      install -Dm644 "$f" "appdir/files/share/icons/hicolor/$size/apps/pt.omelhorsite.music.desktop.png"
+    done
+    flatpak build-finish appdir --command=oms-music-desktop \
+      --socket=wayland --socket=fallback-x11 --device=dri \
+      --share=ipc --share=network --socket=pulseaudio
+    flatpak build-export --arch=x86_64 repo appdir
+    flatpak build-bundle --arch=x86_64 repo oms-music.flatpak pt.omelhorsite.music.desktop
   '
 cp "${FLATPAK_STAGE}/oms-music.flatpak" "${OUT}/oms-music-${TAG}.flatpak"
 

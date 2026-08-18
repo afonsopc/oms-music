@@ -14,19 +14,22 @@ fn main() {
     oms_music_desktop_lib::run()
 }
 
-/// Escada de mitigacao dos bugs DMABUF/explicit-sync do WebKitGTK, que sao
-/// endemicos com o driver proprietario NVIDIA (janela branca, flicker,
-/// GPU hangs). Regras:
+/// Escada de mitigacao dos bugs DMABUF/explicit-sync do WebKitGTK. Regras:
 ///
 /// 1. Nunca pisar uma escolha explicita do utilizador: cada variavel so e
-///    definida se ainda nao existir no ambiente.
-/// 2. Degrau NVIDIA (automatico): com o modulo nvidia carregado, desligar o
-///    explicit sync e o renderer DMABUF. E o par que a comunidade Tauri
-///    converge ha anos para estes drivers, e e inocuo em Mesa.
-/// 3. Degrau manual (OMS_WEBKIT_SAFE=1): desliga tambem o compositing
-///    acelerado, para VMs sem aceleracao e drivers fora da matriz. Fica como
-///    valvula de escape documentada, nunca como default - custa CPU a todos
-///    os outros.
+///    definida se ainda nao existir no ambiente (exportar
+///    WEBKIT_DISABLE_DMABUF_RENDERER=0 reactiva o DMABUF).
+/// 2. DMABUF desligado POR OMISSAO para todos: a v1.0.0 saiu com isto
+///    condicionado a NVIDIA e o primeiro Linux real do dono (2026-08-18)
+///    veio "ultra lento, cliques mortos, scroll intermitente" - o bug nao
+///    escolhe driver (VMs e varios mesa sofrem igual). E o default a que a
+///    comunidade Tauri converge; o fallback SHM mantem o compositing
+///    acelerado e custa pouco.
+/// 3. Degrau NVIDIA (automatico): com o modulo nvidia carregado, desligar
+///    tambem o explicit sync.
+/// 4. Degrau manual (OMS_WEBKIT_SAFE=1): desliga ainda o compositing
+///    acelerado, para VMs sem aceleracao nenhuma. Valvula de escape
+///    documentada, nunca default - custa CPU a todos os outros.
 #[cfg(target_os = "linux")]
 fn linux_graphics_env() {
     use std::path::Path;
@@ -37,16 +40,15 @@ fn linux_graphics_env() {
         }
     }
 
+    set_default("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+
     let nvidia =
         Path::new("/proc/driver/nvidia").exists() || Path::new("/sys/module/nvidia").exists();
-
     if nvidia {
         set_default("__NV_DISABLE_EXPLICIT_SYNC", "1");
-        set_default("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
     }
 
     if std::env::var_os("OMS_WEBKIT_SAFE").is_some() {
-        set_default("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
         set_default("WEBKIT_DISABLE_COMPOSITING_MODE", "1");
     }
 }
