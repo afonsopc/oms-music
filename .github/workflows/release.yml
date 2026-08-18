@@ -117,7 +117,8 @@ jobs:
             echo "==> A usar a chave do updater dos secrets"
           else
             echo "::warning::Sem TAURI_SIGNING_PRIVATE_KEY nos secrets: chave DESCARTAVEL. Os .sig desta release nao servem como update de instalacoes existentes."
-            bun run tauri signer generate -w keys/updater.key --password ""
+            bun run tauri signer generate -w keys/updater.key --password "descartavel"
+            echo "TAURI_THROWAWAY_PASSWORD=descartavel" >> "$GITHUB_ENV"
           fi
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -126,7 +127,7 @@ jobs:
         shell: bash
         run: |
           export TAURI_SIGNING_PRIVATE_KEY="$(cat keys/updater.key)"
-          export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="${TAURI_KEY_PASSWORD:-}"
+          export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="${TAURI_KEY_PASSWORD:-${TAURI_THROWAWAY_PASSWORD:-}}"
           bun run tauri build --bundles "${{ matrix.bundles }}"
         env:
           CI: "true"
