@@ -18,8 +18,10 @@
 name: release
 
 on:
-  push:
-    tags: ["v*"]
+  # SO manual (dono, 2026-08-18: "n podemos correr essa CI nunca mais" -
+  # ~$3 por release em runners macOS). O caminho normal e o
+  # scripts/release-local.sh, gratis; isto fica como ultimo recurso.
+  workflow_dispatch:
 
 permissions:
   contents: write

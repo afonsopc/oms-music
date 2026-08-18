@@ -1,0 +1,111 @@
+#!/usr/bin/env bash
+# Release LOCAL, a custo zero (dono, 2026-08-18: "n podemos correr essa CI
+# nunca mais... custou 3$"). Compila tudo o que este Mac consegue e publica
+# numa GitHub release com o gh CLI:
+#
+#   ./scripts/release-local.sh v1.1.0
+#
+# O que sai daqui:
+#   web    zip do export estatico            (bun, nativo)
+#   macOS  .dmg + .app.tar.gz + .sig         (cargo, nativo, chave real)
+#   Linux  .deb + .AppImage (+ .sig)         (docker linux/amd64 + qemu)
+#   flatpak .flatpak                         (docker, reempacota o deb)
+#   Android .apk                             (gradle local, debug keystore)
+#   iOS    .ipa SEM assinatura               (xcodebuild; AltStore reassina)
+#
+# O que NAO sai: o .exe do Windows. Tauri nao cruza para Windows a partir
+# de macOS sem uma maquina Windows; se for mesmo preciso, corre-se o
+# workflow "release" por workflow_dispatch UMA vez (pago) ou compila-se num
+# PC. A release fica sem exe e ninguem chora.
+#
+# Pre-requisitos: docker a correr, gh autenticado, Xcode, JDK 21 + Android
+# SDK do brew (ver docs/cloud-setup.md), e desktop/keys/updater.key.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+TAG="${1:?uso: release-local.sh vX.Y.Z}"
+OUT="$(mktemp -d /tmp/oms-release-XXXX)"
+echo "==> release ${TAG} -> ${OUT}"
+
+# --- web --------------------------------------------------------------------
+./scripts/build-web.sh
+(cd dist && zip -qr "${OUT}/oms-music-web-${TAG}.zip" .)
+
+# --- macOS (nativo; reutiliza o dist acabado de fazer) ----------------------
+OMS_FORCE_WEB_BUILD=0 bash desktop/scripts/build-macos.sh
+BUNDLE="desktop/src-tauri/target/release/bundle"
+cp "${BUNDLE}"/dmg/*.dmg "${OUT}/" 2>/dev/null || true
+cp "${BUNDLE}"/macos/*.app.tar.gz "${BUNDLE}"/macos/*.app.tar.gz.sig "${OUT}/" 2>/dev/null || true
+
+# --- Linux x86_64 (docker + qemu; lento mas gratis) -------------------------
+# O linux-builder.Dockerfile ja e a receita canonica de deps; o build corre
+# dentro dele com o repo montado. O target/ do container fica em cache local
+# para a segunda release nao pagar o cargo do zero.
+docker build --platform linux/amd64 -t oms-linux-builder \
+  -f desktop/scripts/linux-builder.Dockerfile desktop/scripts
+docker run --rm --platform linux/amd64 \
+  -v "$PWD:/repo" -v oms-linux-cargo:/root/.cargo -v oms-linux-target:/target \
+  -w /repo/desktop oms-linux-builder bash -c '
+    set -e
+    export CARGO_TARGET_DIR=/target
+    bun install --frozen-lockfile
+    export TAURI_SIGNING_PRIVATE_KEY="$(cat /repo/desktop/keys/updater.key)"
+    export TAURI_SIGNING_PRIVATE_KEY_PASSWORD=""
+    bun run tauri build --bundles deb,appimage
+  '
+LINUX_BUNDLE="$(docker run --rm -v oms-linux-target:/target ubuntu:24.04 \
+  find /target/release/bundle -name "*.deb" -o -name "*.AppImage" -o -name "*.AppImage.sig" | head -0; true)"
+# copiar do volume para fora
+docker run --rm -v oms-linux-target:/target -v "${OUT}:/out" ubuntu:24.04 bash -c '
+  cp /target/release/bundle/deb/*.deb /out/ 2>/dev/null || true
+  cp /target/release/bundle/appimage/*.AppImage* /out/ 2>/dev/null || true'
+
+# --- flatpak (reempacota o deb; runtime GNOME em cache no volume) -----------
+FLATPAK_STAGE="$(mktemp -d /tmp/oms-flatpak-XXXX)"
+cp desktop/flatpak/pt.omelhorsite.music.desktop.yml "${FLATPAK_STAGE}/manifest.yml"
+cp "${OUT}"/*.deb "${FLATPAK_STAGE}/oms-music.deb"
+docker run --rm --privileged --platform linux/amd64 \
+  -v "${FLATPAK_STAGE}:/work" -v oms-flatpak-cache:/var/lib/flatpak -w /work \
+  ubuntu:24.04 bash -c '
+    set -e
+    apt-get update -qq >/dev/null
+    apt-get install -y -qq flatpak flatpak-builder elfutils binutils ca-certificates >/dev/null 2>&1
+    flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+    flatpak install -y --noninteractive flathub org.gnome.Platform//46 org.gnome.Sdk//46
+    flatpak-builder --force-clean --disable-rofiles-fuse --repo=repo build manifest.yml
+    flatpak build-bundle repo oms-music.flatpak pt.omelhorsite.music.desktop
+  '
+cp "${FLATPAK_STAGE}/oms-music.flatpak" "${OUT}/oms-music-${TAG}.flatpak"
+
+# --- Android ----------------------------------------------------------------
+export JAVA_HOME="$(brew --prefix openjdk@21)"
+export ANDROID_HOME="/opt/homebrew/share/android-commandlinetools"
+export PATH="$JAVA_HOME/bin:$PATH"
+CI=1 bunx expo prebuild -p android
+echo "sdk.dir=$ANDROID_HOME" > android/local.properties
+(cd android && ./gradlew assembleRelease --no-daemon -q)
+cp android/app/build/outputs/apk/release/app-release.apk "${OUT}/oms-music-${TAG}.apk"
+
+# --- iOS (sem assinatura) ---------------------------------------------------
+CI=1 bunx expo prebuild -p ios
+WORKSPACE="$(ls -d ios/*.xcworkspace | head -1)"
+SCHEME="$(basename "$WORKSPACE" .xcworkspace)"
+xcodebuild -workspace "$WORKSPACE" -scheme "$SCHEME" \
+  -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' \
+  -archivePath "${OUT}/ios.xcarchive" archive \
+  CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" -quiet
+(cd "${OUT}" && mkdir -p Payload \
+  && cp -R ios.xcarchive/Products/Applications/*.app Payload/ \
+  && zip -qry "oms-music-${TAG}-unsigned.ipa" Payload \
+  && rm -rf Payload ios.xcarchive)
+
+# --- publicar ---------------------------------------------------------------
+ls -la "${OUT}"
+gh release create "${TAG}" "${OUT}"/* \
+  --title "OMS Music ${TAG#v}" \
+  --generate-notes \
+  --notes "Builds locais (scripts/release-local.sh - a CI paga esta reformada).
+- Web: export estatico | macOS: dmg (ad-hoc) | Linux: deb/AppImage/flatpak
+- Android: apk (debug keystore) | iOS: ipa SEM assinatura (AltStore reassina)
+- Windows: sem exe nesta release (sem maquina Windows; workflow_dispatch pago se for mesmo preciso)"
+echo "RELEASE_OK ${TAG}"

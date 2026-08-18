@@ -22,13 +22,10 @@
 name: desktop-builds
 
 on:
+  # SO manual desde 2026-08-18: cada push a master queimava minutos macOS
+  # (10x) num repo privado. Builds locais: desktop/scripts/build-macos.sh
+  # e scripts/release-local.sh.
   workflow_dispatch:
-  push:
-    branches: [master]
-    paths:
-      - "desktop/**"
-      - "scripts/build-web.sh"
-      - ".github/workflows/desktop-builds.yml"
 
 jobs:
   web-export:

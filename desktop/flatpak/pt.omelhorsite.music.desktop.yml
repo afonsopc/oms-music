@@ -21,6 +21,12 @@ finish-args:
 modules:
   - name: oms-music
     buildsystem: simple
+    # Sem strip/debuginfo: o binario ja vem do deb como queremos, e o passo
+    # de strip exigia eu-strip (elfutils) que nem todos os hosts tem - foi
+    # exactamente onde a primeira release morreu (2026-08-18).
+    build-options:
+      no-debuginfo: true
+      strip: false
     sources:
       - type: file
         path: oms-music.deb
