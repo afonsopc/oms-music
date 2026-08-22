@@ -9,6 +9,12 @@
  * envio) invalida o detalhe e o remount ressincroniza do servidor, que é
  * quem sabe.
  *
+ * Desde 2026-08-21 o assistente manda no leitor: cada envio leva um snapshot
+ * do playerStore e cada resposta pode trazer `actions` validadas que
+ * features/assistant/actions.ts executa (transport/engine/router). O ChatBody
+ * também é o ecrã RAIZ da tab (via features/assistant/index.tsx), com os
+ * botões de nova conversa e histórico em `headerActions`.
+ *
  * As bolhas são estado LOCAL semeado do GET no initializer - sem efeito a
  * chamar setState (lint) - e o corpo é keyed pelo id da sessão. Depois de
  * cada resposta o cache do detalhe é actualizado à mão (setQueryData) para
@@ -31,6 +37,7 @@ import {
   type AssistantAnswer,
   type AssistantChatDetail,
 } from "@/api/endpoints/assistant";
+import { collectPlayerContext, runAssistantActions } from "@/features/assistant/actions";
 import { useAssistantChat } from "@/api/queries/assistantChats";
 import { keys } from "@/api/queryKeys";
 import { isApiError } from "@/domain/api";
@@ -50,7 +57,16 @@ interface Bubble {
   error?: boolean;
 }
 
-const ChatBody = ({ chat, openedId }: { chat: AssistantChatDetail | null; openedId: number | null }) => {
+export const ChatBody = ({
+  chat,
+  openedId,
+  headerActions,
+}: {
+  chat: AssistantChatDetail | null;
+  openedId: number | null;
+  /** Botões do ecrã raiz (nova conversa, histórico), à direita do título. */
+  headerActions?: React.ReactNode;
+}) => {
   const t = useT();
   const router = useRouter();
   const { tokens } = useTheme();
@@ -77,13 +93,16 @@ const ChatBody = ({ chat, openedId }: { chat: AssistantChatDetail | null; opened
       setInput("");
       setPending(true);
       setBubbles((prev) => [...prev, { role: "user", content }]);
-      sendAssistantMessage(content, serverChatId ?? undefined)
+      sendAssistantMessage(content, serverChatId ?? undefined, collectPlayerContext())
         .then((answer) => {
           setServerChatId(answer.chat_id);
           setBubbles((prev) => [
             ...prev,
             { role: "assistant", content: answer.reply, playlist: answer.playlist ?? null },
           ]);
+          // As acções de leitor vêm validadas do servidor; executar depois
+          // de mostrar a resposta, para o texto explicar o que se ouve.
+          runAssistantActions(answer.actions, router);
           // A lista ordena por last_message_at e a sessão pode ter acabado
           // de nascer: a tab tem de o saber.
           void queryClient.invalidateQueries({ queryKey: keys.assistantChats.list });
@@ -128,11 +147,12 @@ const ChatBody = ({ chat, openedId }: { chat: AssistantChatDetail | null; opened
           scrollRef.current?.scrollToEnd({ animated: true });
         });
     },
-    [openedId, pending, queryClient, readOnly, serverChatId, t],
+    [openedId, pending, queryClient, readOnly, router, serverChatId, t],
   );
 
   const suggestions = [
     t(`${A}.suggestionPlaylist`),
+    t(`${A}.suggestionControl`),
     t(`${A}.suggestionHabits`),
     t(`${A}.suggestionForgotten`),
   ];
@@ -150,11 +170,33 @@ const ChatBody = ({ chat, openedId }: { chat: AssistantChatDetail | null; opened
         }}
         onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
       >
-        <Text
-          style={{ color: tokens.foreground, fontSize: 28, fontWeight: "900", letterSpacing: -0.5 }}
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+          }}
         >
-          {chat?.title ?? t(`${A}.title`)}
-        </Text>
+          <Text
+            style={{
+              color: tokens.foreground,
+              fontSize: 28,
+              fontWeight: "900",
+              letterSpacing: -0.5,
+              flex: 1,
+              minWidth: 0,
+            }}
+            numberOfLines={2}
+          >
+            {chat?.title ?? t(`${A}.title`)}
+          </Text>
+          {headerActions ? (
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+              {headerActions}
+            </View>
+          ) : null}
+        </View>
         {chat === null ? (
           <Text style={{ color: tokens.mutedForeground, fontSize: 14, lineHeight: 20 }}>
             {t(`${A}.subtitle`)}

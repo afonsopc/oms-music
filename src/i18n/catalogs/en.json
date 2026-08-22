@@ -890,11 +890,12 @@
       },
       "Assistant": {
         "title": "O Melhor Assistente",
-        "subtitle": "Ask about your listening or request a playlist. It proposes; the server confirms.",
+        "subtitle": "Ask about your listening, request a playlist or control playback. It proposes; the server confirms.",
         "placeholder": "Type here…",
         "send": "Send",
         "error": "The assistant is unavailable right now. Try again in a bit.",
         "suggestionPlaylist": "Make me a study playlist",
+        "suggestionControl": "Play my liked songs",
         "suggestionHabits": "What have I been playing most?",
         "suggestionForgotten": "Good songs I have not played in ages",
         "openPlaylist": "{count, plural, one {# song · open} other {# songs · open}}",
@@ -907,7 +908,8 @@
         "listEmpty": "No chats with the assistant yet. Start one - it knows what you listen to.",
         "deleteChat": "Delete chat",
         "deleteChatConfirm": "Delete this chat? This cannot be undone.",
-        "chatLoadError": "Could not load this chat."
+        "chatLoadError": "Could not load this chat.",
+        "historyTitle": "Past chats"
       }
     }
   },

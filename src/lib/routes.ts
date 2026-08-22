@@ -58,6 +58,9 @@ export const assistantChatRoute = (chatId: number | "new"): Href => ({
   params: { chatId },
 });
 
+/** O historico de conversas do assistente (a raiz da tab e um chat novo). */
+export const assistantHistoryRoute: Href = "/assistant/history";
+
 /** Mix slugs contain ":" and MUST reach the router unencoded. */
 export const mixRoute = (slug: string): Href => ({
   pathname: "/mix/[slug]",

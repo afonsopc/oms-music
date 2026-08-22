@@ -890,11 +890,12 @@
       },
       "Assistant": {
         "title": "O Melhor Assistente",
-        "subtitle": "Jautā par savu klausīšanos vai palūdz atskaņošanas sarakstu. Tas piedāvā; serveris apstiprina.",
+        "subtitle": "Jautā par savu klausīšanos, palūdz atskaņošanas sarakstu vai vadi atskaņotāju. Tas piedāvā; serveris apstiprina.",
         "placeholder": "Raksti šeit…",
         "send": "Sūtīt",
         "error": "Asistents šobrīd nav pieejams. Pamēģini vēlāk.",
         "suggestionPlaylist": "Izveido man mācību atskaņošanas sarakstu",
+        "suggestionControl": "Atskaņo manas iecienītās dziesmas",
         "suggestionHabits": "Ko es pēdējā laikā klausos visvairāk?",
         "suggestionForgotten": "Labas dziesmas, ko sen neesmu atskaņojis",
         "openPlaylist": "{count, plural, one {# dziesma · atvērt} other {# dziesmas · atvērt}}",
@@ -907,7 +908,8 @@
         "listEmpty": "Vēl nav sarunu ar asistentu. Sāc vienu - tas zina, ko tu klausies.",
         "deleteChat": "Dzēst sarunu",
         "deleteChatConfirm": "Dzēst šo sarunu? To nevar atsaukt.",
-        "chatLoadError": "Neizdevās ielādēt šo sarunu."
+        "chatLoadError": "Neizdevās ielādēt šo sarunu.",
+        "historyTitle": "Iepriekšējās sarunas"
       }
     }
   },

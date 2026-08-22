@@ -44,6 +44,7 @@ export type IconName =
   | "check"
   | "circle-check"
   | "clock"
+  | "history"
   | "compass"
   | "music"
   | "sparkles"
@@ -109,6 +110,8 @@ const ICON_BODIES: Record<IconName, string> = {
   check: '<path d="M20 6 9 17l-5-5"/>',
   "circle-check": '<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>',
   clock: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+  history:
+    '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/>',
   compass:
     '<circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/>',
   music: '<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>',

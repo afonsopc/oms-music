@@ -890,11 +890,12 @@
       },
       "Assistant": {
         "title": "O Melhor Assistente",
-        "subtitle": "Pergunta sobre o que ouves ou pede uma playlist. Ele propõe; o servidor confirma.",
+        "subtitle": "Pergunta sobre o que ouves, pede uma playlist ou manda no leitor. Ele propõe; o servidor confirma.",
         "placeholder": "Escreve aqui…",
         "send": "Enviar",
         "error": "O assistente está indisponível de momento. Tenta outra vez daqui a pouco.",
         "suggestionPlaylist": "Faz-me uma playlist para estudar",
+        "suggestionControl": "Toca as minhas gostadas",
         "suggestionHabits": "O que ando eu a ouvir mais?",
         "suggestionForgotten": "Músicas boas que já não oiço há muito",
         "openPlaylist": "{count, plural, one {# música · abrir} other {# músicas · abrir}}",
@@ -907,7 +908,8 @@
         "listEmpty": "Ainda não tens conversas com o assistente. Começa uma - ele conhece o que ouves.",
         "deleteChat": "Apagar conversa",
         "deleteChatConfirm": "Apagar esta conversa? Não é possível desfazer.",
-        "chatLoadError": "Não foi possível carregar esta conversa."
+        "chatLoadError": "Não foi possível carregar esta conversa.",
+        "historyTitle": "Conversas anteriores"
       }
     }
   },

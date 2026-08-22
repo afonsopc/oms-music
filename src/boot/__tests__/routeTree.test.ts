@@ -59,10 +59,11 @@ const PUSHED_ROUTES = [
   "account.tsx",
   "album/[artist]/[album].tsx",
   "artist/[artist].tsx",
-  // O assistente e a 4a tab (dono, 2026-08-16): a raiz e a lista de
-  // conversas, cada conversa e empurrada por cima dela.
+  // O assistente e a 4a tab (dono, 2026-08-16): a raiz e um chat NOVO
+  // (dono, 2026-08-21); o historico e cada conversa sao empurrados por cima.
   "assistant.tsx",
   "assistant/[chatId].tsx",
+  "assistant/history.tsx",
   "artists-roster.tsx",
   "artists.tsx",
   "friends.tsx",
