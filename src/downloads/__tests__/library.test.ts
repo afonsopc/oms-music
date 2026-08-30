@@ -12,7 +12,7 @@ import {
   deriveOfflineCollections,
   filterOfflineSongs,
   matchesArtistIdentity,
-  parsePageModifier,
+  pageWindow,
   searchOfflineArtists,
   sortAlbumSongs,
 } from "../library";
@@ -92,31 +92,31 @@ const library = (): Song[] => [
 
 describe("filterOfflineSongs", () => {
   it("matches an exact album and treats null as the unknown-album query", () => {
-    expect(filterOfflineSongs(library(), { exact_search: { album: "Singles" } })).toHaveLength(2);
-    const unknown = filterOfflineSongs(library(), { exact_search: { album: null } });
+    expect(filterOfflineSongs(library(), { album: "Singles" })).toHaveLength(2);
+    const unknown = filterOfflineSongs(library(), { album: null });
     expect(unknown.map((s) => s.title)).toEqual(["Grandola"]);
   });
 
   it("searches titles accent- and case-insensitively", () => {
-    const found = filterOfflineSongs(library(), { search: { title: "grandola" } });
+    const found = filterOfflineSongs(library(), { title: "grandola" });
     expect(found.map((s) => s.id)).toEqual([3]);
   });
 
-  it("honors artist_role when matching an artist", () => {
+  it("honors artistRole when matching an artist", () => {
     const featured = filterOfflineSongs(library(), {
-      exact_search: { artist: "guest" },
-      artist_role: "featured",
+      artist: "guest",
+      artistRole: "featured",
     });
     expect(featured.map((s) => s.id)).toEqual([1]);
     const asPrimary = filterOfflineSongs(library(), {
-      exact_search: { artist: "guest" },
-      artist_role: "primary",
+      artist: "guest",
+      artistRole: "primary",
     });
     expect(asPrimary).toHaveLength(0);
   });
 
-  it("applies the modifiers page window", () => {
-    const page2 = filterOfflineSongs(library(), { modifiers: { page: "2:2" } });
+  it("applies the page window", () => {
+    const page2 = filterOfflineSongs(library(), { page: 2, pageSize: 2 });
     expect(page2.map((s) => s.id)).toEqual([3]);
   });
 
@@ -126,10 +126,11 @@ describe("filterOfflineSongs", () => {
 });
 
 describe("page windows", () => {
-  it("parses N:SIZE and rejects garbage", () => {
-    expect(parsePageModifier("3:50")).toEqual({ page: 3, size: 50 });
-    expect(parsePageModifier("0:50")).toBeNull();
-    expect(parsePageModifier(undefined)).toBeNull();
+  it("takes page/pageSize and answers null when no size was asked", () => {
+    expect(pageWindow(3, 50)).toEqual({ page: 3, size: 50 });
+    expect(pageWindow(0, 50)).toEqual({ page: 1, size: 50 });
+    expect(pageWindow(undefined, 50)).toEqual({ page: 1, size: 50 });
+    expect(pageWindow(2, undefined)).toBeNull();
   });
 
   it("slices by page", () => {

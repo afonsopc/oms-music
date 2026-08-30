@@ -5,7 +5,7 @@
  *     the web nests it under `artist` and the call silently no-ops.
  *  2. The banner upload multipart field is `banner`, NOT `image` (the web
  *     sends `image` and gets a 400).
- * Both live in api/endpoints/artists.ts; this screen just drives them.
+ * Both live in the SDK (music.artists.update / uploadBanner); this screen just drives them.
  *
  * Gallery URLs are http(s) only (server-enforced) and come from the EXTENDED
  * artist view, so the dialog fetches the detail when it opens.

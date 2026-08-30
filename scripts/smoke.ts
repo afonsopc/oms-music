@@ -8,7 +8,8 @@
  * exact_search[album]="\b" returns only null-album songs -> a garbage token
  * 401s once (no retry loop by construction; the app parks via the guard).
  */
-import { encodeQuery, deepNullToSentinel } from "../src/api/params";
+// The SDK's encoder writes the bracket DSL and the "\b" null sentinel itself.
+import { encodeQuery, type QueryParams } from "@omelhorsite/sdk";
 
 const BASE = process.env.OMS_API_URL ?? "https://backend.omelhorsite.pt";
 const EMAIL = process.env.OMS_EMAIL;
@@ -20,8 +21,8 @@ const fail = (message: string): never => {
   throw new Error(message);
 };
 
-const get = async (path: string, params: Record<string, unknown>, token: string) => {
-  const query = encodeQuery(deepNullToSentinel(params) as Record<string, unknown>);
+const get = async (path: string, params: QueryParams, token: string) => {
+  const query = encodeQuery(params);
   const response = await fetch(`${BASE}${path}?${query}`, {
     headers: { Authorization: `Bearer ${token}`, "User-Agent": "oms-music-smoke/1.0" },
   });

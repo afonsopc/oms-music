@@ -12,8 +12,8 @@
  * that answers both is installed by downloads/register.ts.
  */
 import { registerOfflineResolver, setOfflineNowProvider } from "@/contracts/offlineFallback";
-import { ARTISTS_PAGE_SIZE } from "@/api/endpoints/artists";
-import { PLAYLIST_SONGS_PAGE_SIZE } from "@/api/endpoints/playlistSongs";
+import { ARTISTS_PAGE_SIZE } from "@/api/queries/artists";
+import { PLAYLIST_SONGS_PAGE_SIZE } from "@/api/queries/playlistSongs";
 import { kvGet, kvSet } from "@/db/kv";
 import type { AlbumSummary } from "@/domain/album";
 import type { Artist } from "@/domain/artist";
@@ -26,7 +26,7 @@ import {
   deriveOfflineArtists,
   filterOfflineSongs,
   matchesArtistIdentity,
-  parsePageModifier,
+  pageWindow,
   searchOfflineArtists,
   shuffled,
   sortAlbumSongs,
@@ -126,15 +126,12 @@ export const offlineSongsResolver = async (...args: unknown[]): Promise<Song[]> 
   if (typeof second === "string") {
     // listArtistSongs(artistNameOrSlug, role)
     const name = typeof first === "string" ? first : "";
-    return filterOfflineSongs(songs, {
-      exact_search: { artist: name },
-      artist_role: second as ArtistRoleFilter,
-    });
+    return filterOfflineSongs(songs, { artist: name, artistRole: second as ArtistRoleFilter });
   }
 
   if (args.length === 1 && (first === null || typeof first === "string")) {
     // listAlbumSongs(album) - null is the unknown-album query.
-    return sortAlbumSongs(filterOfflineSongs(songs, { exact_search: { album: first } }));
+    return sortAlbumSongs(filterOfflineSongs(songs, { album: first }));
   }
 
   if (first && typeof first === "object") {
@@ -152,10 +149,10 @@ export const offlineAlbumsResolver = async (...args: unknown[]): Promise<AlbumSu
   }
   const query = (first && typeof first === "object" ? first : {}) as OfflineSongQuery;
   const albums = deriveOfflineAlbums(
-    filterOfflineSongs(storedSongs(), { ...query, modifiers: undefined }),
+    filterOfflineSongs(storedSongs(), { ...query, page: undefined, pageSize: undefined }),
   );
-  const window = parsePageModifier(query.modifiers?.page);
-  return applyPageWindow(query.modifiers?.random ? shuffled(albums) : albums, window);
+  const window = pageWindow(query.page, query.pageSize);
+  return applyPageWindow(query.random ? shuffled(albums) : albums, window);
 };
 
 /**
@@ -256,7 +253,9 @@ export const offlinePlaylistsResolver = async (
     if (!row) throw new OfflineUnavailableError(`playlist ${String(first)}`);
     return playlistFromRow(row);
   }
-  return rows.map(playlistFromRow);
+  const limit = first && typeof first === "object" ? (first as { limit?: number }).limit : undefined;
+  const all = rows.map(playlistFromRow);
+  return limit === undefined ? all : all.slice(0, limit);
 };
 
 /** The downloaded songs of an offline collection, in persisted screen order. */

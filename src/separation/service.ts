@@ -15,7 +15,7 @@ import {
   deleteSeparation as deleteSeparationRequest,
   getSeparation,
   startSeparation,
-} from "@/api/endpoints/separation";
+} from "@/api/queries/separation";
 import { guardedQueryFn } from "@/api/queries/common";
 import { queryClient } from "@/api/queryClient";
 import { keys } from "@/api/queryKeys";

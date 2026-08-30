@@ -13,7 +13,7 @@
  * porque a REDE falhou seria castigar o utilizador pelo nosso azar, e o
  * servidor continua a ser a autoridade real da quota.
  */
-import { getMusicStorage } from "@/api/endpoints/musicStorage";
+import { oms } from "@/api/oms";
 
 export class StorageCapError extends Error {
   readonly i18nKey = "native.downloads.storageCapRefused";
@@ -41,9 +41,12 @@ export const storageCapLimitBytes = (): number | null => limitBytes;
 export const refreshStorageCap = (): Promise<void> => {
   if (inFlight) return inFlight;
   if (limitBytes != null && Date.now() - fetchedAt < TTL_MS) return Promise.resolve();
-  inFlight = getMusicStorage()
+  inFlight = oms()
+    .music.social.storage.get()
     .then((storage) => {
-      limitBytes = storage.limit_bytes;
+      // Conta ilimitada: `limit_bytes` vem null e `unlimited` true. Fica
+      // "sem tecto" (null), que o gate abaixo lê como "deixa passar".
+      limitBytes = storage.unlimited ? null : storage.limit_bytes;
       fetchedAt = Date.now();
     })
     .catch(() => undefined)

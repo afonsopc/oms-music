@@ -50,7 +50,7 @@ export default function PlaybackSettingsScreen() {
     setOverride(next);
     setError(null);
     updateUser.mutate(
-      { id: user.id, fields: { share_listening: next } },
+      { shareListening: next },
       {
         onSuccess: () => {
           // Refresh the session-store account so every consumer sees the

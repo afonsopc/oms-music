@@ -17,8 +17,9 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   triggerSpotifySync,
   updateSpotifySyncSettings,
-} from "@/api/endpoints/spotifySync";
-import { useSpotifySyncPreview, useSpotifySyncStatus } from "@/api/queries/spotifySync";
+  useSpotifySyncPreview,
+  useSpotifySyncStatus,
+} from "@/api/queries/spotifySync";
 import { invalidationTargets, keys } from "@/api/queryKeys";
 import { LinkSheet } from "./linkSheet";
 import { formatDateTime } from "@/lib/dates";
@@ -172,13 +173,13 @@ export default function SpotifyImportTab() {
     const next = on ? [...current, id] : current.filter((entry) => entry !== id);
     setEnabledEdit(next);
     setError(null);
-    settingsMutation.mutate({ enabled_playlists: next });
+    settingsMutation.mutate({ enabledPlaylists: next });
   };
 
   const applyLikedToggle = (on: boolean): void => {
     setLikedEdit(on);
     setError(null);
-    settingsMutation.mutate({ sync_liked: on });
+    settingsMutation.mutate({ syncLiked: on });
   };
 
   if (statusQuery.isLoading) {
@@ -273,7 +274,7 @@ export default function SpotifyImportTab() {
           onValueChange={(value) => {
             setAutoSyncEdit(value);
             setError(null);
-            settingsMutation.mutate({ auto_sync: value });
+            settingsMutation.mutate({ autoSync: value });
           }}
         />
         <SwitchRow

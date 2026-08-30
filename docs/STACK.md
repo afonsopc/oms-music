@@ -40,3 +40,7 @@ Target: Expo SDK 57 (expo@57.0.9, RN 0.86.2, React 19.2, New Architecture + Herm
 ## Recommended install list
 Core: expo-audio, expo-file-system, expo-sqlite, expo-secure-store, @tanstack/react-query, zustand, @react-native-community/netinfo, @kesha-antonov/react-native-action-cable, react-native-passkeys (only if the web login uses passkeys).
 Optional: react-native-mmkv, @kesha-antonov/react-native-background-downloader, drizzle-orm.
+
+## API client
+- @omelhorsite/sdk@0.5.1: o cliente HTTP oficial da API (o site usa o mesmo). `new Oms({ tokens })` no nativo, `new Oms({ sessionCookie: true })` na origem cookie; `fetch` injectável, `Paginated<T>` + `collect()`, `file()`/`NativeFile` para multipart (o descritor `{ uri, name, type }` do RN vai verbatim). Sem `ReadableStream` em RN: nunca `downloadStream`.
+- Por cima do SDK, nesta app: `api/oms.ts` (construção memoizada, `toFileInput`), `api/omsProxy.ts` (OmsApiError/OmsTimeoutError -> `ApiError`, aviso ao guard nos 401 e nos 404 de /media), `auth/guard.ts` (sondagem single-flight a /sessions/mine), `api/mediaUrl.ts` (URLs de media com token). Ver DESIGN.md secção 5.

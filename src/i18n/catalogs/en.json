@@ -1308,6 +1308,7 @@
       "rowDetail": "Storage, offline mode, kept playlists",
       "serverStorage": "Music storage",
       "serverStorageUsed": "{used} of {limit} used",
+      "serverStorageUnlimited": "{used} used, no limit on this account",
       "storageCapExceeded": "Local downloads exceed the account's music storage - new downloads are refused.",
       "cacheTitle": "Temporary cache",
       "cacheDetail": "{files} files, {size} of {budget}",

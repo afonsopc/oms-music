@@ -64,42 +64,42 @@ describe("providerFromExtractor", () => {
 describe("songImportBody (FR-101 request shape)", () => {
   it("sends URL mode with provider, id and positions when a playlist target exists", () => {
     const body = songImportBody(track(), 12, 3);
-    expect(body.source_url).toBe("https://youtu.be/1");
-    expect(body.source_kind).toBe("yt_dlp");
-    expect(body.source_provider).toBe("youtube");
-    expect(body.source_id).toBe("abc");
-    expect(body.playlist_id).toBe(12);
+    expect(body.sourceUrl).toBe("https://youtu.be/1");
+    expect(body.sourceKind).toBe("yt_dlp");
+    expect(body.sourceProvider).toBe("youtube");
+    expect(body.sourceId).toBe("abc");
+    expect(body.playlistId).toBe(12);
     expect(body.position).toBe(3);
-    expect(body.expected_duration_s).toBe(213);
+    expect(body.expectedDurationS).toBe(213);
   });
 
-  it("omits playlist_id and position for a library-only import", () => {
+  it("omits playlistId and position for a library-only import", () => {
     const body = songImportBody(track(), null, 1);
-    expect("playlist_id" in body).toBe(false);
+    expect("playlistId" in body).toBe(false);
     expect("position" in body).toBe(false);
   });
 
   it("omits blank overrides instead of sending empty strings", () => {
     const body = songImportBody(track({ title: "", artist: "  ", album: "" }), null, 1);
-    expect("override_title" in body).toBe(false);
-    expect("override_artist" in body).toBe(false);
-    expect("override_album" in body).toBe(false);
+    expect("overrideTitle" in body).toBe(false);
+    expect("overrideArtist" in body).toBe(false);
+    expect("overrideAlbum" in body).toBe(false);
   });
 
   it("falls back to the preview thumbnail when no artwork was picked", () => {
     const body = songImportBody(track(), null, 1);
-    expect(body.artwork_url).toBe("https://img/thumb.jpg");
-    expect("artwork_data_b64" in body).toBe(false);
+    expect(body.artworkUrl).toBe("https://img/thumb.jpg");
+    expect("artworkDataB64" in body).toBe(false);
   });
 
-  it("sends artwork_url or artwork_data_b64, never both", () => {
+  it("sends artworkUrl or artworkDataB64, never both", () => {
     const url = songImportBody(track({ artwork: { kind: "url", url: "https://cover" } }), null, 1);
-    expect(url.artwork_url).toBe("https://cover");
-    expect("artwork_data_b64" in url).toBe(false);
+    expect(url.artworkUrl).toBe("https://cover");
+    expect("artworkDataB64" in url).toBe(false);
 
     const data = songImportBody(track({ artwork: { kind: "data", base64: "AAA" } }), null, 1);
-    expect(data.artwork_data_b64).toBe("AAA");
-    expect("artwork_url" in data).toBe(false);
+    expect(data.artworkDataB64).toBe("AAA");
+    expect("artworkUrl" in data).toBe(false);
   });
 });
 

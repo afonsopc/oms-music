@@ -18,8 +18,7 @@ import {
   View,
 } from "react-native";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { createSongImport, searchArtwork } from "@/api/endpoints/imports";
-import { useSongImportPoll } from "@/api/queries/imports";
+import { createSongImport, searchArtwork, useSongImportPoll } from "@/api/queries/imports";
 import { useCreatePlaylist, usePlaylists } from "@/api/queries/playlists";
 import { invalidationTargets } from "@/api/queryKeys";
 import type { PlaylistId } from "@/domain/ids";
@@ -147,7 +146,7 @@ const ArtworkPickerSheet = ({
         album: seed.album || undefined,
         query: query.trim() || undefined,
       });
-      setItems(response.items);
+      setItems(response);
     } catch (e) {
       setError(errorMessage(e));
     } finally {

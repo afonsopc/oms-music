@@ -10,7 +10,7 @@ import type { MediaId } from "@/domain/ids";
 import type { MixSummary } from "@/domain/mixes";
 import type { Playlist } from "@/domain/playlist";
 import type { RecentCollection } from "@/lib/recentCollections";
-import type { RecentlyPlayedAlbum } from "./endpoints/playEvents";
+import type { RecentlyPlayedAlbum } from "./queries/playEvents";
 
 /** Home open warms at most this many covers. Roughly two screens of tiles. */
 export const MAX_HOME_ARTWORK = 32;

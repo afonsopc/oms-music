@@ -30,7 +30,7 @@ import {
   useDesktopShell,
   type LibraryViewMode,
 } from "@/ui";
-import { LIBRARY_ITEM_LIMIT, useLibraryAlbums, useLibraryArtists } from "./queries";
+import { useLibraryAlbums, useLibraryArtists } from "./queries";
 import {
   buildLibraryRows,
   likedLibraryRow,
@@ -217,10 +217,7 @@ export default function LibraryScreen() {
   const wantsArtists = filter === "all" || filter === "artists";
   const wantsAlbums = filter === "all" || filter === "albums";
 
-  const playlistsQuery = usePlaylists({
-    page: `1:${LIBRARY_ITEM_LIMIT}`,
-    enabled: wantsPlaylists,
-  });
+  const playlistsQuery = usePlaylists({ enabled: wantsPlaylists });
   const artistsQuery = useLibraryArtists(wantsArtists);
   const albumsQuery = useLibraryAlbums(wantsAlbums);
 

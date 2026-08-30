@@ -1,14 +1,13 @@
-/** Hooks do sync diário por artista (3.5). */
+/** Hooks do sync diário por artista (3.5). Sem o diff do backend aplicado o
+ *  endpoint responde 404; a UI degrada com honestidade. */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { searchArtistImports } from "../endpoints/artistImports";
-import {
-  createArtistSync,
-  deleteArtistSync,
-  listArtistSyncs,
-  type ArtistSyncRow,
-} from "../endpoints/artistSyncs";
+import type { ArtistSync } from "@omelhorsite/sdk";
+import { oms } from "../oms";
+import { searchArtistImports } from "./artistImports";
 import { guardedQueryFn } from "./common";
 import { useAuthReady } from "@/auth/guard";
+
+export type ArtistSyncRow = ArtistSync;
 
 const KEY = ["artistSyncs"] as const;
 
@@ -16,7 +15,7 @@ export const useArtistSyncs = (enabled = true) => {
   const authReady = useAuthReady();
   return useQuery({
     queryKey: KEY,
-    queryFn: guardedQueryFn(KEY, () => listArtistSyncs()),
+    queryFn: guardedQueryFn(KEY, () => oms().music.artists.syncs.list()),
     enabled: authReady && enabled,
   });
 };
@@ -46,7 +45,12 @@ export const useEnableArtistSync = () => {
         results.spotify.find((row) => row.name.trim().toLowerCase() === needle) ??
         results.spotify[0];
       if (!hit) throw new Error("artist not on spotify");
-      return createArtistSync({ spotify_artist_id: hit.id, spotify_artist_name: artistName });
+      // retry:false: o SDK opta este POST num retry; um snapshot demorado
+      // não deve ser repetido às cegas.
+      return oms().music.artists.syncs.create(
+        { spotifyArtistId: hit.id, spotifyArtistName: artistName },
+        { retry: false },
+      );
     },
     onSettled: () => void queryClient.invalidateQueries({ queryKey: KEY }),
   });
@@ -55,7 +59,7 @@ export const useEnableArtistSync = () => {
 export const useDisableArtistSync = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: number) => deleteArtistSync(id),
+    mutationFn: (id: number) => oms().music.artists.syncs.delete(id),
     onSettled: () => void queryClient.invalidateQueries({ queryKey: KEY }),
   });
 };

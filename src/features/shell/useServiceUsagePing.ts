@@ -4,7 +4,7 @@
  * authed, so a logout + re-login pings again (a new "entry").
  */
 import { useEffect, useRef } from "react";
-import { postMusicServiceUsage } from "@/api/endpoints/serviceUsages";
+import { oms } from "@/api/oms";
 import { useSessionStore } from "@/auth/session";
 
 export const useServiceUsagePing = (): void => {
@@ -14,9 +14,11 @@ export const useServiceUsagePing = (): void => {
   useEffect(() => {
     if (status === "authed" && !sent.current) {
       sent.current = true;
-      postMusicServiceUsage().catch(() => {
-        // Fire-and-forget, no UI (FR-22).
-      });
+      oms()
+        .content.serviceUsages.record("music")
+        .catch(() => {
+          // Fire-and-forget, no UI (FR-22).
+        });
     }
   }, [status]);
 };

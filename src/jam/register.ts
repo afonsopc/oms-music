@@ -24,7 +24,7 @@
  * remote/register.ts and shared by every channel; nothing is added here, so
  * a foreground never fires the wake hooks twice.
  */
-import * as jamsApi from "@/api/endpoints/jams";
+import { oms } from "@/api/oms";
 import { queryClient } from "@/api/queryClient";
 import { keys } from "@/api/queryKeys";
 import { isAuthReady, subscribeAuthReady } from "@/auth/guard";
@@ -36,7 +36,8 @@ import { getPlayerEngine } from "@/player/register";
 import { playerStore } from "@/player/store";
 import { getPlaybackChannel } from "@/remote/channel";
 import { setJamCommandHandler } from "@/remote/jamBridge";
-import { JamManager, getJamManager, setJamManager } from "./channel";
+import type { Jam, JamsIndex } from "@/domain/jam";
+import { JamManager, getJamManager, setJamManager, type JamApi } from "./channel";
 import { createExpoFollowerAudio } from "./expoFollowerAudio";
 import { FollowerPlayer } from "./followerPlayer";
 import { createJamCommandHandler } from "./hostDuties";
@@ -86,9 +87,26 @@ export const registerJam = (): void => {
     },
   });
 
+  // The jams REST surface the manager is injected with (jam/channel.ts
+  // JamApi), over the SDK. Join BEFORE subscribing JamChannel; the host
+  // leaving ENDS the jam (no handoff). Casts: the SDK's Jam is the wire, the
+  // domain's brands the ids.
+  const jams = () => oms().music.social.jams;
+  const jamApi: JamApi = {
+    getJams: () => jams().list() as Promise<JamsIndex>,
+    createJam: () => jams().create() as Promise<Jam>,
+    joinJam: (id) => jams().join(id) as Promise<Jam>,
+    leaveJam: (id) => jams().leave(id),
+    endJam: (id) => jams().end(id),
+    updateJamRules: (id, rules) => jams().updateRules(id, rules) as Promise<Jam>,
+    inviteToJam: (id, userId) => jams().invite(id, userId),
+    proposeJamSong: (id, songId) => jams().propose(id, songId),
+    jamSkipVote: (id) => jams().skipVote(id),
+  };
+
   const manager = new JamManager({
     cable: getCableClient(),
-    api: jamsApi,
+    api: jamApi,
     follower,
     claimActiveSteal: () => getPlaybackChannel()?.claimActive("steal"),
     // Joining silences local playback through the transport, so a controller

@@ -11,7 +11,7 @@ import React, { useCallback, useState } from "react";
 import { ActivityIndicator, FlatList, Pressable, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useAssistantChats, useDeleteAssistantChat } from "@/api/queries/assistantChats";
-import type { AssistantChatSummary } from "@/api/endpoints/assistant";
+import type { AssistantChatSummary } from "@/api/queries/assistantChats";
 import { timeAgo } from "@/features/friends/rows";
 import { useContentBottomPadding, useContentTopPadding } from "@/features/shell/metrics";
 import { useT } from "@/i18n";

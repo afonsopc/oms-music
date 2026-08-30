@@ -14,7 +14,7 @@
 import React, { useState } from "react";
 import { Text, View } from "react-native";
 import { useQueryClient } from "@tanstack/react-query";
-import { importSongFile } from "@/api/endpoints/songs";
+import { oms, toFileInput } from "@/api/oms";
 import { invalidationTargets } from "@/api/queryKeys";
 import {
   FOLDER_PICKER_AVAILABLE,
@@ -103,11 +103,11 @@ export default function FilesImportTab() {
         await Promise.all(
           batch.map(async (file) => {
             try {
-              // The picked object goes through AS IS: on web it is a real
-              // browser File (pickers.web.ts) and rebuilding a plain
-              // { uri, name, type } literal would strip the bytes FormData
-              // needs; on native it already is that plain shape.
-              await importSongFile(file);
+              // toFileInput keeps the bytes on web (a real browser File,
+              // pickers.web.ts) and hands the { uri, name, type } descriptor
+              // to RN's FormData on native. Synchronous multipart import:
+              // lossless files take tens of seconds (the SDK allows 300s).
+              await oms().music.songs.import(toFileInput(file));
               succeeded += 1;
               if (folderPath) trackSuccess(folderPath, fileKey(file));
             } catch {

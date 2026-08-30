@@ -9,7 +9,7 @@
  */
 import { queryClient } from "@/api/queryClient";
 import { keys } from "@/api/queryKeys";
-import { getSong } from "@/api/endpoints/songs";
+import { getSong } from "@/api/queries/songs";
 import type { SongId } from "@/domain/ids";
 import type { Song } from "@/domain/song";
 import type { RemoteSongLookup } from "./commands";

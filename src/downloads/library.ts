@@ -7,10 +7,10 @@
  * Album grouping uses the backend's (album, lead artist) compound key so an
  * offline album row navigates to the same screen an online one does.
  */
+import type { FilterBag } from "@omelhorsite/sdk";
 import type { AlbumSummary } from "@/domain/album";
 import { isAlbumKey, isArtistKey } from "@/domain/albumKey";
 import type { Artist } from "@/domain/artist";
-import type { ListModifiers } from "@/domain/api";
 import { primaryArtists } from "@/domain/format";
 import type { SongKey } from "@/domain/ids";
 import type { Song, SongArtistEntry } from "@/domain/song";
@@ -26,12 +26,25 @@ const normalize = (value: string): string =>
 
 export type ArtistRoleFilter = SongArtistEntry["role"];
 
-/** The filter subset the offline resolvers understand. */
+/**
+ * The filter subset the offline resolvers understand: the SDK's
+ * `ListSongsParams` shape (the shortcuts `title`/`album`/`artist`/`artistRole`
+ * plus the `search`/`exactSearch` buckets and `page`/`pageSize`), which is what
+ * the query fetchers in src/api/queries hand to `oms().music.songs.list`.
+ */
 export interface OfflineSongQuery {
-  search?: Record<string, unknown>;
-  exact_search?: Record<string, unknown>;
-  artist_role?: ArtistRoleFilter;
-  modifiers?: ListModifiers;
+  /** Partial title match (`search[title]`). */
+  title?: string;
+  /** Exact album; null is the no-album bucket (`exact_search[album]`). */
+  album?: string | null;
+  /** Exact artist name or slug (`exact_search[artist]`). */
+  artist?: string;
+  artistRole?: ArtistRoleFilter;
+  search?: FilterBag;
+  exactSearch?: FilterBag;
+  page?: number;
+  pageSize?: number;
+  random?: boolean;
 }
 
 export interface PageWindow {
@@ -39,15 +52,14 @@ export interface PageWindow {
   size: number;
 }
 
-/** Parses a `modifiers[page]` "N:SIZE" string. */
-export const parsePageModifier = (page: string | undefined): PageWindow | null => {
-  if (!page) return null;
-  const [rawPage, rawSize] = page.split(":");
-  const parsedPage = Number(rawPage);
-  const parsedSize = Number(rawSize);
-  if (!Number.isFinite(parsedPage) || !Number.isFinite(parsedSize)) return null;
-  if (parsedPage < 1 || parsedSize < 1) return null;
-  return { page: Math.floor(parsedPage), size: Math.floor(parsedSize) };
+/** The page window a `page`/`pageSize` pair asks for; none when no size. */
+export const pageWindow = (
+  page: number | undefined,
+  pageSize: number | undefined,
+): PageWindow | null => {
+  if (pageSize === undefined || !Number.isFinite(pageSize) || pageSize < 1) return null;
+  const number = page !== undefined && Number.isFinite(page) && page >= 1 ? Math.floor(page) : 1;
+  return { page: number, size: Math.floor(pageSize) };
 };
 
 export const applyPageWindow = <T>(items: T[], window: PageWindow | null): T[] => {
@@ -101,39 +113,45 @@ const textMatches = (field: string | null, value: unknown, exact: boolean): bool
  */
 export const filterOfflineSongs = (songs: Song[], query: OfflineSongQuery = {}): Song[] => {
   let out = songs;
-  const { search, exact_search: exact, artist_role: role } = query;
+  const role = query.artistRole;
+  // The SDK shortcuts write into the same buckets; the bucket wins, key by key.
+  const search: Record<string, unknown> = {
+    ...(query.title === undefined ? {} : { title: query.title }),
+    ...(query.search ?? {}),
+  };
+  const exact: Record<string, unknown> = {
+    ...(query.album === undefined ? {} : { album: query.album }),
+    ...(query.artist === undefined ? {} : { artist: query.artist }),
+    ...(query.exactSearch ?? {}),
+  };
 
-  if (search) {
-    if ("title" in search) out = out.filter((s) => textMatches(s.title, search.title, false));
-    if ("album" in search) out = out.filter((s) => textMatches(s.album, search.album, false));
-    if ("artist" in search) {
-      const value = search.artist;
-      out =
-        value === null
-          ? out.filter((s) => entriesForRole(s, role).length === 0)
-          : typeof value === "string"
-            ? out.filter((s) => artistMatches(s, value, role, false))
-            : out;
-    }
+  if ("title" in search) out = out.filter((s) => textMatches(s.title, search.title, false));
+  if ("album" in search) out = out.filter((s) => textMatches(s.album, search.album, false));
+  if ("artist" in search) {
+    const value = search.artist;
+    out =
+      value === null
+        ? out.filter((s) => entriesForRole(s, role).length === 0)
+        : typeof value === "string"
+          ? out.filter((s) => artistMatches(s, value, role, false))
+          : out;
   }
 
-  if (exact) {
-    if ("title" in exact) out = out.filter((s) => textMatches(s.title, exact.title, true));
-    if ("album" in exact) out = out.filter((s) => textMatches(s.album, exact.album, true));
-    if ("artist" in exact) {
-      const value = exact.artist;
-      out =
-        value === null
-          ? out.filter((s) => entriesForRole(s, role).length === 0)
-          : typeof value === "string"
-            ? out.filter((s) => artistMatches(s, value, role, true))
-            : out;
-    }
-  } else if (role && !search?.artist) {
+  if ("title" in exact) out = out.filter((s) => textMatches(s.title, exact.title, true));
+  if ("album" in exact) out = out.filter((s) => textMatches(s.album, exact.album, true));
+  if ("artist" in exact) {
+    const value = exact.artist;
+    out =
+      value === null
+        ? out.filter((s) => entriesForRole(s, role).length === 0)
+        : typeof value === "string"
+          ? out.filter((s) => artistMatches(s, value, role, true))
+          : out;
+  } else if (role && !("artist" in search)) {
     out = out.filter((s) => entriesForRole(s, role).length > 0);
   }
 
-  return applyPageWindow(out, parsePageModifier(query.modifiers?.page));
+  return applyPageWindow(out, pageWindow(query.page, query.pageSize));
 };
 
 /** Album songs order the way the album screen expects (track position). */

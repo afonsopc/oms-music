@@ -1,9 +1,10 @@
 /**
  * Job poll fallback (FR-80): ~10s REST poll where 404 during polling means
- * "keep waiting" (the JobChannel is the fast path). Done when finished_at set.
+ * "keep waiting" (the row appears asynchronously; the JobChannel is the fast
+ * path). Done when finished_at is set.
  */
 import { useQuery } from "@tanstack/react-query";
-import { getJob } from "../endpoints/jobs";
+import { oms } from "../oms";
 import { keys } from "../queryKeys";
 import { guardedQueryFn } from "./common";
 import { useAuthReady } from "@/auth/guard";
@@ -11,6 +12,9 @@ import { isApiError } from "@/domain/api";
 import type { Job } from "@/domain/lyrics";
 
 export const JOB_POLL_MS = 10_000;
+
+export const getJob = (id: string, watchToken?: string): Promise<Job> =>
+  oms().jobs.get({ id, watchToken }) as Promise<Job>;
 
 export const useJobPoll = (id: string | null, enabled = true) => {
   const authReady = useAuthReady();

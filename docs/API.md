@@ -1,5 +1,7 @@
 # API.md - Consolidated API contract for the native music client
 
+> **Nota (2026-08-31):** o cliente HTTP desta app é o `@omelhorsite/sdk` e os tipos AUTORITATIVOS são os do SDK (`src/resources/music/**`, `social/**`, `storage.ts`, `media.ts`). Este ficheiro fica como referência do FIO (o que o servidor manda, incluindo os campos que as views do Blueprinter herdam e que o SDK ainda tipa mais estreito). As convenções de pedido (secção 1: bracket encoding, sentinela `"\b"`, paginação) são agora responsabilidade do SDK; ver DESIGN.md secção 5.
+
 Everything a React Native client needs to talk to the production backend, consolidated from the topic docs and verified against the Rails code where docs disagreed. Zero backend changes assumed.
 
 ## 0. Base URL and auth

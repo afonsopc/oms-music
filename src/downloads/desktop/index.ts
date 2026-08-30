@@ -27,7 +27,7 @@
  * installs and the app behaves exactly like a browser tab. That is a designed
  * outcome, not a runtime surprise.
  */
-import { API_BASE_URL } from "@/api/client";
+import { API_BASE_URL } from "@/api/oms";
 import { registerLogoutTask, useSessionStore } from "@/auth/session";
 import { resolveUserId } from "@/auth/lastUser";
 import { getToken } from "@/auth/token";

@@ -9,11 +9,9 @@
  */
 import React, { useCallback, useMemo, useState } from "react";
 import { ActivityIndicator, FlatList, Pressable, Text, View } from "react-native";
-import { listSongs } from "@/api/endpoints/songs";
 import { guardedQueryFn } from "@/api/queries/common";
-import { useDeleteSong, useSongsInfinite } from "@/api/queries/songs";
+import { listSongsPage, useDeleteSong, useSongsInfinite } from "@/api/queries/songs";
 import { keys } from "@/api/queryKeys";
-import { pageModifier } from "@/api/params";
 import { useQuery } from "@tanstack/react-query";
 import { useAuthReady } from "@/auth/guard";
 import { songArtworkSource } from "@/domain/artwork";
@@ -64,12 +62,14 @@ const useSongLibrarySearch = (title: string, album: string) => {
   const query = useQuery<Song[]>({
     queryKey: key,
     queryFn: guardedQueryFn(key, () =>
-      listSongs({
+      // Partial matches on both columns (search bucket); one page of results.
+      listSongsPage({
         search: {
           ...(debouncedTitle ? { title: debouncedTitle } : {}),
           ...(debouncedAlbum ? { album: debouncedAlbum } : {}),
         },
-        modifiers: { page: pageModifier(1, SONG_SEARCH_LIMIT) },
+        page: 1,
+        pageSize: SONG_SEARCH_LIMIT,
       }),
     ),
     enabled: authReady && enabled,

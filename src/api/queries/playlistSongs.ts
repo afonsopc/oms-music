@@ -1,5 +1,11 @@
-/** Playlist song hooks: infinite position-ordered pages of 100 (FR-48),
- *  membership pre-check + add/remove by JOIN-ROW id (FR-49/50). */
+/**
+ * Playlist song hooks: infinite position-ordered pages of 100 (FR-48),
+ * membership pre-check + add/remove by JOIN-ROW id (FR-49/50).
+ *
+ * Cast de fronteira via `unknown`: o `MusicPlaylistSong` do SDK e o fio e o
+ * `PlaylistSong` do dominio marca `song_id` (SongId), o que o TypeScript nao
+ * considera comparavel numa conversao directa.
+ */
 import {
   useInfiniteQuery,
   useMutation,
@@ -7,19 +13,32 @@ import {
   useQueryClient,
   type InfiniteData,
 } from "@tanstack/react-query";
-import {
-  addPlaylistSong,
-  listPlaylistSongsPage,
-  listSongMemberships,
-  removePlaylistSong,
-  PLAYLIST_SONGS_PAGE_SIZE,
-} from "../endpoints/playlistSongs";
+import { collect } from "@omelhorsite/sdk";
+import { oms } from "../oms";
 import { keys } from "../queryKeys";
-import { guardedQueryFn } from "./common";
+import { FULL_PAGE, WHOLE_LIST_LIMIT, guardedQueryFn } from "./common";
 import { useAuthReady } from "@/auth/guard";
 import { withOfflineFallback } from "@/contracts/offlineFallback";
 import type { PlaylistId, SongId } from "@/domain/ids";
 import type { PlaylistSong } from "@/domain/playlist";
+
+export const PLAYLIST_SONGS_PAGE_SIZE = 100;
+
+/** One position-ordered page (FR-48: infinite pages of 100). The offline
+ *  resolver reads exactly these two arguments. */
+export const listPlaylistSongsPage = async (
+  playlistId: PlaylistId,
+  page: number,
+): Promise<PlaylistSong[]> =>
+  (await oms().music.playlists.songs.list({ playlistId, page, pageSize: PLAYLIST_SONGS_PAGE_SIZE }))
+    .items as unknown as PlaylistSong[];
+
+/** Membership pre-check for the AddToPlaylist dialog (FR-49): every row. */
+export const listSongMemberships = async (songId: SongId): Promise<PlaylistSong[]> =>
+  (await collect(
+    await oms().music.playlists.songs.list({ songId, pageSize: FULL_PAGE, order: null }),
+    WHOLE_LIST_LIMIT,
+  )) as unknown as PlaylistSong[];
 
 const listPlaylistSongsPageWithFallback = withOfflineFallback(
   listPlaylistSongsPage,
@@ -64,7 +83,7 @@ export const useAddPlaylistSong = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ playlistId, songId }: { playlistId: PlaylistId; songId: SongId }) =>
-      addPlaylistSong(playlistId, songId),
+      oms().music.playlists.songs.add(playlistId, songId) as unknown as Promise<PlaylistSong>,
     onMutate: async ({ playlistId, songId }) => {
       const key = keys.songMembership(songId);
       await qc.cancelQueries({ queryKey: key });
@@ -91,13 +110,13 @@ export const useAddPlaylistSong = () => {
 
 /**
  * Optimistic row removal (FR-50): drops the join row from the loaded pages,
- * rolls back on error.
+ * rolls back on error. `joinRowId` is the JOIN-ROW id, not the song id.
  */
 export const useRemovePlaylistSong = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ joinRowId }: { joinRowId: number; playlistId: PlaylistId; songId: SongId }) =>
-      removePlaylistSong(joinRowId),
+      oms().music.playlists.songs.remove(joinRowId),
     onMutate: async ({ joinRowId, playlistId }) => {
       const key = keys.playlistSongs(playlistId);
       await qc.cancelQueries({ queryKey: key });

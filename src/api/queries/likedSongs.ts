@@ -1,8 +1,11 @@
 /**
  * Liked songs hooks (FR-45/46). `/liked_songs/ids` is the optimistic source
  * of truth for every heart; toggle patches the set with rollback. DELETE is
- * keyed by SONG id. The list is cursor-paged so liking mid-scroll never
- * shifts pages.
+ * keyed by SONG id. The list is cursor-paged (strictly-less-than on liked_at)
+ * so liking mid-scroll never shifts pages.
+ *
+ * `listLiked(before?)` and `listLikedIds()` are the offline-fallback boundary:
+ * the resolver reads "no args = ids", "one nullish arg = first page".
  */
 import {
   useInfiniteQuery,
@@ -10,12 +13,21 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { likeSong, listLiked, listLikedIds, unlikeSong, LIKED_PAGE_LIMIT } from "../endpoints/likedSongs";
+import { oms } from "../oms";
 import { keys } from "../queryKeys";
 import { guardedQueryFn } from "./common";
 import { useAuthReady } from "@/auth/guard";
 import { withOfflineFallback } from "@/contracts/offlineFallback";
 import type { SongId } from "@/domain/ids";
+import type { LikedSong } from "@/domain/playlist";
+
+export const LIKED_PAGE_LIMIT = 100;
+
+export const listLiked = async (before?: string): Promise<LikedSong[]> =>
+  (await oms().music.songs.listLiked({ limit: LIKED_PAGE_LIMIT, before })) as LikedSong[];
+
+/** Cheap heart-state set: number[] of song ids. */
+export const listLikedIds = (): Promise<number[]> => oms().music.songs.likedIds();
 
 const listLikedWithFallback = withOfflineFallback(listLiked, "liked");
 const listLikedIdsWithFallback = withOfflineFallback(listLikedIds, "liked");
@@ -54,9 +66,11 @@ export const useToggleLike = () => {
   return useMutation({
     mutationFn: async ({ songId, liked }: { songId: SongId; liked: boolean }) => {
       if (liked) {
-        await unlikeSong(songId);
+        await oms().music.songs.unlike(songId);
       } else {
-        await likeSong(songId);
+        // retry:false por chamada: o SDK opta o like num retry com backoff, e
+        // um 429 aqui deve falhar depressa para o rollback, não esperar um minuto.
+        await oms().music.songs.like(songId, { retry: false });
       }
     },
     onMutate: async ({ songId, liked }) => {

@@ -12,7 +12,7 @@
  *    (uploaded bytes), never both;
  *  - empty override fields are omitted, not sent blank.
  */
-import type { SongImportBody } from "@/api/endpoints/imports";
+import type { CreateSongImportInput } from "@omelhorsite/sdk";
 import type { PlaylistId } from "@/domain/ids";
 import type { DownloaderPreview } from "@/domain/imports";
 
@@ -89,25 +89,26 @@ export const songImportBody = (
   track: ImportableTrack,
   playlistId: PlaylistId | null,
   position: number,
-): SongImportBody => {
+): CreateSongImportInput => {
   const provider = providerFromExtractor(track.extractor);
-  const body: SongImportBody = {
-    source_url: track.webpageUrl,
-    source_kind: "yt_dlp",
+  // Mutable while assembled; the SDK input is readonly.
+  const body: { -readonly [K in keyof CreateSongImportInput]: CreateSongImportInput[K] } = {
+    sourceUrl: track.webpageUrl,
+    sourceKind: "yt_dlp",
   };
-  if (provider) body.source_provider = provider;
-  if (track.sourceId) body.source_id = track.sourceId;
+  if (provider) body.sourceProvider = provider;
+  if (track.sourceId) body.sourceId = track.sourceId;
   if (playlistId != null) {
-    body.playlist_id = playlistId;
+    body.playlistId = playlistId;
     body.position = position;
   }
-  if (track.title.trim()) body.override_title = track.title.trim();
-  if (track.artist.trim()) body.override_artist = track.artist.trim();
-  if (track.album.trim()) body.override_album = track.album.trim();
-  if (track.artwork?.kind === "url") body.artwork_url = track.artwork.url;
-  if (track.artwork?.kind === "data") body.artwork_data_b64 = track.artwork.base64;
-  else if (!track.artwork && track.thumbnailUrl) body.artwork_url = track.thumbnailUrl;
-  if (track.durationS != null) body.expected_duration_s = track.durationS;
+  if (track.title.trim()) body.overrideTitle = track.title.trim();
+  if (track.artist.trim()) body.overrideArtist = track.artist.trim();
+  if (track.album.trim()) body.overrideAlbum = track.album.trim();
+  if (track.artwork?.kind === "url") body.artworkUrl = track.artwork.url;
+  if (track.artwork?.kind === "data") body.artworkDataB64 = track.artwork.base64;
+  else if (!track.artwork && track.thumbnailUrl) body.artworkUrl = track.thumbnailUrl;
+  if (track.durationS != null) body.expectedDurationS = track.durationS;
   return body;
 };
 

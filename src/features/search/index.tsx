@@ -93,7 +93,7 @@ const DerivedArtistCard = ({
   onPress: () => void;
 }) => {
   const pictures = useArtistPictures(entry.name);
-  const first = pictures.data?.pictures?.[0];
+  const first = pictures.data?.[0];
   return (
     <ArtistCard
       name={entry.name}
@@ -222,7 +222,7 @@ const TopResultCard = ({
           : "";
   const hasResource = top.kind === "artist" && !!top.entry.artist;
   const pictures = useArtistPictures(artistName || null, !hasResource);
-  const deezer = pictures.data?.pictures?.[0];
+  const deezer = pictures.data?.[0];
   const deezerUri = deezer?.picture_big ?? deezer?.picture_medium ?? deezer?.picture ?? null;
 
   let artwork: ArtworkSource | null = null;

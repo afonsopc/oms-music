@@ -36,7 +36,7 @@ import {
   sendAssistantMessage,
   type AssistantAnswer,
   type AssistantChatDetail,
-} from "@/api/endpoints/assistant";
+} from "@/api/queries/assistantChats";
 import { collectPlayerContext, runAssistantActions } from "@/features/assistant/actions";
 import { useAssistantChat } from "@/api/queries/assistantChats";
 import { keys } from "@/api/queryKeys";
@@ -98,7 +98,7 @@ export const ChatBody = ({
           setServerChatId(answer.chat_id);
           setBubbles((prev) => [
             ...prev,
-            { role: "assistant", content: answer.reply, playlist: answer.playlist ?? null },
+            { role: "assistant", content: answer.reply, playlist: answer.playlist },
           ]);
           // As acções de leitor vêm validadas do servidor; executar depois
           // de mostrar a resposta, para o texto explicar o que se ouve.

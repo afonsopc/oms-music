@@ -1,3 +1,4 @@
+import type { MusicExternalAlbum, MusicExternalArtist } from "@omelhorsite/sdk";
 import type { PlaylistId, SongId, UserId } from "./ids";
 
 export interface SongImport {
@@ -39,10 +40,14 @@ export interface ExternalSearchResult {
   artwork_url: string | null;
 }
 
+/**
+ * GET /music/external_search. Only `tracks` is rendered; the album and artist
+ * hits keep the SDK's shapes (`MusicExternalAlbum` / `MusicExternalArtist`).
+ */
 export interface ExternalSearchResponse {
   tracks: ExternalSearchResult[];
-  albums: ExternalSearchResult[];
-  artists: ExternalSearchResult[];
+  albums: MusicExternalAlbum[];
+  artists: MusicExternalArtist[];
 }
 
 /** POST /playlist_imports/preview response. */

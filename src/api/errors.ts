@@ -1,7 +1,9 @@
 /**
- * Defensive error-body parsing (FR-5). Bodies are usually bare JSON strings
- * ("Song not found"), occasionally arrays of validation messages, and only
- * rate limiting has a structured body: { error: "rate_limited", retry_after }.
+ * Leitura defensiva dos corpos de erro (FR-5). O servidor responde quase
+ * sempre com uma string JSON nua ("Song not found"), às vezes com um array de
+ * mensagens de validação, e só o rate limiting tem corpo estruturado:
+ * `{ error: "rate_limited", retry_after }`. O proxy de erros (`omsProxy.ts`)
+ * usa isto para construir o `ApiError` a partir do `OmsApiError` do SDK.
  */
 import { ApiError } from "@/domain/api";
 
@@ -34,14 +36,4 @@ export const parseRetryAfter = (
     if (Number.isFinite(parsed)) return parsed;
   }
   return undefined;
-};
-
-export const buildApiError = (
-  status: number,
-  body: unknown,
-  retryAfterHeader: string | null,
-): ApiError => {
-  const message = parseErrorMessage(body, `Request failed (${status})`);
-  const retryAfter = status === 429 ? parseRetryAfter(body, retryAfterHeader) : undefined;
-  return new ApiError(status, message, { retryAfter, body });
 };

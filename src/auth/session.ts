@@ -7,9 +7,12 @@
  * `establishSession` below is the single funnel every sign-in method ends on.
  * Add a new method by obtaining a token and calling it; do not re-implement
  * the store writes, or the methods will drift apart.
+ *
+ * Os endpoints públicos (login, signup, reset) vão pelo `omsPublic()`: sem
+ * Bearer e sem acordar o guard num 401, que aqui é uma password errada.
  */
 import { create } from "zustand";
-import { request } from "@/api/client";
+import { oms, omsPublic } from "@/api/oms";
 import { queryClient } from "@/api/queryClient";
 import { isApiError } from "@/domain/api";
 import type { Session, User } from "@/domain/user";
@@ -38,6 +41,11 @@ export const useSessionStore = create<SessionState>(() => ({
 }));
 
 const set = useSessionStore.setState;
+
+// Os tipos do SDK são o fio; os do domínio são o que os ecrãs lêem. Os casts
+// de fronteira ficam nestes dois leitores.
+const fetchMySession = (): Promise<Session> => oms().sessions.current() as Promise<Session>;
+const fetchUser = (id: string): Promise<User> => oms().account.get(id) as Promise<User>;
 
 // ---------------------------------------------------------------------------
 // Logout tasks: subsystems (cable, download scheduler, stores) register a
@@ -88,8 +96,8 @@ export const bootSession = async (): Promise<void> => {
     return;
   }
   try {
-    const session = await request<Session>("GET", "/sessions/mine");
-    const user = await request<User>("GET", `/users/${session.user_id}`);
+    const session = await fetchMySession();
+    const user = await fetchUser(session.user_id);
     set({ status: "authed", session, user, offlineBoot: false });
     setAuthReady(true);
   } catch (error) {
@@ -106,8 +114,8 @@ export const bootSession = async (): Promise<void> => {
 
 /** Re-runs the /sessions/mine + /users/:id pair (e.g. after reconnect). */
 export const refreshAccount = async (): Promise<void> => {
-  const session = await request<Session>("GET", "/sessions/mine");
-  const user = await request<User>("GET", `/users/${session.user_id}`);
+  const session = await fetchMySession();
+  const user = await fetchUser(session.user_id);
   set({ status: "authed", session, user, offlineBoot: false });
 };
 
@@ -131,8 +139,8 @@ export const refreshAccount = async (): Promise<void> => {
  * ONLY `{ token }`, so it passes nothing and this reads GET /sessions/mine.
  *
  * Ordering is load-bearing:
- *  1. store the token first - every call below is authenticated, and the HTTP
- *     client refuses to send an authed request without one (on a cookie
+ *  1. store the token first - every call below is authenticated, and the
+ *     authenticated client refuses to send a request without one (on a cookie
  *     origin setToken deliberately stores nothing and the calls below ride
  *     the httpOnly cookie the sign-in response just set - see auth/token.ts);
  *  2. clear the query cache before flipping status, so no anonymous (or
@@ -147,13 +155,13 @@ export const establishSession = async (
 ): Promise<void> => {
   await setToken(token);
   queryClient.clear();
-  const session = seed ?? (await request<Session>("GET", "/sessions/mine"));
+  const session = seed ?? (await fetchMySession());
   set({ status: "authed", session, user: session.user ?? null, offlineBoot: false });
   setAuthReady(true);
   // Refresh the full account for the conditional fields; best-effort, because
   // the embedded user from the session view already renders every screen.
   try {
-    const user = await request<User>("GET", `/users/${session.user_id}`);
+    const user = await fetchUser(session.user_id);
     set({ user });
   } catch {
     // Keep the embedded user; the account refetches on the next reconnect.
@@ -176,10 +184,10 @@ export const establishSession = async (
 export const login = async (email: string, password: string): Promise<void> => {
   const normalisedEmail = email.trim();
   if (!normalisedEmail || !password) throw new MissingCredentialsError();
-  const session = await request<Session>("POST", "/sessions", {
-    body: { email: normalisedEmail, password },
-    auth: false,
-  });
+  const session = (await omsPublic().sessions.signIn({
+    email: normalisedEmail,
+    password,
+  })) as Session;
   if (!session.token) throw new Error("Login response missing token");
   await establishSession(session.token, session);
 };
@@ -217,7 +225,7 @@ export const loginWithPasskey = async (): Promise<void> => {
 
 /** Signup step 1: sends the 6-digit code. 409 = "Email already registered." */
 export const signupStart = (email: string): Promise<string> =>
-  request<string>("POST", "/users/create_start", { body: { email }, auth: false });
+  omsPublic().sessions.signUpStart(email);
 
 /**
  * Signup step 2: verifies the code and creates the account. Does NOT log in;
@@ -229,33 +237,28 @@ export const signupEnd = (
   name: string,
   password: string,
 ): Promise<User> =>
-  request<User>("POST", "/users/create_end", {
-    body: { email, code, name, password },
-    auth: false,
-  });
+  omsPublic().sessions.signUpComplete({ email, code, name, password }) as Promise<User>;
 
 /** Always 200 (anti-enumeration). */
 export const resetPasswordStart = (email: string): Promise<unknown> =>
-  request("POST", "/users/reset_password_start", { body: { email }, auth: false });
+  omsPublic().sessions.resetPasswordStart(email);
 
 export const resetPasswordEnd = (
   email: string,
   code: string,
   password: string,
 ): Promise<unknown> =>
-  request("POST", "/users/reset_password_end", {
-    body: { email, code, password },
-    auth: false,
-  });
+  omsPublic().sessions.resetPasswordComplete({ email, code, password });
 
 /**
  * Logout (FR-10): DELETE /sessions/current best-effort (the server always
- * kills the calling session regardless of id); the wipe runs even on failure.
- * SQLite files persist on disk namespaced per user id.
+ * kills the calling session regardless of id; the SDK's signOut swallows a
+ * 401/404 and falls back to /sessions/mine + DELETE /sessions/:id); the wipe
+ * runs even on failure. SQLite files persist on disk namespaced per user id.
  */
 export const logout = async (): Promise<void> => {
   try {
-    await request("DELETE", "/sessions/current");
+    await oms().sessions.signOut();
   } catch {
     // Wipe anyway.
   }

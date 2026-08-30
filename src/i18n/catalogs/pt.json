@@ -1308,6 +1308,7 @@
       "rowDetail": "Espaço, modo offline, playlists guardadas",
       "serverStorage": "Armazenamento de música",
       "serverStorageUsed": "{used} de {limit} utilizados",
+      "serverStorageUnlimited": "{used} utilizados, conta sem limite",
       "storageCapExceeded": "As transferências locais excedem o armazenamento de música da conta - transferências novas são recusadas.",
       "cacheTitle": "Cache temporária",
       "cacheDetail": "{files} ficheiros, {size} de {budget}",

@@ -1,29 +1,22 @@
 /**
  * Vocal separation model catalog: GET /vocal_separations/models returns the
  * whitelist `{ models: [{ id, translation_key, default }] }` (backend
- * vocal_separator_models initializer). Model names/descriptions resolve
- * client-side under components.music.Settings.SongsTable.EditSongDialog
- * .models.<translation_key>.
- *
- * NOTE: the request fn lives here (not in src/api/endpoints) because the
- * endpoint modules are WP1-frozen; moving it into endpoints/separation.ts is
- * a pending change request to the foundation owner.
+ * vocal_separator_models initializer; the SDK unwraps the array). Model
+ * names/descriptions resolve client-side under
+ * components.music.Settings.SongsTable.EditSongDialog.models.<translation_key>.
  */
 import { useQuery } from "@tanstack/react-query";
-import { request } from "@/api/client";
+import type { ToolModel } from "@omelhorsite/sdk";
+import { oms } from "@/api/oms";
 import { guardedQueryFn } from "@/api/queries/common";
 import { useAuthReady } from "@/auth/guard";
 
-export interface SeparationModel {
-  id: string;
-  translation_key: string;
-  default?: boolean;
-}
+export type SeparationModel = ToolModel;
 
 const MODELS_KEY = ["separation", "models"] as const;
 
-export const listSeparationModels = (): Promise<{ models: SeparationModel[] }> =>
-  request("GET", "/vocal_separations/models");
+export const listSeparationModels = (): Promise<SeparationModel[]> =>
+  oms().tools.vocalSeparation.models();
 
 export const useSeparationModels = (enabled = true) => {
   const authReady = useAuthReady();
@@ -35,5 +28,5 @@ export const useSeparationModels = (enabled = true) => {
   });
 };
 
-export const defaultModelId = (models: SeparationModel[]): string | null =>
+export const defaultModelId = (models: readonly SeparationModel[]): string | null =>
   (models.find((m) => m.default) ?? models[0])?.id ?? null;

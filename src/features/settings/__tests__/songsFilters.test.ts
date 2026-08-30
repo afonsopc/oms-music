@@ -68,14 +68,14 @@ const song = (overrides: Partial<Song>): Song =>
   }) as Song;
 
 describe("artistParamsFromChips (FR-96 request shape)", () => {
-  it("ALWAYS includes featured_artist_names - single empty string when none", () => {
+  it("ALWAYS includes featuredArtistNames - single empty string when none", () => {
     const params = artistParamsFromChips([
       { name: "Carlos Paiao", role: "primary" },
     ]);
-    expect(params.artist_names).toEqual(["Carlos Paiao"]);
-    expect(params.featured_artist_names).toEqual([""]);
+    expect(params.artistNames).toEqual(["Carlos Paiao"]);
+    expect(params.featuredArtistNames).toEqual([""]);
     // The key existing is what suppresses the legacy "feat." title reparse.
-    expect("featured_artist_names" in params).toBe(true);
+    expect("featuredArtistNames" in params).toBe(true);
   });
 
   it("splits primaries and featured in chip order", () => {
@@ -85,8 +85,8 @@ describe("artistParamsFromChips (FR-96 request shape)", () => {
       { name: "C", role: "primary" },
       { name: "D", role: "featured" },
     ]);
-    expect(params.artist_names).toEqual(["A", "C"]);
-    expect(params.featured_artist_names).toEqual(["B", "D"]);
+    expect(params.artistNames).toEqual(["A", "C"]);
+    expect(params.featuredArtistNames).toEqual(["B", "D"]);
   });
 
   it("drops blank names but keeps the featured sentinel", () => {
@@ -94,8 +94,8 @@ describe("artistParamsFromChips (FR-96 request shape)", () => {
       { name: "  ", role: "featured" },
       { name: "A", role: "primary" },
     ]);
-    expect(params.artist_names).toEqual(["A"]);
-    expect(params.featured_artist_names).toEqual([""]);
+    expect(params.artistNames).toEqual(["A"]);
+    expect(params.featuredArtistNames).toEqual([""]);
   });
 });
 

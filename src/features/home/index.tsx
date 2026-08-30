@@ -120,7 +120,7 @@ export default function HomeScreen() {
 
   const recentAlbumsQuery = useRecentAlbums(RECENT_ALBUMS_LIMIT);
   const mixesQuery = useMixes();
-  const playlistsQuery = usePlaylists({ page: "1:20" });
+  const playlistsQuery = usePlaylists({ limit: 20 });
   const recommendationsQuery = useRandomAlbums(10);
   const topArtistsQuery = useTopArtists("30d", 10);
 

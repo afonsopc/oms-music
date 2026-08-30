@@ -22,6 +22,11 @@ describe("shouldRetryQuery", () => {
     }
   });
 
+  test("um timeout (status 0, sem resposta) e tempo: tenta outra vez", () => {
+    expect(shouldRetryQuery(0, new ApiError(0, "Request timed out after 20000ms"))).toBe(true);
+    expect(shouldRetryQuery(QUERY_RETRY_LIMIT, new ApiError(0, "timeout"))).toBe(false);
+  });
+
   test("um 5xx merece uma segunda tentativa", () => {
     expect(shouldRetryQuery(0, new ApiError(500, "blip"))).toBe(true);
     expect(shouldRetryQuery(0, new ApiError(503, "deploy"))).toBe(true);

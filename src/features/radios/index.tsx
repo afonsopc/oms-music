@@ -53,7 +53,7 @@ export const RadioScreen = (props: RadioScreenProps) => {
   // Artist radio: the artist's Deezer photo. Song radio: the seed artwork
   // (the generator unshifts the seed track as songs[0]).
   const picturesQuery = useArtistPictures(isArtist ? props.artist : null, isArtist);
-  const picture = picturesQuery.data?.pictures?.[0];
+  const picture = picturesQuery.data?.[0];
   const backdropUri = isArtist
     ? (picture?.picture_xl ?? picture?.picture_big ?? picture?.picture_medium ?? null)
     : seed
@@ -65,7 +65,7 @@ export const RadioScreen = (props: RadioScreenProps) => {
     if (!radio || songs.length === 0) return;
     setSaveError(false);
     createPlaylist.mutate(
-      { name: radio.title, song_ids: songs.map((song) => song.id) },
+      { name: radio.title, songIds: songs.map((song) => song.id) },
       {
         onSuccess: (playlist) => router.push(playlistRoute(playlist.id)),
         onError: () => setSaveError(true),

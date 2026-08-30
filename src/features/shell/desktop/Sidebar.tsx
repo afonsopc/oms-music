@@ -29,7 +29,7 @@ import {
 } from "react-native";
 import { useRouter, useSegments } from "expo-router";
 import { usePlaylists } from "@/api/queries/playlists";
-import { useLibraryAlbums, useLibraryArtists, LIBRARY_ITEM_LIMIT } from "@/features/library/queries";
+import { useLibraryAlbums, useLibraryArtists } from "@/features/library/queries";
 import {
   buildLibraryRows,
   likedLibraryRow,
@@ -202,10 +202,7 @@ export const DesktopSidebar = ({ collapsed, onToggleCollapsed }: DesktopSidebarP
   const wantsArtists = !collapsed && (filter === "all" || filter === "artists");
   const wantsAlbums = !collapsed && (filter === "all" || filter === "albums");
 
-  const playlistsQuery = usePlaylists({
-    page: `1:${LIBRARY_ITEM_LIMIT}`,
-    enabled: wantsPlaylists,
-  });
+  const playlistsQuery = usePlaylists({ enabled: wantsPlaylists });
   const artistsQuery = useLibraryArtists(wantsArtists);
   const albumsQuery = useLibraryAlbums(wantsAlbums);
 

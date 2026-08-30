@@ -11,7 +11,7 @@
  */
 import React from "react";
 import { getTransport } from "@/contracts/transport";
-import { fetchDjInterstitial } from "@/api/endpoints/musicDj";
+import { oms } from "@/api/oms";
 import { getPlaybackView } from "@/remote/mirror";
 import { useT } from "@/i18n";
 import { GhostIconButton } from "@/ui";
@@ -29,7 +29,10 @@ export const DjButton = ({ disabled }: { disabled: boolean }) => {
     setBusy(true);
     void (async () => {
       try {
-        const clip = await fetchDjInterstitial(next?.id ?? current.id, next ? current.id : null);
+        const clip = await oms().music.social.dj.interstitial({
+          nextSongId: next?.id ?? current.id,
+          previousSongId: next ? current.id : null,
+        });
         const transport = getTransport();
         const wasPlaying = view.playing;
         if (wasPlaying) transport.pause();

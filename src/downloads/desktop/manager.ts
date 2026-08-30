@@ -18,7 +18,7 @@
  * costs a stream instead of a local read, never a broken screen, so nothing
  * here raises a notice and nothing here blocks a render.
  */
-import { getLyrics } from "@/api/endpoints/lyrics";
+import { getLyrics } from "@/api/queries/lyrics";
 import { imageUrl } from "@/api/mediaUrl";
 import type { DownloadKind, SongDownloadStatus } from "@/domain/downloads";
 import type { MediaId, SongKey, UserId } from "@/domain/ids";

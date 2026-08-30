@@ -15,7 +15,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useArtistsRoster, useArtistsSearch } from "@/api/queries/artists";
-import type { ArtistsRosterOrder } from "@/api/endpoints/artists";
+import type { ArtistsRosterOrder } from "@/api/queries/artists";
 import type { Artist } from "@/domain/artist";
 import { artistImageSource } from "@/domain/artwork";
 import { useT } from "@/i18n";

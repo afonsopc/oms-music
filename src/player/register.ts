@@ -14,8 +14,8 @@ import { setAudioModeAsync } from "expo-audio";
 import { registerLogoutTask } from "@/auth/session";
 import { setStemMixer } from "@/contracts/stemMixer";
 import { setBaseTransport, type TransportActions } from "@/contracts/transport";
-import { resolveDataUrl } from "@/api/endpoints/fsNodes";
-import { postPlayEvent } from "@/api/endpoints/playEvents";
+import { oms } from "@/api/oms";
+import { postPlayEvent } from "@/api/queries/playEvents";
 import type { Song } from "@/domain/song";
 import { PlayerEngineImpl } from "./engine";
 import { createExpoAudioAdapter } from "./expoAudioAdapter";
@@ -66,7 +66,7 @@ export const registerPlayerEngine = (): PlayerEngineImpl => {
       adapter = createExpoAudioAdapter();
       return adapter;
     },
-    resolveDataUrl,
+    resolveDataUrl: (mediaId) => oms().media.dataUrl(mediaId),
     recordPlay: (songId) => {
       // Fire-and-forget: never surface failures (server dedupes 30 s repeats).
       void postPlayEvent(songId).catch(() => undefined);

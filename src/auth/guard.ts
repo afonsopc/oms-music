@@ -11,9 +11,8 @@
  * No caller ever retries on its own.
  */
 import { useSyncExternalStore } from "react";
-import { request, setAuthFailureHandler } from "@/api/client";
+import { oms, setAuthFailureHandler } from "@/api/oms";
 import { isApiError } from "@/domain/api";
-import type { Session } from "@/domain/user";
 import { isCookieAuth } from "./authMode";
 import { getToken } from "./token";
 
@@ -68,7 +67,10 @@ export const verify = (): Promise<boolean> => {
   }
   inflight = (async () => {
     try {
-      await request<Session>("GET", "/sessions/mine");
+      // O proxy do SDK avisa este mesmo handler num 401; `inflight` já está
+      // preenchido nesse momento, por isso a chamada reentrante só devolve
+      // esta promessa - single-flight por construção.
+      await oms().sessions.current();
       return true;
     } catch (error) {
       if (isApiError(error) && error.status === 401) {
@@ -85,7 +87,7 @@ export const verify = (): Promise<boolean> => {
   return inflight;
 };
 
-// The client notifies us on auth-shaped failures; fire-and-forget.
+// The SDK error proxy notifies us on auth-shaped failures; fire-and-forget.
 setAuthFailureHandler(() => {
   void verify();
 });

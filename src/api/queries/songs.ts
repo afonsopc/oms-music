@@ -1,35 +1,81 @@
-/** Song hooks. Search hooks apply the MANDATORY rankByMatch re-rank (FR-30). */
+/**
+ * Song hooks. Search hooks apply the MANDATORY rankByMatch re-rank (FR-30).
+ *
+ * Os fetchers nomeados abaixo são a fronteira do fallback offline
+ * (contracts/offlineFallback): os resolvers de downloads/offlineLibrary.ts
+ * despacham pela FORMA dos argumentos, por isso as assinaturas
+ * (`listAlbumSongs(album)`, `listArtistSongs(name, role)`, `listSongsPage(params)`,
+ * `listAlbums(params)`, `listRandomAlbums(count)`) fazem parte do contrato.
+ *
+ * Os tipos do SDK são o fio; os de `@/domain` acrescentam os ids marcados
+ * (`SongId`), daí o cast de fronteira em cada fetcher.
+ */
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  deleteSong,
-  getArtistPictures,
-  getSong,
-  listAlbumSongs,
-  listAlbums,
-  listArtistSongs,
-  listRandomAlbums,
-  listSongs,
-  searchSongsByTitle,
-  updateSong,
-  type ArtistRole,
-  type SongPatch,
-} from "../endpoints/songs";
-import { pageModifier } from "../params";
+  collect,
+  type ListSongAlbumsParams,
+  type ListSongsParams,
+  type SongArtistRole,
+  type UpdateSongInput,
+} from "@omelhorsite/sdk";
+import { oms, toFileInput, type PickedFile } from "../oms";
 import { keys } from "../queryKeys";
-import { guardedQueryFn } from "./common";
+import { FULL_PAGE, WHOLE_LIST_LIMIT, guardedQueryFn } from "./common";
 import { useAuthReady } from "@/auth/guard";
 import { withOfflineFallback } from "@/contracts/offlineFallback";
 import { rankByMatch } from "@/domain/rank";
+import type { AlbumSummary } from "@/domain/album";
 import type { SongId } from "@/domain/ids";
 import type { Song } from "@/domain/song";
 
-const listSongsWithFallback = withOfflineFallback(listSongs, "songs");
+export type ArtistRole = SongArtistRole;
+
+/** One explicit page of /songs (the management screen, the search boxes). */
+export const listSongsPage = async (params: ListSongsParams): Promise<Song[]> =>
+  (await oms().music.songs.list({ order: null, ...params })).items as Song[];
+
+/** Every song of an album; album null queries the no-album bucket. */
+export const listAlbumSongs = async (album: string | null): Promise<Song[]> =>
+  (await collect(
+    await oms().music.songs.list({ album, pageSize: FULL_PAGE, order: null }),
+    WHOLE_LIST_LIMIT,
+  )) as Song[];
+
+/** Every song where the named artist has the given role. */
+export const listArtistSongs = async (
+  artistNameOrSlug: string,
+  role: ArtistRole,
+): Promise<Song[]> =>
+  (await collect(
+    await oms().music.songs.list({
+      artist: artistNameOrSlug,
+      artistRole: role,
+      pageSize: FULL_PAGE,
+      order: null,
+    }),
+    WHOLE_LIST_LIMIT,
+  )) as Song[];
+
+/**
+ * Album summaries. Sem `page` o servidor agrega a biblioteca inteira (a acção
+ * `albums` não força página); com `page`/`pageSize` devolve a janela pedida.
+ */
+export const listAlbums = async (params: ListSongAlbumsParams = {}): Promise<AlbumSummary[]> =>
+  (await oms().music.songs.albums({ order: null, ...params })) as AlbumSummary[];
+
+export const listRandomAlbums = (count = 10): Promise<AlbumSummary[]> =>
+  listAlbums({ random: true, page: 1, pageSize: count });
+
+export const getSong = (id: SongId): Promise<Song> =>
+  oms().music.songs.get(id) as Promise<Song>;
+
+const listSongsPageWithFallback = withOfflineFallback(listSongsPage, "songs");
 const listAlbumSongsWithFallback = withOfflineFallback(listAlbumSongs, "songs");
 const listArtistSongsWithFallback = withOfflineFallback(listArtistSongs, "songs");
 const listAlbumsWithFallback = withOfflineFallback(listAlbums, "albums");
 const listRandomAlbumsWithFallback = withOfflineFallback(listRandomAlbums, "albums");
 
-export const SONGS_MANAGEMENT_PAGE_SIZE = 500;
+export const SONGS_MANAGEMENT_PAGE_SIZE = FULL_PAGE;
 
 /** Infinite /songs pages for the management screen (FR-96). */
 export const useSongsInfinite = (enabled = true) => {
@@ -39,9 +85,7 @@ export const useSongsInfinite = (enabled = true) => {
     queryKey: key,
     queryFn: ({ pageParam }) =>
       guardedQueryFn(key, () =>
-        listSongsWithFallback({
-          modifiers: { page: pageModifier(pageParam, SONGS_MANAGEMENT_PAGE_SIZE) },
-        }),
+        listSongsPageWithFallback({ page: pageParam, pageSize: SONGS_MANAGEMENT_PAGE_SIZE }),
       )(),
     initialPageParam: 1,
     getNextPageParam: (lastPage, _all, lastPageParam) =>
@@ -60,7 +104,7 @@ export const useSong = (id: SongId | null) => {
   });
 };
 
-/** Ranked title-search candidates (1:20 page, top N is the caller's cut). */
+/** Ranked title-search candidates (one page of 20, top N is the caller's cut). */
 export const useSearchSongs = (term: string, enabled = true) => {
   const authReady = useAuthReady();
   const trimmed = term.trim();
@@ -68,7 +112,7 @@ export const useSearchSongs = (term: string, enabled = true) => {
   return useQuery({
     queryKey: key,
     queryFn: guardedQueryFn(key, async () => {
-      const songs = await searchSongsByTitle(trimmed);
+      const songs = await listSongsPageWithFallback({ title: trimmed, page: 1, pageSize: 20 });
       return rankByMatch(songs, trimmed, (s) => s.title);
     }),
     enabled: authReady && enabled && trimmed.length > 0,
@@ -112,7 +156,8 @@ export const useSearchAlbums = (term: string, enabled = true) => {
     queryFn: guardedQueryFn(key, async () => {
       const albums = await listAlbumsWithFallback({
         search: { album: trimmed },
-        modifiers: { page: pageModifier(1, 20) },
+        page: 1,
+        pageSize: 20,
       });
       return rankByMatch(albums, trimmed, (a) => a.name);
     }),
@@ -130,11 +175,9 @@ export const useArtistAlbums = (
   return useQuery({
     queryKey: key,
     queryFn: guardedQueryFn(key, () =>
-      listAlbumsWithFallback({
-        exact_search: { artist: artistNameOrSlug },
-        artist_role: role,
-        modifiers: { page: pageModifier(1, 500) },
-      }),
+      // Sem página: os álbuns de UM artista são a lista inteira que a app
+      // precisa, e o servidor agrega-a de uma vez.
+      listAlbumsWithFallback({ artist: artistNameOrSlug as string, artistRole: role }),
     ),
     enabled: authReady && enabled && !!artistNameOrSlug,
   });
@@ -157,12 +200,19 @@ export const useArtistPictures = (name: string | null, enabled = true) => {
   const key = keys.songs.artistPictures(name ?? "");
   return useQuery({
     queryKey: key,
-    queryFn: guardedQueryFn(key, () => getArtistPictures(name as string)),
+    queryFn: guardedQueryFn(key, () => oms().music.songs.artistPictures(name as string)),
     enabled: authReady && enabled && !!name,
     staleTime: 60 * 60 * 1000,
   });
 };
 
+/**
+ * PATCH /songs/:id (FR-96). JSON quando não há artwork (os `null` limpam o
+ * campo), multipart quando há - o SDK escreve o sentinela nos campos nulos do
+ * multipart. `featuredArtistNames` deve ir SEMPRE que se editam artistas: um
+ * array vazio é "explicitamente nenhum", a ausência da chave liga a heurística
+ * antiga de "feat." no título.
+ */
 export const useUpdateSong = () => {
   const qc = useQueryClient();
   return useMutation({
@@ -172,9 +222,13 @@ export const useUpdateSong = () => {
       artwork,
     }: {
       id: SongId;
-      patch: SongPatch;
-      artwork?: { uri: string; name: string; type: string };
-    }) => updateSong(id, patch, artwork),
+      patch: Omit<UpdateSongInput, "artwork">;
+      artwork?: PickedFile;
+    }) =>
+      oms().music.songs.update(id, {
+        ...patch,
+        ...(artwork ? { artwork: toFileInput(artwork) } : {}),
+      }) as Promise<Song>,
     onSuccess: (song: Song) => {
       qc.setQueryData(keys.songs.detail(song.id), song);
       void qc.invalidateQueries({ queryKey: keys.songs.all });
@@ -187,7 +241,7 @@ export const useUpdateSong = () => {
 export const useDeleteSong = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: SongId) => deleteSong(id),
+    mutationFn: (id: SongId) => oms().music.songs.delete(id),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: keys.songs.all });
       void qc.invalidateQueries({ queryKey: keys.albums.all });

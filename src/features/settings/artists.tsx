@@ -7,13 +7,7 @@
  */
 import React, { useMemo, useState } from "react";
 import { ActivityIndicator, FlatList, Pressable, Text, View } from "react-native";
-import { useQuery } from "@tanstack/react-query";
-import { listArtists } from "@/api/endpoints/artists";
-import { useDeleteArtist } from "@/api/queries/artists";
-import { guardedQueryFn } from "@/api/queries/common";
-import { pageModifier } from "@/api/params";
-import { keys } from "@/api/queryKeys";
-import { useAuthReady } from "@/auth/guard";
+import { useAllArtists, useDeleteArtist } from "@/api/queries/artists";
 import { artistImageSource } from "@/domain/artwork";
 import type { Artist } from "@/domain/artist";
 import { useContentBottomPadding, useContentTopPadding } from "@/features/shell/metrics";
@@ -26,21 +20,6 @@ import { NoticeBanner, SearchField, useApiErrorMessage } from "./ui";
 
 const TABLE_KEY = "components.music.Settings.ArtistsTable";
 const DELETE_KEY = `${TABLE_KEY}.DeleteArtistDialog`;
-
-const ARTISTS_PAGE = 500;
-
-const useAllArtists = () => {
-  const authReady = useAuthReady();
-  const filters = { page: ARTISTS_PAGE, order: "name:asc" };
-  const key = keys.artists.list(filters);
-  return useQuery<Artist[]>({
-    queryKey: key,
-    queryFn: guardedQueryFn(key, () =>
-      listArtists({ modifiers: { page: pageModifier(1, ARTISTS_PAGE), order: "name:asc" } }),
-    ),
-    enabled: authReady,
-  });
-};
 
 const MediaDot = ({ present, label }: { present: boolean; label: string }) => {
   const { tokens } = useTheme();

@@ -64,7 +64,7 @@ export default function MixScreen() {
     if (!mix || songs.length === 0) return;
     setSaveError(false);
     createPlaylist.mutate(
-      { name: title, song_ids: songs.map((song) => song.id) },
+      { name: title, songIds: songs.map((song) => song.id) },
       {
         onSuccess: (playlist) => router.push(playlistRoute(playlist.id)),
         onError: () => setSaveError(true),

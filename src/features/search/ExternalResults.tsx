@@ -15,8 +15,8 @@
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Linking, Pressable, Text, View } from "react-native";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { createSongImport, type SongImportBody } from "@/api/endpoints/imports";
-import { useExternalSearch, useSongImportPoll } from "@/api/queries/imports";
+import type { CreateSongImportInput } from "@omelhorsite/sdk";
+import { createSongImport, useExternalSearch, useSongImportPoll } from "@/api/queries/imports";
 import { invalidationTargets } from "@/api/queryKeys";
 import type { ExternalSearchResult } from "@/domain/imports";
 import { useT } from "@/i18n";
@@ -49,7 +49,7 @@ const ExternalTrackRow = ({
 
   const poll = useSongImportPoll(importId, importId != null);
   const mutation = useMutation({
-    mutationFn: (body: SongImportBody) => createSongImport(body),
+    mutationFn: (body: CreateSongImportInput) => createSongImport(body),
   });
 
   // Row state is DERIVED from the poll record; nothing is copied into

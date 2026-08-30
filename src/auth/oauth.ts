@@ -16,7 +16,7 @@
  * /webauthn_credentials endpoints.
  */
 import { Platform } from "react-native";
-import { API_BASE_URL, request } from "@/api/client";
+import { API_BASE_URL, oms, omsPublic } from "@/api/oms";
 import { OAUTH_NATIVE_CALLBACK } from "./oauthCallback";
 import type { OAuthMode, OAuthProvider } from "./oauthCallback";
 import { getToken } from "./token";
@@ -90,10 +90,7 @@ export const buildLinkUrl = (provider: OAuthProvider): string => {
  * every sign-in method lands identically.
  */
 export const adoptTicket = async (ticket: string): Promise<string> => {
-  const response = await request<{ token: string }>("POST", "/sessions/adopt", {
-    body: { ticket },
-    auth: false,
-  });
+  const response = await omsPublic().sessions.adopt(ticket);
   if (!response?.token) throw new Error("Adopt response missing token");
   return response.token;
 };
@@ -109,7 +106,10 @@ export interface Identity {
   updated_at: string;
 }
 
-export const listIdentities = (): Promise<Identity[]> => request("GET", "/identities");
+// Lacuna do SDK: só tem /admin/identities; as identidades da própria conta
+// (GET/DELETE /identities) vão pelo transporte cru.
+export const listIdentities = (): Promise<Identity[]> =>
+  oms().http.get<Identity[]>("/identities");
 
 export const deleteIdentity = (id: string): Promise<void> =>
-  request("DELETE", `/identities/${encodeURIComponent(id)}`);
+  oms().http.delete<void>(`/identities/${encodeURIComponent(id)}`);

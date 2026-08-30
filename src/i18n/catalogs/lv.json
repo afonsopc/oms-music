@@ -1308,6 +1308,7 @@
       "rowDetail": "Vieta, bezsaiste, saglabātie saraksti",
       "serverStorage": "Mūzikas krātuve",
       "serverStorageUsed": "Izmantoti {used} no {limit}",
+      "serverStorageUnlimited": "Izmantoti {used}, kontam nav ierobežojuma",
       "storageCapExceeded": "Lokālās lejupielādes pārsniedz konta mūzikas krātuvi - jaunas lejupielādes tiek atteiktas.",
       "cacheTitle": "Pagaidu kešs",
       "cacheDetail": "{files} faili, {size} no {budget}",

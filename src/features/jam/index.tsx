@@ -15,8 +15,7 @@
 import React, { useMemo, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { useJams } from "@/api/queries/jams";
-import { useRelationships } from "@/api/queries/relationships";
-import { acceptedFriends } from "@/api/endpoints/relationships";
+import { acceptedFriends, useRelationships } from "@/api/queries/relationships";
 import { avatarUrl } from "@/api/mediaUrl";
 import { useSessionStore } from "@/auth/session";
 import type { UserId } from "@/domain/ids";

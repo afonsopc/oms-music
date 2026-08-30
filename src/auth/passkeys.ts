@@ -13,19 +13,26 @@
  *    module. `import()` inside a try/catch turns that into `null`, which the
  *    availability gate reads as "no passkeys here" and the UI hides the button.
  *
- * 2. Ceremony payloads go over the wire VERBATIM (`raw: true`): the client's
- *    null -> "\b" sentinel rewrite would corrupt a WebAuthn credential and the
- *    server reads it with `params.require(:credential).to_unsafe_h`, with no
- *    sentinel decoding on the far side.
+ * 2. Ceremony payloads go over the wire VERBATIM: the SDK sends JSON bodies as
+ *    they are (no null rewriting), and the server reads the credential with
+ *    `params.require(:credential).to_unsafe_h`. The SDK's own normalisers are
+ *    not used here because the app already normalises through
+ *    ./passkeyEncoding, which react-native-passkeys' output needs.
  *
  * Errors are split on purpose. Anything the platform raises, plus a payload
  * that will not parse, becomes a PasskeyCeremonyError carrying a classified
  * kind; anything the HTTP layer raises stays an ApiError so the screens keep
  * their 401 / 429 branches (the /webauthn_credentials/authentication* pair
  * shares one 20/min per-IP bucket, so 429 is a normal outcome, not a bug).
+ * The two public endpoints go through `omsPublic()` (no Bearer, and a 401
+ * there never wakes the guard); the authenticated ones through `oms()`.
  */
 import { useEffect, useState } from "react";
-import { request } from "@/api/client";
+import type {
+  PasskeyAssertionCredential,
+  PasskeyRegistrationCredential,
+} from "@omelhorsite/sdk";
+import { oms, omsPublic } from "@/api/oms";
 import type { Session } from "@/domain/user";
 import {
   normalizeAssertionCredential,
@@ -149,38 +156,32 @@ const parse = <T>(read: () => T): T => {
 
 /** Public. Shares the 20/min per-IP bucket with the assertion below. */
 export const fetchAuthenticationOptions = (): Promise<{ handle: string; options: unknown }> =>
-  request("POST", "/webauthn_credentials/authentication_options", {
-    body: {},
-    raw: true,
-    auth: false,
-  });
+  omsPublic().passkeys.authenticationOptions();
 
 /** Public. 201 with the full session :token view, same shape as POST /sessions. */
 export const submitAuthentication = (credential: unknown, handle: string): Promise<Session> =>
-  request("POST", "/webauthn_credentials/authentication", {
-    body: { credential, handle },
-    raw: true,
-    auth: false,
-  });
+  omsPublic().passkeys.authenticate({
+    // Já normalizado por ./passkeyEncoding; o SDK só o transporta.
+    credential: credential as PasskeyAssertionCredential,
+    handle,
+  }) as Promise<Session>;
 
 /** Authenticated. Lazily assigns users.webauthn_id on first use. */
 export const fetchRegistrationOptions = (): Promise<unknown> =>
-  request("POST", "/webauthn_credentials/registration_options", { body: {}, raw: true });
+  oms().passkeys.registrationOptions();
 
 export const submitRegistration = (
   credential: unknown,
   nickname?: string,
 ): Promise<PasskeySummary> =>
-  request("POST", "/webauthn_credentials/registration", {
-    body: nickname ? { credential, nickname } : { credential },
-    raw: true,
+  oms().passkeys.register({
+    credential: credential as PasskeyRegistrationCredential,
+    ...(nickname ? { nickname } : {}),
   });
 
-export const listPasskeys = (): Promise<PasskeySummary[]> =>
-  request("GET", "/webauthn_credentials");
+export const listPasskeys = (): Promise<PasskeySummary[]> => oms().passkeys.list();
 
-export const deletePasskey = (id: string): Promise<void> =>
-  request("DELETE", `/webauthn_credentials/${encodeURIComponent(id)}`);
+export const deletePasskey = (id: string): Promise<void> => oms().passkeys.remove(id);
 
 // ---------------------------------------------------------------------------
 // Ceremonies

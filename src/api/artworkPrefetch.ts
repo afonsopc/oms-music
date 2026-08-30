@@ -53,7 +53,7 @@ import type { MixSummary } from "@/domain/mixes";
 import type { Playlist } from "@/domain/playlist";
 import { getRecentCollections } from "@/lib/recentCollections";
 import { setArtworkPrefetcher } from "@/prefetch/register";
-import type { RecentlyPlayedAlbum } from "./endpoints/playEvents";
+import type { RecentlyPlayedAlbum } from "./queries/playEvents";
 
 export { artworkScope, MAX_HOME_ARTWORK, type ArtworkScopeInput } from "./artworkScope";
 

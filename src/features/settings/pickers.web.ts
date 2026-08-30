@@ -7,15 +7,15 @@
  * buttons already provide, `accept`-filtered, `multiple` for batches and
  * `webkitdirectory` for folder walks.
  *
- * The shape trick that makes the uploads work with ZERO api changes: every
- * endpoint appends the picked object straight into FormData
- * (api/endpoints/songs.ts et al). React Native's FormData accepts a plain
- * `{ uri, name, type }`; the browser's does not - it needs a real Blob. So
- * this fork hands back actual browser File instances, widened with the `uri`
- * (an object URL, which also feeds the artwork previews) and `relativePath`
- * expandos the interfaces promise. Callers must therefore pass the picked
- * object THROUGH to the endpoints, never rebuild a `{ uri, name, type }`
- * literal from it - rebuilding would strip the bytes.
+ * The shape trick that makes the uploads work on both runtimes: React
+ * Native's FormData accepts a plain `{ uri, name, type }` descriptor (the SDK
+ * appends it verbatim as a NativeFile); the browser's does not - it needs a
+ * real Blob. So this fork hands back actual browser File instances, widened
+ * with the `uri` (an object URL, which also feeds the artwork previews) and
+ * `relativePath` expandos the interfaces promise. Callers pass the picked
+ * object THROUGH `toFileInput` (api/oms.ts), which hands the SDK the bytes on
+ * web and the descriptor on native - never rebuild a `{ uri, name, type }`
+ * literal from it, rebuilding would strip the bytes.
  *
  * Picked images go through the same square-crop + JPEG budget ladder as
  * native (the pure maths in @/lib/imageTransform is shared), just executed on

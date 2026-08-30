@@ -16,14 +16,12 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   createArtistImport,
   searchArtistImports,
-} from "@/api/endpoints/artistImports";
-import {
   useArtistImportAlbums,
   useArtistImportSearch,
   useArtistImportsRecents,
 } from "@/api/queries/artistImports";
 import { invalidationTargets, keys } from "@/api/queryKeys";
-import type { ArtistImport } from "@/domain/imports";
+import type { ArtistImport } from "@omelhorsite/sdk";
 import {
   GhostButton,
   NoticeBanner,
@@ -193,7 +191,7 @@ export default function ArtistImportTab() {
   const genericError =
     error ?? (stepError && !queryIssue ? errorMessage(stepError) : null);
 
-  const albums = useMemo(() => albumsQuery.data?.items ?? [], [albumsQuery.data]);
+  const albums = useMemo(() => albumsQuery.data ?? [], [albumsQuery.data]);
 
   // Every album starts selected (web parity) until the user narrows it.
   const chosen = useMemo(
@@ -234,9 +232,9 @@ export default function ArtistImportTab() {
     setError(null);
     try {
       await createImport.mutateAsync({
-        spotify_artist_id: selected.id,
-        spotify_artist_name: selected.name,
-        album_ids: Array.from(chosen),
+        spotifyArtistId: selected.id,
+        spotifyArtistName: selected.name,
+        albumIds: Array.from(chosen),
       });
       setSelected(null);
       setChosenEdit(null);
@@ -251,7 +249,7 @@ export default function ArtistImportTab() {
   };
 
   const results = searchQuery.data;
-  const recents = recentsQuery.data?.items ?? [];
+  const recents = recentsQuery.data ?? [];
 
   return (
     <View style={{ gap: 16 }}>

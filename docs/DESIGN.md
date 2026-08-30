@@ -457,63 +457,73 @@ only for pictureless artists in card grids.
 
 ---
 
-## 5. API client (frozen contract)
+## 5. API client (`@omelhorsite/sdk`)
 
-`api/client.ts`:
+O cliente HTTP é o SDK oficial da API, `@omelhorsite/sdk` (o mesmo que o site usa). Os
+tipos do SDK são o contrato do fio; `docs/API.md` fica como referência do que o servidor
+manda. O que esta app põe POR CIMA do SDK vive em três módulos:
 
-```ts
-interface RequestOpts {
-  params?: Record<string, unknown>;  // GET query, bracket-encoded, null -> "\b"
-  body?: unknown;                    // JSON body, deep null -> "\b" rewrite
-  formData?: FormData;               // multipart, sent VERBATIM (sentinel exempt)
-  raw?: boolean;                     // skip sentinel rewrite (WebAuthn ceremonies)
-  auth?: boolean;                    // default true; false for public endpoints
-  timeoutMs?: number;                // default 20s; imports pass 120s+
-}
-export function request<T>(method: HttpMethod, path: string, opts?: RequestOpts): Promise<T>;
-```
+`api/oms.ts` - o único ponto de construção. Exporta `oms()` (cliente autenticado) e
+`omsPublic()` (anónimo: login, signup, reset, adopt, passkeys, pesquisa de utilizadores),
+ambos memoizados e embrulhados pelo proxy de erros. A decisão de credencial é a de sempre,
+feita em tempo de chamada por `auth/authMode.ts#isCookieAuth()`:
 
-Behavior, all mandatory:
+- origem cookie (music.omelhorsite.pt): `new Oms({ sessionCookie: true })` - o browser junta
+  o cookie httpOnly, nunca há Bearer;
+- em todo o lado: `new Oms({ tokens: { getToken } })`, o token lido do espelho síncrono de
+  `auth/token.ts` a cada pedido. Sem token o fornecedor lança e o pedido NEM SAI
+  (`ApiError(0, "Not authenticated")`), para proteger o bucket anónimo de 120/min/IP.
 
-1. **Token attachment.** `Authorization: Bearer <token>` on every authed request (the server
-   strips exactly 7 chars, so the `Bearer ` prefix is mandatory). Token comes from the
-   in-memory mirror in `auth/token.ts` (SecureStore is async; the mirror is sync). When the
-   session store is `anon`, authed requests THROW locally before hitting the network
-   (protects the anon 120/min/IP bucket). Meaningful `User-Agent` from `auth/userAgent.ts`
-   on every request.
-2. **Null sentinel (FR-3).** `api/params.ts` deep-rewrites every `null` in params AND JSON
-   bodies to the literal one-char string `"\b"` (backspace). FormData and `raw: true`
-   payloads are exempt and sent verbatim. Omitting a key means "no filter / unchanged".
-   `exact_search[album]="\b"` is how the unknown-album screen queries IS NULL.
-3. **Bracket encoding (FR-4).** axios-style: `search[title]=x`, `exact_search[artist]=Y`,
-   `modifiers[page]=N:SIZE` (1-based, SIZE clamped 500 server-side; a missing page forces
-   1:500 - ALWAYS send explicit pages), `modifiers[order]=col:asc|desc`,
-   `modifiers[random]=true`, arrays as `key[]=a&key[]=b`. Unknown filter keys 400 - never
-   ship one.
-4. **Errors (FR-5).** Bodies are bare JSON strings (`"Song not found"`), occasionally arrays
-   of validation messages, structured only for rate limits. Parse defensively into
-   `ApiError { status, message, retryAfter?, body? }`. 429: read `retry_after` from the body
-   plus the `Retry-After` header; a helper `parkQueryKey(key, untilMs)` pauses the affected
-   query; NEVER a retry storm (each 429 pages the owner on Discord).
-5. **401/404 discipline.** Any 401 from an authed endpoint, and any fs_node 404 while
-   believed-authed, calls `guard.verify()`: ONE single-flight `GET /sessions/mine`. Probe
-   succeeds -> transient / genuinely missing file, resume. Probe 401s -> flip
-   `authReady = false` FIRST (parks all queries, stops the cable, pauses download enqueues,
-   silences the publisher), then wipe token + caches and show login. No caller ever retries
-   on its own.
-6. **304.** The client sends `cache: "no-store"` and no manual validators. If the native
-   stack still surfaces a 304 with an empty body, resolve with the previous data for that
-   query (react-query structural sharing); never treat it as an error. Note: `modifiers[random]`
-   responses carry no ETag.
-7. **Media URLs** (`api/mediaUrl.ts`): `imageUrl(nodeId)` = `/fs_nodes/<id>/data?token=<token>`
-   (302-following, rate-limit EXEMPT: use for ALL images and downloads);
-   `avatarUrl(userId)` = `/users/<id>/picture` (public, NO token). Presigned resolution
-   `fsNodes.resolveDataUrl(nodeId)` = `GET /fs_nodes/:id/data_url -> { url }` (6h validity,
-   different every call, COUNTS against the 600/min ceiling: only the player uses it, via
-   the cache in `player/resolver.ts`, section 8.2). Cache media by fs node id, NEVER by URL.
-8. **Pagination helpers.** `pagedList` (explicit `N:SIZE`, short page = end of list) and
-   `cursorLiked(before)` for `GET /liked_songs?limit=100&before=<liked_at>` (strictly
-   less-than cursor).
+Opções comuns: `baseUrl` = `EXPO_PUBLIC_API_URL`, `fetch` injectado com `cache: "no-store"`
+(5.6), `timeoutMs: 20000` por tentativa, `retry: false` (a react-query repete erros de
+transporte e 5xx, `api/retryPolicy.ts`; o 429 tem o parking do queryClient e nunca deve ser
+adiado por uma espera escondida no SDK), `clientName` = `buildUserAgent()` (X-Oms-Client) e
+o mesmo valor em `User-Agent` para o nativo (baptiza o dispositivo no POST /sessions).
+`toFileInput(picked)` converte o que os pickers devolvem no que o SDK aceita num multipart:
+bytes (`file(blob, name)`) na web, o descritor `{ uri, name, type }` verbatim no React Native.
+
+`api/omsProxy.ts` - o proxy de erros (puro, testado em bun). Cada método do SDK é embrulhado
+num Proxy que converte o que rejeita:
+
+1. `OmsApiError` -> `ApiError { status, message, retryAfter?, body }` (a mensagem lida do
+   corpo pelo `api/errors.ts`: string nua, array de validação ou `{ error }`; `retryAfter`
+   só no 429, do `retry_after` do corpo ou do header `Retry-After`, em segundos);
+2. `OmsTimeoutError` -> `ApiError(0, ...)` (não houve resposta; a política de retry trata o
+   status 0 como transporte);
+3. `OmsNetworkError` e erros de validação seguem intactos (o fallback offline e o retry já
+   os lêem como transporte);
+4. um `Paginated` devolvido vê o seu `next()` embrulhado, para `collect()` nunca deixar
+   escapar um erro cru da segunda página.
+
+É também aqui que vive `setAuthFailureHandler`: no cliente autenticado, qualquer 401 e
+qualquer 404 em `/media/*` avisa o guard (`auth/guard.ts`), que faz UMA sondagem
+single-flight a `/sessions/mine` (5.5). O cliente público nunca avisa - um 401 seu é uma
+password errada.
+
+`api/mediaUrl.ts` - inalterado: `imageUrl(mediaId)` = `/media/<id>/data?token=` (302,
+isento de rate limit, para TODAS as imagens e downloads), `avatarUrl(userId)` público. A
+resolução presigned é `oms().media.dataUrl(id)` (6h, conta para o tecto de 600/min: só o
+resolver do player a usa, secção 8.2). Cache de media por media id, NUNCA por URL.
+
+Regras que o SDK passa a garantir e a app deixa de implementar:
+
+- bracket encoding percent-encoded (`search%5Btitle%5D=`) e o sentinela `"\b"` nos filtros
+  de listagem (`exactSearch: { album: null }` é a query IS NULL); nos corpos JSON o SDK
+  manda `null` real e o Rails lê-o como `nil`, o mesmo que o sentinela dava;
+- paginação: cada `list()` devolve `Paginated<T>`. Onde a app precisa da lista inteira
+  (álbum, artista, roster, playlists, memberships, sessões, relações) percorre-se com
+  `collect(page, WHOLE_LIST_LIMIT)` a 500 por página; onde bastava uma página pede-se
+  `page`/`pageSize` explícitos e lê-se `.items` (`api/queries/common.ts`);
+- 304: o fetch injectado leva `cache: "no-store"`; se a stack nativa ainda devolver um
+  304, `guardedQueryFn` resolve com os dados anteriores da query.
+
+`api/queries/*`: os hooks de react-query chamam `oms()` directamente com os inputs
+camelCase do SDK e devolvem os tipos de `src/domain` (os do SDK com os ids marcados), com
+um cast de fronteira por módulo. Os fetchers nomeados (`listAlbumSongs(album)`,
+`listArtistsPage(page, order)`, `listPlaylists({ limit? })`, ...) são a fronteira do
+fallback offline (`contracts/offlineFallback`): os resolvers de `downloads/*` despacham pela
+forma dos argumentos, por isso as assinaturas fazem parte do contrato. Código fora de React
+(player, prefetch, downloads, jam, remoto) chama `oms()` directamente.
 
 `api/queryClient.ts`: the one QueryClient (section 3 defaults). `api/queryKeys.ts`: the
 complete key namespace written up front (`keys.songs.list(f)`, `keys.likedIds`,

@@ -45,7 +45,7 @@ export type JamRules = {
 /**
  * The jams REST surface, INJECTED so this module imports no api/auth code
  * (which reaches expo-secure-store and react-native) and the whole protocol
- * runs in bun against fakes. register.ts passes api/endpoints/jams.
+ * runs in bun against fakes. register.ts builds it over the SDK (oms().music.social.jams).
  */
 export interface JamApi {
   getJams(): Promise<JamsIndex>;

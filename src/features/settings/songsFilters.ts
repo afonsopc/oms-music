@@ -31,13 +31,16 @@ export const chipsFromSong = (song: Pick<Song, "artists">): ArtistChip[] => {
   });
 };
 
+/** The artist half of the SDK's `UpdateSongInput` (camelCase; the SDK writes
+ *  `artist_names[]` / `featured_artist_names[]` on the wire). */
 export interface ArtistParams {
-  artist_names: string[];
-  featured_artist_names: string[];
+  artistNames: string[];
+  featuredArtistNames: string[];
 }
 
 /** Splits chips by role. The featured key is ALWAYS populated: a single ""
- *  when no featured artists exist (empty strings are stripped server-side). */
+ *  when no featured artists exist (empty strings are stripped server-side;
+ *  an ABSENT key would trigger the legacy "feat." title-reparse heuristic). */
 export const artistParamsFromChips = (chips: readonly ArtistChip[]): ArtistParams => {
   const primaries: string[] = [];
   const featured: string[] = [];
@@ -48,8 +51,8 @@ export const artistParamsFromChips = (chips: readonly ArtistChip[]): ArtistParam
     else featured.push(name);
   }
   return {
-    artist_names: primaries,
-    featured_artist_names: featured.length === 0 ? [""] : featured,
+    artistNames: primaries,
+    featuredArtistNames: featured.length === 0 ? [""] : featured,
   };
 };
 

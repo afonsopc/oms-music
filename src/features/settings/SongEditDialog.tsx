@@ -3,10 +3,10 @@
  * with per-chip role toggle (primary/feat), artwork slot, and the embedded
  * vocal-separation controls (FR-71 via contracts/separation).
  *
- * Request shape: metadata + artists go as a JSON PATCH (nullable fields
- * clear via null -> "\b" sentinel; multipart cannot carry the sentinel, per
- * the WP1 note); artwork uploads go as a SEPARATE multipart PATCH with only
- * the `artwork` part. `featured_artist_names[]` is always present
+ * Request shape: metadata + artists go as a JSON PATCH (a null clears the
+ * field); artwork uploads go as a SEPARATE multipart PATCH with only the
+ * `artwork` part (the SDK writes the sentinel for nulls there, but this
+ * dialog never mixes the two). `featuredArtistNames` is always present
  * (songsFilters.artistParamsFromChips).
  */
 import React, { useMemo, useState } from "react";
@@ -147,7 +147,7 @@ const StemsSection = ({ song }: { song: Song }) => {
   const service = getSeparationService();
   const status = service.useSeparationStatus(song.id);
   const modelsQuery = useSeparationModels();
-  const models = useMemo(() => modelsQuery.data?.models ?? [], [modelsQuery.data]);
+  const models = useMemo(() => modelsQuery.data ?? [], [modelsQuery.data]);
 
   const [pickerOpen, setPickerOpen] = useState(false);
   // null = follow the catalog default; a string = the user's pick.
@@ -359,8 +359,8 @@ export const SongEditDialog = ({
     setSaving(true);
     setNotice(null);
     try {
-      // JSON PATCH carries metadata + artists; nullable clears ride the
-      // sentinel (null -> "\b"). Artwork goes in a separate multipart PATCH.
+      // JSON PATCH carries metadata + artists; a null clears the field.
+      // Artwork goes in a separate multipart PATCH.
       await updateSong.mutateAsync({
         id: song.id,
         patch: {

@@ -171,7 +171,7 @@ export default function ArtistScreen() {
     [featuredSongsQuery.data],
   );
 
-  const picture = picturesQuery.data?.pictures?.[0];
+  const picture = picturesQuery.data?.[0];
   const metadataImage = metadataQuery.data?.image_url ?? null;
   const resourceBannerUri = artistResource
     ? artworkSourceUri(artistBannerSource(artistResource))
@@ -239,7 +239,7 @@ export default function ArtistScreen() {
   const artistSyncsQuery = useArtistSyncs(enabled);
   const enableSync = useEnableArtistSync();
   const disableSync = useDisableArtistSync();
-  const syncRow = findArtistSync(artistSyncsQuery.data?.items, artistName);
+  const syncRow = findArtistSync(artistSyncsQuery.data, artistName);
   const syncBusy = enableSync.isPending || disableSync.isPending;
   const syncMenuItems =
     artistSyncsQuery.isSuccess && artistName

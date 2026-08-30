@@ -10,7 +10,7 @@
  */
 import React, { useState } from "react";
 import { Modal, ScrollView, Text, View } from "react-native";
-import { modifyMetadata } from "@/api/endpoints/songs";
+import { oms, toFileInput } from "@/api/oms";
 import { useT } from "@/i18n";
 import { useTheme } from "@/theme/provider";
 import {
@@ -86,21 +86,21 @@ export const MetadataModifierDialog = ({
     setBusy(true);
     setNotice(null);
     try {
-      // The picked object goes through AS IS: on web it is a real browser
-      // File (pickers.web.ts) and rebuilding a { uri, name, type } literal
-      // would strip the bytes FormData needs; on native it already is that
-      // plain shape.
-      const blob = await modifyMetadata(
-        file,
-        {
+      // toFileInput keeps the bytes on web (a real browser File,
+      // pickers.web.ts) and hands the { uri, name, type } descriptor to RN's
+      // FormData on native. The SDK returns the modified audio as a FileOutput
+      // (50 MB cap server-side).
+      const output = await oms().music.songs.modifyMetadata({
+        audio: toFileInput(file),
+        metadata: {
           ...(title.trim() ? { title: title.trim() } : {}),
           ...(artist.trim() ? { artist: artist.trim() } : {}),
           ...(album.trim() ? { album: album.trim() } : {}),
           ...(year.trim() ? { year: year.trim() } : {}),
           ...(genre.trim() ? { genre: genre.trim() } : {}),
         },
-      );
-      const base64 = await blobToBase64(blob);
+      });
+      const base64 = await blobToBase64(output.data);
       const uri = await saveBase64ToDocuments(base64, outputName(file.name));
       setNotice({ kind: "success", text: t("native.settings.songs.metadataToolSaved", { uri }) });
     } catch (error) {

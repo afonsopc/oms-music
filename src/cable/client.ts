@@ -15,7 +15,7 @@
  * The identifier is a JSON-ENCODED STRING built once per subscription and
  * compared verbatim against what the server echoes - key order matters.
  */
-import { API_BASE_URL } from "@/api/client";
+import { API_BASE_URL } from "@/api/oms";
 import type {
   CableClient,
   CableState,

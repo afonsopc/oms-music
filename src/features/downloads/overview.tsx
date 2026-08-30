@@ -11,7 +11,8 @@ import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore 
 import { Platform, Pressable, ScrollView, Switch, Text, View } from "react-native";
 import { formatBytes } from "./format";
 import { readPredictiveTier } from "./predictiveTier";
-import { getMusicStorage, type MusicStorage } from "@/api/endpoints/musicStorage";
+import type { MusicStorageUsage } from "@omelhorsite/sdk";
+import { oms } from "@/api/oms";
 import { getDownloadsSurface } from "@/downloads/surface";
 import {
   isManualOffline,
@@ -119,13 +120,13 @@ export default function DownloadsOverviewScreen() {
   const progressVersion = useDownloadProgressVersion();
   const manualOffline = useManualOffline();
 
-  const [serverStorage, setServerStorage] = useState<MusicStorage | null>(null);
+  const [serverStorage, setServerStorage] = useState<MusicStorageUsage | null>(null);
 
   // Server-side music storage (the ActiveStorage quota): one best-effort
   // fetch per mount; the row simply stays hidden when it cannot answer.
   useEffect(() => {
     let cancelled = false;
-    void getMusicStorage()
+    void oms().music.social.storage.get()
       .then((result) => {
         if (!cancelled) setServerStorage(result);
       })
@@ -352,16 +353,25 @@ export default function DownloadsOverviewScreen() {
             <Text style={{ color: tokens.foreground, fontSize: 15, fontWeight: "600" }}>
               {t("native.downloadsOverview.serverStorage")}
             </Text>
+            {/* `limit_bytes` é null numa conta ilimitada: lê-se `unlimited`
+                antes de dividir por ele (music_storage_controller.rb). */}
             <Text style={{ color: tokens.mutedForeground, fontSize: 12, marginTop: 2 }}>
-              {t("native.downloadsOverview.serverStorageUsed", {
-                used: formatBytes(serverStorage.used_bytes),
-                limit: formatBytes(serverStorage.limit_bytes),
-              })}
+              {serverStorage.unlimited || serverStorage.limit_bytes === null
+                ? t("native.downloadsOverview.serverStorageUnlimited", {
+                    used: formatBytes(serverStorage.used_bytes),
+                  })
+                : t("native.downloadsOverview.serverStorageUsed", {
+                    used: formatBytes(serverStorage.used_bytes),
+                    limit: formatBytes(serverStorage.limit_bytes),
+                  })}
             </Text>
             {/* Storage cap FR-94: quando o total local já excede a quota, os
                 enfileiramentos novos são recusados (manager) - e este é o
                 sítio onde esse estado se explica em vez de só recusar. */}
-            {serverStorage.limit_bytes > 0 && usage.bytes >= serverStorage.limit_bytes ? (
+            {!serverStorage.unlimited &&
+            serverStorage.limit_bytes !== null &&
+            serverStorage.limit_bytes > 0 &&
+            usage.bytes >= serverStorage.limit_bytes ? (
               <Text style={{ color: tokens.destructive, fontSize: 12, marginTop: 2 }}>
                 {t("native.downloadsOverview.storageCapExceeded")}
               </Text>

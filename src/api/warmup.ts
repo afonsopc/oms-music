@@ -25,14 +25,13 @@ import {
   resetArtworkPrefetch,
   warmHomeArtwork,
 } from "./artworkPrefetch";
-import { listArtists } from "./endpoints/artists";
-import { listLikedIds } from "./endpoints/likedSongs";
-import { listMixes } from "./endpoints/mixes";
-import { listRecentAlbums, type RecentlyPlayedAlbum } from "./endpoints/playEvents";
-import { listPlaylists } from "./endpoints/playlists";
-import { listPlaylistSongsPage } from "./endpoints/playlistSongs";
-import { listAlbums, listAlbumSongs } from "./endpoints/songs";
-import { pageModifier } from "./params";
+import { listAllArtists } from "./queries/artists";
+import { listLikedIds } from "./queries/likedSongs";
+import { listMixes } from "./queries/mixes";
+import { listRecentAlbums, type RecentlyPlayedAlbum } from "./queries/playEvents";
+import { listPlaylists, playlistsListKey } from "./queries/playlists";
+import { listPlaylistSongsPage } from "./queries/playlistSongs";
+import { listAlbumSongs, listAlbums } from "./queries/songs";
 import { keys } from "./queryKeys";
 import { queryClient } from "./queryClient";
 import type { Playlist } from "@/domain/playlist";
@@ -43,8 +42,6 @@ const START_DELAY_MS = 2_500;
 const STEP_GAP_MS = 150;
 /** Matches features/home RECENT_ALBUMS_LIMIT so the key lines up. */
 const RECENT_ALBUMS_LIMIT = 12;
-/** Matches features/library LIBRARY_ITEM_LIMIT. */
-const LIBRARY_LIMIT = 500;
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
@@ -52,11 +49,13 @@ const warmLibrary = async (): Promise<void> => {
   const qc = queryClient;
   const steps: (() => Promise<unknown>)[] = [];
 
-  // The backbone lists first: what the Library and Home read.
+  // The backbone lists first: what the Library and Home read. Same keys as
+  // the hooks (usePlaylists, useLikedIds, useMixes, useRecentAlbums,
+  // useLibraryAlbums, useAllArtists).
   steps.push(() =>
     qc.prefetchQuery({
-      queryKey: keys.playlists.list({ page: "1:500" }),
-      queryFn: () => listPlaylists({ modifiers: { page: pageModifier(1, 500) } }),
+      queryKey: playlistsListKey(),
+      queryFn: () => listPlaylists(),
     }),
   );
   steps.push(() =>
@@ -73,15 +72,14 @@ const warmLibrary = async (): Promise<void> => {
   );
   steps.push(() =>
     qc.prefetchQuery({
-      queryKey: keys.albums.list({ page: LIBRARY_LIMIT }),
-      queryFn: () => listAlbums({ modifiers: { page: pageModifier(1, LIBRARY_LIMIT) } }),
+      queryKey: keys.albums.list({ scope: "all" }),
+      queryFn: () => listAlbums({}),
     }),
   );
   steps.push(() =>
     qc.prefetchQuery({
-      queryKey: keys.artists.list({ page: LIBRARY_LIMIT, order: "name:asc" }),
-      queryFn: () =>
-        listArtists({ modifiers: { page: pageModifier(1, LIBRARY_LIMIT), order: "name:asc" } }),
+      queryKey: keys.artists.list({ scope: "all", order: "name:asc" }),
+      queryFn: () => listAllArtists(),
     }),
   );
 
@@ -92,7 +90,7 @@ const warmLibrary = async (): Promise<void> => {
 
   // Depth second: the first page of every playlist, the tracks of the albums
   // you actually played - the places a tap lands next.
-  const playlists = qc.getQueryData<Playlist[]>(keys.playlists.list({ page: "1:500" })) ?? [];
+  const playlists = qc.getQueryData<Playlist[]>(playlistsListKey()) ?? [];
   const recents =
     qc.getQueryData<RecentlyPlayedAlbum[]>(keys.playEvents.recentAlbums(RECENT_ALBUMS_LIMIT)) ??
     [];

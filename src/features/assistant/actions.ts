@@ -7,10 +7,10 @@
  * validar ids: quem valida é o servidor, como sempre.
  */
 import type { useRouter } from "expo-router";
-import type { AssistantAction, AssistantPlayerContext } from "@/api/endpoints/assistant";
+import type { AssistantAction, AssistantPlayerContext } from "@/api/queries/assistantChats";
+import type { Song } from "@/domain/song";
 import { getTransport } from "@/contracts/transport";
 import { artistNamesLine } from "@/domain/format";
-import type { Song } from "@/domain/song";
 import { albumRoute, artistRoute, playlistRoute } from "@/lib/routes";
 import { getPlayerEngine } from "@/player/register";
 import { playerStore } from "@/player/store";
@@ -64,11 +64,13 @@ const runAction = (action: AssistantAction, router: Router): void => {
   const transport = getTransport();
   switch (action.action) {
     case "play":
-      if (action.shuffle) transport.setQueue(action.songs, undefined, { shuffle: true });
-      else transport.setQueue(action.songs, 0);
+      // As musicas vem serializadas pelo servidor (SongBlueprint inteiro); o
+      // Song do SDK e o fio, o do dominio marca os ids.
+      if (action.shuffle) transport.setQueue(action.songs as Song[], undefined, { shuffle: true });
+      else transport.setQueue(action.songs as Song[], 0);
       break;
     case "queue":
-      queueSongs(action.songs, action.mode);
+      queueSongs(action.songs as Song[], action.mode);
       break;
     case "pause":
       transport.pause();
@@ -96,8 +98,8 @@ const runAction = (action: AssistantAction, router: Router): void => {
       break;
     case "sleep_timer":
       // Local ao dispositivo que ouve, como no cog (settingsSheet).
-      if (action.off) getPlayerEngine().setSleepTimer(null);
-      else if (action.end_of_song) getPlayerEngine().setSleepTimer({ endOfSong: true });
+      if ("off" in action) getPlayerEngine().setSleepTimer(null);
+      else if ("end_of_song" in action) getPlayerEngine().setSleepTimer({ endOfSong: true });
       else if (action.minutes) getPlayerEngine().setSleepTimer({ minutes: action.minutes });
       break;
     case "open":

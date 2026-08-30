@@ -14,7 +14,7 @@
 import NetInfo from "@react-native-community/netinfo";
 import { File, Paths, type Directory } from "expo-file-system";
 import type { SQLiteDatabase } from "expo-sqlite";
-import { getLyrics } from "@/api/endpoints/lyrics";
+import { getLyrics } from "@/api/queries/lyrics";
 import { closeUserDb, openUserDb } from "@/db/index";
 import { kvGet, kvSet } from "@/db/kv";
 import { clearRecentCollections } from "@/lib/recentCollections";

@@ -144,7 +144,7 @@ export const awaitJob = (jobId: string, opts?: { signal?: AbortSignal }): Promis
     const poll = async (): Promise<void> => {
       if (settled) return;
       try {
-        const { getJob } = await import("@/api/endpoints/jobs");
+        const { getJob } = await import("@/api/queries/jobs");
         if (settled) return;
         const job = await getJob(jobId);
         if (settled) return;
@@ -173,7 +173,7 @@ export const generateLyricsSync = async (
   songId: SongId,
   opts?: { signal?: AbortSignal },
 ): Promise<Job> => {
-  const { startLyricsSync } = await import("@/api/endpoints/lyrics");
+  const { startLyricsSync } = await import("@/api/queries/lyrics");
   const { job_id } = await startLyricsSync(songId);
   return awaitJob(job_id, opts);
 };
