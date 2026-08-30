@@ -53,7 +53,39 @@ docker run --rm --platform linux/amd64 \
     bun install --frozen-lockfile
     export TAURI_SIGNING_PRIVATE_KEY="$(cat /repo/desktop/keys/updater.key)"
     export TAURI_SIGNING_PRIVATE_KEY_PASSWORD=""
-    bun run tauri build --bundles deb,appimage
+    # O passo AppImage do tauri MORRE sob o Rosetta (Docker no Apple Silicon)
+    # e deixa o AppDir preparado: o binfmt do Rosetta nao reconhece um
+    # AppImage como ELF x86-64 (os bytes 8-10 do cabecalho levam a marca
+    # "AI\x02" e o padrao magico exige-os a zero), por isso o plugin AppImage
+    # que o linuxdeploy lanca falha com "Exec format error", visto como
+    # "subprocess failed (exit code 2)" (v1.1.0, 2026-08-31). O tauri volta a
+    # descarregar o plugin em cada build, logo nao ha cache para remendar: o
+    # deb sai do tauri e o AppImage acaba-se A MAO com ferramentas de cabecalho
+    # zerado (o runtime nao precisa da marca para correr), e assina-se com a
+    # mesma chave do updater.
+    bun run tauri build --bundles deb,appimage || echo "(AppImage do tauri falhou como esperado sob Rosetta; a acabar a mao)"
+    T=/tmp/appimage-tools; mkdir -p "$T"
+    curl -fsSL -o "$T/linuxdeploy-x86_64.AppImage" \
+      https://github.com/tauri-apps/binary-releases/releases/download/linuxdeploy/linuxdeploy-x86_64.AppImage
+    curl -fsSL -o "$T/linuxdeploy-plugin-appimage-x86_64.AppImage" \
+      https://github.com/linuxdeploy/linuxdeploy-plugin-appimage/releases/download/continuous/linuxdeploy-plugin-appimage-x86_64.AppImage
+    curl -fsSL -o "$T/linuxdeploy-plugin-gtk.sh" \
+      https://raw.githubusercontent.com/tauri-apps/linuxdeploy-plugin-gtk/master/linuxdeploy-plugin-gtk.sh
+    for f in "$T"/linuxdeploy-x86_64.AppImage "$T"/linuxdeploy-plugin-appimage-x86_64.AppImage; do
+      printf "\x00\x00\x00" | dd of="$f" bs=1 seek=8 count=3 conv=notrunc 2>/dev/null
+    done
+    chmod +x "$T"/*
+    APPIMAGE_DIR=/target/release/bundle/appimage
+    APPDIR="$(ls -d "$APPIMAGE_DIR"/*.AppDir | head -1)"
+    VERSION="$(grep -o "\"version\": *\"[^\"]*\"" src-tauri/tauri.conf.json | head -1 | sed "s/.*\"\\([^\"]*\\)\"$/\\1/")"
+    APPIMAGE="OMS Music_${VERSION}_amd64.AppImage"
+    (cd "$APPIMAGE_DIR" && rm -f *.AppImage *.AppImage.sig \
+      && ARCH=x86_64 OUTPUT="$APPIMAGE" PATH="$T:$PATH" \
+         "$T/linuxdeploy-x86_64.AppImage" --appimage-extract-and-run \
+           --appdir "$APPDIR" --plugin gtk --output appimage > /tmp/linuxdeploy.log 2>&1 \
+      || { tail -30 /tmp/linuxdeploy.log; exit 1; })
+    bun run tauri signer sign -k "$TAURI_SIGNING_PRIVATE_KEY" -p "" "$APPIMAGE_DIR/$APPIMAGE" > /dev/null
+    ls -la "$APPIMAGE_DIR"
   '
 LINUX_BUNDLE="$(docker run --rm -v oms-linux-target:/target ubuntu:24.04 \
   find /target/release/bundle -name "*.deb" -o -name "*.AppImage" -o -name "*.AppImage.sig" | head -0; true)"
