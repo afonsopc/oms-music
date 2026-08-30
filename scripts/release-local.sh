@@ -90,9 +90,12 @@ docker run --rm --platform linux/amd64 \
 LINUX_BUNDLE="$(docker run --rm -v oms-linux-target:/target ubuntu:24.04 \
   find /target/release/bundle -name "*.deb" -o -name "*.AppImage" -o -name "*.AppImage.sig" | head -0; true)"
 # copiar do volume para fora
-docker run --rm -v oms-linux-target:/target -v "${OUT}:/out" ubuntu:24.04 bash -c '
-  cp /target/release/bundle/deb/*.deb /out/ 2>/dev/null || true
-  cp /target/release/bundle/appimage/*.AppImage* /out/ 2>/dev/null || true'
+# So os artefactos DESTA versao: o volume guarda os das releases anteriores
+# (o deb 0.1.0 da v1.0.0 ainda la estava na v1.1.0) e um glob nu levava os dois.
+DESKTOP_VERSION="$(grep -o '"version": *"[^"]*"' desktop/src-tauri/tauri.conf.json | head -1 | sed 's/.*"\([^"]*\)"$/\1/')"
+docker run --rm -v oms-linux-target:/target -v "${OUT}:/out" -e V="${DESKTOP_VERSION}" ubuntu:24.04 bash -c '
+  cp /target/release/bundle/deb/*_"$V"_*.deb /out/ 2>/dev/null || true
+  cp /target/release/bundle/appimage/*_"$V"_*.AppImage* /out/ 2>/dev/null || true'
 
 # --- flatpak (reempacota o deb; runtime GNOME em cache no volume) -----------
 # MONTADO A MAO, sem flatpak-builder: o bwrap nao consegue seccomp sob a
@@ -101,7 +104,7 @@ docker run --rm -v oms-linux-target:/target -v "${OUT}:/out" ubuntu:24.04 bash -
 # (aprendido na v1.0.0, 2026-08-18). Manter em sintonia com o manifest
 # desktop/flatpak/*.yml (command, finish-args, renomeacoes).
 FLATPAK_STAGE="$(mktemp -d /tmp/oms-flatpak-XXXX)"
-cp "${OUT}"/*.deb "${FLATPAK_STAGE}/oms-music.deb"
+cp "${OUT}"/*_"${DESKTOP_VERSION}"_*.deb "${FLATPAK_STAGE}/oms-music.deb"
 docker run --rm --privileged --platform linux/amd64 \
   -v "${FLATPAK_STAGE}:/work" -v oms-flatpak-cache:/var/lib/flatpak -w /work \
   ubuntu:24.04 bash -c '
