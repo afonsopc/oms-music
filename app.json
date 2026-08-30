@@ -2,7 +2,7 @@
   "expo": {
     "name": "Música",
     "slug": "oms-music",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "omsmusic",
@@ -14,7 +14,7 @@
         "tinted": "./assets/images/icon-tinted.png"
       },
       "bundleIdentifier": "pt.omelhorsite.music",
-      "buildNumber": "1",
+      "buildNumber": "2",
       "supportsTablet": true,
       "associatedDomains": [
         "webcredentials:omelhorsite.pt",
@@ -26,7 +26,7 @@
     },
     "android": {
       "package": "pt.omelhorsite.music",
-      "versionCode": 1,
+      "versionCode": 2,
       "adaptiveIcon": {
         "backgroundColor": "#660090",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
