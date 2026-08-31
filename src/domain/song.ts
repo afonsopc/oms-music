@@ -58,6 +58,8 @@ export interface Song {
   language?: string | null;
   /** Etiquetas do Last.fm, minusculas, no maximo seis. Opcional, como acima. */
   tags?: string[];
+  /** Batidas por minuto, pelo ISRC da gravacao. Nulo e comum. */
+  bpm?: number | null;
   original_filename: string | null;
   audio_codec: string | null;
   audio_bitrate_kbps: number | null;
