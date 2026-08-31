@@ -20,6 +20,7 @@ import type { Song } from "@/domain/song";
 import { useT } from "@/i18n";
 import { useTheme } from "@/theme/provider";
 import { ArtworkImage, Icon } from "@/ui";
+import { usePlaybackView } from "@/remote/mirror";
 import { useContentBottomPadding, useContentTopPadding } from "@/features/shell/metrics";
 import { DjArtwork } from "./DjArtwork";
 import { djStation, useDjStation, type DjTurn } from "./station";
@@ -29,13 +30,20 @@ const HERO = 132;
 
 const SongLine = ({ song }: { song: Song }) => {
   const { tokens } = useTheme();
+  // Qual das voltas e a que se esta a ouvir agora. Sem isto a conversa e uma
+  // lista de coisas que aconteceram, sem um "estamos aqui".
+  const playing = usePlaybackView((v) => v.song?.id === song.id);
   return (
     <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
       <ArtworkImage source={songArtworkSource(song)} songId={song.id} size={40} />
       <View style={{ flexShrink: 1, minWidth: 0 }}>
         <Text
           numberOfLines={1}
-          style={{ color: tokens.foreground, fontSize: 13, fontWeight: "600" }}
+          style={{
+            color: playing ? tokens.primary : tokens.foreground,
+            fontSize: 13,
+            fontWeight: playing ? "800" : "600",
+          }}
         >
           {song.title}
         </Text>
@@ -43,6 +51,7 @@ const SongLine = ({ song }: { song: Song }) => {
           {formatArtists(song)}
         </Text>
       </View>
+      {playing ? <Icon name="volume" size={14} color={tokens.primary} /> : null}
     </View>
   );
 };
