@@ -30,6 +30,7 @@ export const keys = {
     ],
     byArtist: (artist: string, role: string): QueryKey => ["songs", "byArtist", artist, role],
     separation: (id: SongId): QueryKey => ["songs", "separation", id],
+    matchCandidates: (id: SongId): QueryKey => ["songs", "matchCandidates", id],
     artistPictures: (name: string): QueryKey => ["songs", "artistPictures", name],
   },
   albums: {

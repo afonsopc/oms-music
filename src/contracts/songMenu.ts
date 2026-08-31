@@ -28,6 +28,7 @@ export const SONG_MENU_SLOT_ORDER = [
   "separateVocals", // P1; only when stems absent; disabled with elapsed while processing
   "download", // Download / "Downloading N%" (disabled) / Remove download
   "exportFiles", // exportar música/original/stems para fora da app (dono, 2026-08-16)
+  "fixMatch", // "esta música está errada": trocar a fonte da faixa (2026-08-31)
 ] as const;
 
 export type SongMenuSlotId = (typeof SONG_MENU_SLOT_ORDER)[number];

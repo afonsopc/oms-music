@@ -18,6 +18,7 @@ import React, { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { ArtworkImage } from "./ArtworkImage";
 import { SongCreditsDialog } from "./dialogs/SongCreditsDialog";
+import { SongMatchDialog } from "./dialogs/SongMatchDialog";
 import { Icon, iconForHint } from "./icons";
 import { Popover } from "./Popover";
 import type { PopoverAnchor } from "./popoverPosition";
@@ -113,11 +114,13 @@ const SlotItems = ({
   ctx,
   onSelect,
   onOpenCredits,
+  onOpenMatch,
 }: {
   id: SongMenuSlotId;
   ctx: SongMenuContext;
   onSelect: (item: SongMenuItem) => void;
   onOpenCredits: () => void;
+  onOpenMatch: () => void;
 }) => {
   // Capture once per mount: the menu mounts on open, so a fresh open sees
   // fresh registrations while this instance keeps its hook call stable.
@@ -158,13 +161,32 @@ const SlotItems = ({
     );
   }
 
+  if (id === "fixMatch" && !hook) {
+    // Renderer-owned, like viewCredits. Só faz sentido numa faixa que foi
+    // EMPARELHADA: um ficheiro carregado à mão não tem fonte para trocar, e
+    // uma faixa de jam não é nossa.
+    if (ctx.song.jam_song) return null;
+    if (ctx.song.source_kind === "upload") return null;
+    return (
+      <MenuItemRow
+        item={{
+          id: "fixMatch",
+          labelKey: "components.music.SongMatchDialog.menuItem",
+          icon: "alert-circle",
+          onPress: onOpenMatch,
+        }}
+        onSelect={(item) => item.onPress()}
+      />
+    );
+  }
+
   return registered;
 };
 
 export const SongMenu = ({ visible, onClose, context, anchor }: SongMenuProps) => {
   const { tokens } = useTheme();
   const desktopShell = useDesktopShell();
-  const [stage, setStage] = useState<"menu" | "credits">("menu");
+  const [stage, setStage] = useState<"menu" | "credits" | "match">("menu");
   const { song } = context;
 
   const closeAll = () => {
@@ -218,6 +240,7 @@ export const SongMenu = ({ visible, onClose, context, anchor }: SongMenuProps) =
           ctx={context}
           onSelect={handleSelect}
           onOpenCredits={() => setStage("credits")}
+          onOpenMatch={() => setStage("match")}
         />
       ))}
     </>
@@ -239,6 +262,7 @@ export const SongMenu = ({ visible, onClose, context, anchor }: SongMenuProps) =
         song={song}
         onClose={closeAll}
       />
+      <SongMatchDialog visible={visible && stage === "match"} song={song} onClose={closeAll} />
     </>
   );
 };

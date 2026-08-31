@@ -185,6 +185,18 @@
         "roleFeatured": "Pieaicinātie izpildītāji",
         "roleWith": "Kopā ar"
       },
+      "SongMatchDialog": {
+        "menuItem": "Nepareizs ieraksts?",
+        "title": "Atrastie avoti",
+        "current": "Pašlaik lietots",
+        "rejected": "Noraidītie",
+        "retryAuto": "Meklēt atbilstību vēlreiz automātiski",
+        "working": "Notiek atkārtota importēšana",
+        "searching": "Meklē visos avotos",
+        "unavailable": "Neizdevās sasniegt lejupielādētāju.",
+        "done": "Nomainīts. Dziesma saglabā atskaņošanas sarakstus un patīk atzīmes.",
+        "failed": "Atkārtotā importēšana neizdevās."
+      },
       "SongTable": {
         "title": "Nosaukums",
         "album": "Albums",

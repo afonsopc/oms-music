@@ -185,6 +185,18 @@
         "roleFeatured": "Featured artists",
         "roleWith": "With"
       },
+      "SongMatchDialog": {
+        "menuItem": "Wrong track?",
+        "title": "Sources found",
+        "current": "In use now",
+        "rejected": "Ruled out",
+        "retryAuto": "Match again automatically",
+        "working": "Re-importing",
+        "searching": "Searching all sources",
+        "unavailable": "Could not reach the downloader.",
+        "done": "Swapped. The track keeps its playlists and likes.",
+        "failed": "The re-import failed."
+      },
       "SongTable": {
         "title": "Title",
         "album": "Album",

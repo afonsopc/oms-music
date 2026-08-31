@@ -185,6 +185,18 @@
         "roleFeatured": "Artistas convidados",
         "roleWith": "Com"
       },
+      "SongMatchDialog": {
+        "menuItem": "Música errada?",
+        "title": "Fontes encontradas",
+        "current": "Em uso agora",
+        "rejected": "Postas de parte",
+        "retryAuto": "Voltar a emparelhar automaticamente",
+        "working": "A reimportar",
+        "searching": "A procurar em todas as fontes",
+        "unavailable": "Não foi possível chegar ao descarregador.",
+        "done": "Trocada. A música mantém as playlists e os gostos.",
+        "failed": "A reimportação falhou."
+      },
       "SongTable": {
         "title": "Título",
         "album": "Álbum",

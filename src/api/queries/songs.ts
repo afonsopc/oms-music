@@ -238,6 +238,46 @@ export const useUpdateSong = () => {
   });
 };
 
+/**
+ * As fontes que o matcher encontrou para esta música, pontuadas, com as
+ * rejeitadas e a razão de cada rejeição.
+ *
+ * Três pesquisas ao vivo do lado do servidor, logo é lento e caro: só corre
+ * quando o diálogo está aberto (`enabled`), com timeout próprio e sem retry -
+ * o pool muda de chamada para chamada, repetir não aproxima da resposta.
+ */
+export const useSongMatchCandidates = (id: SongId | null, enabled = true) => {
+  const authReady = useAuthReady();
+  const key = id !== null ? keys.songs.matchCandidates(id) : ["songs", "matchCandidates", "none"];
+  return useQuery({
+    queryKey: key,
+    queryFn: guardedQueryFn(key, () =>
+      oms().music.songs.matchCandidates(id as SongId, {}, { timeoutMs: 90_000 }),
+    ),
+    enabled: authReady && enabled && id !== null,
+    retry: false,
+    gcTime: 0,
+  });
+};
+
+/**
+ * Reimporta a música na mesma linha. Sem `sourceUrl` o matcher volta a correr
+ * sobre os termos originais; com ele a escolha é aceite tal como veio.
+ *
+ * Devolve o import a acompanhar: a troca só existe quando ele chega a
+ * `complete`, por isso quem chama invalida aí, não aqui.
+ */
+export const useRematchSong = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, sourceUrl }: { id: SongId; sourceUrl?: string }) =>
+      oms().music.songs.rematch(id, sourceUrl === undefined ? {} : { sourceUrl }),
+    onSuccess: (_result, { id }) => {
+      void qc.invalidateQueries({ queryKey: keys.songs.matchCandidates(id) });
+    },
+  });
+};
+
 export const useDeleteSong = () => {
   const qc = useQueryClient();
   return useMutation({
