@@ -25,7 +25,7 @@ import sys
 from fontTools.fontBuilder import FontBuilder
 from fontTools.pens.cu2quPen import Cu2QuPen
 from fontTools.pens.ttGlyphPen import TTGlyphPen
-from pathops import Path, PathOp, op as pathop
+from pathops import LineCap, LineJoin, Path, PathOp, op as pathop
 
 # --- METRICA (medida na Druk Wide Super) -----------------------------------
 UPM = 1000
@@ -203,6 +203,94 @@ def ring(x0, y0, x1, y1, v, h, outer=OC, inner=CC):
             hole(rrect(x0 + v, y0 + h, x1 - v, y1 - h, i, i, i, i))]
 
 
+
+# --- PENA ELIPTICA -----------------------------------------------------------
+# A Druk comporta-se como uma pena eliptica (larga e baixa) arrastada ao longo
+# de uma linha central: hastes verticais grossas, barras finas, diagonais no
+# meio, e curvas que fluem em vez de cantos. Implementa-se esticando a linha
+# central em y (a/b), fazendo stroke com pena REDONDA de raio a no skia, e
+# voltando a comprimir: uma circunferencia comprimida e a elipse a x b.
+KV, KH = 0.45, 0.82     # pegas das curvas da linha central: vertical / horizontal
+
+
+class Raw:
+    """Contorno ja resolvido pelo skia (um Path), com a mesma interface."""
+
+    def __init__(self, path, filled=True):
+        self.path = path
+        self.filled = filled
+
+    def shift(self, dx):
+        return Raw(self.path.transform(translateX=dx), self.filled)
+
+    def draw(self, pen):
+        self.path.draw(pen)
+
+
+def sweep(cmds, a, b, closed=False):
+    """cmds: [('m',p), ('l',p), ('c',c1,c2,p), ...]. Devolve o traco pintado."""
+    p = Path()
+    pen = p.getPen()
+    for c in cmds:
+        if c[0] == "m":
+            pen.moveTo(c[1])
+        elif c[0] == "l":
+            pen.lineTo(c[1])
+        else:
+            pen.curveTo(c[1], c[2], c[3])
+    if closed:
+        pen.closePath()
+    else:
+        pen.endPath()
+    q = p.transform(scaleY=a / b)
+    q.stroke(2 * a, LineCap.BUTT_CAP, LineJoin.ROUND_JOIN, 4)
+    q.convertConicsToQuads()
+    r = q.transform(scaleY=b / a)
+    r.simplify()
+    return Raw(r)
+
+
+def v2h(p0, p3, kv=None, kh=None):
+    """Segmento que SAI na vertical de p0 e CHEGA na horizontal a p3."""
+    kv = KV if kv is None else kv
+    kh = KH if kh is None else kh
+    return ("c", (p0[0], p0[1] + kv * (p3[1] - p0[1])),
+            (p3[0] - kh * (p3[0] - p0[0]), p3[1]), p3)
+
+
+def h2v(p0, p3, kv=None, kh=None):
+    """Segmento que SAI na horizontal de p0 e CHEGA na vertical a p3."""
+    kv = KV if kv is None else kv
+    kh = KH if kh is None else kh
+    return ("c", (p0[0] + kh * (p3[0] - p0[0]), p0[1]),
+            (p3[0], p3[1] - kv * (p3[1] - p0[1])), p3)
+
+
+def trunc(cmds, t):
+    """Corta a ULTIMA cubica em t (de Casteljau): o traco acaba a meio do arco,
+    e com topo recto a face fica perpendicular a tangente - um terminal
+    inclinado, como os da Druk, sem cortes que possam ferir o resto da letra."""
+    p0 = cmds[-2][-1]
+    _, c1, c2, p3 = cmds[-1]
+    L = lambda p, q: (p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t)
+    a, b, c = L(p0, c1), L(c1, c2), L(c2, p3)
+    d, e = L(a, b), L(b, c)
+    return cmds[:-1] + [("c", a, d, L(d, e))]
+
+
+def loop(x0, y0, x1, y1, a, b):
+    """Anel fechado varrido: caixa EXTERIOR (x0,y0)-(x1,y1)."""
+    cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
+    L, R, T, Bm = x0 + a, x1 - a, y1 - b, y0 + b
+    return sweep([("m", (R, cy)), v2h((R, cy), (cx, T)), h2v((cx, T), (L, cy)),
+                  v2h((L, cy), (cx, Bm)), h2v((cx, Bm), (R, cy))], a, b, closed=True)
+
+
+def wedge(x_in, y_in0, y_in1, x_out, y_out0, y_out1):
+    """Corte de abertura: quadrilatero entre a face interior e a exterior."""
+    return hole(poly([(x_in, y_in0), (x_out, y_out0), (x_out, y_out1), (x_in, y_in1)]))
+
+
 def xline(p0, p1, y):
     (x0, y0), (x1, y1) = p0, p1
     return x0 + (x1 - x0) * (y - y0) / (y1 - y0)
@@ -312,7 +400,8 @@ def _K(B):
     w = VC * 1.30
     return [rect(0, 0, VC, CAP),
             hbar((VC * 0.35, MID + 25), (B - w * 0.5, CAP), w),
-            hbar((VC * 0.35, MID - 25), (B - w * 0.5, 0), w)]
+            hbar((VC * 0.35, MID - 25), (B - w * 0.5, 0), w),
+            hole(rect(-900, -OUT, 0, CAP + OUT))]
 
 
 @glyph("L", 942)
@@ -534,7 +623,8 @@ def _k(B):
     w = VL * 1.26
     return [rect(0, 0, VL, ASC),
             hbar((VL * 0.35, MIDX + 20), (B - w * 0.5, XH), w),
-            hbar((VL * 0.35, MIDX - 20), (B - w * 0.5, 0), w)]
+            hbar((VL * 0.35, MIDX - 20), (B - w * 0.5, 0), w),
+            hole(rect(-900, -OUT, 0, ASC + OUT))]
 
 
 @glyph("l", 412, 24)
@@ -1073,6 +1163,400 @@ def _bullet(B):
 def _ellipsis(B):
     return [rrect(i * (DOT + 170), 0, i * (DOT + 170) + DOT, DOT, DR, DR, DR, DR)
             for i in range(3)]
+
+
+
+# ---- v4: glifos curvos, varridos com a pena eliptica -----------------------
+AC, BC2 = VCR / 2, HC / 2        # pena das maiusculas redondas (2 barras)
+AL, BL2 = VLR / 2, HL / 2        # pena das minusculas
+
+
+def _cee(B, a, b, top, bot, t_up, t_lo):
+    """C: anel aberto a direita; os terminais sao quadrantes truncados."""
+    L, R, cx, cy = a, B - a, B / 2, (top + bot) / 2
+    T, Bm = top - b, bot + b
+    up = trunc([("m", (L, cy)), v2h((L, cy), (cx, T)), h2v((cx, T), (R, cy))], t_up)
+    lo = trunc([("m", (L, cy)), v2h((L, cy), (cx, Bm)), h2v((cx, Bm), (R, cy))], t_lo)
+    return [sweep(up, a, b), sweep(lo, a, b)]
+
+
+@glyph("C", 1192, 12)
+def _C(B):
+    return _cee(B, AC, BC2, CAP + OVER, -OVER, 0.74, 0.74)
+
+
+@glyph("c", 953, 10)
+def _c(B):
+    return _cee(B, AL, BL2, XH + OVER, -OVER, 0.74, 0.74)
+
+
+@glyph("G", 1225, 12)
+def _G(B):
+    a, b = AC, BC2
+    L, R, cx, cy = a, B - a, B / 2, MID
+    T, Bm = CAP + OVER - b, -OVER + b
+    up = trunc([("m", (L, cy)), v2h((L, cy), (cx, T)), h2v((cx, T), (R, cy))], 0.80)
+    lo = [("m", (L, cy)), v2h((L, cy), (cx, Bm)), h2v((cx, Bm), (R, cy)), ("l", (R, 400))]
+    return [sweep(up, a, b), sweep(lo, a, b), rect(B * 0.46, 235, B, 400)]
+
+
+def _ess(B, a, b, top, bot, up_r, up_l, lo_r, lo_l, spine, t_up=0.55, t_lo=0.55):
+    cx = B / 2
+    L, R = a, B - a
+    T, Bm = top - b, bot + b
+    LU, RL = (L, up_l), (R, lo_r)
+    # bojo de cima, do terminal (truncado) ate LU; espinha; bojo de baixo ate ao terminal
+    upper = trunc([("m", (cx, T)), h2v((cx, T), (R, up_r))], t_up)
+    upper = [("m", upper[-1][-1]), ("c", upper[-1][2], upper[-1][1], (cx, T)),
+             h2v((cx, T), LU)]
+    lower = trunc([("m", (cx, Bm)), h2v((cx, Bm), (L, lo_l))], t_lo)
+    lower = [("m", RL), v2h(RL, (cx, Bm)), ("c", lower[-1][1], lower[-1][2], lower[-1][3])]
+    spine_seg = [("m", LU), ("c", (L, up_l - spine), (R, lo_r + spine), RL)]
+    return [sweep(upper, a, b), sweep(spine_seg, a, b * 1.18), sweep(lower, a, b)]
+
+
+@glyph("S", 1136, 2)
+def _S(B):
+    return _ess(B, VC / 2, HS / 2, CAP + OVER, -OVER,
+                up_r=372, up_l=535, lo_r=240, lo_l=372, spine=235)
+
+
+@glyph("s", 875, 2)
+def _s(B):
+    return _ess(B, VL / 2, HSL / 2, XH + OVER, -OVER,
+                up_r=269, up_l=387, lo_r=173, lo_l=269, spine=170)
+
+
+@glyph("e", 954, 10)
+def _e(B):
+    a, b = AL, 73
+    L, R, cx = a, B - a, B / 2
+    T, Bm = XH + OVER - b, -OVER + b
+    bar0, bar1 = 215, 354
+    path = [("m", (R, 300)), v2h((R, 300), (cx, T)), h2v((cx, T), (L, MIDX)),
+            v2h((L, MIDX), (cx, Bm)), h2v((cx, Bm), (R, 230))]
+    return [sweep(trunc(path, 0.72), a, b), rect(L, bar0, B, bar1)]
+
+
+@glyph("a", 927, 10)
+def _a(B):
+    a = AL
+    L, R, cx = a, B - a, B / 2
+    top = trunc([("m", (R, 330)), v2h((R, 330), (cx, XH + OVER - 65)),
+                 h2v((cx, XH + OVER - 65), (L, 280))], 0.50)
+    return [rect(B - VLR, 0, B, XH), sweep(top, a, 65),
+            loop(0, -OVER, B - VLR + 150, 320, a, 125)]
+
+
+@glyph("r", 890, 24)
+def _r(B):
+    a, b = AL, BL2
+    path = [("m", (a, 200)), v2h((a, 200), (B * 0.58, XH - b), 0.55, 0.72),
+            ("l", (B - a * 0.35, XH - b))]
+    return [rect(0, 0, VL, XH), sweep(path, a, b)]
+
+
+@glyph("t", 584, 24)
+def _t(B):
+    a, b = AL, BL2
+    sx = 80
+    cx = sx + a
+    path = [("m", (cx, 300)), v2h((cx, 300), (B - 50, b - OVER), 0.5, 0.75)]
+    return [rect(sx, 0, sx + VL, 655), rect(0, XH - HL, B, XH), sweep(path, a, b)]
+
+
+@glyph("g", 985, 10)
+def _g(B):
+    a, b = 178, 70
+    R = B - AL
+    hook = trunc([("m", (R, 30)), v2h((R, 30), (B * 0.52, DESC + b)),
+                  h2v((B * 0.52, DESC + b), (a + 10, -95))], 0.88)
+    return [loop(0, -OVER, B, XH + OVER, AL, BL2), sweep(hook, a, b)]
+
+
+def _arch(B, v, top):
+    """Ombro + arco + perna direita, varridos; a haste esquerda e do glifo."""
+    a, b = v / 2, BL2
+    L, R = a, B - a
+    cx = (L + R) / 2
+    path = [("m", (L, 200)), v2h((L, 200), (cx, top - b), 0.5, 0.80),
+            h2v((cx, top - b), (R, 230), 0.5, 0.80), ("l", (R, 0))]
+    return [sweep(path, a, b)]
+
+
+@glyph("n", 982, 24)
+def _n(B):
+    return [rect(0, 0, VL, XH)] + _arch(B, VL, XH)
+
+
+@glyph("h", 982, 24)
+def _h(B):
+    return [rect(0, 0, VL, ASC)] + _arch(B, VL, XH)
+
+
+@glyph("m", 1499, 24)
+def _m(B):
+    w = (B + VL) / 2
+    right = [c.shift(w - VL) for c in _arch(B - (w - VL), VL, XH)]
+    return [rect(0, 0, VL, XH)] + _arch(w, VL, XH) + right
+
+
+@glyph("u", 975, 24)
+def _u(B):
+    a, b = VL / 2, BL2
+    L, R = a, B - a
+    cx = (L + R) / 2
+    path = [("m", (L, XH)), ("l", (L, 300)), v2h((L, 300), (cx, b - OVER), 0.5, 0.80),
+            h2v((cx, b - OVER), (R, 300), 0.5, 0.80), ("l", (R, XH))]
+    return [sweep(path, a, b)]
+
+
+@glyph("J", 1041)
+def _J(B):
+    a, b = VC / 2, BC2
+    R = B - a
+    path = trunc([("m", (R, CAP)), ("l", (R, 330)), v2h((R, 330), (B / 2, b - OVER)),
+                  h2v((B / 2, b - OVER), (a, 372))], 0.92)
+    return [sweep(path, a, b)]
+
+
+@glyph("U", 1196, 12)
+def _U(B):
+    a, b = AC, BC2
+    L, R = a, B - a
+    path = [("m", (L, CAP)), ("l", (L, 300)), v2h((L, 300), (B / 2, b - OVER)),
+            h2v((B / 2, b - OVER), (R, 300)), ("l", (R, CAP))]
+    return [sweep(path, a, b)]
+
+
+@glyph("M", 1391)
+def _M(B):
+    w, vy = VC * 1.45, 290
+    return [rect(0, 0, VC, CAP), rect(B - VC, 0, B, CAP),
+            hbar((VC * 0.55, CAP), (B / 2, vy), w),
+            hbar((B - VC * 0.55, CAP), (B / 2, vy), w),
+            hole(rect(-900, -OUT, 0, CAP + OUT)), hole(rect(B, -OUT, B + 900, CAP + OUT)),
+            hole(rect(-OUT, CAP, B + OUT, CAP + 400))]
+
+
+# ---- v6: A, M, S, a, g com a estrutura medida; bojos b/d/p/q varridos ------
+def _cub(c, c1, c2, p):
+    return c.curve(c1, c2, p)
+
+
+@glyph("A", 1222, -18)
+def _A(B):
+    # topo plano largo, pernas a ~0.47, travessa BAIXA, contraforma triangular pequena
+    tl, tr = 351, B - 373
+    il0, ir0 = 384, B - 424
+    sl, sr = 0.432, 0.44
+    apex = (ir0 - il0) / (sl + sr)
+    cb0, cb1 = 89, 309
+    xl = lambda y: il0 + sl * y
+    xr = lambda y: ir0 - sr * y
+    return [poly([(0, 0), (tl, CAP), (tr, CAP), (B, 0), (ir0, 0),
+                  (xr(cb0), cb0), (xl(cb0), cb0), (il0, 0)]),
+            hole(poly([(xl(cb1), cb1), (xr(cb1), cb1), (xl(apex), apex)]))]
+
+
+@glyph("M", 1391)
+def _M(B):
+    # o V desce ate a linha de base e acaba num pe plano; entalhe de cima a 413
+    sh, notch, expo, f0, f1 = 500, 413, 368, B / 2 - 88, B / 2 + 88
+    return [poly([(0, 0), (VC, 0), (VC, expo), (f0, 0), (f1, 0), (B - VC, expo),
+                  (B - VC, 0), (B, 0), (B, CAP), (B - sh, CAP), (B / 2, notch),
+                  (sh, CAP), (0, CAP)])]
+
+
+def _ess_holes(B, top, bot, k):
+    """Os dois buracos do S (contraforma + abertura, ligados), como fraccoes
+    da largura e alturas escaladas por k = altura/744."""
+    x = lambda f: f * B
+    y = lambda v: bot + (v + 15) * k          # v em coordenadas da caixa 744
+    up = Contour((x(0.59), y(518)))
+    up.line((B + OUT, y(518))).line((B + OUT, y(259))).line((B, y(259)))
+    _cub(up, (B, y(410)), (x(0.91), y(480)), (x(0.654), y(488)))
+    up.line((x(0.52), y(492)))
+    _cub(up, (x(0.42), y(495)), (x(0.394), y(509)), (x(0.394), y(537)))
+    up.line((x(0.394), y(539)))
+    _cub(up, (x(0.394), y(564)), (x(0.41), y(578)), (x(0.489), y(578)))
+    _cub(up, (x(0.576), y(578)), (x(0.588), y(542)), (x(0.59), y(518)))
+    lo = Contour((x(0.394), y(253)))
+    lo.line((-OUT, y(253))).line((-OUT, y(522))).line((x(0.011), y(522)))
+    _cub(lo, (x(0.011), y(405)), (x(0.068), y(296)), (x(0.338), y(286)))
+    lo.line((x(0.477), y(281)))
+    _cub(lo, (x(0.59), y(277)), (x(0.599), y(252)), (x(0.599), y(228)))
+    lo.line((x(0.599), y(225)))
+    _cub(lo, (x(0.599), y(198)), (x(0.577), y(173)), (x(0.498), y(173)))
+    _cub(lo, (x(0.405), y(173)), (x(0.395), y(221)), (x(0.394), y(253)))
+    return [hole(up), hole(lo)]
+
+
+def _ess_outer(B, top, bot):
+    h = top - bot
+    return rrect(0, bot, B, top,
+                 C(0.42 * B, 0.29 * h, 0.76, 0.62), C(0.44 * B, 0.30 * h, 0.81, 0.55),
+                 C(0.45 * B, 0.34 * h, 0.83, 0.51), C(0.43 * B, 0.34 * h, 0.92, 0.37))
+
+
+@glyph("S", 1136, 2)
+def _S(B):
+    top, bot = CAP + OVER, -OVER
+    return [_ess_outer(B, top, bot)] + _ess_holes(B, top, bot, 1.0)
+
+
+@glyph("s", 875, 2)
+def _s(B):
+    top, bot = XH + OVER, -OVER
+    return [_ess_outer(B, top, bot)] + _ess_holes(B, top, bot, (top - bot) / 772)
+
+
+@glyph("a", 927, 8)
+def _a(B):
+    x = lambda f: f * B
+    arc = sweep([("m", (x(0.765), 300)),
+                 v2h((x(0.765), 300), (x(0.49), XH + OVER - 73), 0.45, 0.85),
+                 h2v((x(0.49), XH + OVER - 73), (x(0.02) + 181, 361), 0.45, 0.85)], 181, 73)
+    return [rect(x(0.567), 0, x(0.964), 380), rect(x(0.567), 0, B, 177), arc,
+            rrect(0, -10, x(0.567) + 40, 330,
+                  C(x(0.20), 150, 0.9, 0.5), None, None, C(x(0.27), 170, 0.9, 0.4)),
+            hole(rrect(x(0.375), 128, x(0.567), 262,
+                       C(60, 40, 0.7, 0.7), None, None, C(100, 60, 0.8, 0.6)))]
+
+
+@glyph("g", 985, 10)
+def _g(B):
+    x = lambda f: f * B
+    return [rrect(0, 20, x(0.62) + 40, XH + 3,
+                  C(x(0.31), 255, 0.85, 0.5), C(x(0.27), 65, 0.7, 0.4),
+                  C(x(0.27), 80, 0.7, 0.5), C(x(0.32), 256, 0.9, 0.45)),
+            hole(rrect(x(0.39), 184, x(0.62), 367,
+                       C(105, 85, 0.75, 0.5), C(113, 86, 0.75, 0.5),
+                       C(113, 94, 0.75, 0.5), C(105, 94, 0.75, 0.5))),
+            rect(x(0.62), -34, B, XH),
+            rrect(x(0.045), DESC - 8, B, 0, None, None,
+                  C(x(0.45), 270, 0.8, 0.5), C(x(0.41), 190, 0.85, 0.42)),
+            hole(rrect(x(0.42), -34, x(0.62) - 1, 20, C(60, 34, 0.7, 0.6), None, None,
+                       C(80, 34, 0.7, 0.6)))]
+
+
+@glyph("b", 972, 24)
+def _b(B):
+    return [rect(0, 0, VL, ASC), loop(0, -OVER, B, XH + OVER, AL, BL2)]
+
+
+@glyph("d", 971, 24)
+def _d(B):
+    return [rect(B - VL, 0, B, ASC), loop(0, -OVER, B, XH + OVER, AL, BL2)]
+
+
+@glyph("p", 976, 24)
+def _p(B):
+    return [rect(0, DESC, VL, XH), loop(0, -OVER, B, XH + OVER, AL, BL2)]
+
+
+@glyph("q", 970, 24)
+def _q(B):
+    return [rect(B - VL, DESC, B, XH), loop(0, -OVER, B, XH + OVER, AL, BL2)]
+
+
+# ---- v7: bojos em D (lado esquerdo recto) para B/P/R/D, K/k, 6/8/9, ? -----
+def bowl(x0, y0, x1, y1, a, b, kv=None, kh=None):
+    """Bojo em D varrido: comeca e acaba dentro da haste (topos rectos escondidos),
+    lado direito em superelipse. Caixa EXTERIOR (x0,y0)-(x1,y1)."""
+    cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
+    L, R, T, Bm = x0 + a, x1 - a, y1 - b, y0 + b
+    return sweep([("m", (L, Bm)), ("l", (cx, Bm)), h2v((cx, Bm), (R, cy), kv, kh),
+                  v2h((R, cy), (cx, T), kv, kh), ("l", (L, T))], a, b)
+
+
+@glyph("B", 1174)
+def _B(B):
+    a, b = VC / 2, HS / 2
+    return [rect(0, 0, VC, CAP),
+            bowl(0, MID - HS / 2, B - 28, CAP, a, b),
+            bowl(0, 0, B, MID + HS / 2, a, b)]
+
+
+@glyph("D", 1193, 12)
+def _D(B):
+    return [rect(0, 0, VC, CAP), bowl(0, 0, B, CAP, VCR / 2, HC / 2)]
+
+
+@glyph("P", 1137)
+def _P(B):
+    return [rect(0, 0, VC, CAP), bowl(0, 268, B, CAP, VC / 2, HS / 2)]
+
+
+@glyph("R", 1164)
+def _R(B):
+    y = 280
+    return [rect(0, 0, VC, CAP), bowl(0, y, B * 0.95, CAP, VC / 2, HS / 2),
+            poly([(VC * 0.9, y + HS), (VC * 0.9 + VC * 1.05, y + HS),
+                  (B, 0), (B - VC * 1.05, 0)])]
+
+
+def _kay(B, stem_h, top, v):
+    """K/k: dois bracos que nascem DENTRO da haste; o de baixo sai do de cima."""
+    w = v * 1.25
+    mid = top * 0.47
+    return [rect(0, 0, v, stem_h),
+            poly([(v * 0.35, mid - 30), (v * 0.35 + w, mid - 30), (B, top), (B - w, top)]),
+            poly([(v * 0.35, mid + 30), (v * 0.35 + w, mid + 30), (B, 0), (B - w, 0)]),
+            hole(rect(-900, -OUT, 0, stem_h + OUT))]
+
+
+@glyph("K", 1190)
+def _K(B):
+    return _kay(B, CAP, CAP, VC)
+
+
+@glyph("k", 909, 24)
+def _k(B):
+    return _kay(B, ASC, XH, VL)
+
+
+def _six(B, flip):
+    """6 (flip=False) e 9 (rodado 180)."""
+    a, b = VCR / 2, HS / 2
+    top, bot = CAP + OVER, -OVER
+    lo_top = MID + HS / 2 + 20
+    parts = [loop(0, bot, B, lo_top, a, b)]
+    L, cx = a, B / 2
+    arm = trunc([("m", (L, lo_top - b - 40)), ("l", (L, MID + 40)),
+                 v2h((L, MID + 40), (cx, top - b)), h2v((cx, top - b), (B - a, MID + 60))], 0.62)
+    parts.append(sweep(arm, a, b))
+    if flip:
+        c = (B / 2, (top + bot) / 2)
+        parts = [Raw(pt.path.transform(-1, 0, 0, -1, 2 * c[0], 2 * c[1]), pt.filled) for pt in parts]
+    return parts
+
+
+@glyph("six", 1130, 12)
+def _n6(B):
+    return _six(B, False)
+
+
+@glyph("nine", 1131, 12)
+def _n9(B):
+    return _six(B, True)
+
+
+@glyph("eight", 1111, 12)
+def _n8(B):
+    a, b = VCR / 2, HS / 2
+    return [loop(B * 0.04, MID - HS / 2, B * 0.96, CAP + OVER, a, b),
+            loop(0, -OVER, B, MID + HS / 2, a, b)]
+
+
+@glyph("question", 900, 20)
+def _question(B):
+    a, b = VC / 2, HS / 2
+    y0 = 300
+    hook = [("m", (a, CAP * 0.56)), v2h((a, CAP * 0.56), (B / 2, CAP + OVER - b)),
+            h2v((B / 2, CAP + OVER - b), (B - a, CAP * 0.56)),
+            ("c", (B - a, CAP * 0.42), (B / 2 + 30, CAP * 0.48), (B / 2 + 20, y0))]
+    return [sweep(hook, a, b), rrect((B - DOT) / 2, 0, (B + DOT) / 2, DOT, DR, DR, DR, DR)]
 
 
 # --- ACENTOS ---------------------------------------------------------------
