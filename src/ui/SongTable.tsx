@@ -171,6 +171,9 @@ interface DragState {
   index: number;
 }
 
+/** Rampa do degrau com que uma vizinha abre espaço: desliza, não salta. */
+const SLIDE_PX = 10;
+
 export const SongTable = ({
   songs,
   columns = DEFAULT_SONG_COLUMNS,
@@ -245,6 +248,49 @@ export const SongTable = ({
     [clampTarget, dragY, onReorder],
   );
 
+  /**
+   * O estilo de cada linha durante um arrasto: a arrastada segue o dedo, as
+   * VIZINHAS abrem espaço. Sem elas a abrir, o arrasto não tinha leitura
+   * nenhuma - a linha passava por cima das outras sem nada dizer onde ia
+   * cair, e acertar no sítio era à sorte.
+   *
+   * Sai tudo do MESMO `dragY`, por interpolação: durante o gesto não há uma
+   * única volta ao React. Cada degrau cai exactamente onde `clampTarget`
+   * muda de alvo (meia linha), portanto o que se vê é o que fica; a rampa de
+   * SLIDE_PX à volta do degrau é só para a vizinha deslizar em vez de saltar.
+   */
+  const rowDragStyle = useCallback(
+    (index: number) => {
+      if (drag == null) return null;
+      if (drag.index === index) {
+        return {
+          transform: [{ translateY: dragY }],
+          zIndex: 10,
+          elevation: 4,
+          backgroundColor: tokens.card,
+          borderRadius: 8,
+        };
+      }
+      const height = songRowHeight(compact);
+      const below = index > drag.index;
+      // Meia linha antes do centro da vizinha: é aí que o alvo passa a ser o
+      // lugar dela, e é aí que ela tem de sair da frente.
+      const step = (index - drag.index + (below ? -0.5 : 0.5)) * height;
+      return {
+        transform: [
+          {
+            translateY: dragY.interpolate({
+              inputRange: [step - SLIDE_PX, step + SLIDE_PX],
+              outputRange: below ? [0, -height] : [height, 0],
+              extrapolate: "clamp" as const,
+            }),
+          },
+        ],
+      };
+    },
+    [drag, dragY, compact, tokens.card],
+  );
+
   const renderItem = useCallback(
     ({ item, index }: { item: Song; index: number }) => {
       const row = (
@@ -288,23 +334,7 @@ export const SongTable = ({
       // e o arrasto morria no instante em que se agarrava no grip, com dy = 0
       // e portanto sem reordenar nada. A forma da árvore fica fixa; muda só o
       // estilo.
-      return (
-        <Animated.View
-          style={
-            drag?.index === index
-              ? {
-                  transform: [{ translateY: dragY }],
-                  zIndex: 10,
-                  elevation: 4,
-                  backgroundColor: tokens.card,
-                  borderRadius: 8,
-                }
-              : null
-          }
-        >
-          {row}
-        </Animated.View>
-      );
+      return <Animated.View style={rowDragStyle(index)}>{row}</Animated.View>;
     },
     [
       columns,
@@ -322,10 +352,8 @@ export const SongTable = ({
       startDrag,
       moveDrag,
       endDrag,
-      drag,
-      dragY,
+      rowDragStyle,
       compact,
-      tokens.card,
       tokens.mutedForeground,
       t,
     ],
