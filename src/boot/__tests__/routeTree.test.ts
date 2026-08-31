@@ -66,6 +66,10 @@ const PUSHED_ROUTES = [
   "assistant/history.tsx",
   "artists-roster.tsx",
   "artists.tsx",
+  // "O Melhor DJ" (dono, 2026-08-31): a sala de controlo da estacao, dentro
+  // do grupo partilhado porque se abre de qualquer tab e a barra do leitor
+  // tem de continuar la.
+  "dj.tsx",
   "friends.tsx",
   "liked.tsx",
   "mix/[slug].tsx",

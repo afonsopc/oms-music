@@ -922,6 +922,21 @@
         "deleteChatConfirm": "Dzēst šo sarunu? To nevar atsaukt.",
         "chatLoadError": "Neizdevās ielādēt šo sarunu.",
         "historyTitle": "Iepriekšējās sarunas"
+      },
+      "Dj": {
+        "title": "O Melhor DJ",
+        "pitch": "Tava paša radiostacija: viņš izvēlas, piesaka un turpina.",
+        "onAir": "Ēterā",
+        "planning": "Gatavo nākamo bloku...",
+        "start": "Sākt staciju",
+        "speakNow": "Runāt tagad",
+        "stop": "Apturēt staciju",
+        "placeholder": "Palūdz viņam ko (mierīgāku, spāņu dziesmas...)",
+        "sendRequest": "Nosūtīt lūgumu",
+        "failed": "DJ neizdevās. Mēģini pēc brīža.",
+        "homeBanner": "O Melhor DJ",
+        "homeBannerSubtitle": "Viņš piesaka, tu klausies",
+        "remoteOnly": "Tu vadi citu ierīci. Stacija skan tajā, kurā ir skaņa."
       }
     }
   },
@@ -1336,7 +1351,7 @@
       "failed": "Neizdevās lejupielādēt failu"
     },
     "dj": {
-      "speak": "O Melhor DJ: runāt tagad"
+      "open": "O Melhor DJ"
     }
   }
 }

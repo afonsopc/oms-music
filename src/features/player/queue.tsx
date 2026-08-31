@@ -23,7 +23,7 @@ import { useLikedIds } from "@/api/queries/likedSongs";
 import { getTransport } from "@/contracts/transport";
 import type { SongMenuItem } from "@/contracts/songMenu";
 import type { LoopMode } from "@/domain/playback";
-import type { Song } from "@/domain/song";
+import { isDjClip, type Song } from "@/domain/song";
 import { useT } from "@/i18n";
 import { usePlaybackView } from "@/remote/mirror";
 import { useTheme } from "@/theme/provider";
@@ -110,7 +110,7 @@ export default function QueueBody() {
       id: "removeFromQueue",
       labelKey: `${QP}.remove`,
       icon: "x",
-      disabled: visibleIndex === queueIndex || !!song.jam_song,
+      disabled: visibleIndex === queueIndex || !!song.jam_song || isDjClip(song),
       onPress: () => getTransport().removeFromQueue(visibleIndex),
     },
   ];

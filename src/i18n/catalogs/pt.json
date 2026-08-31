@@ -922,6 +922,21 @@
         "deleteChatConfirm": "Apagar esta conversa? Não é possível desfazer.",
         "chatLoadError": "Não foi possível carregar esta conversa.",
         "historyTitle": "Conversas anteriores"
+      },
+      "Dj": {
+        "title": "O Melhor DJ",
+        "pitch": "Uma estação só tua: ele escolhe, apresenta e vai buscar mais.",
+        "onAir": "No ar",
+        "planning": "A preparar o próximo bloco...",
+        "start": "Começar a estação",
+        "speakNow": "Falar agora",
+        "stop": "Parar a estação",
+        "placeholder": "Pede-lhe alguma coisa (algo mais calmo, música espanhola...)",
+        "sendRequest": "Enviar pedido",
+        "failed": "O DJ não conseguiu. Tenta daqui a pouco.",
+        "homeBanner": "O Melhor DJ",
+        "homeBannerSubtitle": "Ele apresenta, tu ouves",
+        "remoteOnly": "Estás a comandar outro dispositivo. A estação toca no aparelho que tem o som."
       }
     }
   },
@@ -1336,7 +1351,7 @@
       "failed": "Não foi possível descarregar o ficheiro"
     },
     "dj": {
-      "speak": "O Melhor DJ: falar agora"
+      "open": "O Melhor DJ"
     }
   }
 }

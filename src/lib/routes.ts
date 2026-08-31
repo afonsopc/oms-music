@@ -61,6 +61,9 @@ export const assistantChatRoute = (chatId: number | "new"): Href => ({
 /** O historico de conversas do assistente (a raiz da tab e um chat novo). */
 export const assistantHistoryRoute: Href = "/assistant/history";
 
+/** A sala de controlo de "O Melhor DJ" (features/dj). */
+export const djRoute: Href = "/dj";
+
 /** Mix slugs contain ":" and MUST reach the router unencoded. */
 export const mixRoute = (slug: string): Href => ({
   pathname: "/mix/[slug]",

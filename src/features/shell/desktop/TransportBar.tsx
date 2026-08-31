@@ -357,7 +357,9 @@ export const DesktopTransportBar = ({
             barra - sem ele o desktop nao tinha COMO chegar a estas opcoes
             (feedback do dono 2026-08-14). */}
         {/* Teste de O Melhor DJ (dono, 2026-08-16); integracao a serio na vaga 2. */}
-        <DjButton disabled={!song} />
+        {/* Sem nada a tocar tambem se comeca uma estacao: e ela que ENCHE
+            a fila (dono, 2026-08-31). */}
+        <DjButton disabled={false} />
         <GhostIconButton
           icon="audio-waveform"
           size={17}

@@ -37,7 +37,7 @@ import {
 import { useContentBottomPadding } from "@/features/shell/metrics";
 import { useT } from "@/i18n";
 import { mixDescription, mixStampText, mixTitle } from "@/i18n/mixLabels";
-import { albumRoute, artistRadioRoute, artistRoute, mixRoute, playlistRoute } from "@/lib/routes";
+import { albumRoute, artistRadioRoute, artistRoute, djRoute, mixRoute, playlistRoute } from "@/lib/routes";
 import { useTheme } from "@/theme/provider";
 import { MIX_KIND_GRADIENTS } from "@/theme/tokens";
 import { gradientBackground, linearGradient } from "@/ui/uiTheme";
@@ -298,9 +298,32 @@ export default function HomeScreen() {
       ) : null}
 
       {/* As portas do Rewind e do assistente (dono, 2026-08-18): dois
-          cartoes-banner acima dos mixes, so no "Tudo". */}
+          cartoes-banner acima dos mixes, so no "Tudo". O DJ juntou-se em
+          2026-08-31 e ficou em cima, a largura toda: e o unico dos tres que
+          COMECA a tocar, e a tres numa linha nao cabia o subtitulo. */}
       {filter === "all" ? (
         <Section order={1}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t("components.music.Dj.homeBanner")}
+            onPress={() => router.push(djRoute)}
+            style={({ pressed }) => ({
+              marginHorizontal: 24,
+              marginBottom: 12,
+              borderRadius: 14,
+              padding: 16,
+              gap: 4,
+              opacity: pressed ? 0.85 : 1,
+              ...gradientBackground(linearGradient("120deg", "#0f172a", "#4338ca", "#c026d3")),
+            })}
+          >
+            <Text style={{ color: "#ffffff", fontSize: 16, fontWeight: "800" }}>
+              {t("components.music.Dj.homeBanner")}
+            </Text>
+            <Text style={{ color: "rgba(255,255,255,0.85)", fontSize: 12 }}>
+              {t("components.music.Dj.homeBannerSubtitle")}
+            </Text>
+          </Pressable>
           <View style={{ flexDirection: "row", gap: 12, marginHorizontal: 24 }}>
             {(
               [

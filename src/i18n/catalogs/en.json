@@ -922,6 +922,21 @@
         "deleteChatConfirm": "Delete this chat? This cannot be undone.",
         "chatLoadError": "Could not load this chat.",
         "historyTitle": "Past chats"
+      },
+      "Dj": {
+        "title": "O Melhor DJ",
+        "pitch": "A station of your own: he picks, he introduces, he keeps going.",
+        "onAir": "On air",
+        "planning": "Lining up the next set...",
+        "start": "Start the station",
+        "speakNow": "Speak now",
+        "stop": "Stop the station",
+        "placeholder": "Ask him for something (calmer, Spanish songs...)",
+        "sendRequest": "Send request",
+        "failed": "The DJ could not do it. Try again in a moment.",
+        "homeBanner": "O Melhor DJ",
+        "homeBannerSubtitle": "He introduces, you listen",
+        "remoteOnly": "You are controlling another device. The station runs on the one with the sound."
       }
     }
   },
@@ -1336,7 +1351,7 @@
       "failed": "Could not download the file"
     },
     "dj": {
-      "speak": "O Melhor DJ: speak now"
+      "open": "O Melhor DJ"
     }
   }
 }

@@ -33,6 +33,7 @@ import { useRouter, type Href } from "expo-router";
 import { useLikedIds, useToggleLike } from "@/api/queries/likedSongs";
 import { getTransport } from "@/contracts/transport";
 import { songArtworkSource } from "@/domain/artwork";
+import { isDjClip } from "@/domain/song";
 import { formatArtists, formatDuration, primaryArtistSegment } from "@/domain/format";
 import type { Song } from "@/domain/song";
 import { getShellSlots, useShellSlotsVersion } from "@/features/shell/slots";
@@ -54,6 +55,7 @@ import {
 } from "@/ui";
 import { foregroundWash } from "@/ui/uiTheme";
 import { ImmersiveArtwork } from "./immersive";
+import { DjArtwork } from "@/features/dj/DjArtwork";
 import { togglePlayerMode, usePlayerModeStore } from "./mode";
 import { Slider } from "./Slider";
 
@@ -85,6 +87,9 @@ const modePill = (scheme: "light" | "dark", active: boolean): ViewStyle | undefi
 const ScrubBar = () => {
   const t = useT();
   const { tokens } = useTheme();
+  // Uma intervencao do DJ nao se arrasta (dono, 2026-08-31: "sem dar pra dar
+  // scrub"): a barra sai do ecra em vez de ficar la a dizer que da.
+  const djClip = usePlaybackView((v) => isDjClip(v.song));
   const position = usePlaybackView((v) => v.position);
   const duration = usePlaybackView((v) => v.duration);
   const passive = usePlaybackView((v) => v.passive);
@@ -94,6 +99,8 @@ const ScrubBar = () => {
   const abLoopA = usePlayerStore((s) => s.abLoopA);
   const abLoopB = usePlayerStore((s) => s.abLoopB);
   const [dragSeconds, setDragSeconds] = useState<number | null>(null);
+
+  if (djClip) return null;
 
   const shownSeconds = dragSeconds ?? position;
   const fraction = duration > 0 ? Math.min(1, Math.max(0, shownSeconds / duration)) : 0;
@@ -234,6 +241,8 @@ export default function NowPlayingBody() {
   useShellSlotsVersion();
 
   const song = usePlaybackView((v) => v.song);
+  // So para o DJ: as barras da capa dele so dancam enquanto ele fala mesmo.
+  const nowPlaying = usePlaybackView((v) => v.playing);
   const likedIds = useLikedIds();
   const toggleLike = useToggleLike();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -277,7 +286,11 @@ export default function NowPlayingBody() {
     <View style={{ flex: 1 }}>
       <View style={{ flex: 1, justifyContent: "center" }}>
         <View style={{ alignItems: "center", flexShrink: 1 }}>
-          <ImmersiveArtwork song={song} size={artworkSize} />
+          {isDjClip(song) ? (
+            <DjArtwork size={artworkSize} speaking={nowPlaying} />
+          ) : (
+            <ImmersiveArtwork song={song} size={artworkSize} />
+          )}
         </View>
 
         <View
@@ -317,18 +330,24 @@ export default function NowPlayingBody() {
               </Text>
             </Pressable>
           </View>
-          <GhostIconButton
-            icon="heart"
-            active={liked}
-            filled={liked}
-            accessibilityLabel={liked ? t(`${BB}.unlike`) : t(`${BB}.like`)}
-            onPress={() => toggleLike.mutate({ songId: song.id, liked })}
-          />
-          <GhostIconButton
-            icon="more-horizontal"
-            accessibilityLabel={t(`${NP}.moreActions`)}
-            onPress={() => setMenuOpen(true)}
-          />
+          {/* Um clip do DJ nao se gosta nem tem menu: nao e uma musica da
+              biblioteca, e nao ha nada la dentro que lhe sirva. */}
+          {isDjClip(song) ? null : (
+            <>
+              <GhostIconButton
+                icon="heart"
+                active={liked}
+                filled={liked}
+                accessibilityLabel={liked ? t(`${BB}.unlike`) : t(`${BB}.like`)}
+                onPress={() => toggleLike.mutate({ songId: song.id, liked })}
+              />
+              <GhostIconButton
+                icon="more-horizontal"
+                accessibilityLabel={t(`${NP}.moreActions`)}
+                onPress={() => setMenuOpen(true)}
+              />
+            </>
+          )}
         </View>
       </View>
 

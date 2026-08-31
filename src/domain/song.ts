@@ -49,6 +49,15 @@ export interface Song {
   source_url: string | null;
   source_id: string | null;
   isrc: string | null;
+  /**
+   * Idioma CANTADO, em ISO 639-1 ("es", "pt", "ja"), tirado da letra pelo
+   * servidor. `null` e "ainda nao sabemos" (musica sem letra guardada, ou
+   * instrumental), nunca "sem idioma". Opcional porque as musicas guardadas
+   * antes de 2026-08-31 (downloads, snapshots) nao o trazem.
+   */
+  language?: string | null;
+  /** Etiquetas do Last.fm, minusculas, no maximo seis. Opcional, como acima. */
+  tags?: string[];
   original_filename: string | null;
   audio_codec: string | null;
   audio_bitrate_kbps: number | null;
@@ -63,7 +72,35 @@ export interface Song {
   artist_names?: ArtistNames;
   jam_song?: true;
   jam_proposer?: { id: UserId; handle: string; name: string };
+  /** Marca uma intervenção falada do DJ. Ver {@link DjClipMeta}. */
+  dj_clip?: DjClipMeta;
 }
+
+/**
+ * Uma INTERVENÇÃO do DJ, na fila como se fosse uma música (dono,
+ * 2026-08-31: "ele aparece a tocar como se fosse uma música"). Não é uma:
+ * o áudio é um ficheiro local com a voz do Kokoro, o id é sintético e
+ * negativo, e por isso o clip
+ *
+ *  - não conta play (player/recording.ts),
+ *  - não se descarrega nem persiste (o `audio_url` já barra os downloads),
+ *  - não vai pelo cabo para outro dispositivo (remote/publisher.ts tira-o
+ *    da fila publicada: o ficheiro é local a quem está a ouvir),
+ *  - não se arrasta nem se faz scrub, e não abre menu de música.
+ *
+ * Pô-lo na fila em vez de o tocar por fora é o que faz a passagem soar a
+ * rádio: o motor encadeia voz e música com o mesmo leitor, sem pausar e
+ * retomar (que era o "salto" da primeira versão do botão).
+ */
+export interface DjClipMeta {
+  /** O que este bloco é, 2 a 5 palavras ("Late-night Portuguese soul"). */
+  theme: string | null;
+  /** As palavras ditas, para a página do DJ as mostrar enquanto ele fala. */
+  script: string;
+}
+
+/** Guarda única para as regras acima. */
+export const isDjClip = (song: Song | null | undefined): boolean => !!song?.dj_clip;
 
 /** Cross-user song shape used by feeds, jams and profiles (SnapshotSong). */
 export interface SnapshotSong {

@@ -16,6 +16,7 @@
  */
 import React, { useState } from "react";
 import { Pressable, Text, View } from "react-native";
+import { isDjClip } from "@/domain/song";
 import { ArtworkImage } from "./ArtworkImage";
 import { SongCreditsDialog } from "./dialogs/SongCreditsDialog";
 import { SongMatchDialog } from "./dialogs/SongMatchDialog";
@@ -188,6 +189,10 @@ export const SongMenu = ({ visible, onClose, context, anchor }: SongMenuProps) =
   const desktopShell = useDesktopShell();
   const [stage, setStage] = useState<"menu" | "credits" | "match">("menu");
   const { song } = context;
+  // Uma intervencao do DJ nao e uma musica da biblioteca: nao se gosta, nao
+  // se descarrega, nao entra numa playlist e nao tem creditos. Uma guarda
+  // aqui vale mais do que a mesma linha repetida por cada registo de item.
+  const djClip = isDjClip(song);
 
   const closeAll = () => {
     setStage("menu");
@@ -198,6 +203,8 @@ export const SongMenu = ({ visible, onClose, context, anchor }: SongMenuProps) =
     closeAll();
     item.onPress();
   };
+
+  if (djClip) return null;
 
   // ONE content tree for both containers - the frozen slot order, the
   // header, the credits hand-off are byte-identical whether the frame is a

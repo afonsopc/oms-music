@@ -65,12 +65,14 @@ const runAction = (action: AssistantAction, router: Router): void => {
   switch (action.action) {
     case "play":
       // As musicas vem serializadas pelo servidor (SongBlueprint inteiro); o
-      // Song do SDK e o fio, o do dominio marca os ids.
-      if (action.shuffle) transport.setQueue(action.songs as Song[], undefined, { shuffle: true });
-      else transport.setQueue(action.songs as Song[], 0);
+      // Song do SDK e o fio, o do dominio marca os ids - por isso a conversao
+      // passa por unknown: os ids do dominio sao marcados e os do fio nao.
+      if (action.shuffle) {
+        transport.setQueue(action.songs as unknown as Song[], undefined, { shuffle: true });
+      } else transport.setQueue(action.songs as unknown as Song[], 0);
       break;
     case "queue":
-      queueSongs(action.songs as Song[], action.mode);
+      queueSongs(action.songs as unknown as Song[], action.mode);
       break;
     case "pause":
       transport.pause();

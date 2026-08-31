@@ -10,6 +10,7 @@
  * the store (rate 0.25..4, EQ +-12, volumes 0..1), matching server clamps.
  */
 import type { PlayerStoreState } from "@/player/store";
+import { publishedQueue } from "./publishedQueue";
 import { remoteStore } from "./store";
 import type { LocalPlaybackState } from "./localPlayer";
 
@@ -135,11 +136,13 @@ export class ActivePublisher {
 
   private buildPayload(): Record<string, unknown> {
     const s = this.deps.localState.getState();
+    // A voz do DJ nao viaja: ver ./publishedQueue.ts.
+    const published = publishedQueue(s);
     return {
-      song_id: s.currentSong ? String(s.currentSong.id) : null,
-      queue: s.queue.map((song) => String(song.id)),
-      queue_index: s.queueIndex,
-      queue_order: [...s.queueOrder],
+      song_id: published.songId,
+      queue: published.queue,
+      queue_index: published.queueIndex,
+      queue_order: published.queueOrder,
       loop_mode: s.loopMode,
       shuffle: s.shuffle,
       volume: s.volume,
@@ -166,7 +169,7 @@ export class ActivePublisher {
     this.deps.perform("position_tick", {
       position: s.position,
       paused: !s.playing,
-      song_id: s.currentSong ? String(s.currentSong.id) : null,
+      song_id: publishedQueue(s).songId,
     });
   }
 

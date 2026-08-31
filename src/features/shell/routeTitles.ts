@@ -32,6 +32,7 @@ const EXACT: Record<string, string> = {
   "/search": "Pesquisar",
   "/library": "Biblioteca",
   "/assistant": "Assistente",
+  "/dj": "O Melhor DJ",
   "/liked": "Músicas Gostadas",
   "/playlists": "Playlists",
   "/artists": "Artistas",
