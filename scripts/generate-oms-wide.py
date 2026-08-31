@@ -1552,7 +1552,7 @@ def _n8(B):
 @glyph("question", 900, 20)
 def _question(B):
     a, b = VC / 2, HS / 2
-    y0 = 300
+    y0 = 440
     hook = [("m", (a, CAP * 0.56)), v2h((a, CAP * 0.56), (B / 2, CAP + OVER - b)),
             h2v((B / 2, CAP + OVER - b), (B - a, CAP * 0.56)),
             ("c", (B - a, CAP * 0.42), (B / 2 + 30, CAP * 0.48), (B / 2 + 20, y0))]
