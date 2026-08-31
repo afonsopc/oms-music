@@ -29,6 +29,8 @@ import { useLikedIds, useToggleLike } from "@/api/queries/likedSongs";
 import { getTransport } from "@/contracts/transport";
 import { songArtworkSource } from "@/domain/artwork";
 import { formatArtists, formatDuration } from "@/domain/format";
+import { isDjClip } from "@/domain/song";
+import { DjArtwork } from "@/features/dj/DjArtwork";
 import type { LoopMode } from "@/domain/playback";
 import { getShellSlots, useShellSlotsVersion } from "@/features/shell/slots";
 import { useT } from "@/i18n";
@@ -187,19 +189,25 @@ export const DesktopTransportBar = ({
                 perfil dele - o idioma do Spotify, pedido do dono
                 (2026-08-17). Sao Pressable/onPress e nao links para
                 continuarem a viver dentro da linha da grelha. */}
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t("components.music.SongCard.openAlbum")}
-              onPress={() => router.push(songHighlightRoute(song))}
-              style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
-            >
-              <ArtworkImage
-                source={songArtworkSource(song)}
-                songId={song.id}
-                size={48}
-                recyclingKey={String(song.id)}
-              />
-            </Pressable>
+            {/* Uma intervencao do DJ nao abre album nenhum: mostra a capa
+                dele a falar e mais nada (features/dj). */}
+            {isDjClip(song) ? (
+              <DjArtwork size={48} speaking={playing} />
+            ) : (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t("components.music.SongCard.openAlbum")}
+                onPress={() => router.push(songHighlightRoute(song))}
+                style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
+              >
+                <ArtworkImage
+                  source={songArtworkSource(song)}
+                  songId={song.id}
+                  size={48}
+                  recyclingKey={String(song.id)}
+                />
+              </Pressable>
+            )}
             <View style={{ flexShrink: 1, minWidth: 0 }}>
               <Text
                 style={{ color: tokens.foreground, fontSize: 13, fontWeight: "600" }}

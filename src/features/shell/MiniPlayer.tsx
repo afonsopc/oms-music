@@ -12,6 +12,8 @@ import { getTransport } from "@/contracts/transport";
 import { cardPressRole } from "@/ui/a11y";
 import { songArtworkSource } from "@/domain/artwork";
 import { formatArtists } from "@/domain/format";
+import { isDjClip } from "@/domain/song";
+import { DjArtwork } from "@/features/dj/DjArtwork";
 import { imageUrl } from "@/api/mediaUrl";
 import { PLACEHOLDER_ARTWORK } from "@/theme/placeholder";
 import { useTheme } from "@/theme/provider";
@@ -65,12 +67,19 @@ export const MiniPlayer = () => {
         elevation: 8,
       }}
     >
-      <Image
-        source={artworkSource}
-        placeholder={PLACEHOLDER_ARTWORK}
-        style={{ width: 40, height: 40, borderRadius: 6, backgroundColor: tokens.muted }}
-        contentFit="cover"
-      />
+      {/* Uma intervencao do DJ nao tem capa: tem a dele, a dancar enquanto
+          ele fala (features/dj). Sem isto a pilula mostrava o quadrado
+          cinzento do placeholder no momento mais visivel da estacao. */}
+      {isDjClip(song) ? (
+        <DjArtwork size={40} speaking={playing} />
+      ) : (
+        <Image
+          source={artworkSource}
+          placeholder={PLACEHOLDER_ARTWORK}
+          style={{ width: 40, height: 40, borderRadius: 6, backgroundColor: tokens.muted }}
+          contentFit="cover"
+        />
+      )}
       <View style={{ flex: 1, marginHorizontal: 10 }}>
         <Text
           numberOfLines={1}

@@ -29,11 +29,13 @@ const Bar = ({
   index,
   speaking,
   height,
+  width,
   color,
 }: {
   index: number;
   speaking: boolean;
   height: number;
+  width: number;
   color: string;
 }) => {
   const scale = useSharedValue(0.3);
@@ -54,7 +56,11 @@ const Bar = ({
     height: height * (BARS[index] ?? 0.5) * scale.value + 4,
   }));
 
-  return <Animated.View style={[{ width: 8, borderRadius: 4, backgroundColor: color }, style]} />;
+  return (
+    <Animated.View
+      style={[{ width, borderRadius: width / 2, backgroundColor: color }, style]}
+    />
+  );
 };
 
 export const DjArtwork = ({
@@ -76,10 +82,26 @@ export const DjArtwork = ({
       ...gradientBackground(linearGradient("140deg", "#0f172a", "#4338ca", "#c026d3")),
     }}
   >
-    <Icon name="radio" size={Math.round(size * 0.2)} color="#ffffff" />
-    <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 6, height: size * 0.22 }}>
+    {/* Na pilula (40px) so cabem as barras: o icone a essa escala e uma
+        mancha. */}
+    {size >= 80 ? <Icon name="radio" size={Math.round(size * 0.2)} color="#ffffff" /> : null}
+    <View
+      style={{
+        flexDirection: "row",
+        alignItems: "flex-end",
+        gap: size >= 80 ? 6 : 3,
+        height: size * (size >= 80 ? 0.22 : 0.5),
+      }}
+    >
       {BARS.map((_, index) => (
-        <Bar key={index} index={index} speaking={speaking} height={size * 0.22} color="#ffffff" />
+        <Bar
+          key={index}
+          index={index}
+          speaking={speaking}
+          height={size * (size >= 80 ? 0.22 : 0.5)}
+          width={size >= 80 ? 8 : 3}
+          color="#ffffff"
+        />
       ))}
     </View>
   </View>
