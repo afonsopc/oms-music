@@ -25,6 +25,12 @@ export interface PickedImage {
   uri: string;
   name: string;
   type: string;
+  /**
+   * Bytes, quando a plataforma os dá: na web o objecto é um `File` e traz o
+   * tamanho de origem, no nativo vem do transcode (ou do ficheiro escolhido,
+   * quando o descodificador falha). Quem tem um tecto para impor lê isto.
+   */
+  size?: number;
 }
 
 export interface PickImageOptions {
@@ -97,14 +103,16 @@ export const pickImage = async (
   const file = picked.result;
   try {
     const jpeg = await transcodeToJpeg(file.uri, { ...options, name: jpegName(file.name) });
-    return { uri: jpeg.uri, name: jpeg.name, type: jpeg.type };
+    return { uri: jpeg.uri, name: jpeg.name, type: jpeg.type, size: jpeg.size };
   } catch {
     // The native decoder could not read it; send the picked bytes as they are
-    // rather than losing the upload entirely.
+    // rather than losing the upload entirely. The size travels with them so a
+    // caller with a ceiling can still refuse an untranscoded monster.
     return {
       uri: file.uri,
       name: file.name,
       type: file.type && file.type.length > 0 ? file.type : IMAGE_FALLBACK_TYPE,
+      size: file.size,
     };
   }
 };

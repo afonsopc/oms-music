@@ -64,6 +64,14 @@ export const useLikedIds = (enabled = true) => {
 export const useToggleLike = () => {
   const qc = useQueryClient();
   return useMutation({
+    // Um coração de cada vez, em TODA a app (há cinco sítios a chamar este
+    // hook, e cada um traz a sua instância). Sem scope, carregar depressa
+    // manda o create e o destroy da mesma música ao servidor ao mesmo tempo:
+    // o INSERT bate no índice único, o Rails volta a procurar a linha e o
+    // unlike concorrente já a levou - 500 num pedido que só queria dizer
+    // "gosto" (produção, 2026-08-31). Em série, o servidor vê a sequência que
+    // o utilizador realmente fez, e o último clique é o que fica.
+    scope: { id: "liked-songs" },
     mutationFn: async ({ songId, liked }: { songId: SongId; liked: boolean }) => {
       if (liked) {
         await oms().music.songs.unlike(songId);

@@ -9,7 +9,7 @@
  * `onReorder(fromVisible, toVisible)`. Only enabled when the surface says
  * so (playlists refuse reorder until fully loaded, FR-50).
  */
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
   FlatList,
@@ -174,6 +174,12 @@ interface DragState {
 /** Rampa do degrau com que uma vizinha abre espaço: desliza, não salta. */
 const SLIDE_PX = 10;
 
+/** Faixa nas bordas da lista onde um arrasto começa a puxar a lista. */
+const AUTO_SCROLL_EDGE = 64;
+/** Passo por tick e intervalo entre ticks: 12px/16ms ≈ 750px por segundo. */
+const AUTO_SCROLL_STEP = 12;
+const AUTO_SCROLL_MS = 16;
+
 export const SongTable = ({
   songs,
   columns = DEFAULT_SONG_COLUMNS,
@@ -215,6 +221,87 @@ export const SongTable = ({
   const likeColumn =
     desktopShell && !!onToggleLike && !songTablePanelGate(containerWidth, desktopShell).panel;
 
+  /**
+   * Auto-scroll: a lista anda sozinha quando a linha arrastada chega às
+   * bordas. Sem isto, uma linha só se podia mover dentro do que cabe no ecrã,
+   * o que numa playlist grande não é reordenar coisa nenhuma.
+   *
+   * Vive TODO em refs: durante o gesto não pode haver uma volta ao React por
+   * frame. As contas são em coordenadas da lista, sem nada de página - a
+   * linha arrastada está em `header + index * altura - offset + dy`, e as três
+   * medidas vêm do onLayout/onScroll/onContentSizeChange do próprio FlatList.
+   *
+   * `dragY` (e portanto o alvo) conta o dedo MAIS o que a lista rolou, que é
+   * o deslocamento no CONTEÚDO; no ecrã a linha continua a seguir o dedo,
+   * porque o conteúdo inteiro andou o mesmo.
+   */
+  const scrollOffset = useRef(0);
+  const viewportHeight = useRef(0);
+  const contentHeight = useRef(0);
+  const headerHeight = useRef(0);
+  const travel = useRef({ dy: 0, base: 0, scrolled: 0, index: -1 });
+  const autoScroll = useRef<ReturnType<typeof setInterval> | null>(null);
+  const innerListRef = useRef<FlatList<Song> | null>(null);
+  const rowHeight = songRowHeight(compact);
+
+  // A ref da lista. O auto-scroll precisa de um handle, mas a ref que o ecrã
+  // manda é PROP, e numa prop não se escreve (react-hooks/immutability, e com
+  // razão: não é nossa). Então uma ref-objecto vinda de fora fica ELA na
+  // FlatList e o handle lê-se dela; uma ref-função é chamada, que é o que uma
+  // função aceita, e aí o handle fica na nossa.
+  const externalListRef = listRef && typeof listRef !== "function" ? listRef : null;
+  const attachList = useCallback(
+    (node: FlatList<Song> | null) => {
+      innerListRef.current = node;
+      if (typeof listRef === "function") listRef(node);
+    },
+    [listRef, innerListRef],
+  );
+  const scrollListTo = useCallback(
+    (offset: number) => {
+      const external = listRef && typeof listRef !== "function" ? listRef.current : null;
+      (external ?? innerListRef.current)?.scrollToOffset({ offset, animated: false });
+    },
+    [listRef, innerListRef],
+  );
+
+  const stopAutoScroll = useCallback(() => {
+    if (autoScroll.current == null) return;
+    clearInterval(autoScroll.current);
+    autoScroll.current = null;
+  }, []);
+
+  const startAutoScroll = useCallback(() => {
+    stopAutoScroll();
+    autoScroll.current = setInterval(() => {
+      const { dy, base, scrolled, index } = travel.current;
+      const viewport = viewportHeight.current;
+      const maxOffset = Math.max(0, contentHeight.current - viewport);
+      if (index < 0 || viewport <= 0 || maxOffset <= 0) return;
+
+      // Onde a linha está NO ECRÃ. O que já rolou não entra: o dedo não se
+      // mexe quando a lista anda por baixo dele.
+      const top = headerHeight.current + index * rowHeight - base + dy;
+      const step =
+        top < AUTO_SCROLL_EDGE
+          ? -AUTO_SCROLL_STEP
+          : top + rowHeight > viewport - AUTO_SCROLL_EDGE
+            ? AUTO_SCROLL_STEP
+            : 0;
+      if (step === 0) return;
+
+      const next = Math.max(0, Math.min(maxOffset, base + scrolled + step));
+      const applied = next - (base + scrolled);
+      // No topo ou no fim não há mais para onde puxar, e o tick cala-se.
+      if (applied === 0) return;
+      travel.current.scrolled = scrolled + applied;
+      scrollListTo(next);
+      dragY.setValue(dy + travel.current.scrolled);
+    }, AUTO_SCROLL_MS);
+  }, [dragY, rowHeight, scrollListTo, stopAutoScroll, travel]);
+
+  useEffect(() => stopAutoScroll, [stopAutoScroll]);
+
   const clampTarget = useCallback(
     (from: number, dy: number): number => {
       const delta = Math.round(dy / songRowHeight(compact));
@@ -226,26 +313,32 @@ export const SongTable = ({
   const startDrag = useCallback(
     (index: number) => {
       dragY.setValue(0);
+      travel.current = { dy: 0, base: scrollOffset.current, scrolled: 0, index };
       setDrag({ index });
+      startAutoScroll();
     },
-    [dragY],
+    [dragY, travel, scrollOffset, startAutoScroll],
   );
 
   const moveDrag = useCallback(
     (dy: number) => {
-      dragY.setValue(dy);
+      travel.current.dy = dy;
+      dragY.setValue(dy + travel.current.scrolled);
     },
-    [dragY],
+    [dragY, travel],
   );
 
   const endDrag = useCallback(
     (index: number, dy: number) => {
+      stopAutoScroll();
       setDrag(null);
       dragY.setValue(0);
-      const to = clampTarget(index, dy);
+      // O que a linha andou é o dedo MAIS o que a lista rolou por baixo dela.
+      const to = clampTarget(index, dy + travel.current.scrolled);
+      travel.current = { dy: 0, base: 0, scrolled: 0, index: -1 };
       if (to !== index) onReorder?.(index, to);
     },
-    [clampTarget, dragY, onReorder],
+    [clampTarget, dragY, onReorder, stopAutoScroll, travel],
   );
 
   /**
@@ -361,18 +454,26 @@ export const SongTable = ({
 
   const keyExtractor = useCallback((item: Song, index: number) => `${item.id}:${index}`, []);
 
-  const handleScroll = useMemo(
-    () =>
-      onScrollOffset
-        ? (e: NativeSyntheticEvent<NativeScrollEvent>) =>
-            onScrollOffset(e.nativeEvent.contentOffset.y)
-        : undefined,
-    [onScrollOffset],
+  // O offset é sempre seguido (o auto-scroll precisa de saber onde a lista
+  // estava quando se agarrou na linha); o callback do ecrã, quando existe,
+  // continua a ser servido do mesmo evento.
+  const handleScroll = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      scrollOffset.current = e.nativeEvent.contentOffset.y;
+      onScrollOffset?.(scrollOffset.current);
+    },
+    [onScrollOffset, scrollOffset],
   );
 
   return (
     <FlatList
-      ref={listRef}
+      ref={externalListRef ?? attachList}
+      onLayout={(e) => {
+        viewportHeight.current = e.nativeEvent.layout.height;
+      }}
+      onContentSizeChange={(_width, height) => {
+        contentHeight.current = height;
+      }}
       testID={testID}
       data={songs}
       renderItem={renderItem}
@@ -385,9 +486,16 @@ export const SongTable = ({
       onEndReached={onEndReached}
       onEndReachedThreshold={onEndReachedThreshold}
       onScroll={handleScroll}
-      scrollEventThrottle={handleScroll ? 32 : undefined}
+      scrollEventThrottle={reorderEnabled ? 16 : 32}
       ListHeaderComponent={
-        <>
+        // Medido porque o auto-scroll precisa de saber onde começa a
+        // primeira linha: o cabeçalho (hero + barra de acções) faz parte do
+        // conteúdo que rola.
+        <View
+          onLayout={(e) => {
+            headerHeight.current = e.nativeEvent.layout.height;
+          }}
+        >
           {header}
           {showHeader && songs.length > 0 ? (
             <SongTableHeader
@@ -397,7 +505,7 @@ export const SongTable = ({
               hasLike={likeColumn}
             />
           ) : null}
-        </>
+        </View>
       }
       ListFooterComponent={footer ?? undefined}
       ListEmptyComponent={emptyComponent ?? undefined}
