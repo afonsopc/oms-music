@@ -281,22 +281,30 @@ export const SongTable = ({
           }
         />
       );
-      if (drag?.index === index) {
-        return (
-          <Animated.View
-            style={{
-              transform: [{ translateY: dragY }],
-              zIndex: 10,
-              elevation: 4,
-              backgroundColor: tokens.card,
-              borderRadius: 8,
-            }}
-          >
-            {row}
-          </Animated.View>
-        );
-      }
-      return row;
+      // TODA a linha vive dentro do mesmo Animated.View, arrastada ou não.
+      // Trocar o tipo do elemento (SongRow -> Animated.View) quando o arrasto
+      // começa DESMONTA a linha, e com ela a View que segura o gesto: na web,
+      // ResponderSystem.removeNode() termina o responder do nó que sai do DOM,
+      // e o arrasto morria no instante em que se agarrava no grip, com dy = 0
+      // e portanto sem reordenar nada. A forma da árvore fica fixa; muda só o
+      // estilo.
+      return (
+        <Animated.View
+          style={
+            drag?.index === index
+              ? {
+                  transform: [{ translateY: dragY }],
+                  zIndex: 10,
+                  elevation: 4,
+                  backgroundColor: tokens.card,
+                  borderRadius: 8,
+                }
+              : null
+          }
+        >
+          {row}
+        </Animated.View>
+      );
     },
     [
       columns,
@@ -384,6 +392,11 @@ interface DragHandleProps {
 
 const DragHandle = ({ index, color, label, onStart, onMove, onEnd }: DragHandleProps) => {
   const [grabbing, setGrabbing] = useState(false);
+  // Um PanResponder novo traz um gestureState novo, com o dy outra vez a
+  // zero: recriá-lo a meio do gesto perdia tudo o que a linha já tinha
+  // andado. As quatro dependências têm de ficar ESTÁVEIS entre renders - o
+  // React Compiler (app.json, experiments.reactCompiler) memoiza as arrows
+  // que os ecrãs passam em `onReorder`, e é isso que as segura.
   const responder = useMemo(
     () =>
       PanResponder.create({
@@ -415,8 +428,18 @@ const DragHandle = ({ index, color, label, onStart, onMove, onEnd }: DragHandleP
         // grab/grabbing are web-only CSS cursors RN's style type does not
         // know; native ignores the whole entry (plan 4.3: reorder exists
         // but shows no pointer affordance - this is the affordance).
+        // userSelect e touchAction sao o resto do gesto na web: o
+        // ResponderSystem termina o responder quando a pagina ganha uma
+        // seleccao (selectionchange) ou quando o browser comeca um drag
+        // nativo, e arrastar o rato por cima dos titulos faz exactamente
+        // isso; touchAction none impede o dedo de scrollar a lista em vez
+        // de arrastar a linha.
         Platform.OS === "web"
-          ? ({ cursor: grabbing ? "grabbing" : "grab" } as unknown as ViewStyle)
+          ? ({
+              cursor: grabbing ? "grabbing" : "grab",
+              userSelect: "none",
+              touchAction: "none",
+            } as unknown as ViewStyle)
           : null,
       ]}
     >
