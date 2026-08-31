@@ -44,7 +44,7 @@ import { useT } from "@/i18n";
 import { playerStore } from "@/player/store";
 import { useTheme } from "@/theme/provider";
 import { MIX_KIND_GRADIENTS } from "@/theme/tokens";
-import { FONT_DRUK_WIDE } from "@/theme/typography";
+import { FONT_OMS_WIDE } from "@/theme/typography";
 import {
   ArtworkImage,
   artworkSourceUri,
@@ -505,7 +505,7 @@ export default function RewindScreen() {
             <Text
               style={{
                 color: "rgba(255,255,255,0.9)",
-                fontFamily: FONT_DRUK_WIDE,
+                fontFamily: FONT_OMS_WIDE,
                 fontSize: 15,
                 letterSpacing: 0.5,
                 marginTop: 8,

@@ -124,7 +124,7 @@ src/
       ThemeProvider.tsx         # light/dark/system, persisted
       gradients.ts              # mixToward(black|white) helpers, hero/player gradient builders
       fixed.ts                  # MUSIC_ACCENT #4B1E6D, LIKED_ACCENT #7e22ce, mix/radio kind gradient+accent maps
-      typography.ts             # Inter, Druk Wide Super, Cantarell registration + text styles
+      typography.ts             # Inter, OMS Wide, Cantarell registration + text styles
     components/
       Screen.tsx Hero.tsx StickyTitle.tsx ActionBar.tsx
       SongTable.tsx SongRow.tsx PlayingBars.tsx

@@ -219,7 +219,7 @@ Note: `primary` is NOT a brand color - it is near-black in light mode and near-w
 ### 5.3 Typography
 
 - Body: Inter (Google font), applied on `<body>`.
-- Display faces available as CSS vars: Druk Wide Super (`--font-druk-wide`, weight 900, local OTF) and Cantarell variable (`--font-cantarell`). Tailwind `font-drukwide` / `font-cantarell`.
+- Display faces available as CSS vars: OMS Wide (`--font-oms-wide`, weight 900, local TTF) and Cantarell variable (`--font-cantarell`). Tailwind `font-omswide` / `font-cantarell`.
 - Music page conventions: hero titles `text-3xl ... md:text-6xl lg:text-7xl font-black leading-tight`; rail/section headers `text-2xl font-bold tracking-tight`; kind labels above hero titles `text-xs font-semibold uppercase tracking-wide text-foreground/80`; tile titles `font-semibold` with `text-xs text-muted-foreground` subtitles; time labels `tabular-nums text-[11px] text-muted-foreground`; mix tile stamp: `font-black uppercase leading-none tracking-tight text-white`, size stepped by text length (<= 8 chars `text-3xl`, <= 14 `text-2xl`, <= 22 `text-xl`, else `text-base`).
 - Radius: base `--radius: 0.5rem`; cards/tiles `rounded-md`, pills and play buttons `rounded-full`, mobile mini player `rounded-xl`.
 

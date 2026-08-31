@@ -1068,7 +1068,7 @@ API; the jam appears in `GET /jams` joinable).
 - `provider.tsx`: light/dark/system with persisted choice; `useTheme()` returns resolved
   tokens + scheme; consumers restyle on flip without re-downloading artwork (dual-variant
   accent cache).
-- `typography.ts`: Inter (body), Druk Wide Super weight 900 + Cantarell (display). Hero
+- `typography.ts`: Inter (body), OMS Wide weight 900 + Cantarell (display). Hero
   titles huge black-weight; section headers 2xl bold tight; kind labels tiny uppercase;
   time labels tabular numerals; mix stamp text black-weight uppercase white, size stepped by
   length (<=8 largest, <=14, <=22, else smallest).

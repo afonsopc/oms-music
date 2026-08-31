@@ -85,7 +85,7 @@ src/
     tokens.ts                   both HSL palettes as hex + radius + fixed gradients (mix kinds, liked purple)
     provider.tsx                light/dark/system selection
     accent.ts                   artwork average color, dual-variant LRU(100) per song id
-    typography.ts               Inter/Druk Wide/Cantarell registration + scale
+    typography.ts               Inter/OMS Wide/Cantarell registration + scale
   ui/                           shared presentational components (WP4)
     ArtworkImage.tsx SongRow.tsx SongTable.tsx Tile.tsx Hero.tsx ActionBar.tsx StickyTitle.tsx
     PlayingBars.tsx FilterPills.tsx Rail.tsx MiniPlayer.tsx EmptyStates.tsx sheets/ menus/
