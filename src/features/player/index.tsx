@@ -55,7 +55,7 @@ import {
 } from "@/ui";
 import { foregroundWash } from "@/ui/uiTheme";
 import { ImmersiveArtwork } from "./immersive";
-import { DjArtwork } from "@/features/dj/DjArtwork";
+import { DjNowArtwork } from "@/features/dj/DjArtwork";
 import { togglePlayerMode, usePlayerModeStore } from "./mode";
 import { Slider } from "./Slider";
 
@@ -241,8 +241,6 @@ export default function NowPlayingBody() {
   useShellSlotsVersion();
 
   const song = usePlaybackView((v) => v.song);
-  // So para o DJ: as barras da capa dele so dancam enquanto ele fala mesmo.
-  const nowPlaying = usePlaybackView((v) => v.playing);
   const likedIds = useLikedIds();
   const toggleLike = useToggleLike();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -287,7 +285,7 @@ export default function NowPlayingBody() {
       <View style={{ flex: 1, justifyContent: "center" }}>
         <View style={{ alignItems: "center", flexShrink: 1 }}>
           {isDjClip(song) ? (
-            <DjArtwork size={artworkSize} speaking={nowPlaying} />
+            <DjNowArtwork size={artworkSize} />
           ) : (
             <ImmersiveArtwork song={song} size={artworkSize} />
           )}

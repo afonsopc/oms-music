@@ -22,6 +22,7 @@ import type { MusicDjNext, MusicDjSession } from "@omelhorsite/sdk";
 import { oms } from "@/api/oms";
 import { getTransport } from "@/contracts/transport";
 import type { SongId } from "@/domain/ids";
+import type { LoopMode } from "@/domain/playback";
 import type { Song } from "@/domain/song";
 import { isDjClip } from "@/domain/song";
 import { playerStore } from "@/player/store";
@@ -58,6 +59,11 @@ export interface DjStationState {
   speaking: boolean;
   /** A conversa toda, a mais recente no fim. */
   turns: DjTurn[];
+  /**
+   * As etiquetas da musica a dar. E daqui que saem as cores da vista do DJ:
+   * um bloco de hyperpop nao pode ter a mesma luz que um de fado.
+   */
+  styles: string[];
 }
 
 const initial: DjStationState = {
@@ -68,6 +74,7 @@ const initial: DjStationState = {
   theme: null,
   speaking: false,
   turns: [],
+  styles: [],
 };
 
 export const djStore = createStore<DjStationState>(() => initial);
@@ -136,7 +143,11 @@ class Station {
   private owned = new Set<number>();
   /** O salto por contar: vai no proximo pedido como sinal negativo. */
   private pendingSkip: SongId | null = null;
+  /** Pedido escrito enquanto ele estava a pensar. Ver `steer`. */
+  private queued: string | null = null;
   private watching: { id: SongId; position: number; duration: number } | null = null;
+  /** O que o leitor tinha antes de a estacao mandar nele. */
+  private restoreModes: { loop: LoopMode; shuffle: boolean } | null = null;
 
   /** Comeca de novo: sessao nova no servidor, fila nova aqui. */
   async start(request?: string): Promise<void> {
@@ -148,11 +159,13 @@ class Station {
     this.sessionId = null;
     this.owned = new Set();
     this.pendingSkip = null;
+    this.queued = null;
     this.blockedUntil = 0;
     djStore.setState({ ...initial, active: true, turns: request ? [ turnOf("listener", request, null) ] : [] });
 
     const turn = await this.ask({ request, restart: true });
     if (!turn) return;
+    this.seizeModes();
     this.enqueue(turn, { replace: true });
     // A vigilancia so depois de a fila ser dele: antes disto o que esta a
     // tocar e o que o ouvinte escolheu, e a guarda de "ele pegou na fila"
@@ -163,16 +176,38 @@ class Station {
   /**
    * O ouvinte pede alguma coisa. Ele fala JA: o que estava planeado a
    * seguir cai (foi pensado para outra direccao) e a resposta entra aqui.
+   *
+   * A caixa NUNCA bloqueia (dono, 2026-08-31): com ele a meio de uma volta,
+   * o pedido fica em fila e sai assim que ela acabar. O balao aparece no
+   * ecra na hora, que e o que o ouvinte precisa de ver.
    */
   async steer(request: string): Promise<void> {
     if (!djStore.getState().active) return this.start(request);
-    this.blockedUntil = 0;
     djStore.setState({ turns: [ ...djStore.getState().turns, turnOf("listener", request, null) ] });
+    if (this.asking) {
+      // O ultimo pedido manda: quem escreveu duas vezes seguidas quer a
+      // segunda coisa.
+      this.queued = request;
+      return;
+    }
+    await this.honour(request);
+  }
+
+  private async honour(request: string): Promise<void> {
+    this.blockedUntil = 0;
     const turn = await this.ask({ request });
     if (!turn) return;
     this.dropUpcoming();
     this.enqueue(turn, { next: true });
     getTransport().next();
+  }
+
+  /** O pedido que ficou em fila enquanto ele pensava. */
+  private drain(): void {
+    const request = this.queued;
+    if (request === null || !djStore.getState().active) return;
+    this.queued = null;
+    void this.honour(request);
   }
 
   /**
@@ -189,12 +224,37 @@ class Station {
     getTransport().next();
   }
 
+  /**
+   * Uma estacao nao tem repeticao nem aleatorio: com "repetir tudo" ligado,
+   * carregar em seguinte no fim da fila dava a volta e caia na PRIMEIRA
+   * fala da noite (dono, 2026-08-31). Sem repeticao, seguinte no fim nao
+   * faz nada - e a musica seguinte, que ja vem a caminho, entra sozinha.
+   */
+  private seizeModes(): void {
+    if (this.restoreModes) return;
+    const state = playerStore.getState();
+    this.restoreModes = { loop: state.loopMode, shuffle: state.shuffle };
+    const transport = getTransport();
+    transport.setLoopMode("none");
+    if (state.shuffle) transport.setShuffle(false);
+  }
+
+  private releaseModes(): void {
+    if (!this.restoreModes) return;
+    const transport = getTransport();
+    transport.setLoopMode(this.restoreModes.loop);
+    if (this.restoreModes.shuffle) transport.setShuffle(true);
+    this.restoreModes = null;
+  }
+
   stop(): void {
+    this.releaseModes();
     djStore.setState({ ...initial });
     this.unsubscribe?.();
     this.unsubscribe = null;
     this.watching = null;
     this.sessionId = null;
+    this.queued = null;
     // Sair a meio de uma frase e pior do que sair: se ele esta a falar,
     // salta-se o clip antes de o ficheiro desaparecer debaixo do leitor.
     if (isDjClip(playerStore.getState().currentSong)) getTransport().next();
@@ -229,7 +289,11 @@ class Station {
     }
 
     const speaking = isDjClip(song);
-    if (speaking !== djStore.getState().speaking) djStore.setState({ speaking });
+    const styles = song && !speaking ? [ ...(song.tags ?? []) ] : djStore.getState().styles;
+    const shown = djStore.getState();
+    if (speaking !== shown.speaking || styles.join() !== shown.styles.join()) {
+      djStore.setState({ speaking, styles });
+    }
 
     this.trackProgress(song, state.position, state.duration);
 
@@ -294,6 +358,9 @@ class Station {
     } finally {
       this.asking = false;
       djStore.setState({ planning: false });
+      // Fora do finally sincrono: o pedido em fila abre outra volta, e essa
+      // volta nao pode comecar dentro desta.
+      queueMicrotask(() => this.drain());
     }
   }
 
@@ -306,9 +373,18 @@ class Station {
     const transport = getTransport();
     const entries = voice ? [ voice, song ] : [ song ];
 
+    // Estava o ouvinte parado no fim da fila (a musica acabou, ou ele
+    // carregou em seguinte enquanto esta ainda vinha a caminho)? Entao o que
+    // chega agora comeca sozinho, em vez de ficar a espera de outro toque.
+    const before = playerStore.getState();
+    const wasWaiting =
+      !opts.replace && !opts.next && before.queueIndex >= before.queueOrder.length - 1;
+
     if (opts.replace) transport.setQueue(entries, 0);
     else if (opts.next) for (const entry of [ ...entries ].reverse()) transport.playNext(entry);
     else for (const entry of entries) transport.addToQueue(entry);
+
+    if (wasWaiting && !before.playing) transport.next();
 
     djStore.setState({
       theme: turn.theme ?? djStore.getState().theme,

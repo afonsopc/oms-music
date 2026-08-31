@@ -23,6 +23,7 @@ import { ArtworkImage, Icon } from "@/ui";
 import { usePlaybackView } from "@/remote/mirror";
 import { useContentBottomPadding, useContentTopPadding } from "@/features/shell/metrics";
 import { DjArtwork } from "./DjArtwork";
+import { paletteFor } from "./palette";
 import { djStation, useDjStation, type DjTurn } from "./station";
 
 const D = "components.music.Dj";
@@ -113,6 +114,8 @@ export default function DjScreen() {
   const turns = useDjStation((s) => s.turns);
   const error = useDjStation((s) => s.error);
   const remote = useDjStation((s) => s.remote);
+  const styles = useDjStation((s) => s.styles);
+  const palette = React.useMemo(() => paletteFor(styles), [ styles ]);
 
   // A conversa que ficou a meio: abrir a pagina mostra-a, mesmo que a
   // estacao ja nao esteja no ar.
@@ -122,8 +125,10 @@ export default function DjScreen() {
 
   const send = (): void => {
     const asked = request.trim();
-    if (!asked || planning) return;
+    if (!asked) return;
     setRequest("");
+    // Nunca se recusa uma mensagem por ele estar a pensar: a estacao poe-a
+    // em fila (ver station.steer).
     void djStation.steer(asked);
   };
 
@@ -146,7 +151,7 @@ export default function DjScreen() {
         onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
       >
         <View style={{ alignItems: "center", gap: 10, paddingBottom: 8 }}>
-          <DjArtwork size={HERO} speaking={speaking} />
+          <DjArtwork size={HERO} speaking={speaking} palette={palette} />
           <Text style={{ color: tokens.foreground, fontSize: 24, fontWeight: "900" }}>
             {t(`${D}.title`)}
           </Text>
@@ -234,7 +239,6 @@ export default function DjScreen() {
           placeholder={t(`${D}.placeholder`)}
           placeholderTextColor={tokens.mutedForeground}
           onSubmitEditing={send}
-          editable={!planning}
           style={{
             flex: 1,
             color: tokens.foreground,
@@ -252,7 +256,6 @@ export default function DjScreen() {
             accessibilityRole="button"
             accessibilityLabel={t(`${D}.speakNow`)}
             onPress={() => void djStation.speakNow()}
-            disabled={planning}
             style={({ pressed }) => ({
               width: 40,
               height: 40,
@@ -260,7 +263,7 @@ export default function DjScreen() {
               alignItems: "center",
               justifyContent: "center",
               backgroundColor: tokens.secondary,
-              opacity: planning ? 0.4 : pressed ? 0.7 : 1,
+              opacity: pressed ? 0.7 : 1,
             })}
           >
             <Icon name="radio" size={18} color={tokens.secondaryForeground} />
@@ -270,7 +273,7 @@ export default function DjScreen() {
           accessibilityRole="button"
           accessibilityLabel={t(`${D}.sendRequest`)}
           onPress={send}
-          disabled={planning || request.trim().length === 0}
+          disabled={request.trim().length === 0}
           style={({ pressed }) => ({
             width: 40,
             height: 40,
@@ -278,7 +281,7 @@ export default function DjScreen() {
             alignItems: "center",
             justifyContent: "center",
             backgroundColor: tokens.primary,
-            opacity: planning || request.trim().length === 0 ? 0.4 : pressed ? 0.7 : 1,
+            opacity: request.trim().length === 0 ? 0.4 : pressed ? 0.7 : 1,
           })}
         >
           <Icon name="chevron-right" size={18} color={tokens.primaryForeground} />

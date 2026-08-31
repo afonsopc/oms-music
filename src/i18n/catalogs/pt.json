@@ -937,7 +937,9 @@
         "failed": "O DJ não conseguiu. Tenta daqui a pouco.",
         "homeBanner": "O Melhor DJ",
         "homeBannerSubtitle": "Ele apresenta, tu ouves",
-        "remoteOnly": "Estás a comandar outro dispositivo. A estação toca no aparelho que tem o som."
+        "remoteOnly": "Estás a comandar outro dispositivo. A estação toca no aparelho que tem o som.",
+        "interjection": "Intervenção do DJ",
+        "upNextHint": "Ele escolhe a próxima quando esta acabar"
       }
     }
   },

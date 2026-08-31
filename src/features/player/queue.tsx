@@ -28,6 +28,8 @@ import { useT } from "@/i18n";
 import { usePlaybackView } from "@/remote/mirror";
 import { useTheme } from "@/theme/provider";
 import { EmptyState, Icon, SongTable, type IconName } from "@/ui";
+import { DjQueue } from "@/features/dj/DjQueue";
+import { useDjStation } from "@/features/dj/station";
 import { foregroundWash } from "@/ui/uiTheme";
 
 const QP = "components.music.QueuePanel";
@@ -92,6 +94,7 @@ export default function QueueBody() {
   const currentSong = usePlaybackView((v) => v.song);
   const shuffle = usePlaybackView((v) => v.shuffle);
   const loopMode = usePlaybackView((v) => v.loopMode);
+  const djActive = useDjStation((state) => state.active);
   const likedIds = useLikedIds();
 
   // Visible order: what the user sees IS the play order under shuffle.
@@ -122,6 +125,10 @@ export default function QueueBody() {
       </View>
     );
   }
+
+  // Com a estacao no ar a fila e dele, e uma fila dele nao se arrasta nem
+  // se baralha: a vista propria vive em features/dj/DjQueue.
+  if (djActive) return <DjQueue />;
 
   return (
     <View style={{ flex: 1 }}>

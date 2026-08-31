@@ -937,7 +937,9 @@
         "failed": "DJ neizdevās. Mēģini pēc brīža.",
         "homeBanner": "O Melhor DJ",
         "homeBannerSubtitle": "Viņš piesaka, tu klausies",
-        "remoteOnly": "Tu vadi citu ierīci. Stacija skan tajā, kurā ir skaņa."
+        "remoteOnly": "Tu vadi citu ierīci. Stacija skan tajā, kurā ir skaņa.",
+        "interjection": "DJ iestarpinājums",
+        "upNextHint": "Nākamo viņš izvēlas, kad šī beigsies"
       }
     }
   },

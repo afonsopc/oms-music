@@ -13,7 +13,7 @@ import { cardPressRole } from "@/ui/a11y";
 import { songArtworkSource } from "@/domain/artwork";
 import { formatArtists } from "@/domain/format";
 import { isDjClip } from "@/domain/song";
-import { DjArtwork } from "@/features/dj/DjArtwork";
+import { DjNowArtwork } from "@/features/dj/DjArtwork";
 import { imageUrl } from "@/api/mediaUrl";
 import { PLACEHOLDER_ARTWORK } from "@/theme/placeholder";
 import { useTheme } from "@/theme/provider";
@@ -71,7 +71,7 @@ export const MiniPlayer = () => {
           ele fala (features/dj). Sem isto a pilula mostrava o quadrado
           cinzento do placeholder no momento mais visivel da estacao. */}
       {isDjClip(song) ? (
-        <DjArtwork size={40} speaking={playing} />
+        <DjNowArtwork size={40} />
       ) : (
         <Image
           source={artworkSource}

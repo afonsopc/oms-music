@@ -30,7 +30,7 @@ import { getTransport } from "@/contracts/transport";
 import { songArtworkSource } from "@/domain/artwork";
 import { formatArtists, formatDuration } from "@/domain/format";
 import { isDjClip } from "@/domain/song";
-import { DjArtwork } from "@/features/dj/DjArtwork";
+import { DjNowArtwork } from "@/features/dj/DjArtwork";
 import type { LoopMode } from "@/domain/playback";
 import { getShellSlots, useShellSlotsVersion } from "@/features/shell/slots";
 import { useT } from "@/i18n";
@@ -192,7 +192,7 @@ export const DesktopTransportBar = ({
             {/* Uma intervencao do DJ nao abre album nenhum: mostra a capa
                 dele a falar e mais nada (features/dj). */}
             {isDjClip(song) ? (
-              <DjArtwork size={48} speaking={playing} />
+              <DjNowArtwork size={48} />
             ) : (
               <Pressable
                 accessibilityRole="button"

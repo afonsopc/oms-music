@@ -937,7 +937,9 @@
         "failed": "The DJ could not do it. Try again in a moment.",
         "homeBanner": "O Melhor DJ",
         "homeBannerSubtitle": "He introduces, you listen",
-        "remoteOnly": "You are controlling another device. The station runs on the one with the sound."
+        "remoteOnly": "You are controlling another device. The station runs on the one with the sound.",
+        "interjection": "DJ interjection",
+        "upNextHint": "He picks the next one when this ends"
       }
     }
   },
