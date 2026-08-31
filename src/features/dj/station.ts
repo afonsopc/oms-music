@@ -1,23 +1,24 @@
 /**
- * "O Melhor DJ" - a estacao (dono, 2026-08-31). O DJ deixou de ser um botao
- * que falava e saltava de musica: passou a CONDUZIR a sessao. Pede ao
- * servidor um set (quatro musicas com um fio comum + as palavras que as
- * apresentam), mete a voz na fila COMO SE FOSSE UMA MUSICA e a seguir as
- * musicas, e quando falta uma para acabar pede o set seguinte.
+ * "O Melhor DJ" - a estacao. Uma musica de cada vez (dono, 2026-08-31: "a
+ * queue do DJ deve ser sempre 1 musica so, quando ela acaba ou o user da
+ * skip ele pensa na proxima com o contexto da sessao").
  *
- * A voz vai na fila de proposito. Toca-la por fora obrigava a pausar a
- * musica, falar e retomar - era isso que fazia o "salto" da primeira
- * versao. Na fila, o motor encadeia voz e musica com o mesmo leitor e a
- * passagem soa a radio. O que a torna especial (sem scrub, sem play, sem
- * download, sem cabo) esta na guarda unica `isDjClip` - ver domain/song.ts.
+ * A SESSAO E DO SERVIDOR, como a do assistente: e ele que sabe o que ja
+ * tocou (e por isso nunca repete), o que foi saltado, o que ja disse e o que
+ * lhe pediram. Este ficheiro so diz o que aconteceu e mete na fila o que
+ * vier.
  *
- * O servidor nao guarda sessao: e daqui que vao os recentes (para nao
- * repetir), os saltados (sinal negativo) e o que ele ja disse (para nao
- * abrir todos os sets com a mesma frase).
+ * A fila CRESCE com a sessao, e nao se limpa: e ela a historia da noite, e e
+ * o que faz o botao de voltar atras funcionar sem codigo nenhum. O que se
+ * mantem em UM e a frente: ha sempre no maximo uma musica por tocar, pedida
+ * quando a actual comeca (para nao haver silencio entre elas).
+ *
+ * A voz vai na fila como se fosse uma musica; o que a torna especial esta na
+ * guarda isDjClip (domain/song.ts).
  */
 import { createStore } from "zustand/vanilla";
 import { useStore } from "zustand";
-import type { MusicDjBatch } from "@omelhorsite/sdk";
+import type { MusicDjNext, MusicDjSession } from "@omelhorsite/sdk";
 import { oms } from "@/api/oms";
 import { getTransport } from "@/contracts/transport";
 import type { SongId } from "@/domain/ids";
@@ -27,38 +28,36 @@ import { playerStore } from "@/player/store";
 import { getPlaybackView } from "@/remote/mirror";
 import { writeDjClip, type DjVoiceClip } from "./clip";
 
-/** Com uma musica por tocar ja da tempo de planear sem o silencio se notar. */
-const REFILL_WHEN_LEFT = 1;
 /** Abaixo de metade ouvida, foi salto - e o salto e sinal para o DJ. */
 const SKIP_RATIO = 0.5;
-const RECENT_MEMORY = 60;
-const SKIPPED_MEMORY = 20;
-const SPOKEN_MEMORY = 3;
 /** Falhar nao pode virar martelo: o leitor emite estado a 4 Hz. */
-const RETRY_COOLDOWN_MS = 30_000;
-/** Clips guardados em disco de cada vez. Os antigos ja tocaram. */
-const CLIP_MEMORY = 4;
+const RETRY_COOLDOWN_MS = 20_000;
+
+/** Uma volta da conversa: o que ele disse, o que pediste, o que tocou. */
+export interface DjTurn {
+  key: string;
+  role: "dj" | "listener";
+  text: string | null;
+  song: Song | null;
+}
 
 export interface DjStationState {
-  /** A sessao esta a decorrer (o DJ manda na fila). */
+  /** A estacao esta a decorrer (o DJ manda na fila). */
   active: boolean;
-  /** A pedir um set ao servidor. */
+  /** A pedir a proxima musica ao servidor. */
   planning: boolean;
   error: string | null;
   /**
-   * A estacao nao pode correr daqui: este dispositivo esta a COMANDAR outro
-   * (modo controlador). A voz e um ficheiro local e os ids sao sinteticos -
-   * nada disto atravessa o cabo.
+   * Nao da para correr daqui: este aparelho esta a COMANDAR outro. A voz e
+   * um ficheiro local e os ids do clip sao sinteticos.
    */
   remote: boolean;
-  /** O que o bloco a tocar e, em duas a cinco palavras. */
+  /** O que este bloco e, em duas a cinco palavras. */
   theme: string | null;
-  /** As palavras da ultima intervencao, para a pagina as mostrar. */
-  script: string | null;
   /** O clip do DJ e a "musica" actual: ele esta mesmo a falar agora. */
   speaking: boolean;
-  /** Quantos sets ja foram, para o guiao variar a abertura. */
-  sets: number;
+  /** A conversa toda, a mais recente no fim. */
+  turns: DjTurn[];
 }
 
 const initial: DjStationState = {
@@ -67,9 +66,8 @@ const initial: DjStationState = {
   error: null,
   remote: false,
   theme: null,
-  script: null,
   speaking: false,
-  sets: 0,
+  turns: [],
 };
 
 export const djStore = createStore<DjStationState>(() => initial);
@@ -79,14 +77,15 @@ export const useDjStation = <T,>(selector: (s: DjStationState) => T): T =>
 
 /** Ids sinteticos, sempre negativos: nenhuma musica real colide com eles. */
 let clipSeq = 0;
+let turnSeq = 0;
 
-const djClipSong = (batch: MusicDjBatch, uri: string): Song => {
+const djClipSong = (turn: MusicDjNext, uri: string): Song => {
   const now = new Date().toISOString();
   return {
     id: (--clipSeq) as SongId,
     created_at: now,
     updated_at: now,
-    title: batch.theme ?? "O Melhor DJ",
+    title: turn.theme ?? "O Melhor DJ",
     album: null,
     // Zero ate o leitor ler o ficheiro: a duracao real vem do audio, e a
     // barra nunca aparece para um clip destes.
@@ -116,48 +115,78 @@ const djClipSong = (batch: MusicDjBatch, uri: string): Song => {
     artists: [],
     audio_url: uri,
     artist_names: "O Melhor DJ",
-    dj_clip: { theme: batch.theme, script: batch.text },
+    dj_clip: { theme: turn.theme, script: turn.text ?? "" },
   };
 };
 
+const turnOf = (role: DjTurn["role"], text: string | null, song: Song | null): DjTurn => ({
+  key: `${role}-${turnSeq++}`,
+  role,
+  text,
+  song,
+});
+
 class Station {
   private unsubscribe: (() => void) | null = null;
-  private planning = false;
+  private asking = false;
   private blockedUntil = 0;
-  private recent: SongId[] = [];
-  private skipped: SongId[] = [];
-  private spoken: string[] = [];
+  private sessionId: number | null = null;
   private clips: DjVoiceClip[] = [];
   /** Os ids que ESTA sessao meteu na fila. Ver `onPlayerState`. */
   private owned = new Set<number>();
+  /** O salto por contar: vai no proximo pedido como sinal negativo. */
+  private pendingSkip: SongId | null = null;
   private watching: { id: SongId; position: number; duration: number } | null = null;
 
-  /** Comeca (ou reinicia) a sessao: o primeiro set substitui a fila. */
+  /** Comeca de novo: sessao nova no servidor, fila nova aqui. */
   async start(request?: string): Promise<void> {
     if (getPlaybackView().passive) {
       djStore.setState({ remote: true });
       return;
     }
-    djStore.setState({ active: true, error: null, remote: false, sets: 0 });
-    this.recent = [];
-    this.skipped = [];
-    this.spoken = [];
+    this.release();
+    this.sessionId = null;
     this.owned = new Set();
-    // A vigilancia so depois do primeiro set estar na fila. Antes disso o
-    // que esta a tocar e o que o ouvinte escolheu, e a guarda de "ele pegou
-    // na fila" fechava a estacao no segundo a seguir a abri-la.
-    await this.plan({ replace: true, request });
-    if (djStore.getState().active) this.watch();
+    this.pendingSkip = null;
+    this.blockedUntil = 0;
+    djStore.setState({ ...initial, active: true, turns: request ? [ turnOf("listener", request, null) ] : [] });
+
+    const turn = await this.ask({ request, restart: true });
+    if (!turn) return;
+    this.enqueue(turn, { replace: true });
+    // A vigilancia so depois de a fila ser dele: antes disto o que esta a
+    // tocar e o que o ouvinte escolheu, e a guarda de "ele pegou na fila"
+    // fechava a estacao no segundo a seguir a abri-la.
+    this.watch();
   }
 
   /**
-   * O botao do DJ a meio da sessao: ele fala JA e traz outro bloco. Com
-   * pedido e "muda a vibe"; sem pedido e "diz-me o que vem ai".
+   * O ouvinte pede alguma coisa. Ele fala JA: o que estava planeado a
+   * seguir cai (foi pensado para outra direccao) e a resposta entra aqui.
    */
-  async again(request?: string): Promise<void> {
+  async steer(request: string): Promise<void> {
     if (!djStore.getState().active) return this.start(request);
     this.blockedUntil = 0;
-    await this.plan({ replace: true, request });
+    djStore.setState({ turns: [ ...djStore.getState().turns, turnOf("listener", request, null) ] });
+    const turn = await this.ask({ request });
+    if (!turn) return;
+    this.dropUpcoming();
+    this.enqueue(turn, { next: true });
+    getTransport().next();
+  }
+
+  /**
+   * O botao dele: fala JA sobre o que vem a seguir. Nao muda a direccao da
+   * sessao - so lhe abre a boca fora da vez.
+   */
+  async speakNow(): Promise<void> {
+    if (!djStore.getState().active) return this.start();
+    this.blockedUntil = 0;
+    const turn = await this.ask({ speak: true });
+    if (!turn) return;
+    this.dropUpcoming();
+    this.enqueue(turn, { next: true });
+    getTransport().next();
   }
 
   stop(): void {
@@ -165,11 +194,20 @@ class Station {
     this.unsubscribe?.();
     this.unsubscribe = null;
     this.watching = null;
+    this.sessionId = null;
     // Sair a meio de uma frase e pior do que sair: se ele esta a falar,
     // salta-se o clip antes de o ficheiro desaparecer debaixo do leitor.
     if (isDjClip(playerStore.getState().currentSong)) getTransport().next();
-    for (const clip of this.clips) clip.release();
-    this.clips = [];
+    this.release();
+    void oms().music.social.dj.end().catch(() => undefined);
+  }
+
+  /** A conversa de uma sessao que ficou a meio, para o ecra a mostrar. */
+  async restore(): Promise<void> {
+    if (djStore.getState().active) return;
+    const session = await oms().music.social.dj.session().catch(() => null);
+    if (!session || djStore.getState().active) return;
+    djStore.setState({ turns: transcript(session), theme: null });
   }
 
   private watch(): void {
@@ -183,31 +221,27 @@ class Station {
 
     const song = state.currentSong;
     // O ouvinte pegou na fila (abriu um album, tocou uma playlist): a
-    // estacao sai de cena em vez de continuar a empurrar sets por cima do
-    // que ele escolheu. Uma radio que se recusa a calar e uma avaria.
+    // estacao sai de cena em vez de continuar a empurrar musicas por cima
+    // do que ele escolheu. Uma radio que se recusa a calar e uma avaria.
     if (song && !isDjClip(song) && !this.owned.has(song.id as number)) {
       this.stop();
       return;
     }
 
     const speaking = isDjClip(song);
-    if (speaking !== djStore.getState().speaking) {
-      djStore.setState(
-        speaking && song?.dj_clip
-          ? { speaking, theme: song.dj_clip.theme, script: song.dj_clip.script }
-          : { speaking },
-      );
-    }
+    if (speaking !== djStore.getState().speaking) djStore.setState({ speaking });
 
     this.trackProgress(song, state.position, state.duration);
 
-    const left = state.queueOrder.length - 1 - state.queueIndex;
-    if (left <= REFILL_WHEN_LEFT) void this.plan({ replace: false });
+    // Ha sempre no maximo UMA por tocar, e pede-se assim que a actual
+    // comeca: e o que evita o silencio entre musicas sem planear a noite
+    // toda a frente.
+    if (state.queueIndex >= state.queueOrder.length - 1) void this.advance();
   }
 
   /**
    * Quem mudou de musica antes de metade saltou-a. Sem isto o DJ nao tem
-   * como saber que a direccao esta errada - e o servidor conta com o sinal.
+   * como saber que a direccao esta errada.
    */
   private trackProgress(song: Song | null, position: number, duration: number): void {
     if (!song) return;
@@ -220,67 +254,96 @@ class Station {
       };
       return;
     }
-    if (watching && !this.isClipId(watching.id)) {
-      this.recent = [...this.recent, watching.id].slice(-RECENT_MEMORY);
+    if (watching && (watching.id as number) > 0) {
       const heard = watching.duration > 0 ? watching.position / watching.duration : 1;
-      if (heard < SKIP_RATIO) this.skipped = [...this.skipped, watching.id].slice(-SKIPPED_MEMORY);
+      if (heard < SKIP_RATIO) this.pendingSkip = watching.id;
     }
     this.watching = { id: song.id, position, duration };
   }
 
-  private isClipId(id: SongId): boolean {
-    return (id as number) < 0;
+  private async advance(): Promise<void> {
+    const skipped = this.pendingSkip;
+    const turn = await this.ask({ skippedSongId: skipped ?? undefined });
+    if (!turn) return;
+    this.pendingSkip = null;
+    this.enqueue(turn, {});
   }
 
-  private async plan(opts: { replace: boolean; request?: string }): Promise<void> {
-    if (this.planning || Date.now() < this.blockedUntil) return;
-    this.planning = true;
+  private async ask(input: {
+    request?: string;
+    skippedSongId?: SongId;
+    restart?: boolean;
+    speak?: boolean;
+  }): Promise<MusicDjNext | null> {
+    if (this.asking || Date.now() < this.blockedUntil) return null;
+    this.asking = true;
     djStore.setState({ planning: true, error: null });
     try {
-      const batch = await oms().music.social.dj.batch({
-        request: opts.request,
-        recentSongIds: this.recent,
-        skippedSongIds: this.skipped,
-        batchIndex: djStore.getState().sets,
-        spokenBefore: this.spoken,
+      const turn = await oms().music.social.dj.next({
+        sessionId: this.sessionId ?? undefined,
+        ...input,
       });
-      this.enqueue(batch, opts.replace);
+      this.sessionId = turn.session_id;
+      return turn;
     } catch (error) {
       // O leitor emite a 4 Hz: sem tranca, uma falha vira uma chamada por
       // cada tique. O ecra mostra o erro e o botao volta a estar la.
       this.blockedUntil = Date.now() + RETRY_COOLDOWN_MS;
       djStore.setState({ error: error instanceof Error ? error.message : String(error) });
+      return null;
     } finally {
-      this.planning = false;
+      this.asking = false;
       djStore.setState({ planning: false });
     }
   }
 
-  private enqueue(batch: MusicDjBatch, replace: boolean): void {
-    const clip = writeDjClip(batch.audio_base64, batch.format);
-    // Os clips antigos ja tocaram; guardar a sessao inteira em disco era
-    // so lixo na cache.
-    const stale = [...this.clips, clip].slice(0, -CLIP_MEMORY);
-    for (const old of stale) old.release();
-    this.clips = [...this.clips, clip].slice(-CLIP_MEMORY);
-    const voice = djClipSong(batch, clip.uri);
-    // As musicas vem serializadas pelo servidor no mesmo formato de
-    // GET /songs; o Song do SDK e o fio, o do dominio marca os ids.
-    const songs = batch.songs as unknown as Song[];
-    for (const song of songs) this.owned.add(song.id as number);
+  private enqueue(turn: MusicDjNext, opts: { replace?: boolean; next?: boolean }): void {
+    // A musica vem serializada pelo servidor no mesmo formato de GET /songs;
+    // o Song do SDK e o fio, o do dominio marca os ids.
+    const song = turn.song as unknown as Song;
+    this.owned.add(song.id as number);
+    const voice = turn.audio_base64 ? this.voiceSong(turn) : null;
     const transport = getTransport();
-    if (replace) transport.setQueue([ voice, ...songs ], 0);
-    else {
-      transport.addToQueue(voice);
-      for (const song of songs) transport.addToQueue(song);
-    }
-    this.spoken = [...this.spoken, batch.text].slice(-SPOKEN_MEMORY);
+    const entries = voice ? [ voice, song ] : [ song ];
+
+    if (opts.replace) transport.setQueue(entries, 0);
+    else if (opts.next) for (const entry of [ ...entries ].reverse()) transport.playNext(entry);
+    else for (const entry of entries) transport.addToQueue(entry);
+
     djStore.setState({
-      theme: batch.theme,
-      script: batch.text,
-      sets: djStore.getState().sets + 1,
+      theme: turn.theme ?? djStore.getState().theme,
+      turns: [ ...djStore.getState().turns, turnOf("dj", turn.text ?? null, song) ],
     });
   }
+
+  private voiceSong(turn: MusicDjNext): Song | null {
+    if (!turn.audio_base64) return null;
+    const clip = writeDjClip(turn.audio_base64, turn.format ?? "wav");
+    this.clips.push(clip);
+    return djClipSong(turn, clip.uri);
+  }
+
+  /** O que estava planeado a seguir deixa de fazer sentido. */
+  private dropUpcoming(): void {
+    const transport = getTransport();
+    const state = playerStore.getState();
+    for (let index = state.queueOrder.length - 1; index > state.queueIndex; index--) {
+      transport.removeFromQueue(index);
+    }
+  }
+
+  private release(): void {
+    for (const clip of this.clips) clip.release();
+    this.clips = [];
+  }
 }
+
+/** As voltas do servidor com as musicas ja ligadas a cada uma. */
+const transcript = (session: MusicDjSession): DjTurn[] => {
+  const songs = new Map((session.songs as unknown as Song[]).map((song) => [ song.id as number, song ]));
+  return session.turns.map((turn) =>
+    turnOf(turn.role, turn.text, turn.song_id === null ? null : (songs.get(turn.song_id) ?? null)),
+  );
+};
 
 export const djStation = new Station();
