@@ -143,8 +143,11 @@ class Station {
     this.skipped = [];
     this.spoken = [];
     this.owned = new Set();
-    this.watch();
+    // A vigilancia so depois do primeiro set estar na fila. Antes disso o
+    // que esta a tocar e o que o ouvinte escolheu, e a guarda de "ele pegou
+    // na fila" fechava a estacao no segundo a seguir a abri-la.
     await this.plan({ replace: true, request });
+    if (djStore.getState().active) this.watch();
   }
 
   /**
