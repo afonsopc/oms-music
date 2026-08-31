@@ -140,21 +140,35 @@ export ANDROID_HOME="/opt/homebrew/share/android-commandlinetools"
 export PATH="$JAVA_HOME/bin:$PATH"
 CI=1 bunx expo prebuild -p android
 echo "sdk.dir=$ANDROID_HOME" > android/local.properties
-(cd android && ./gradlew assembleRelease --no-daemon -q)
+# O :app:packageRelease falhou uma vez de forma transitoria (v1.1.0) e passou
+# a segunda sem tocar em nada: uma repeticao antes de desistir.
+(cd android && { ./gradlew assembleRelease --no-daemon -q || ./gradlew assembleRelease --no-daemon -q; })
 cp android/app/build/outputs/apk/release/app-release.apk "${OUT}/oms-music-${TAG}.apk"
 
 # --- iOS (sem assinatura) ---------------------------------------------------
+# `build` e nao `archive`: com o Xcode 27 beta o archive morria no SwiftCompile
+# de quatro pods (RNScreens, ExpoSQLite, ExpoUI, ReactNativePasskeys) com
+# "failed with exit code 0 but produced no further output", mesmo com o
+# DerivedData e as caches de modulos limpos; o mesmo Release em `build` para
+# generic/platform=iOS, com a cache de compilacao do Xcode 26+ desligada e um
+# DerivedData proprio, compila (v1.1.0, 2026-08-31). O .app de
+# Build/Products/Release-iphoneos e o mesmo que iria dentro do xcarchive.
+# Nunca apagar ios/build/: e la que o codegen do React Native escreve os
+# ficheiros gerados (ios/build/generated/ios/ReactCodegen) no pod install.
 CI=1 bunx expo prebuild -p ios
 WORKSPACE="$(ls -d ios/*.xcworkspace | head -1)"
 SCHEME="$(basename "$WORKSPACE" .xcworkspace)"
+IOS_DD="${OUT}/ios-derived-data"
 xcodebuild -workspace "$WORKSPACE" -scheme "$SCHEME" \
   -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' \
-  -archivePath "${OUT}/ios.xcarchive" archive \
-  CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" -quiet
+  -derivedDataPath "$IOS_DD" build \
+  CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+  COMPILATION_CACHE_ENABLE_CACHING=NO -quiet
+IOS_APP="$(ls -d "$IOS_DD"/Build/Products/Release-iphoneos/*.app | head -1)"
 (cd "${OUT}" && mkdir -p Payload \
-  && cp -R ios.xcarchive/Products/Applications/*.app Payload/ \
+  && cp -R "$IOS_APP" Payload/ \
   && zip -qry "oms-music-${TAG}-unsigned.ipa" Payload \
-  && rm -rf Payload ios.xcarchive)
+  && rm -rf Payload "$IOS_DD")
 
 # --- publicar ---------------------------------------------------------------
 ls -la "${OUT}"
