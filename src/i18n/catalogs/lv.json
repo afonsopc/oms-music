@@ -921,7 +921,8 @@
         "deleteChat": "Dzēst sarunu",
         "deleteChatConfirm": "Dzēst šo sarunu? To nevar atsaukt.",
         "chatLoadError": "Neizdevās ielādēt šo sarunu.",
-        "historyTitle": "Iepriekšējās sarunas"
+        "historyTitle": "Iepriekšējās sarunas",
+        "moreSongs": "un vēl {count, plural, one {# dziesma} other {# dziesmas}}"
       },
       "Dj": {
         "title": "O Melhor DJ",

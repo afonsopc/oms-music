@@ -41,21 +41,47 @@ import { collectPlayerContext, runAssistantActions } from "@/features/assistant/
 import { useAssistantChat } from "@/api/queries/assistantChats";
 import { keys } from "@/api/queryKeys";
 import { isApiError } from "@/domain/api";
+import { songArtworkSource } from "@/domain/artwork";
+import { formatArtists } from "@/domain/format";
+import type { Song } from "@/domain/song";
 import { useContentBottomPadding, useContentTopPadding } from "@/features/shell/metrics";
 import { useT } from "@/i18n";
 import { assistantChatRoute, playlistRoute } from "@/lib/routes";
 import { useTheme } from "@/theme/provider";
 import { RADIUS } from "@/theme/tokens";
-import { ErrorState, Icon } from "@/ui";
+import { ArtworkImage, ErrorState, Icon } from "@/ui";
 
 const A = "components.music.Assistant";
+/** Quantas musicas o cartao mostra antes de contar as que faltam. */
+const SONGS_SHOWN = 4;
 
 interface Bubble {
   role: "user" | "assistant";
   content: string;
   playlist?: AssistantAnswer["playlist"];
+  /**
+   * As musicas que ESTA resposta pos a tocar ou na fila. O assistente
+   * escrevia-as no texto (e chegou a copiar a ficha interna com ids e
+   * barras, dono 2026-08-31); mostra-las e trabalho da app, nao dele.
+   */
+  songs?: Song[];
   error?: boolean;
 }
+
+/** As musicas de uma resposta, pela ordem das accoes, sem repetidas. */
+const songsOf = (actions: AssistantAnswer["actions"]): Song[] => {
+  const seen = new Set<number>();
+  const songs: Song[] = [];
+  for (const action of actions ?? []) {
+    if (action.action !== "play" && action.action !== "queue") continue;
+    for (const song of action.songs as unknown as Song[]) {
+      if (seen.has(song.id)) continue;
+      seen.add(song.id);
+      songs.push(song);
+    }
+  }
+  return songs;
+};
 
 export const ChatBody = ({
   chat,
@@ -98,7 +124,12 @@ export const ChatBody = ({
           setServerChatId(answer.chat_id);
           setBubbles((prev) => [
             ...prev,
-            { role: "assistant", content: answer.reply, playlist: answer.playlist },
+            {
+              role: "assistant",
+              content: answer.reply,
+              playlist: answer.playlist,
+              songs: songsOf(answer.actions),
+            },
           ]);
           // As acções de leitor vêm validadas do servidor; executar depois
           // de mostrar a resposta, para o texto explicar o que se ouve.
@@ -264,6 +295,37 @@ export const ChatBody = ({
                 {bubble.content}
               </Text>
             </View>
+            {bubble.songs && bubble.songs.length > 0 ? (
+              <View style={{ gap: 8, paddingTop: 2 }}>
+                {bubble.songs.slice(0, SONGS_SHOWN).map((song) => (
+                  <View
+                    key={song.id}
+                    style={{ flexDirection: "row", alignItems: "center", gap: 10 }}
+                  >
+                    <ArtworkImage source={songArtworkSource(song)} songId={song.id} size={36} />
+                    <View style={{ flexShrink: 1, minWidth: 0 }}>
+                      <Text
+                        numberOfLines={1}
+                        style={{ color: tokens.foreground, fontSize: 13, fontWeight: "600" }}
+                      >
+                        {song.title}
+                      </Text>
+                      <Text
+                        numberOfLines={1}
+                        style={{ color: tokens.mutedForeground, fontSize: 12 }}
+                      >
+                        {formatArtists(song)}
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+                {bubble.songs.length > SONGS_SHOWN ? (
+                  <Text style={{ color: tokens.mutedForeground, fontSize: 12 }}>
+                    {t(`${A}.moreSongs`, { count: bubble.songs.length - SONGS_SHOWN })}
+                  </Text>
+                ) : null}
+              </View>
+            ) : null}
             {bubble.playlist ? (
               <Pressable
                 accessibilityRole="button"

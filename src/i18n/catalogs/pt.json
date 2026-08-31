@@ -921,7 +921,8 @@
         "deleteChat": "Apagar conversa",
         "deleteChatConfirm": "Apagar esta conversa? Não é possível desfazer.",
         "chatLoadError": "Não foi possível carregar esta conversa.",
-        "historyTitle": "Conversas anteriores"
+        "historyTitle": "Conversas anteriores",
+        "moreSongs": "e mais {count, plural, one {# música} other {# músicas}}"
       },
       "Dj": {
         "title": "O Melhor DJ",

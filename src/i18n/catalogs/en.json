@@ -921,7 +921,8 @@
         "deleteChat": "Delete chat",
         "deleteChatConfirm": "Delete this chat? This cannot be undone.",
         "chatLoadError": "Could not load this chat.",
-        "historyTitle": "Past chats"
+        "historyTitle": "Past chats",
+        "moreSongs": "and {count, plural, one {# more song} other {# more songs}}"
       },
       "Dj": {
         "title": "O Melhor DJ",
