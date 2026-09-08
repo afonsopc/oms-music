@@ -120,6 +120,12 @@ export const executeRemoteCommand = (
       if (Number.isFinite(volume)) engine.setVolume(volume);
       return;
     }
+    case "set_rate": {
+      // O servidor já limita a 0.5-2; o clamp é só para um cliente antigo.
+      const rate = Number(args?.rate);
+      if (Number.isFinite(rate)) engine.setRate(Math.min(2, Math.max(0.5, rate)));
+      return;
+    }
     case "add_to_queue":
     case "play_next": {
       const raw = args?.song_id;
