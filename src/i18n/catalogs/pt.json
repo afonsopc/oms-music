@@ -1164,7 +1164,7 @@
       "speed": "Velocidade",
       "preservePitch": "Manter o tom",
       "preservePitchHint": "Desligado, abrandar baixa o tom da música, como um disco a rodar mais devagar. Ligado, a música fica no mesmo tom seja qual for a velocidade.",
-      "preservePitchBlendNote": "A mistura personalizada toca por outro caminho, e nesse o tom acompanha sempre a velocidade.",
+      "preservePitchMixerNote": "Com o equalizador ligado (ou a mistura personalizada) o som passa pelo mixer, e aí o tom acompanha sempre a velocidade. Desliga-o para abrandar sem desafinar.",
       "sleepTimer": "Temporizador",
       "sleepOff": "Desligado",
       "sleepMinutes": "{minutes} min",

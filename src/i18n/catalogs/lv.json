@@ -1164,7 +1164,7 @@
       "speed": "Ātrums",
       "preservePitch": "Saglabāt toni",
       "preservePitchHint": "Izslēgts: palēninot, tonis pazeminās, kā platei, kas griežas lēnāk. Ieslēgts: dziesma patur savu toni jebkurā ātrumā.",
-      "preservePitchBlendNote": "Pielāgotais miksējums skan pa citu ceļu, un tur tonis vienmēr seko ātrumam.",
+      "preservePitchMixerNote": "Ar ieslēgtu ekvalaizeru (vai pielāgoto miksējumu) skaņa iet caur mikseri, kur tonis vienmēr seko ātrumam. Izslēdz to, lai palēninātu, nemainot toni.",
       "sleepTimer": "Miega taimeris",
       "sleepOff": "Izslēgts",
       "sleepMinutes": "{minutes} min",

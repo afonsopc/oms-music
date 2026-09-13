@@ -59,6 +59,14 @@ const SHOW_LOCK_SCREEN_SEEK_BUTTONS = Platform.OS !== "ios";
  */
 const STEM_RESYNC_TOLERANCE_S = 0.5;
 
+/**
+ * Desvio de velocidade usado para forçar o AVPlayer a reconstruir o caminho do
+ * áudio quando o interruptor do tom muda com música a tocar (ver
+ * `setPitchCorrection`). 0.1% é um sexto de um cêntimo de tom, durante um
+ * tick: inaudível.
+ */
+const PITCH_ALGORITHM_NUDGE = 0.999;
+
 const toAdapterStatus = (s: AudioStatus): AudioAdapterStatus => ({
   currentTime: s.currentTime,
   duration: Number.isFinite(s.duration) ? s.duration : 0,
@@ -275,6 +283,17 @@ export const createExpoAudioAdapter = (): AudioAdapter => {
       // Reaplicar o rate é o que faz o AVPlayer/ExoPlayer trocar de
       // algoritmo já com áudio a tocar; sem isto o flag só valia na
       // próxima mudança de velocidade.
+      //
+      // No iOS reaplicar o MESMO valor não chega: o expo-audio escreve
+      // `audioTimePitchAlgorithm` no item, mas o AVPlayer só escolhe o
+      // algoritmo quando volta a ASSUMIR uma velocidade, e atribuir a rate
+      // que ele já tem não é assumir nada. O interruptor acendia e o som
+      // ficava igual até a velocidade ir ao slider outra vez (dono, iPhone
+      // 15, 2026-09-13). Passar por um valor a 0.1% de distância e voltar
+      // logo ao certo, no mesmo tick, obriga-o a reconstruir o caminho do
+      // áudio - já com o algoritmo novo. No Android a atribuição de
+      // `PlaybackParameters` pega sempre, e o desvio não se ouve.
+      player.setPlaybackRate(rate * PITCH_ALGORITHM_NUDGE);
       player.setPlaybackRate(rate);
     },
     onStatus(cb: (s: AudioAdapterStatus) => void): () => void {

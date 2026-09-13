@@ -58,10 +58,14 @@ export const PlayerSettingsBody = ({ song }: { song: Song | null }) => {
   const { tokens } = useTheme();
   const rate = usePlayerStore((s) => s.rate);
   const pitchCorrection = usePlayerStore((s) => s.pitchCorrection);
-  // O blend personalizado toca pelo mixer nativo, e esse resample SEMPRE
-  // arrasta o tom (StemReader.kt / AVAudioUnitVarispeed): dizer o contrário
-  // seria prometer um efeito que aquele caminho não tem.
-  const blendActive = usePlayerStore((s) => s.stemPhase === "active");
+  // Enquanto o MIXER tem o som - a mistura personalizada, mas também o
+  // equalizador, que fora do custom toca o ficheiro principal pelo mesmo
+  // grafo (engine.passthroughUri) - o tom acompanha sempre a velocidade:
+  // os dois lados resolvem o rate por resample (StemReader.kt,
+  // AVAudioUnitVarispeed) e não há ali nada a esticar. `eqActive` é
+  // exactamente "o mixer está a tocar", passagem ou stems (dono, iPhone,
+  // 2026-09-13: o interruptor não fazia nada até desligar o EQ).
+  const mixerOwnsAudio = usePlayerStore((s) => s.eqActive);
   const sleepTimer = usePlayerStore((s) => s.sleepTimer);
   const abLoopA = usePlayerStore((s) => s.abLoopA);
   const abLoopB = usePlayerStore((s) => s.abLoopB);
@@ -142,8 +146,8 @@ export const PlayerSettingsBody = ({ song }: { song: Song | null }) => {
           />
         </View>
         <NoteLine text={t(`${K}.preservePitchHint`)} />
-        {pitchCorrection && blendActive ? (
-          <NoteLine text={t(`${K}.preservePitchBlendNote`)} />
+        {pitchCorrection && mixerOwnsAudio ? (
+          <NoteLine text={t(`${K}.preservePitchMixerNote`)} />
         ) : null}
       </Section>
 
