@@ -621,6 +621,7 @@ describe("separation state: no self-contradictory publish", () => {
     const ctx = makeEngineDeps();
     ctx.deps.persistence.load = () => ({
       rate: 1,
+      pitchCorrection: false,
       volume: 1,
       separationEnabled: false, // stale pair from an older install
       playbackMode: "instrumental",
@@ -654,6 +655,7 @@ describe("EQ enabled state across a relaunch", () => {
     const ctx = makeEngineDeps();
     ctx.deps.persistence.load = () => ({
       rate: 1,
+      pitchCorrection: false,
       volume: 1,
       separationEnabled: false,
       playbackMode: "original",

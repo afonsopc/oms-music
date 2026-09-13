@@ -11,7 +11,13 @@ import type { Song } from "@/domain/song";
 import { PlayerEngineImpl } from "../engine";
 import { setPlayerToastHandler } from "../recovery";
 import { playerStore, resetPlayerStore } from "../store";
-import { flush, makeEngineDeps, makeSong } from "./fakes";
+import {
+  defaultSettings,
+  flush,
+  makeEngineDeps,
+  makeSong,
+  memoryPersistence,
+} from "./fakes";
 
 
 setPlayerToastHandler(() => {});
@@ -437,6 +443,41 @@ describe("transport odds and ends", () => {
     ctx.engine.setRate(0.5);
     expect(ctx.player.rate).toBe(0.5);
     ctx.engine.dispose();
+  });
+
+  it("the pitch switch reaches the player, persists, and comes back next launch", async () => {
+    const ctx = setup();
+    // FR-64 default: a velocidade arrasta o tom.
+    expect(playerStore.getState().pitchCorrection).toBe(false);
+    expect(ctx.player.pitchCorrection).toBe(false);
+
+    ctx.engine.setPitchCorrection(true);
+    expect(playerStore.getState().pitchCorrection).toBe(true);
+    expect(ctx.player.pitchCorrection).toBe(true);
+    expect(
+      new Set(ctx.saved.flatMap((patch) => Object.keys(patch))).has("pitchCorrection"),
+    ).toBe(true);
+    // O flag vive no adapter: a velocidade seguinte já sai esticada, sem que
+    // o motor tenha de o repetir.
+    ctx.engine.setRate(0.75);
+    expect(ctx.player.pitchCorrection).toBe(true);
+    ctx.engine.dispose();
+
+    // Arranque novo com a mesma persistência (FR-65): o interruptor volta
+    // ligado, e o player recebe-o ANTES da primeira velocidade.
+    resetPlayerStore();
+    const next = makeEngineDeps({
+      persistence: memoryPersistence({
+        ...defaultSettings(),
+        rate: 0.75,
+        pitchCorrection: true,
+      }),
+    });
+    const engine = new PlayerEngineImpl(next.deps);
+    expect(playerStore.getState().pitchCorrection).toBe(true);
+    expect(next.player.pitchCorrection).toBe(true);
+    expect(next.player.rate).toBe(0.75);
+    engine.dispose();
   });
 });
 

@@ -263,6 +263,7 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
     playerStore.setState({
       volume: clamp(settings.volume, 0, 1),
       rate: clamp(settings.rate, 0.25, 4),
+      pitchCorrection: settings.pitchCorrection,
       loopMode: settings.loopMode,
       playbackMode: settings.playbackMode, // "custom" already restored as "original"
       // A restored stem mode IS separation in use. Publishing
@@ -300,6 +301,10 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
     });
     this.player.setVolume(clamp(settings.volume, 0, 1));
     this.publishVolumeSupport();
+    // Antes do rate DE PROPÓSITO: o adapter guarda o flag e reaplica-o em
+    // cada setRate, por isso a primeira velocidade já sai com o algoritmo
+    // que o utilizador escolheu.
+    this.player.setPitchCorrection?.(settings.pitchCorrection);
     this.player.setRate(this.platformRate(settings.rate));
     this.pushStemGains();
     this.pushEqualizer();
@@ -565,10 +570,16 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
   }
 
   setPitchCorrection(on: boolean): void {
-    // Session-only por desenho: o flag vive no adapter (que o reaplica em
-    // cada setRate, incluindo os do sleep fade) e nunca na persistência -
-    // o karaoke liga-o ao entrar e desliga-o ao sair, e um arranque novo
-    // volta sempre ao pitch shift deliberado do FR-64.
+    // Definição do ouvinte, ao lado do rate que ela modifica (FR-65): quem
+    // a liga é o interruptor da secção Velocidade, e ela sobrevive a um
+    // arranque novo porque abrandar sem desafinar é um hábito de quem estuda
+    // uma música, não uma escolha para repetir em cada sessão.
+    //
+    // O flag em si vive no adapter, que o reaplica em cada setRate (incluindo
+    // os do sleep fade); o karaoke pede-o emprestado e repõe este valor à
+    // saída, tal como faz com o rate e com os volumes dos stems.
+    playerStore.setState({ pitchCorrection: on });
+    this.deps.persistence.save({ pitchCorrection: on });
     this.player.setPitchCorrection?.(on);
   }
 

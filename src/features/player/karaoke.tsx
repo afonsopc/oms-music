@@ -136,6 +136,10 @@ export default function KaraokeBody() {
     const snapshot = {
       playbackMode: before.playbackMode,
       rate: before.rate,
+      // O interruptor do cog agora tem dono e persiste, por isso a saída
+      // devolve o valor DELE em vez de assumir o varispeed do FR-64: quem
+      // deixou "manter o tom" ligado não o perde por ter passado pelo karaoke.
+      pitchCorrection: before.pitchCorrection,
       vocalVolume: before.vocalVolume,
       instrumentalVolume: before.instrumentalVolume,
     };
@@ -143,10 +147,11 @@ export default function KaraokeBody() {
     // A gama do karaoke acaba em 1x; um 1.25x herdado tocaria fora do slider.
     if (before.rate > KARAOKE_MAX_RATE) engine.setRate(KARAOKE_MAX_RATE);
     return () => {
-      // Ordem deliberada: primeiro o pitch shift do FR-64 volta, depois os
-      // valores do utilizador por cima - setRate/set*Volume persistem, e é
-      // isso que garante que o empréstimo nunca sobrevive à sessão.
-      engine.setPitchCorrection(false);
+      // Ordem deliberada: primeiro volta o algoritmo que o utilizador tinha,
+      // depois os valores dele por cima - setPitchCorrection/setRate/set*Volume
+      // persistem, e é isso que garante que o empréstimo do karaoke nunca
+      // sobrevive à saída.
+      engine.setPitchCorrection(snapshot.pitchCorrection);
       engine.setRate(snapshot.rate);
       engine.setVocalVolume(snapshot.vocalVolume);
       engine.setInstrumentalVolume(snapshot.instrumentalVolume);

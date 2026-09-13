@@ -41,17 +41,29 @@ export const formatDb = (db: number): string => `${db > 0 ? "+" : ""}${db.toFixe
 
 // ---------------------------------------------------------------------------
 // Playback rate (0.5x .. 1.5x), for the speed track that sits under the preset
-// chips. Snapped to 0.05 so the readout never shows a value the presets could
-// not also produce.
+// chips. Snapped to 0.01, the two decimals the readout already shows (owner,
+// 2026-09-13): the coarser step jumped straight over the value the ear was
+// hunting for, and every preset chip is still a multiple of the step.
 // ---------------------------------------------------------------------------
 
 export const RATE_MIN = 0.5;
 export const RATE_MAX = 1.5;
-const RATE_STEP = 0.05;
+/** UI step of the speed track, in playback-rate units. */
+export const RATE_STEP = 0.01;
 
-/** Track fraction -> playback rate. */
+/** Steps per rate unit (100 at a 0.01 step): an integer divisor, on purpose. */
+const RATE_STEPS_PER_UNIT = Math.round(1 / RATE_STEP);
+
+/**
+ * Track fraction -> playback rate, snapped by MULTIPLYING into whole steps and
+ * dividing back. The obvious `Math.round(x / 0.01) * 0.01` returns
+ * 1.2100000000000002 a third of the way along the track, and that dust is what
+ * gets written into the store, persisted as a 19-character string and sent down
+ * the wire - the readout says 1.21x, the value is not one.
+ */
 export const fractionToRate = (fraction: number): number =>
-  Math.round((RATE_MIN + clamp01(fraction) * (RATE_MAX - RATE_MIN)) / RATE_STEP) * RATE_STEP;
+  Math.round((RATE_MIN + clamp01(fraction) * (RATE_MAX - RATE_MIN)) * RATE_STEPS_PER_UNIT) /
+  RATE_STEPS_PER_UNIT;
 
 /** Playback rate -> track fraction. */
 export const rateToFraction = (rate: number): number =>

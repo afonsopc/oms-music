@@ -291,6 +291,7 @@ export class FakeLocalState implements LocalPlaybackState {
       loopMode: "all",
       volume: 1,
       rate: 1,
+      pitchCorrection: false,
       playbackMode: "original",
       separationEnabled: false,
       vocalVolume: 1,

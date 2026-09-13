@@ -51,6 +51,13 @@ export interface PlayerStoreState {
    */
   volumeSupported: boolean;
   rate: number; // 0.5..1.5 in the UI
+  /**
+   * FR-64's switch: false = a rate change moves the pitch with it (varispeed,
+   * the deliberate default), true = the audio path time-stretches and the song
+   * keeps its key. The cog's Speed section owns it and it persists (FR-65);
+   * o modo karaoke pede-o emprestado enquanto está aberto e devolve-o à saída.
+   */
+  pitchCorrection: boolean;
   playbackMode: PlaybackMode;
   separationEnabled: boolean;
   vocalVolume: number;
@@ -97,6 +104,7 @@ export const initialPlayerState: PlayerStoreState = {
   volume: 1,
   volumeSupported: true,
   rate: 1,
+  pitchCorrection: false,
   playbackMode: "original",
   separationEnabled: false,
   vocalVolume: 1,

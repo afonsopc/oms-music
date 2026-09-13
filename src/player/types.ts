@@ -98,10 +98,11 @@ export interface PlayerEngineExtras {
    */
   retryStemBlend(): void;
   /**
-   * Karaoke half of FR-64: while ON the audio path preserves pitch across
-   * rate changes (time-stretch em vez do varispeed deliberado). Session-only,
-   * never persisted - quem liga é o modo karaoke e quem desliga é a saída
-   * dele, por isso um arranque novo volta sempre ao pitch shift do FR-64.
+   * The other half of FR-64: while ON the audio path preserves pitch across
+   * rate changes (time-stretch em vez do varispeed deliberado). É uma
+   * definição do OUVINTE - o interruptor vive na secção Velocidade do cog e
+   * persiste como o rate a que pertence (FR-65) - e o modo karaoke pede-a
+   * emprestada, ligando-a à entrada e repondo o valor do utilizador à saída.
    */
   setPitchCorrection(on: boolean): void;
   /** Logout wipe (FR-10): queue, source, lock screen and store back to boot. */
@@ -220,6 +221,8 @@ export interface AudioAdapter {
 /** Listener settings that persist across launches (FR-65). */
 export interface PersistedListenerSettings {
   rate: number;
+  /** FR-64 switch: true = rate changes keep the key (time-stretch). */
+  pitchCorrection: boolean;
   volume: number;
   separationEnabled: boolean;
   playbackMode: PlaybackMode; // "custom" restores as "original"

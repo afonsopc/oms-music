@@ -58,6 +58,8 @@ export class FakeAudioPlayer implements AudioAdapter {
   rate = 1;
   loaded = false;
   buffering = false;
+  /** FR-64 switch as the adapters keep it: remembered, re-applied on setRate. */
+  pitchCorrection = false;
   error: string | null = null;
   removed = false;
   lockScreenActive = false;
@@ -179,6 +181,10 @@ export class FakeAudioPlayer implements AudioAdapter {
   setRate(rate: number): void {
     this.rate = rate;
     if (this.stemsOn) this.mixerRate = rate;
+  }
+
+  setPitchCorrection(on: boolean): void {
+    this.pitchCorrection = on;
   }
 
   supportsStems(): boolean {
@@ -324,6 +330,7 @@ export class FakeAudioPlayer implements AudioAdapter {
 
 export const defaultSettings = (): PersistedListenerSettings => ({
   rate: 1,
+  pitchCorrection: false,
   volume: 1,
   separationEnabled: false,
   playbackMode: "original",
