@@ -308,6 +308,7 @@ export class FakeLocalState implements LocalPlaybackState {
       abLoopA: null,
       abLoopB: null,
       failedSongKeys: new Set(),
+      queueContext: null,
       ...initial,
     };
   }

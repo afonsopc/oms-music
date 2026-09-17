@@ -4,7 +4,14 @@
  * (FakeAudioPlayer in CI, expo-audio on device via player/register.ts).
  */
 import type { SongId, SongKey, FsNodeId } from "@/domain/ids";
-import type { EqBands, LoopMode, PlaybackMode, QueueState, StemGains } from "@/domain/playback";
+import type {
+  EqBands,
+  LoopMode,
+  PlaybackMode,
+  QueueContext,
+  QueueState,
+  StemGains,
+} from "@/domain/playback";
 import type { Song } from "@/domain/song";
 
 export type TransitionCause =
@@ -30,7 +37,11 @@ export type SleepTimerSetting = { minutes: number } | { endOfSong: true } | null
 /** The frozen public API every consumer codes against (DESIGN 7.3). */
 export interface PlayerEngine {
   // queue (delegate to queueOps, then reconcile the audio source)
-  setQueue(songs: Song[], startIndex?: number, opts?: { shuffle?: boolean }): void;
+  setQueue(
+    songs: Song[],
+    startIndex?: number,
+    opts?: { shuffle?: boolean; context?: QueueContext | null },
+  ): void;
   setQueueIndex(visibleIndex: number): void;
   setShuffle(on: boolean): void;
   addToQueue(song: Song): void;

@@ -17,10 +17,12 @@ import { setBaseTransport, type TransportActions } from "@/contracts/transport";
 import { oms } from "@/api/oms";
 import { postPlayEvent } from "@/api/queries/playEvents";
 import type { Song } from "@/domain/song";
+import { noteSongPlayed } from "@/lib/playContext";
 import { PlayerEngineImpl } from "./engine";
 import { createExpoAudioAdapter } from "./expoAudioAdapter";
 import { createListenerSettingsPersistence } from "./persistence";
 import { publishLockScreen, routeRemoteCommand, setRemoteTrackRouter } from "./lockScreen";
+import { playerStore } from "./store";
 import type { AudioAdapter } from "./types";
 import {
   createRemoteTrackRouter,
@@ -70,6 +72,14 @@ export const registerPlayerEngine = (): PlayerEngineImpl => {
     recordPlay: (songId) => {
       // Fire-and-forget: never surface failures (server dedupes 30 s repeats).
       void postPlayEvent(songId).catch(() => undefined);
+      // E a marca local que o Início usa para não promover a álbum o que
+      // foi só uma faixa de uma playlist (lib/playContext).
+      const st = playerStore.getState();
+      const song =
+        st.currentSong?.id === songId
+          ? st.currentSong
+          : (st.queue.find((s) => s.id === songId) ?? null);
+      if (song) noteSongPlayed(song, st.queueContext);
     },
     persistence: createListenerSettingsPersistence(),
     onLockScreenUpdate: (song: Song | null) => {

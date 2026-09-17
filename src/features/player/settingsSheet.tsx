@@ -28,7 +28,7 @@ import { getPlayerEngine } from "@/player/register";
 import { usePlayerStore } from "@/player/store";
 import { useRemoteStore, type RemoteStoreState } from "@/remote/store";
 import { useTheme } from "@/theme/provider";
-import { BottomSheet, Icon } from "@/ui";
+import { Icon, Popover, type PopoverAnchor } from "@/ui";
 import { EqualizerSection, SeparationSection } from "./separationSection";
 import { Chip, NoteLine, Section, SliderRow } from "./sheetControls";
 import { fractionToRate, rateToFraction } from "./blendMath";
@@ -40,18 +40,23 @@ const SLEEP_MINUTES = [5, 10, 15, 30, 60] as const;
 
 const selectIsController = (s: RemoteStoreState): boolean => s.role === "controller";
 
-export interface PlayerSettingsSheetProps {
-  visible: boolean;
+export interface PlayerSettingsPopoverProps {
+  /** Where the card's bottom-right corner sits; null keeps it closed. */
+  anchor: PopoverAnchor | null;
   onClose: () => void;
   song: Song | null;
 }
 
+/** Largura do cartão no desktop: cabe a fila de chips do temporizador inteira. */
+export const PLAYER_SETTINGS_POPOVER_WIDTH = 420;
+
 /**
  * O CORPO das definicoes de reproducao, sem moldura. Existe separado da
- * folha porque no telemovel deixou de haver folhas dentro do player: as
+ * moldura porque no telemovel deixou de haver folhas dentro do player: as
  * definicoes sao um MODO do palco, como as letras (decisao do dono
- * 2026-08-15). No desktop a barra de transporte continua a monta-lo numa
- * folha, que ali e a forma certa.
+ * 2026-08-15). No desktop a barra de transporte monta-o num popover
+ * ancorado ao botao (dono, 2026-09-17: uma folha de ecra inteiro a subir
+ * do fundo num monitor e coisa de telemovel, nao de desktop).
  */
 export const PlayerSettingsBody = ({ song }: { song: Song | null }) => {
   const t = useT();
@@ -216,11 +221,23 @@ export const PlayerSettingsBody = ({ song }: { song: Song | null }) => {
   );
 };
 
-/** A folha, que hoje so o desktop usa (barra de transporte). */
-export const PlayerSettingsSheet = ({ visible, onClose, song }: PlayerSettingsSheetProps) => {
+/**
+ * O cartao do desktop (barra de transporte): abre PARA CIMA a partir do
+ * botao, encostado a direita como ele, e cresce ate ao topo da janela antes
+ * de passar a rolar. Nunca tapa a propria barra: o maxHeight e a distancia
+ * do botao ao topo.
+ */
+export const PlayerSettingsPopover = ({ anchor, onClose, song }: PlayerSettingsPopoverProps) => {
   return (
-    <BottomSheet visible={visible} onClose={onClose}>
+    <Popover
+      visible={anchor != null}
+      anchor={anchor ?? { x: 0, y: 0 }}
+      onClose={onClose}
+      width={PLAYER_SETTINGS_POPOVER_WIDTH}
+      maxHeight={anchor ? Math.max(240, anchor.y - 16) : 240}
+      side={{ vertical: "above", horizontal: "end" }}
+    >
       <PlayerSettingsBody song={song} />
-    </BottomSheet>
+    </Popover>
   );
 };

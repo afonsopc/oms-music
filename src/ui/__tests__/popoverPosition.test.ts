@@ -35,4 +35,20 @@ describe("popoverPlacement", () => {
     const placed = popoverPlacement({ x: 100, y: 100 }, SIZE, { width: 200, height: 200 });
     expect(placed).toEqual({ left: POPOVER_MARGIN, top: POPOVER_MARGIN });
   });
+
+  test("above/end puts the anchor at the card's bottom-right corner", () => {
+    expect(
+      popoverPlacement({ x: 1000, y: 800 }, SIZE, WINDOW, POPOVER_MARGIN, {
+        vertical: "above",
+        horizontal: "end",
+      }),
+    ).toEqual({ left: 1000 - SIZE.width, top: 800 - SIZE.height });
+  });
+
+  test("above still clamps when the anchor is too close to the top", () => {
+    const placed = popoverPlacement({ x: 100, y: 50 }, SIZE, WINDOW, POPOVER_MARGIN, {
+      vertical: "above",
+    });
+    expect(placed).toEqual({ left: 100, top: POPOVER_MARGIN });
+  });
 });

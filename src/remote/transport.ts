@@ -15,7 +15,7 @@
  *   cross the wire; volume DOES (it is the active device's output).
  */
 import type { TransportActions } from "@/contracts/transport";
-import type { LoopMode } from "@/domain/playback";
+import type { LoopMode, QueueContext } from "@/domain/playback";
 import type { Song } from "@/domain/song";
 import type { LocalPlaybackState, RemoteEngine } from "./localPlayer";
 import { normalizeWireSongId } from "./snapshot";
@@ -144,7 +144,11 @@ export const createRemoteTransportDecorator =
         }
         base.reorderQueue(fromVisible, toVisible);
       },
-      setQueue: (songs: Song[], startIndex?: number, opts?: { shuffle?: boolean }) => {
+      setQueue: (
+        songs: Song[],
+        startIndex?: number,
+        opts?: { shuffle?: boolean; context?: QueueContext | null },
+      ) => {
         // Replacing the queue makes THIS device the player, exactly like
         // pressing play on a second Spotify device.
         if (isController() || isNoActive()) {

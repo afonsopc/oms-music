@@ -74,6 +74,7 @@ export {
   POPOVER_MARGIN,
   type PopoverAnchor,
   type PopoverPlacement,
+  type PopoverSide,
 } from "./popoverPosition";
 export { Rail, type RailProps } from "./Rail";
 export {

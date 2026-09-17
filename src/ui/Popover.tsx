@@ -20,7 +20,12 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-import { popoverPlacement, type PopoverAnchor } from "./popoverPosition";
+import {
+  popoverPlacement,
+  POPOVER_MARGIN,
+  type PopoverAnchor,
+  type PopoverSide,
+} from "./popoverPosition";
 import { heavyShadow } from "./uiTheme";
 import { useT } from "@/i18n";
 import { useTheme } from "@/theme/provider";
@@ -32,9 +37,21 @@ export interface PopoverProps {
   children: React.ReactNode;
   /** Card width; menus read best around 300px. */
   width?: number;
+  /** Tallest the card may grow before its content scrolls (default 480). */
+  maxHeight?: number;
+  /** Which corner of the card sits at the anchor (default: top-left). */
+  side?: PopoverSide;
 }
 
-export const Popover = ({ visible, anchor, onClose, children, width = 300 }: PopoverProps) => {
+export const Popover = ({
+  visible,
+  anchor,
+  onClose,
+  children,
+  width = 300,
+  maxHeight: maxHeightProp = 480,
+  side,
+}: PopoverProps) => {
   const { tokens } = useTheme();
   const closeLabel = useT()("native.common.close");
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
@@ -42,11 +59,13 @@ export const Popover = ({ visible, anchor, onClose, children, width = 300 }: Pop
 
   if (!visible) return null;
 
-  const maxHeight = Math.min(480, windowHeight - 16);
+  const maxHeight = Math.min(maxHeightProp, windowHeight - 16);
   const placement = popoverPlacement(
     anchor,
     { width, height: measuredHeight ?? maxHeight },
     { width: windowWidth, height: windowHeight },
+    POPOVER_MARGIN,
+    side,
   );
 
   return (

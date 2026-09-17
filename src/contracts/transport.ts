@@ -5,7 +5,7 @@
  * validated cable commands). The pre-registration default is an inert no-op
  * so packages can land in any order.
  */
-import type { LoopMode } from "@/domain/playback";
+import type { LoopMode, QueueContext } from "@/domain/playback";
 import type { Song } from "@/domain/song";
 
 export interface TransportActions {
@@ -24,7 +24,11 @@ export interface TransportActions {
   playNext(song: Song): void;
   removeFromQueue(visibleIndex: number): void;
   reorderQueue(fromVisible: number, toVisible: number): void;
-  setQueue(songs: Song[], startIndex?: number, opts?: { shuffle?: boolean }): void;
+  setQueue(
+    songs: Song[],
+    startIndex?: number,
+    opts?: { shuffle?: boolean; context?: QueueContext | null },
+  ): void;
 }
 
 const noop = (): void => {};

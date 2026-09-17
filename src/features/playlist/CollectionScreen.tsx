@@ -15,6 +15,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ActivityIndicator, FlatList, useWindowDimensions, View } from "react-native";
 import { useLikedIds, useToggleLike } from "@/api/queries/likedSongs";
 import { getTransport } from "@/contracts/transport";
+import type { QueueContext } from "@/domain/playback";
 import { recordRecentCollection, type RecentCollection } from "@/lib/recentCollections";
 import type { SongMenuItem } from "@/contracts/songMenu";
 import type { ArtworkSource } from "@/domain/artwork";
@@ -236,6 +237,12 @@ export const CollectionScreen = ({
   const markRecent = useCallback(() => {
     if (recentEntry) recordRecentCollection(recentEntry);
   }, [recentEntry]);
+  // E a fila fica a saber de onde veio, para o Início não tomar cada faixa
+  // desta colecção por um álbum escolhido de propósito (lib/playContext).
+  const queueContext = useMemo<QueueContext | null>(
+    () => (recentEntry ? { kind: recentEntry.kind, key: recentEntry.key } : null),
+    [recentEntry],
+  );
 
   const handlePlay = useCallback(() => {
     if (visibleSongs.length === 0) return;
@@ -244,21 +251,21 @@ export const CollectionScreen = ({
       return;
     }
     markRecent();
-    getTransport().setQueue(visibleSongs, 0);
-  }, [visibleSongs, isPlayingThisCollection, markRecent]);
+    getTransport().setQueue(visibleSongs, 0, { context: queueContext });
+  }, [visibleSongs, isPlayingThisCollection, markRecent, queueContext]);
 
   const handleShuffle = useCallback(() => {
     if (visibleSongs.length === 0) return;
     markRecent();
-    getTransport().setQueue(visibleSongs, undefined, { shuffle: true });
-  }, [visibleSongs, markRecent]);
+    getTransport().setQueue(visibleSongs, undefined, { shuffle: true, context: queueContext });
+  }, [visibleSongs, markRecent, queueContext]);
 
   const handleRowPlay = useCallback(
     (_song: Song, index: number) => {
       markRecent();
-      getTransport().setQueue(visibleSongs, index);
+      getTransport().setQueue(visibleSongs, index, { context: queueContext });
     },
-    [visibleSongs, markRecent],
+    [visibleSongs, markRecent, queueContext],
   );
 
   const handleToggleOffline = useCallback(() => {

@@ -21,7 +21,7 @@
  *
  * Web-only by construction: only DesktopShell.web.tsx imports this file.
  */
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { songArtistRoute, songHighlightRoute } from "@/lib/routes";
@@ -38,10 +38,10 @@ import { usePlayerStore } from "@/player/store";
 import { usePlaybackView } from "@/remote/mirror";
 import { useRemoteStore } from "@/remote/store";
 import { useTheme } from "@/theme/provider";
-import { ArtworkImage, GhostIconButton, PlayFab } from "@/ui";
+import { ArtworkImage, GhostIconButton, PlayFab, type PopoverAnchor } from "@/ui";
 import { CinemaOverlay, toggleCinema } from "@/features/player/cinema";
 import { DjButton } from "./DjButton";
-import { PlayerSettingsSheet } from "@/features/player/settingsSheet";
+import { PlayerSettingsPopover } from "@/features/player/settingsSheet";
 import { Slider } from "@/features/player/Slider";
 import type { RightPanelTenant } from "./rightPanelModel";
 
@@ -139,7 +139,20 @@ export const DesktopTransportBar = ({
   useShellSlotsVersion();
 
   const song = usePlaybackView((v) => v.song);
-  const [playbackSettingsOpen, setPlaybackSettingsOpen] = useState(false);
+  // O popover das definicoes ancora ao canto superior direito do botao,
+  // medido na hora do clique (o botao vive numa barra fixa ao fundo; a
+  // janela pode ter mudado de tamanho desde a ultima medida).
+  const [playbackSettingsAnchor, setPlaybackSettingsAnchor] = useState<PopoverAnchor | null>(
+    null,
+  );
+  const playbackSettingsButton = useRef<View>(null);
+  const openPlaybackSettings = (): void => {
+    const node = playbackSettingsButton.current;
+    if (!node) return;
+    node.measureInWindow((x, y, width) => {
+      setPlaybackSettingsAnchor({ x: x + width, y: y - 8 });
+    });
+  };
   const playing = usePlaybackView((v) => v.playing);
   const buffering = usePlaybackView((v) => v.buffering);
   const shuffle = usePlaybackView((v) => v.shuffle);
@@ -368,13 +381,15 @@ export const DesktopTransportBar = ({
         {/* Sem nada a tocar tambem se comeca uma estacao: e ela que ENCHE
             a fila (dono, 2026-08-31). */}
         <DjButton disabled={false} />
-        <GhostIconButton
-          icon="audio-waveform"
-          size={17}
-          disabled={!song}
-          accessibilityLabel={t("components.music.Settings.PlaybackPage.title")}
-          onPress={() => setPlaybackSettingsOpen(true)}
-        />
+        <View ref={playbackSettingsButton} collapsable={false}>
+          <GhostIconButton
+            icon="audio-waveform"
+            size={17}
+            disabled={!song}
+            accessibilityLabel={t("components.music.Settings.PlaybackPage.title")}
+            onPress={openPlaybackSettings}
+          />
+        </View>
         <GhostIconButton
           icon="maximize"
           size={18}
@@ -386,9 +401,9 @@ export const DesktopTransportBar = ({
       {/* Mounted here because the bar exists at every desktop width; the
           overlay positions itself against the window, not this row. */}
       <CinemaOverlay />
-      <PlayerSettingsSheet
-        visible={playbackSettingsOpen}
-        onClose={() => setPlaybackSettingsOpen(false)}
+      <PlayerSettingsPopover
+        anchor={playbackSettingsAnchor}
+        onClose={() => setPlaybackSettingsAnchor(null)}
         song={song}
       />
     </View>

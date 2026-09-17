@@ -54,7 +54,9 @@ import {
   TopTileGrid,
   type TopTileItem,
 } from "@/ui";
- import { getRecentCollections, subscribeRecentCollections } from "@/lib/recentCollections";
+import { hiddenByCollectionPlay } from "@/lib/albumPlayMarks";
+import { getAlbumPlayMarks, subscribeAlbumPlayMarks } from "@/lib/playContext";
+import { getRecentCollections, subscribeRecentCollections } from "@/lib/recentCollections";
 import { TabHeader } from "@/features/shell/TabHeader";
 import { useFriendsStripActive, useFriendsStripSlot } from "./friendsSlot";
 
@@ -171,6 +173,13 @@ export default function HomeScreen() {
     getRecentCollections,
     getRecentCollections,
   );
+  // O que este aparelho sabe e o servidor não: quais destas escutas vieram
+  // de DENTRO de uma colecção (lib/albumPlayMarks explica a regra).
+  const albumPlayMarks = useSyncExternalStore(
+    subscribeAlbumPlayMarks,
+    getAlbumPlayMarks,
+    getAlbumPlayMarks,
+  );
 
   const recentTiles = useMemo(() => {
     const out: { at: number; item: TopTileItem }[] = [];
@@ -203,6 +212,10 @@ export default function HomeScreen() {
       const segment = artistRouteSegment(album.artist) ?? "null";
       const id = `album:${segment}::${album.album ?? "null"}`;
       if (seen.has(id)) continue;
+      // Tocar a playlist "pagman" não é escolher os álbuns das faixas dela:
+      // um álbum cuja última escuta veio de dentro de uma colecção fica de
+      // fora da grelha (a colecção já lá está pela via local).
+      if (hiddenByCollectionPlay(albumPlayMarks[id], album.last_played_at)) continue;
       seen.add(id);
       out.push({
         at: Date.parse(album.last_played_at) || 0,
@@ -216,7 +229,7 @@ export default function HomeScreen() {
     }
     out.sort((a, b) => b.at - a.at);
     return out.map((x) => x.item);
-  }, [localRecents, recentAlbums, router, t]);
+  }, [localRecents, albumPlayMarks, recentAlbums, router, t]);
 
   const quickItems: TopTileItem[] = [
     {

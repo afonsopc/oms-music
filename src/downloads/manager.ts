@@ -17,6 +17,7 @@ import type { SQLiteDatabase } from "expo-sqlite";
 import { getLyrics } from "@/api/queries/lyrics";
 import { closeUserDb, openUserDb } from "@/db/index";
 import { kvGet, kvSet } from "@/db/kv";
+import { clearAlbumPlayMarks } from "@/lib/playContext";
 import { clearRecentCollections } from "@/lib/recentCollections";
 import { isApiError } from "@/domain/api";
 import type { DownloadEntry, DownloadKind, LyricsState, SongDownloadStatus } from "@/domain/downloads";
@@ -185,6 +186,7 @@ const wipeLegacyNodeArtifactsOnce = (): void => {
     // pointed at them are gone), and ensureUserDownloadDirectory recreates.
   }
   clearRecentCollections();
+  clearAlbumPlayMarks();
   kvSet(MEDIA_WIPE_KV_KEY, "1");
 };
 

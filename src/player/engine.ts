@@ -12,7 +12,13 @@
  */
 import type { FsNodeId, SongId, SongKey } from "@/domain/ids";
 import { toSongKey } from "@/domain/ids";
-import type { EqBands, LoopMode, PlaybackMode, QueueState } from "@/domain/playback";
+import type {
+  EqBands,
+  LoopMode,
+  PlaybackMode,
+  QueueContext,
+  QueueState,
+} from "@/domain/playback";
 import type { Song } from "@/domain/song";
 import { getPlaybackInterceptor } from "@/contracts/playbackInterceptor";
 import { getStemFileProvider } from "@/contracts/stemFiles";
@@ -358,9 +364,16 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
 
   // ----- queue operations ---------------------------------------------------
 
-  setQueue(songs: Song[], startIndex?: number, opts?: { shuffle?: boolean }): void {
+  setQueue(
+    songs: Song[],
+    startIndex?: number,
+    opts?: { shuffle?: boolean; context?: QueueContext | null },
+  ): void {
     const shuffle = opts?.shuffle ?? this.q.shuffle;
     this.q = ops.setQueue(songs, shuffle, startIndex);
+    // A colecção de onde a fila nasceu (ou null): só muda quando a fila é
+    // SUBSTITUÍDA. Adicionar à fila ou saltar de música não a altera.
+    playerStore.setState({ queueContext: opts?.context ?? null });
     this.syncQueue();
     // `reassert`: this call means "play THIS", so landing on the song that is
     // already current must still produce audio (see handleSongTransition).

@@ -1,6 +1,18 @@
 import type { Song } from "./song";
 
 export type LoopMode = "none" | "one" | "all";
+
+/**
+ * De onde a fila NASCEU: a colecção que o utilizador carregou (playlist,
+ * álbum, mix, Gostadas, rádio). null quando a fila veio de uma música
+ * escolhida à unidade (pesquisa, uma linha do Início, o assistente). Só o
+ * Início lê isto (lib/playContext): uma música tocada de DENTRO de uma
+ * playlist não é uma escolha deliberada do álbum dela (dono, 2026-09-17).
+ */
+export interface QueueContext {
+  kind: "playlist" | "album" | "liked" | "mix" | "radio";
+  key: string;
+}
 export type PlaybackMode = "original" | "instrumental" | "vocals" | "custom";
 
 /**

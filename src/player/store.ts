@@ -8,7 +8,7 @@
 import { createStore } from "zustand/vanilla";
 import { useStore } from "zustand";
 import type { SongKey } from "@/domain/ids";
-import type { LoopMode, PlaybackMode } from "@/domain/playback";
+import type { LoopMode, PlaybackMode, QueueContext } from "@/domain/playback";
 import type { Song } from "@/domain/song";
 
 /**
@@ -87,6 +87,8 @@ export interface PlayerStoreState {
   abLoopA: number | null;
   abLoopB: number | null;
   failedSongKeys: ReadonlySet<SongKey>;
+  /** De que colecção a fila actual nasceu; null = músicas escolhidas à unidade. */
+  queueContext: QueueContext | null;
 }
 
 export const initialPlayerState: PlayerStoreState = {
@@ -121,6 +123,7 @@ export const initialPlayerState: PlayerStoreState = {
   abLoopA: null,
   abLoopB: null,
   failedSongKeys: new Set<SongKey>(),
+  queueContext: null,
 };
 
 export const playerStore = createStore<PlayerStoreState>()(() => ({
