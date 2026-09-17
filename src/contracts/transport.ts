@@ -5,7 +5,7 @@
  * validated cable commands). The pre-registration default is an inert no-op
  * so packages can land in any order.
  */
-import type { LoopMode, QueueContext } from "@/domain/playback";
+import type { EqBands, LoopMode, PlaybackMode, QueueContext } from "@/domain/playback";
 import type { Song } from "@/domain/song";
 
 export interface TransportActions {
@@ -17,6 +17,18 @@ export interface TransportActions {
   seek(seconds: number): void;
   setVolume(volume: number): void;
   setRate(rate: number): void;
+  /**
+   * Definições de escuta do dispositivo que TOCA. Localmente vão ao motor;
+   * a controlar outro aparelho viajam como comandos (remote/transport.ts),
+   * tal como a velocidade e o volume. O tom (pitchCorrection), o
+   * temporizador e o loop A-B ficam fora: são deste aparelho e de mais
+   * ninguém.
+   */
+  setPlaybackMode(mode: PlaybackMode): void;
+  setEqBand(band: keyof EqBands, db: number): void;
+  setEqEnabled(on: boolean): void;
+  setVocalVolume(volume: number): void;
+  setInstrumentalVolume(volume: number): void;
   setLoopMode(mode: LoopMode): void;
   setShuffle(on: boolean): void;
   setQueueIndex(visibleIndex: number): void;
@@ -42,6 +54,11 @@ const inertTransport: TransportActions = {
   seek: noop,
   setVolume: noop,
   setRate: noop,
+  setPlaybackMode: noop,
+  setEqBand: noop,
+  setEqEnabled: noop,
+  setVocalVolume: noop,
+  setInstrumentalVolume: noop,
   setLoopMode: noop,
   setShuffle: noop,
   setQueueIndex: noop,

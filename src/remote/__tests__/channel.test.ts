@@ -329,6 +329,29 @@ describe("command routing (FR-109 executor)", () => {
     cable.push({ type: "command", command: "pause", args: {}, target_device_id: ME });
     expect(engine.calls).toContain("pause");
   });
+
+  it("executes the listening-setting commands and drops malformed ones", () => {
+    const { cable, engine } = start();
+    cable.push(snapshotFrame({ active_device_id: ME }));
+    const push = (command: string, args: Record<string, unknown>): void =>
+      cable.push({ type: "command", command, args, target_device_id: ME });
+    push("set_playback_mode", { mode: "instrumental" });
+    expect(engine.mode).toBe("instrumental");
+    push("set_playback_mode", { mode: "karaoke" });
+    expect(engine.mode).toBe("instrumental");
+    push("set_eq_band", { band: "low", db: 4 });
+    push("set_eq_enabled", { enabled: true });
+    push("set_stem_volume", { stem: "vocal", volume: 0.5 });
+    push("set_stem_volume", { stem: "instrumental", volume: 0.5 });
+    for (const name of ["setEqBand", "setEqEnabled", "setVocalVolume", "setInstrumentalVolume"]) {
+      expect(engine.calls).toContain(name);
+    }
+    const before = engine.calls.length;
+    push("set_eq_band", { band: "sub", db: 4 });
+    push("set_stem_volume", { stem: "drums", volume: 0.5 });
+    push("set_eq_enabled", { enabled: "yes" });
+    expect(engine.calls.length).toBe(before);
+  });
 });
 
 describe("transport decorator (FR-109/111, FR-63 remote half)", () => {
@@ -357,6 +380,21 @@ describe("transport decorator (FR-109/111, FR-63 remote half)", () => {
     },
     setRate() {
       this.calls.push("setRate");
+    },
+    setPlaybackMode() {
+      this.calls.push("setPlaybackMode");
+    },
+    setEqBand() {
+      this.calls.push("setEqBand");
+    },
+    setEqEnabled() {
+      this.calls.push("setEqEnabled");
+    },
+    setVocalVolume() {
+      this.calls.push("setVocalVolume");
+    },
+    setInstrumentalVolume() {
+      this.calls.push("setInstrumentalVolume");
     },
     setLoopMode() {
       this.calls.push("setLoopMode");
@@ -414,6 +452,38 @@ describe("transport decorator (FR-109/111, FR-63 remote half)", () => {
       { command: "add_to_queue", args: { song_id: "7" } },
     ]);
     expect(base.calls).toEqual([]);
+  });
+
+  it("sends the listening settings to the active device while controlling", () => {
+    const harness = start();
+    const transport = decorate(harness);
+    harness.cable.push(snapshotFrame({ active_device_id: OTHER }));
+    transport.setPlaybackMode("instrumental");
+    transport.setEqBand("low", 6);
+    transport.setEqEnabled(true);
+    transport.setVocalVolume(0.25);
+    transport.setInstrumentalVolume(1);
+    const commands = harness.cable.sent
+      .filter((f) => f.action === "command")
+      .map((f) => f.data);
+    expect(commands).toEqual([
+      { command: "set_playback_mode", args: { mode: "instrumental" } },
+      { command: "set_eq_band", args: { band: "low", db: 6 } },
+      { command: "set_eq_enabled", args: { enabled: true } },
+      { command: "set_stem_volume", args: { stem: "vocal", volume: 0.25 } },
+      { command: "set_stem_volume", args: { stem: "instrumental", volume: 1 } },
+    ]);
+    expect(base.calls).toEqual([]);
+  });
+
+  it("applies the listening settings locally while active", () => {
+    const harness = start();
+    const transport = decorate(harness);
+    harness.cable.push(snapshotFrame({ active_device_id: ME }));
+    transport.setPlaybackMode("vocals");
+    transport.setEqBand("mid", -3);
+    expect(base.calls).toEqual(["setPlaybackMode", "setEqBand"]);
+    expect(harness.cable.sent.filter((f) => f.action === "command")).toEqual([]);
   });
 
   it("sends set_rate to the active device while controlling", () => {

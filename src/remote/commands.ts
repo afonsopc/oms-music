@@ -13,13 +13,17 @@
  */
 import { toSongId } from "@/domain/ids";
 import type { SongId } from "@/domain/ids";
-import type { LoopMode } from "@/domain/playback";
+import type { EqBands, LoopMode, PlaybackMode } from "@/domain/playback";
 import type { Song } from "@/domain/song";
 import { getJamCommandHandler } from "./jamBridge";
 import type { LocalPlaybackState, RemoteEngine } from "./localPlayer";
 import { planOrderMoves } from "./orderPlan";
 
 const isLoopMode = (v: unknown): v is LoopMode => v === "none" || v === "one" || v === "all";
+const isPlaybackMode = (v: unknown): v is PlaybackMode =>
+  v === "original" || v === "instrumental" || v === "vocals" || v === "custom";
+const isEqBand = (v: unknown): v is keyof EqBands => v === "low" || v === "mid" || v === "high";
+const clamp = (n: number, min: number, max: number): number => Math.min(max, Math.max(min, n));
 
 const asInt = (v: unknown): number | null => {
   const n = Number(v);
@@ -123,7 +127,32 @@ export const executeRemoteCommand = (
     case "set_rate": {
       // O servidor já limita a 0.5-2; o clamp é só para um cliente antigo.
       const rate = Number(args?.rate);
-      if (Number.isFinite(rate)) engine.setRate(Math.min(2, Math.max(0.5, rate)));
+      if (Number.isFinite(rate)) engine.setRate(clamp(rate, 0.5, 2));
+      return;
+    }
+    // Definições de escuta vindas de um controlador (dono, 2026-09-17). O
+    // motor é o mesmo que o cog local chama; sem mixer nesta build o
+    // `custom` cai no mix simples como cairia com o dedo no chip.
+    case "set_playback_mode": {
+      if (isPlaybackMode(args?.mode)) engine.setPlaybackMode(args.mode);
+      return;
+    }
+    case "set_eq_band": {
+      const db = Number(args?.db);
+      if (isEqBand(args?.band) && Number.isFinite(db)) {
+        engine.setEqBand(args.band, clamp(db, -12, 12));
+      }
+      return;
+    }
+    case "set_eq_enabled": {
+      if (typeof args?.enabled === "boolean") engine.setEqEnabled(args.enabled);
+      return;
+    }
+    case "set_stem_volume": {
+      const volume = Number(args?.volume);
+      if (!Number.isFinite(volume)) return;
+      if (args?.stem === "vocal") engine.setVocalVolume(clamp(volume, 0, 1));
+      else if (args?.stem === "instrumental") engine.setInstrumentalVolume(clamp(volume, 0, 1));
       return;
     }
     case "add_to_queue":

@@ -15,7 +15,7 @@
  *   cross the wire; volume DOES (it is the active device's output).
  */
 import type { TransportActions } from "@/contracts/transport";
-import type { LoopMode, QueueContext } from "@/domain/playback";
+import type { EqBands, LoopMode, PlaybackMode, QueueContext } from "@/domain/playback";
 import type { Song } from "@/domain/song";
 import type { LocalPlaybackState, RemoteEngine } from "./localPlayer";
 import { normalizeWireSongId } from "./snapshot";
@@ -115,6 +115,31 @@ export const createRemoteTransportDecorator =
       setRate: (rate: number) => {
         if (isController()) return deps.sendCommand("set_rate", { rate });
         base.setRate(rate);
+      },
+      // O modo, o EQ e os volumes dos stems vão pelo mesmo cabo: o executor
+      // do lado de lá (remote/commands.ts) entrega-os ao motor que tem o som,
+      // e o snapshot traz-nos os valores de volta para o cog espelhar.
+      setPlaybackMode: (mode: PlaybackMode) => {
+        if (isController()) return deps.sendCommand("set_playback_mode", { mode });
+        base.setPlaybackMode(mode);
+      },
+      setEqBand: (band: keyof EqBands, db: number) => {
+        if (isController()) return deps.sendCommand("set_eq_band", { band, db });
+        base.setEqBand(band, db);
+      },
+      setEqEnabled: (on: boolean) => {
+        if (isController()) return deps.sendCommand("set_eq_enabled", { enabled: on });
+        base.setEqEnabled(on);
+      },
+      setVocalVolume: (volume: number) => {
+        if (isController()) return deps.sendCommand("set_stem_volume", { stem: "vocal", volume });
+        base.setVocalVolume(volume);
+      },
+      setInstrumentalVolume: (volume: number) => {
+        if (isController()) {
+          return deps.sendCommand("set_stem_volume", { stem: "instrumental", volume });
+        }
+        base.setInstrumentalVolume(volume);
       },
       setLoopMode: (mode: LoopMode) => {
         if (isController()) return deps.sendCommand("set_loop_mode", { mode });
