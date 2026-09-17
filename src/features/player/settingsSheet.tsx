@@ -77,6 +77,9 @@ export const PlayerSettingsBody = ({ song }: { song: Song | null }) => {
   // Controlling another device: this player owns no audio, so every setting
   // in this sheet would write state nobody ever hears (FR-109).
   const localDisabled = useRemoteStore(selectIsController);
+  // O EQ corre no grafo do mixer; sem mixer (web, shell macOS) os sliders
+  // não mexiam em nada. Escondido até haver grafo Web Audio (dono, 2026-09-17).
+  const stemMixerAvailable = usePlayerStore((s) => s.stemMixerAvailable);
 
   const sleepMinutes =
     sleepTimer && "minutes" in sleepTimer ? sleepTimer.minutes : null;
@@ -215,7 +218,7 @@ export const PlayerSettingsBody = ({ song }: { song: Song | null }) => {
         <SeparationSection song={song} disabled={localDisabled} />
       ) : null}
 
-      <EqualizerSection disabled={localDisabled} />
+      {stemMixerAvailable ? <EqualizerSection disabled={localDisabled} /> : null}
       <View style={{ height: 12 }} />
     </>
   );

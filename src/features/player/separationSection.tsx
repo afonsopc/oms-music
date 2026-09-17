@@ -200,7 +200,12 @@ export const SeparationSection = ({ song, disabled }: { song: Song; disabled: bo
       {
         <View>
           <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
-            {MODES.map((mode) => (
+            {/* Sem mixer nesta build (web, e por isso o shell macOS) a
+                mistura personalizada não existe: o chip desaparece em vez
+                de ficar cinzento a prometer o que não há (dono, 2026-09-17).
+                Original / Instrumental / Vozes são ficheiros à parte e
+                tocam em qualquer lado. */}
+            {MODES.filter((mode) => mode !== "custom" || stemMixerAvailable).map((mode) => (
               <Chip
                 key={mode}
                 label={t(MODE_LABEL[mode])}
@@ -208,8 +213,6 @@ export const SeparationSection = ({ song, disabled }: { song: Song; disabled: bo
                 disabled={
                   disabled ||
                   (mode !== "original" && !stemsReady) ||
-                  // No mixer in this build: custom would play the plain mix.
-                  (mode === "custom" && !stemMixerAvailable) ||
                   // Offline sem o ficheiro do stem: o modo tocaria o mixed.
                   stemModeOfflineUnavailable(mode)
                 }
@@ -223,9 +226,6 @@ export const SeparationSection = ({ song, disabled }: { song: Song; disabled: bo
           (stemModeOfflineUnavailable("instrumental") ||
             stemModeOfflineUnavailable("vocals")) ? (
             <NoteLine text={t(`${K}.modeUnavailableOffline`)} />
-          ) : null}
-          {stemsReady && !stemMixerAvailable && !inCustom ? (
-            <NoteLine text={t(`${K}.modeCustomUnavailable`)} />
           ) : null}
 
           {inCustom ? (
@@ -290,7 +290,6 @@ export const EqualizerSection = ({ disabled }: { disabled: boolean }) => {
   const eqLow = usePlayerStore((s) => s.eqLow);
   const eqMid = usePlayerStore((s) => s.eqMid);
   const eqHigh = usePlayerStore((s) => s.eqHigh);
-  const stemMixerAvailable = usePlayerStore((s) => s.stemMixerAvailable);
   const eqActive = usePlayerStore((s) => s.eqActive);
 
   const values: EqBands = { low: eqLow, mid: eqMid, high: eqHigh };
@@ -337,12 +336,8 @@ export const EqualizerSection = ({ disabled }: { disabled: boolean }) => {
 
       {/* The EQ needs the mixer graph, and the graph reads local files only:
           when a streamed song leaves it silent, say so instead of letting the
-          sliders lie. */}
-      {!stemMixerAvailable ? (
-        <NoteLine text={t(`${K}.modeCustomUnavailable`)} />
-      ) : eqEnabled && !flat && !eqActive ? (
-        <NoteLine text={t(`${K}.eqNeedsLocal`)} />
-      ) : null}
+          sliders lie. (No-mixer builds never mount this section.) */}
+      {eqEnabled && !flat && !eqActive ? <NoteLine text={t(`${K}.eqNeedsLocal`)} /> : null}
     </Section>
   );
 };
