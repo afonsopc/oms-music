@@ -61,7 +61,7 @@ export const PLAYER_SETTINGS_POPOVER_WIDTH = 420;
 export const PlayerSettingsBody = ({ song }: { song: Song | null }) => {
   const t = useT();
   const { tokens } = useTheme();
-  const rate = usePlayerStore((s) => s.rate);
+  const localRate = usePlayerStore((s) => s.rate);
   const pitchCorrection = usePlayerStore((s) => s.pitchCorrection);
   // Enquanto o MIXER tem o som - a mistura personalizada, mas também o
   // equalizador, que fora do custom toca o ficheiro principal pelo mesmo
@@ -77,6 +77,12 @@ export const PlayerSettingsBody = ({ song }: { song: Song | null }) => {
   // Controlling another device: this player owns no audio, so every setting
   // in this sheet would write state nobody ever hears (FR-109).
   const localDisabled = useRemoteStore(selectIsController);
+  // A velocidade viaja pelo cabo (remote/transport.ts `set_rate`): em modo
+  // controlador mostra-se a do dispositivo activo, que ele publica no
+  // snapshot, e os controlos ficam vivos. Só o interruptor do tom fica
+  // cinzento, porque o algoritmo de esticar é do aparelho que toca.
+  const remoteRate = useRemoteStore((s) => s.snapshot?.playback_rate ?? null);
+  const rate = localDisabled ? (remoteRate ?? 1) : localRate;
   // O EQ corre no grafo do mixer; sem mixer (web, shell macOS) os sliders
   // não mexiam em nada. Escondido até haver grafo Web Audio (dono, 2026-09-17).
   const stemMixerAvailable = usePlayerStore((s) => s.stemMixerAvailable);
@@ -103,23 +109,6 @@ export const PlayerSettingsBody = ({ song }: { song: Song | null }) => {
         {t(`${K}.audioSettings`)}
       </Text>
 
-      {localDisabled ? (
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 6,
-            paddingHorizontal: 20,
-            paddingTop: 10,
-          }}
-        >
-          <Icon name="alert-circle" size={14} color={tokens.mutedForeground} />
-          <Text style={{ color: tokens.mutedForeground, fontSize: 12, flex: 1 }}>
-            {t(`${K}.localDeviceOnly`)}
-          </Text>
-        </View>
-      ) : null}
-
       <Section title={t(`${K}.speed`)}>
         <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
           {RATES.map((value) => (
@@ -127,7 +116,6 @@ export const PlayerSettingsBody = ({ song }: { song: Song | null }) => {
               key={value}
               label={`${value}x`}
               selected={Math.abs(rate - value) < 0.01}
-              disabled={localDisabled}
               onPress={() => getTransport().setRate(value)}
             />
           ))}
@@ -138,7 +126,6 @@ export const PlayerSettingsBody = ({ song }: { song: Song | null }) => {
           label={t(`${K}.speed`)}
           valueLabel={`${rate.toFixed(2)}x`}
           value={rateToFraction(rate)}
-          disabled={localDisabled}
           onChange={(fraction) => getTransport().setRate(fractionToRate(fraction))}
         />
         {/* O interruptor do FR-64. Vai ao motor DIRECTAMENTE, como o
@@ -158,6 +145,25 @@ export const PlayerSettingsBody = ({ song }: { song: Song | null }) => {
           <NoteLine text={t(`${K}.preservePitchMixerNote`)} />
         ) : null}
       </Section>
+
+      {/* Daqui para baixo é tudo do aparelho que toca: a velocidade já viajou
+          pelo cabo, o resto fica cinzento em modo controlador. */}
+      {localDisabled ? (
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 6,
+            paddingHorizontal: 20,
+            paddingTop: 10,
+          }}
+        >
+          <Icon name="alert-circle" size={14} color={tokens.mutedForeground} />
+          <Text style={{ color: tokens.mutedForeground, fontSize: 12, flex: 1 }}>
+            {t(`${K}.localDeviceOnly`)}
+          </Text>
+        </View>
+      ) : null}
 
       <Section title={t(`${K}.sleepTimer`)}>
         <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>

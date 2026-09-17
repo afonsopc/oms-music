@@ -108,9 +108,14 @@ export const createRemoteTransportDecorator =
         if (isController()) return deps.sendCommand("set_volume", { volume });
         base.setVolume(volume);
       },
-      // Device-local listener settings: always local, greyed out in the UI
-      // while controlling (they still ride state_changed as settings).
-      setRate: (rate: number) => base.setRate(rate),
+      // A velocidade é do dispositivo activo, como o volume: o frontend do
+      // omelhorsite.pt já a muda no aparelho que toca pelo dropdown da
+      // música, e a app faz o mesmo (dono, 2026-09-17). O executor do lado
+      // de lá (remote/commands.ts) já aceitava `set_rate` desde 2026-09-08.
+      setRate: (rate: number) => {
+        if (isController()) return deps.sendCommand("set_rate", { rate });
+        base.setRate(rate);
+      },
       setLoopMode: (mode: LoopMode) => {
         if (isController()) return deps.sendCommand("set_loop_mode", { mode });
         base.setLoopMode(mode);

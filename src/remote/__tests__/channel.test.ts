@@ -416,12 +416,16 @@ describe("transport decorator (FR-109/111, FR-63 remote half)", () => {
     expect(base.calls).toEqual([]);
   });
 
-  it("keeps device-local settings local even while controlling", () => {
+  it("sends set_rate to the active device while controlling", () => {
     const harness = start();
     const transport = decorate(harness);
     harness.cable.push(snapshotFrame({ active_device_id: OTHER }));
     transport.setRate(1.25);
-    expect(base.calls).toEqual(["setRate"]);
+    expect(harness.cable.last("command")?.data).toEqual({
+      command: "set_rate",
+      args: { rate: 1.25 },
+    });
+    expect(base.calls).toEqual([]);
   });
 
   it("claims if_none pessimistically when playing with nobody active", () => {
