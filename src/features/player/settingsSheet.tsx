@@ -85,6 +85,7 @@ export const PlayerSettingsBody = ({ song }: { song: Song | null }) => {
   const rate = localDisabled ? (remoteRate ?? 1) : localRate;
   // O EQ corre no grafo do mixer; sem mixer (web, shell macOS) os sliders
   // não mexiam em nada. Escondido até haver grafo Web Audio (dono, 2026-09-17).
+  // A controlar, o mixer que conta é o do outro aparelho: mostra-se sempre.
   const stemMixerAvailable = usePlayerStore((s) => s.stemMixerAvailable);
 
   const sleepMinutes =
@@ -146,8 +147,8 @@ export const PlayerSettingsBody = ({ song }: { song: Song | null }) => {
         ) : null}
       </Section>
 
-      {/* Daqui para baixo é tudo do aparelho que toca: a velocidade já viajou
-          pelo cabo, o resto fica cinzento em modo controlador. */}
+      {/* O temporizador é deste aparelho (adormece ESTE ecrã): a controlar
+          fica cinzento, e a nota diz porquê. O resto do cog já viaja. */}
       {localDisabled ? (
         <View
           style={{
@@ -221,10 +222,12 @@ export const PlayerSettingsBody = ({ song }: { song: Song | null }) => {
       ) : null}
 
       {song && !isJamSong ? (
-        <SeparationSection song={song} disabled={localDisabled} />
+        <SeparationSection song={song} controlling={localDisabled} />
       ) : null}
 
-      {stemMixerAvailable ? <EqualizerSection disabled={localDisabled} /> : null}
+      {stemMixerAvailable || localDisabled ? (
+        <EqualizerSection controlling={localDisabled} />
+      ) : null}
       <View style={{ height: 12 }} />
     </>
   );

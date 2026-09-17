@@ -35,9 +35,11 @@ import type { EqBands, PlaybackMode } from "@/domain/playback";
 import type { Song } from "@/domain/song";
 import { useIsOffline } from "@/features/shell/OfflineBanner";
 import { useT } from "@/i18n";
+import { getTransport } from "@/contracts/transport";
 import { getPlayerEngine } from "@/player/register";
 import { stemModeResidentLocally } from "@/player/sources";
 import { usePlayerStore } from "@/player/store";
+import { useRemoteStore } from "@/remote/store";
 import { useTheme } from "@/theme/provider";
 import {
   dbFromFraction,
@@ -100,7 +102,7 @@ const JobStatus = ({ status }: { status: SeparationStatus }) => {
  * Everything that is true only in custom mode: where the two stem files are,
  * and what the user can do when they are not here yet.
  */
-const BlendStatus = ({ disabled }: { disabled: boolean }) => {
+const BlendStatus = () => {
   const t = useT();
   const stemPhase = usePlayerStore((s) => s.stemPhase);
   const stemProgress = usePlayerStore((s) => s.stemProgress);
@@ -141,7 +143,6 @@ const BlendStatus = ({ disabled }: { disabled: boolean }) => {
             <Chip
               label={t(`${K}.blendEnableStems`)}
               selected={false}
-              disabled={disabled}
               onPress={() => {
                 updateDownloadSettings({ includeStems: true });
                 getPlayerEngine().retryStemBlend();
@@ -151,7 +152,6 @@ const BlendStatus = ({ disabled }: { disabled: boolean }) => {
           <Chip
             label={t("native.common.retry")}
             selected={false}
-            disabled={disabled}
             onPress={() => getPlayerEngine().retryStemBlend()}
           />
         </View>
@@ -164,14 +164,26 @@ const BlendStatus = ({ disabled }: { disabled: boolean }) => {
   return null;
 };
 
-export const SeparationSection = ({ song, disabled }: { song: Song; disabled: boolean }) => {
+/**
+ * `controlling`: este aparelho não tem o som, está a mandar noutro. Os
+ * valores vêm então do snapshot que o dispositivo activo publica, os
+ * toques vão pelo transporte (comandos), e o que é só deste aparelho - o
+ * estado do mixer local, os ficheiros offline - não aparece.
+ */
+export const SeparationSection = ({ song, controlling }: { song: Song; controlling: boolean }) => {
   const t = useT();
   const service = getSeparationService();
   const status = service.useSeparationStatus(song.id);
-  const playbackMode = usePlayerStore((s) => s.playbackMode);
-  const vocalVolume = usePlayerStore((s) => s.vocalVolume);
-  const instrumentalVolume = usePlayerStore((s) => s.instrumentalVolume);
+  const localMode = usePlayerStore((s) => s.playbackMode);
+  const localVocal = usePlayerStore((s) => s.vocalVolume);
+  const localInstrumental = usePlayerStore((s) => s.instrumentalVolume);
   const stemMixerAvailable = usePlayerStore((s) => s.stemMixerAvailable);
+  const remoteMode = useRemoteStore((s) => s.snapshot?.playback_mode ?? null);
+  const remoteVocal = useRemoteStore((s) => s.snapshot?.vocal_volume ?? null);
+  const remoteInstrumental = useRemoteStore((s) => s.snapshot?.instrumental_volume ?? null);
+  const playbackMode: PlaybackMode = controlling ? (remoteMode ?? "original") : localMode;
+  const vocalVolume = controlling ? (remoteVocal ?? 1) : localVocal;
+  const instrumentalVolume = controlling ? (remoteInstrumental ?? 1) : localInstrumental;
 
   const stemsReady = !!(song.vocals_media_id && song.instrumental_media_id);
   // A re-run keeps the OLD stems attached until the new ones land, so a live
@@ -204,25 +216,30 @@ export const SeparationSection = ({ song, disabled }: { song: Song; disabled: bo
                 mistura personalizada não existe: o chip desaparece em vez
                 de ficar cinzento a prometer o que não há (dono, 2026-09-17).
                 Original / Instrumental / Vozes são ficheiros à parte e
-                tocam em qualquer lado. */}
-            {MODES.filter((mode) => mode !== "custom" || stemMixerAvailable).map((mode) => (
-              <Chip
-                key={mode}
-                label={t(MODE_LABEL[mode])}
-                selected={playbackMode === mode}
-                disabled={
-                  disabled ||
-                  (mode !== "original" && !stemsReady) ||
-                  // Offline sem o ficheiro do stem: o modo tocaria o mixed.
-                  stemModeOfflineUnavailable(mode)
-                }
-                onPress={() => getPlayerEngine().setPlaybackMode(mode)}
-              />
-            ))}
+                tocam em qualquer lado. A controlar, o mixer que conta é o
+                do outro aparelho, que não conhecemos: o chip fica, e sem
+                mixer lá o motor dele cai no mix simples como cairia com o
+                dedo no chip. */}
+            {MODES.filter((mode) => mode !== "custom" || stemMixerAvailable || controlling).map(
+              (mode) => (
+                <Chip
+                  key={mode}
+                  label={t(MODE_LABEL[mode])}
+                  selected={playbackMode === mode}
+                  disabled={
+                    (mode !== "original" && !stemsReady) ||
+                    // Offline sem o ficheiro do stem: o modo tocaria o mixed.
+                    (!controlling && stemModeOfflineUnavailable(mode))
+                  }
+                  onPress={() => getTransport().setPlaybackMode(mode)}
+                />
+              ),
+            )}
           </View>
 
           {!stemsReady ? <NoteLine text={t(`${K}.stemsMissing`)} /> : null}
           {stemsReady &&
+          !controlling &&
           (stemModeOfflineUnavailable("instrumental") ||
             stemModeOfflineUnavailable("vocals")) ? (
             <NoteLine text={t(`${K}.modeUnavailableOffline`)} />
@@ -230,23 +247,21 @@ export const SeparationSection = ({ song, disabled }: { song: Song; disabled: bo
 
           {inCustom ? (
             <View>
-              <BlendStatus disabled={disabled} />
+              {/* O estado dos stems (a descarregar, a tocar, falhou) é do
+                  mixer local; a controlar não há nenhum aqui. */}
+              {!controlling ? <BlendStatus /> : null}
               <SliderRow
                 label={t(`${K}.voiceVolume`)}
                 valueLabel={formatBlend(vocalVolume)}
                 value={vocalVolume}
-                disabled={disabled}
-                onChange={(fraction) =>
-                  getPlayerEngine().setVocalVolume(quantizeBlend(fraction))
-                }
+                onChange={(fraction) => getTransport().setVocalVolume(quantizeBlend(fraction))}
               />
               <SliderRow
                 label={t(`${K}.musicVolume`)}
                 valueLabel={formatBlend(instrumentalVolume)}
                 value={instrumentalVolume}
-                disabled={disabled}
                 onChange={(fraction) =>
-                  getPlayerEngine().setInstrumentalVolume(quantizeBlend(fraction))
+                  getTransport().setInstrumentalVolume(quantizeBlend(fraction))
                 }
               />
             </View>
@@ -264,7 +279,7 @@ export const SeparationSection = ({ song, disabled }: { song: Song; disabled: bo
               <Chip
                 label={t(`${K}.separate`)}
                 selected={false}
-                disabled={disabled || busy}
+                disabled={busy}
                 onPress={() => {
                   void service.triggerSeparation(song.id);
                 }}
@@ -284,16 +299,20 @@ const EQ_LABEL: Record<keyof EqBands, string> = {
   high: `${K}.eqHigh`,
 };
 
-export const EqualizerSection = ({ disabled }: { disabled: boolean }) => {
+export const EqualizerSection = ({ controlling }: { controlling: boolean }) => {
   const t = useT();
-  const eqEnabled = usePlayerStore((s) => s.eqEnabled);
-  const eqLow = usePlayerStore((s) => s.eqLow);
-  const eqMid = usePlayerStore((s) => s.eqMid);
-  const eqHigh = usePlayerStore((s) => s.eqHigh);
+  const localEnabled = usePlayerStore((s) => s.eqEnabled);
+  const localLow = usePlayerStore((s) => s.eqLow);
+  const localMid = usePlayerStore((s) => s.eqMid);
+  const localHigh = usePlayerStore((s) => s.eqHigh);
   const eqActive = usePlayerStore((s) => s.eqActive);
-
-  const values: EqBands = { low: eqLow, mid: eqMid, high: eqHigh };
-  const flat = eqLow === 0 && eqMid === 0 && eqHigh === 0;
+  const remote = useRemoteStore((s) => s.snapshot);
+  // A controlar, as bandas são as que o dispositivo activo publica.
+  const eqEnabled = controlling ? (remote?.eq_enabled ?? false) : localEnabled;
+  const values: EqBands = controlling
+    ? { low: remote?.eq_low ?? 0, mid: remote?.eq_mid ?? 0, high: remote?.eq_high ?? 0 }
+    : { low: localLow, mid: localMid, high: localHigh };
+  const flat = values.low === 0 && values.mid === 0 && values.high === 0;
 
   // No enable switch: "off" and "all bands at 0" are the same sound, so the
   // switch was a second control for a state Reset already produces, and one
@@ -306,16 +325,15 @@ export const EqualizerSection = ({ disabled }: { disabled: boolean }) => {
           label={t(EQ_LABEL[band])}
           valueLabel={formatDb(values[band])}
           value={fractionFromDb(values[band])}
-          disabled={disabled}
           onChange={(fraction) => {
-            const engine = getPlayerEngine();
+            const transport = getTransport();
             // Touching a band IS turning the EQ on, now that there is no
             // separate switch to leave it stranded in the off position. The
             // engine routes the audio through the mixer graph by itself
             // (stems in custom mode, the passthrough otherwise) - the mode
             // chip no longer hops to "custom" under the user's finger.
-            if (!eqEnabled) engine.setEqEnabled(true);
-            engine.setEqBand(band, dbFromFraction(fraction));
+            if (!eqEnabled) transport.setEqEnabled(true);
+            transport.setEqBand(band, dbFromFraction(fraction));
           }}
         />
       ))}
@@ -324,12 +342,12 @@ export const EqualizerSection = ({ disabled }: { disabled: boolean }) => {
         <Chip
           label={t(`${K}.eqReset`)}
           selected={false}
-          disabled={disabled || flat}
+          disabled={flat}
           onPress={() => {
-            const engine = getPlayerEngine();
-            for (const band of EQ_BANDS) engine.setEqBand(band, 0);
+            const transport = getTransport();
+            for (const band of EQ_BANDS) transport.setEqBand(band, 0);
             // Flat EQ = off: also releases the passthrough graph.
-            engine.setEqEnabled(false);
+            transport.setEqEnabled(false);
           }}
         />
       </View>
@@ -337,7 +355,9 @@ export const EqualizerSection = ({ disabled }: { disabled: boolean }) => {
       {/* The EQ needs the mixer graph, and the graph reads local files only:
           when a streamed song leaves it silent, say so instead of letting the
           sliders lie. (No-mixer builds never mount this section.) */}
-      {eqEnabled && !flat && !eqActive ? <NoteLine text={t(`${K}.eqNeedsLocal`)} /> : null}
+      {!controlling && eqEnabled && !flat && !eqActive ? (
+        <NoteLine text={t(`${K}.eqNeedsLocal`)} />
+      ) : null}
     </Section>
   );
 };

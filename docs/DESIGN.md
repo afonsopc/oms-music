@@ -989,7 +989,10 @@ the wake path heals).
   interpolation (`tick.position + elapsed`) with 5 s staleness fallback; ticks whose
   `song_id` mismatches the snapshot song are DROPPED (string compare via domain/ids); all
   transport actions become validated `command` sends; volume drag = `set_volume` on the
-  active device; local-only settings greyed out.
+  active device; the listening settings travel too (`set_rate`, `set_playback_mode`,
+  `set_eq_band`, `set_eq_enabled`, `set_stem_volume`, owner 2026-09-17) and the cog mirrors
+  the snapshot's values; only the sleep timer, the A-B loop and the pitch switch stay
+  device-local (greyed / hidden).
 - Active publishing (`remote/publisher.ts`): debounced 200 ms `state_changed` with song ids
   AS STRINGS, `paused: !playing`, live position, full listener settings; `position_tick` at
   1 Hz while playing; server `error` message -> `request_snapshot` resync, never blind
