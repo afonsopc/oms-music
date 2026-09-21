@@ -140,6 +140,13 @@ export const createExpoAudioAdapter = (): AudioAdapter => {
   // Blend state. Gains and bands are remembered while the stems are OFF so
   // entering custom mode never plays one tick at the wrong level.
   let stemsOn = false;
+  /**
+   * Seeks do AVPlayer ainda por aterrar. Enquanto houver um, o relógio mudo
+   * continua a reportar a posição VELHA e o resync arrastaria a mistura de
+   * volta para lá - no loop A-B era isso que se ouvia a cada volta com o EQ
+   * ligado (dono, 2026-09-21). A mistura já saltou; o AVPlayer chega depois.
+   */
+  let seeksInFlight = 0;
   /** EQ-only blend: both nodes carry the MAIN file at PASSTHROUGH_GAIN. */
   let passthrough = false;
   let masterVolume = 1;
@@ -224,6 +231,7 @@ export const createExpoAudioAdapter = (): AudioAdapter => {
       else mixer.pause();
     }
     if (!status.playing || !Number.isFinite(status.currentTime)) return;
+    if (seeksInFlight > 0) return;
     mixer.resync?.(status.currentTime, STEM_RESYNC_TOLERANCE_S);
   };
 
@@ -265,11 +273,23 @@ export const createExpoAudioAdapter = (): AudioAdapter => {
       sourceUri = uri;
       player.replace(uri === null ? null : { uri });
     },
-    seekTo(seconds: number): Promise<void> {
+    seekTo(seconds: number, opts?: { precise?: boolean }): Promise<void> {
       // Both stems restart together on every transport event (web parity):
       // that, not a drift loop, is what keeps them in sync.
       if (stemsOn) getStemMixer().seek(seconds);
-      return player.seekTo(seconds);
+      // Tolerância ZERO quando se pede exactidão: por omissão o expo-audio
+      // passa CMTime.positiveInfinity dos dois lados e o AVPlayer aterra no
+      // ponto de sincronização mais barato, quase sempre ANTES do pedido -
+      // era isso que fazia o loop A-B "começar ligeiramente antes de A"
+      // (dono, 2026-09-21). O Android ignora os dois argumentos e já era
+      // exacto. Um scrub continua com a tolerância barata.
+      seeksInFlight++;
+      const done = opts?.precise
+        ? player.seekTo(seconds, 0, 0)
+        : player.seekTo(seconds);
+      return done.finally(() => {
+        seeksInFlight--;
+      });
     },
     setRate(next: number): void {
       rate = next;

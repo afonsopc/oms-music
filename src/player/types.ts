@@ -153,7 +153,12 @@ export interface AudioAdapter {
   pause(): void;
   /** Replace the source; null clears it. Never point this at /data. */
   replace(uri: string | null): void;
-  seekTo(seconds: number): Promise<void>;
+  /**
+   * `precise`: aterra no sample pedido em vez do ponto de sincronização mais
+   * barato. Só o loop A-B o pede - um scrub a arrastar quer a resposta
+   * imediata, e num ficheiro remoto a exactidão custa descodificação.
+   */
+  seekTo(seconds: number, opts?: { precise?: boolean }): Promise<void>;
   /** Rate with shouldCorrectPitch=false (deliberate pitch shift, FR-64). */
   setRate(rate: number): void;
   /**

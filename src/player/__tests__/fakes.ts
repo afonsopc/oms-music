@@ -51,6 +51,8 @@ export const makeSong = (id: number, overrides: Partial<Song> = {}): Song =>
 
 export class FakeAudioPlayer implements AudioAdapter {
   uri: string | null = null;
+  /** Seeks que pediram exactidão (loop A-B). */
+  readonly preciseSeekLog: number[] = [];
   currentTime = 0;
   duration = 0;
   playing = false;
@@ -171,8 +173,9 @@ export class FakeAudioPlayer implements AudioAdapter {
     this.error = null;
   }
 
-  seekTo(seconds: number): Promise<void> {
+  seekTo(seconds: number, opts?: { precise?: boolean }): Promise<void> {
     this.seekLog.push(seconds);
+    if (opts?.precise) this.preciseSeekLog.push(seconds);
     if (this.stemsOn) this.mixerSeekLog.push(seconds);
     this.currentTime = seconds;
     return Promise.resolve();

@@ -19,6 +19,9 @@ import { setPlayerToastHandler } from "../recovery";
 import { playerStore, resetPlayerStore } from "../store";
 import { flush, makeEngineDeps, makeSong } from "./fakes";
 
+/** Espera de parede: o salto do loop é marcado num setTimeout real. */
+const wait = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
 setPlayerToastHandler(() => {});
 
 describe("abLoop puro", () => {
@@ -144,6 +147,133 @@ describe("abLoop no motor", () => {
     expect(playerStore.getState().queueIndex).toBe(0); // não avançou
     expect(ctx.player.seekLog).toContain(10);
     expect(ctx.player.playing).toBe(true);
+    ctx.engine.dispose();
+  });
+
+  it("salta a B pelo relógio, sem esperar um status que já passou", async () => {
+    const ctx = setup();
+    const s1 = makeSong(1);
+    urlFor(ctx, s1);
+    ctx.engine.setQueue([s1]);
+    await flush();
+    ctx.player.emitLoaded(200);
+
+    ctx.player.currentTime = 10;
+    ctx.engine.setAbLoopPoint("a");
+    ctx.player.currentTime = 24;
+    ctx.engine.setAbLoopPoint("b");
+
+    // Um status a 200 ms de B: nenhum status voltará a chegar antes do
+    // cruzamento (o pump corre a 4 Hz de MEDIA), e é o timer que salta.
+    ctx.player.currentTime = 23.8;
+    ctx.player.emitStatus();
+    await flush();
+    expect(ctx.player.seekLog).not.toContain(10);
+
+    await wait(320);
+    expect(ctx.player.seekLog).toContain(10);
+    // E com exactidão: o A tem de voltar ao ponto marcado, não ao ponto de
+    // sincronização mais próximo.
+    expect(ctx.player.preciseSeekLog).toContain(10);
+    ctx.engine.dispose();
+  });
+
+  it("a meia velocidade o salto espera o dobro do tempo de parede", async () => {
+    const ctx = setup();
+    const s1 = makeSong(1);
+    urlFor(ctx, s1);
+    ctx.engine.setQueue([s1]);
+    await flush();
+    ctx.player.emitLoaded(200);
+
+    ctx.player.currentTime = 10;
+    ctx.engine.setAbLoopPoint("a");
+    ctx.player.currentTime = 24;
+    ctx.engine.setAbLoopPoint("b");
+
+    ctx.engine.setRate(0.5);
+    ctx.player.currentTime = 23.8;
+    ctx.player.emitStatus();
+    await flush();
+
+    // 0.2 s de media a 0.5x = 400 ms de parede: aos 250 ms ainda não saltou.
+    await wait(250);
+    expect(ctx.player.seekLog).not.toContain(10);
+    await wait(300);
+    expect(ctx.player.seekLog).toContain(10);
+    ctx.engine.dispose();
+  });
+
+  it("mudar de velocidade com o salto marcado não o dispara cedo nem o perde", async () => {
+    const ctx = setup();
+    const s1 = makeSong(1);
+    urlFor(ctx, s1);
+    ctx.engine.setQueue([s1]);
+    await flush();
+    ctx.player.emitLoaded(200);
+
+    ctx.player.currentTime = 10;
+    ctx.engine.setAbLoopPoint("a");
+    ctx.player.currentTime = 24;
+    ctx.engine.setAbLoopPoint("b");
+
+    ctx.player.currentTime = 23.8;
+    ctx.player.emitStatus(); // marca o salto para daqui a 200 ms
+    await flush();
+    // A meio da espera a velocidade cai: a estimativa antiga morre com ela.
+    ctx.engine.setRate(0.5);
+    await wait(320);
+    expect(ctx.player.seekLog).not.toContain(10);
+
+    // O status seguinte volta a marcá-lo, já com a velocidade nova.
+    ctx.player.emitStatus();
+    await flush();
+    await wait(450);
+    expect(ctx.player.seekLog).toContain(10);
+    ctx.engine.dispose();
+  });
+
+  it("pausar cancela o salto marcado", async () => {
+    const ctx = setup();
+    const s1 = makeSong(1);
+    urlFor(ctx, s1);
+    ctx.engine.setQueue([s1]);
+    await flush();
+    ctx.player.emitLoaded(200);
+
+    ctx.player.currentTime = 10;
+    ctx.engine.setAbLoopPoint("a");
+    ctx.player.currentTime = 24;
+    ctx.engine.setAbLoopPoint("b");
+
+    ctx.player.currentTime = 23.8;
+    ctx.player.emitStatus();
+    await flush();
+    ctx.engine.pause();
+    await wait(320);
+    expect(ctx.player.seekLog).not.toContain(10);
+    ctx.engine.dispose();
+  });
+
+  it("um scrub para dentro da secção não é atropelado pelo salto", async () => {
+    const ctx = setup();
+    const s1 = makeSong(1);
+    urlFor(ctx, s1);
+    ctx.engine.setQueue([s1]);
+    await flush();
+    ctx.player.emitLoaded(200);
+
+    ctx.player.currentTime = 10;
+    ctx.engine.setAbLoopPoint("a");
+    ctx.player.currentTime = 24;
+    ctx.engine.setAbLoopPoint("b");
+
+    ctx.player.currentTime = 23.8;
+    ctx.player.emitStatus();
+    await flush();
+    ctx.engine.seek(12); // o utilizador volta atrás sozinho
+    await wait(320);
+    expect(ctx.player.currentTime).toBe(12);
     ctx.engine.dispose();
   });
 

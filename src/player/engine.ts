@@ -92,6 +92,16 @@ const STUCK_SILENT_MS = 20_000;
 const STUCK_LOAD_MS = 50_000;
 /** expo-audio rate ceiling on both mobile platforms. */
 const PLATFORM_MAX_RATE = 2;
+/**
+ * Loop A-B: a partir de quanto tempo de parede antes de B o salto para A é
+ * agendado ao relógio, em vez de esperar o status que reporte "já passou".
+ * Os statuses vêm a 4 Hz em tempo de MEDIA (o observador periódico do
+ * AVPlayer conta segundos da faixa), por isso a 0.25x chegam de 1 s em 1 s
+ * de parede; a janela cobre isso com folga.
+ */
+const AB_JUMP_LOOKAHEAD_MS = 1_500;
+/** Um salto para A que não aterrou neste prazo já não está a acontecer. */
+const AB_JUMP_TIMEOUT_MS = 2_000;
 /** Tecto da espera pela hidratação do índice local do desktop (beginLoad). */
 const LOCAL_INDEX_WAIT_MS = 1_500;
 
@@ -186,10 +196,14 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
   private lastBufferingAt = Number.NEGATIVE_INFINITY;
   /** Loop de secção A-B (abLoop.ts): session-only, limpo ao trocar de faixa. */
   private abLoop: AbLoopState = emptyAbLoop();
-  /** True enquanto o seek do salto B->A não aterrou: os statuses continuam a
-   *  chegar com a posição velha (>= B) e sem esta guarda cada um re-dispararia
-   *  o mesmo salto. */
-  private abJumpInFlight = false;
+  /** Instante (this.now()) em que o seek do salto B->A partiu, null quando
+   *  não há salto a decorrer: os statuses continuam a chegar com a posição
+   *  velha (>= B) e sem esta guarda cada um re-dispararia o mesmo salto. É um
+   *  instante e não um booleano porque um seek que nunca resolve (fonte
+   *  trocada a meio, promessa perdida) deixava o loop MORTO para sempre. */
+  private abJumpStartedAt: number | null = null;
+  /** O salto agendado ao relógio de parede (scheduleAbJump). */
+  private abJumpTimer: ReturnType<typeof setTimeout> | null = null;
   /** Wall-clock stuck checker state (see STUCK_CHECK_INTERVAL_MS). */
   private stuckSince: number | null = null;
   private readonly stuckTimer: ReturnType<typeof setInterval> | null = null;
@@ -512,6 +526,7 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
   pause(): void {
     tracePlayback("intent.pause", { pos: this.player.currentTime });
     this.intendedPlay = false;
+    this.cancelAbJumpTimer();
     this.player.pause();
   }
 
@@ -540,6 +555,8 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
 
   seek(seconds: number): void {
     const target = Math.max(0, seconds);
+    // Um scrub muda a distância a B; o próximo status volta a marcar o salto.
+    this.cancelAbJumpTimer();
     // While a load is in flight the player still holds the OUTGOING source:
     // seeking it discards the user's scrub (the new source starts at 0).
     // Park the target in pendingSeek instead; it applies when metadata lands.
@@ -574,6 +591,9 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
     const rate = clamp(r, 0.25, 4);
     playerStore.setState({ rate });
     this.deps.persistence.save({ rate });
+    // A estimativa de parede até B era à velocidade antiga; o próximo status
+    // volta a marcá-la já com a nova.
+    this.cancelAbJumpTimer();
     this.player.setRate(this.platformRate(rate));
   }
 
@@ -654,8 +674,71 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
   clearAbLoop(): void {
     if (this.abLoop.a === null && this.abLoop.b === null) return;
     this.abLoop = emptyAbLoop();
-    this.abJumpInFlight = false;
+    this.abJumpStartedAt = null;
+    this.cancelAbJumpTimer();
     this.publishAbLoop();
+  }
+
+  /** Há um salto B->A a decorrer (e ainda dentro do prazo)? */
+  private abJumpPending(): boolean {
+    if (this.abJumpStartedAt === null) return false;
+    if (this.now() - this.abJumpStartedAt <= AB_JUMP_TIMEOUT_MS) return true;
+    tracePlayback("abloop.jump-timeout", {});
+    this.abJumpStartedAt = null;
+    return false;
+  }
+
+  /** O loop pode saltar agora: armado, fonte assente, sem scrub parqueado, sem salto a meio. */
+  private abJumpAllowed(): boolean {
+    return (
+      abLoopActive(this.abLoop) &&
+      !this.loadInFlight() &&
+      this.pendingSeek === null &&
+      !this.abJumpPending()
+    );
+  }
+
+  private cancelAbJumpTimer(): void {
+    if (this.abJumpTimer === null) return;
+    clearTimeout(this.abJumpTimer);
+    this.abJumpTimer = null;
+  }
+
+  /** Volta a A. `from` é só para o trace. */
+  private jumpToA(from: number): void {
+    const target = this.abLoop.a as number;
+    this.cancelAbJumpTimer();
+    this.abJumpStartedAt = this.now();
+    tracePlayback("abloop.jump", { from, to: target });
+    void this.seekWithRetry(target, "ab-loop").then(() => {
+      this.abJumpStartedAt = null;
+    });
+    playerStore.setState({ position: target });
+  }
+
+  /**
+   * Precisão do B: esperar o status que reporta "já passou B" atrasava o
+   * salto até um status inteiro (250 ms de media, mais a 0.5x), e a secção
+   * repetia com um pedaço a mais no fim. A partir de AB_JUMP_LOOKAHEAD_MS
+   * antes de B (em tempo de parede, logo a dividir pela velocidade) o salto
+   * é marcado ao relógio; cada status seguinte volta a marcá-lo com a
+   * estimativa fresca, e o timer só dispara se ainda estiver tudo no
+   * mesmo sítio (armado, a tocar, sem scrub parqueado).
+   */
+  private scheduleAbJump(s: AudioAdapterStatus): void {
+    const b = this.abLoop.b as number;
+    const rate = Math.max(0.25, playerStore.getState().rate);
+    const wallMs = ((b - s.currentTime) / rate) * 1000;
+    this.cancelAbJumpTimer();
+    if (wallMs > AB_JUMP_LOOKAHEAD_MS) return;
+    this.abJumpTimer = setTimeout(
+      () => {
+        this.abJumpTimer = null;
+        if (this.disposed || !this.abJumpAllowed() || !this.player.playing) return;
+        this.jumpToA(this.player.currentTime);
+      },
+      Math.max(0, wallMs),
+    );
   }
 
   private publishAbLoop(): void {
@@ -1068,6 +1151,7 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
 
   dispose(): void {
     this.disposed = true;
+    this.cancelAbJumpTimer();
     if (this.stuckTimer !== null) clearInterval(this.stuckTimer);
     if (this.sleepFadeTimer !== null) clearInterval(this.sleepFadeTimer);
     this.stemGen++;
@@ -1202,6 +1286,10 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
     const gen = ++this.transitionGen;
     const key = toSongKey(song.id);
     tracePlayback("load.begin", { song: key, autoplay: opts.autoplay, fresh: opts.fresh });
+    // Trocar de fonte (modo, EQ a engatar, recuperação) deixa órfão um salto
+    // A-B a meio: o seek antigo pode nunca resolver contra a fonte nova.
+    this.abJumpStartedAt = null;
+    this.cancelAbJumpTimer();
     // A transition that intends audio doubles as the gesture the autoplay
     // affordance was waiting for (user tapped a song); if the policy still
     // refuses, the adapter's channel raises it again. Guarded read: inert
@@ -1617,17 +1705,14 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
     // mover o relógio para onde o utilizador mandou - saltar por cima dele
     // roubava esse scrub. O return final evita que o resto do pump processe
     // uma posição que este salto acabou de abandonar.
-    if (!loadInFlight && this.pendingSeek === null && !this.abJumpInFlight) {
+    if (this.abJumpAllowed()) {
       const target = abLoopJumpTarget(this.abLoop, s.currentTime);
       if (target !== null) {
-        this.abJumpInFlight = true;
-        tracePlayback("abloop.jump", { from: s.currentTime, to: target });
-        void this.seekWithRetry(target, "ab-loop").then(() => {
-          this.abJumpInFlight = false;
-        });
-        playerStore.setState({ position: target });
+        this.jumpToA(s.currentTime);
         return;
       }
+      if (s.playing) this.scheduleAbJump(s);
+      else this.cancelAbJumpTimer();
     }
 
     // Audible acceptance: the candidate is good; the song is proven again.
@@ -1840,9 +1925,13 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
    *  O `reason` vai para o trace: cada seek tem um autor identificável. */
   private async seekWithRetry(seconds: number, reason = "unspecified"): Promise<boolean> {
     tracePlayback(`seek.${reason}`, { to: seconds });
+    // Só o loop A-B paga a exactidão (ver AudioAdapter.seekTo): ali o ponto
+    // é o que o utilizador marcou com o dedo e tem de voltar ao mesmo sítio
+    // volta após volta.
+    const opts = reason === "ab-loop" ? { precise: true } : undefined;
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
-        await this.player.seekTo(seconds);
+        await this.player.seekTo(seconds, opts);
         return true;
       } catch {
         // Next attempt; the final failure reports false.
