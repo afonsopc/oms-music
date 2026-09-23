@@ -165,9 +165,11 @@ const SlotItems = ({
   if (id === "fixMatch" && !hook) {
     // Renderer-owned, like viewCredits. Só faz sentido numa faixa que foi
     // EMPARELHADA: um ficheiro carregado à mão não tem fonte para trocar, e
-    // uma faixa de jam não é nossa.
+    // uma faixa de jam não é nossa. Uma versão cortada pelo assistente
+    // ("edit") também não: reimportar trocava-a pela música inteira.
     if (ctx.song.jam_song) return null;
-    if (ctx.song.source_kind === "upload") return null;
+    const kind: string | null = ctx.song.source_kind;
+    if (kind === "upload" || kind === "edit") return null;
     return (
       <MenuItemRow
         item={{

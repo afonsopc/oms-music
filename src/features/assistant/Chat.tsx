@@ -68,18 +68,23 @@ interface Bubble {
   error?: boolean;
 }
 
-/** As musicas de uma resposta, pela ordem das accoes, sem repetidas. */
-const songsOf = (actions: AssistantAnswer["actions"]): Song[] => {
+/**
+ * As musicas de uma resposta, pela ordem das accoes, sem repetidas; depois
+ * as que ela criou sem tocar (uma versao cortada).
+ */
+const songsOf = (answer: Pick<AssistantAnswer, "actions" | "songs">): Song[] => {
   const seen = new Set<number>();
   const songs: Song[] = [];
-  for (const action of actions ?? []) {
+  const add = (song: Song): void => {
+    if (seen.has(song.id)) return;
+    seen.add(song.id);
+    songs.push(song);
+  };
+  for (const action of answer.actions ?? []) {
     if (action.action !== "play" && action.action !== "queue") continue;
-    for (const song of action.songs as unknown as Song[]) {
-      if (seen.has(song.id)) continue;
-      seen.add(song.id);
-      songs.push(song);
-    }
+    for (const song of action.songs as unknown as Song[]) add(song);
   }
+  for (const song of answer.songs ?? []) add(song);
   return songs;
 };
 
@@ -128,7 +133,7 @@ export const ChatBody = ({
               role: "assistant",
               content: answer.reply,
               playlist: answer.playlist,
-              songs: songsOf(answer.actions),
+              songs: songsOf(answer),
             },
           ]);
           // As acções de leitor vêm validadas do servidor; executar depois

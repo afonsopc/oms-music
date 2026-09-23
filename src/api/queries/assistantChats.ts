@@ -21,6 +21,7 @@ import type {
   MusicAssistantMessage,
   MusicAssistantPlayerContext,
 } from "@omelhorsite/sdk";
+import type { Song } from "@/domain/song";
 import { oms } from "../oms";
 import { keys } from "../queryKeys";
 import { guardedQueryFn } from "./common";
@@ -33,8 +34,10 @@ export type AssistantChatSummary = MusicAssistantChatSummary;
 export type AssistantChatDetail = MusicAssistantChatDetail;
 
 /** O SDK marca `chat_id` como opcional; o servidor manda-o sempre desde que
- *  guarda as conversas (2026-08-16), e o ecrã conta com ele. */
-export type AssistantAnswer = MusicAssistantAnswer & { chat_id: number };
+ *  guarda as conversas (2026-08-16), e o ecrã conta com ele. `songs` (ainda
+ *  fora do SDK, 2026-09-23) são as músicas que a resposta CRIOU sem as pôr a
+ *  tocar, p.ex. uma versão cortada: só para o chat as mostrar. */
+export type AssistantAnswer = MusicAssistantAnswer & { chat_id: number; songs?: Song[] };
 
 /** Sem `chatId` cria a sessão (o título nasce da primeira mensagem);
  *  com `chatId` apensa - 423 Locked se a sessão já for só de leitura. */
