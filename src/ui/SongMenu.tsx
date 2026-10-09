@@ -167,9 +167,13 @@ const SlotItems = ({
     // EMPARELHADA: um ficheiro carregado à mão não tem fonte para trocar, e
     // uma faixa de jam não é nossa. Uma versão cortada pelo assistente
     // ("edit") também não: reimportar trocava-a pela música inteira.
+    // Um upload que um download já substituiu (source_provider preenchido)
+    // volta a ter fonte para trocar; o intacto é a única cópia e o servidor
+    // recusa-o com 409.
     if (ctx.song.jam_song) return null;
     const kind: string | null = ctx.song.source_kind;
-    if (kind === "upload" || kind === "edit") return null;
+    if (kind === "edit") return null;
+    if (kind === "upload" && !ctx.song.source_provider) return null;
     return (
       <MenuItemRow
         item={{
