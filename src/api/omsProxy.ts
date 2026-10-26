@@ -88,8 +88,8 @@ export const toApiError = (error: unknown): unknown => {
 export interface TranslateOptions {
   /**
    * Avisa o guard nos 401 e nos 404 de /media. Verdadeiro no cliente
-   * autenticado; falso no cliente público (login, signup), onde um 401 é a
-   * resposta normal a uma password errada e não uma sessão morta.
+   * autenticado; falso no cliente público (adopt do bilhete), onde um 401 é a
+   * resposta normal a um bilhete expirado e não uma sessão morta.
    */
   notifyAuthFailure: boolean;
 }

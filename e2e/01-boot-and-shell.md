@@ -16,18 +16,14 @@ One device. Fresh install for the first section, then a signed-in account with m
 
 ## Auth (FR-7..12)
 
-- [ ] Email + password sign in; a wrong password shows the inline invalid-credentials
-      message and no toast storm.
-- [ ] Signup: email -> 6-digit code (resend countdown runs) -> name/password -> auto sign
-      in.
-- [ ] Reset password start + end.
-- [ ] "Continue with GitHub" opens the WebView, the provider round trip ends on
-      `omelhorsite.pt/account/oauth/callback`, the sheet closes by itself and the app is
-      signed in (ticket adopted within its 2 min TTL).
-- [ ] A denied GitHub authorization shows the mapped error string, not a raw code.
-- [ ] Spotify sign-in on a non-allowlisted account shows the "not allowed to use Spotify"
-      string.
-- [ ] No Google button (DESIGN 16.4) and no passkey button (FR-13 deferred).
+- [ ] The login screen shows ONE "Entrar" button and nothing else to type: no email,
+      password, signup, reset, Google, GitHub or passkey controls.
+- [ ] "Entrar" opens id.omelhorsite.pt in the system sheet (popup on web); sign in with a
+      passkey or an email code, the sheet closes by itself and the app is signed in
+      (ticket adopted within its 2 min TTL).
+- [ ] A brand new email on id.omelhorsite.pt creates the account and lands signed in.
+- [ ] Closing the sheet without signing in shows no error.
+- [ ] An `email_unverified` refusal shows the "email not verified" string, not a raw code.
 - [ ] Logout returns to login and a relaunch stays logged out.
 
 ## The 28 screens (FR-15)

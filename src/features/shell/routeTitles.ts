@@ -26,8 +26,6 @@ const SITE = "Música - omelhorsite.pt";
 /** Exact canonical pathname -> screen name. */
 const EXACT: Record<string, string> = {
   "/login": "Iniciar sessão",
-  "/signup": "Criar conta",
-  "/reset": "Recuperar conta",
   "/home": "Início",
   "/search": "Pesquisar",
   "/library": "Biblioteca",

@@ -8,20 +8,19 @@
  * Add a new method by obtaining a token and calling it; do not re-implement
  * the store writes, or the methods will drift apart.
  *
- * Os endpoints públicos (login, signup, reset) vão pelo `omsPublic()`: sem
- * Bearer e sem acordar o guard num 401, que aqui é uma password errada.
+ * O único endpoint público do início de sessão (POST /sessions/adopt) vai
+ * pelo `omsPublic()` em ./oauth: sem Bearer e sem acordar o guard num 401,
+ * que ali é um bilhete expirado.
  */
 import { create } from "zustand";
-import { oms, omsPublic } from "@/api/oms";
+import { oms } from "@/api/oms";
 import { queryClient } from "@/api/queryClient";
 import { isApiError } from "@/domain/api";
 import type { Session, User } from "@/domain/user";
 import { isCookieAuth } from "./authMode";
 import { clearToken, loadToken, setToken } from "./token";
 import { onAuthLoss, setAuthReady } from "./guard";
-import { MissingCredentialsError } from "./authErrors";
 import { adoptTicket } from "./oauth";
-import { assertPasskey } from "./passkeys";
 
 export type SessionStatus = "booting" | "anon" | "authed";
 
@@ -126,17 +125,14 @@ export const refreshAccount = async (): Promise<void> => {
 /**
  * Turns a freshly minted session token into a signed-in app.
  *
- * EVERY sign-in method must end here - password (POST /sessions), OAuth
- * (POST /sessions/adopt) and passkey (POST /webauthn_credentials/
- * authentication) - so that token storage, query-cache reset, cable
- * reconnection and the route switch are byte-identical no matter how the user
- * signed in. The methods differ only in how they obtain the token.
+ * EVERY sign-in method must end here - today that is only Pocket ID through
+ * the OAuth ticket (POST /sessions/adopt) - so that token storage, query-cache
+ * reset, cable reconnection and the route switch stay in one place. A future
+ * method differs only in how it obtains the token.
  *
- * `seed` is the session object when the endpoint already returned one:
- * POST /sessions and the passkey assertion both answer with the full
- * SessionBlueprint `:token` view (Blueprinter views inherit the base fields),
- * so re-fetching would be a wasted round trip. POST /sessions/adopt returns
- * ONLY `{ token }`, so it passes nothing and this reads GET /sessions/mine.
+ * `seed` is the session object when the endpoint already returned one.
+ * POST /sessions/adopt returns ONLY `{ token }`, so it passes nothing and this
+ * reads GET /sessions/mine.
  *
  * Ordering is load-bearing:
  *  1. store the token first - every call below is authenticated, and the
@@ -169,28 +165,8 @@ export const establishSession = async (
 };
 
 // ---------------------------------------------------------------------------
-// Login / signup / reset / logout
+// Sign-in / logout
 // ---------------------------------------------------------------------------
-
-/**
- * POST /sessions -> establishSession. Throws:
- *  - MissingCredentialsError when either field is empty. The server has no
- *    401 for that: `User.authenticate_by` raises ArgumentError when the body
- *    carries no `password` key at all, which escapes as a 500 AND fires a
- *    Discord error alert, so the request is refused locally instead;
- *  - ApiError 401 (wrong credentials), 422 (the account is DEACTIVATED, with
- *    an empty body) or 429 (10/min per IP). classifyLoginError explains each.
- */
-export const login = async (email: string, password: string): Promise<void> => {
-  const normalisedEmail = email.trim();
-  if (!normalisedEmail || !password) throw new MissingCredentialsError();
-  const session = (await omsPublic().sessions.signIn({
-    email: normalisedEmail,
-    password,
-  })) as Session;
-  if (!session.token) throw new Error("Login response missing token");
-  await establishSession(session.token, session);
-};
 
 /**
  * OAuth (FR-12): exchange the intercepted callback ticket for a token, then
@@ -202,53 +178,6 @@ export const adoptOAuthTicket = async (ticket: string): Promise<void> => {
   const token = await adoptTicket(ticket);
   await establishSession(token);
 };
-
-/**
- * Passkey (FR-13): the discoverable-credential ceremony, then the same shared
- * path. No email is collected first - `allowCredentials` comes back empty
- * (`webauthn_credentials_controller.rb:63-69`) and the authenticator picks the
- * account, so this needs nothing from the login form.
- *
- * The assertion answers 201 with the full SessionBlueprint `:token` view, the
- * same shape as POST /sessions, so the session is seeded and `/sessions/mine`
- * is not re-fetched.
- *
- * Throws PasskeyCeremonyError for anything the platform raised (including a
- * plain cancellation) and ApiError for the endpoints; `classifyPasskeyFailure`
- * tells them apart.
- */
-export const loginWithPasskey = async (): Promise<void> => {
-  const session = await assertPasskey();
-  if (!session.token) throw new Error("Passkey login response missing token");
-  await establishSession(session.token, session);
-};
-
-/** Signup step 1: sends the 6-digit code. 409 = "Email already registered." */
-export const signupStart = (email: string): Promise<string> =>
-  omsPublic().sessions.signUpStart(email);
-
-/**
- * Signup step 2: verifies the code and creates the account. Does NOT log in;
- * callers follow with login(email, password) (FR-8).
- */
-export const signupEnd = (
-  email: string,
-  code: string,
-  name: string,
-  password: string,
-): Promise<User> =>
-  omsPublic().sessions.signUpComplete({ email, code, name, password }) as Promise<User>;
-
-/** Always 200 (anti-enumeration). */
-export const resetPasswordStart = (email: string): Promise<unknown> =>
-  omsPublic().sessions.resetPasswordStart(email);
-
-export const resetPasswordEnd = (
-  email: string,
-  code: string,
-  password: string,
-): Promise<unknown> =>
-  omsPublic().sessions.resetPasswordComplete({ email, code, password });
 
 /**
  * Logout (FR-10): DELETE /sessions/current best-effort (the server always
