@@ -1,72 +1,71 @@
 /**
- * Login screen (FR-7). One button: sign-in happens on Pocket ID
- * (id.omelhorsite.pt), with a passkey or an email code, and new accounts are
- * created there too. The app keeps no email/password form, no signup and no
- * reset of its own; the backend dropped those endpoints.
+ * Login screen (FR-7). Email + password -> POST /sessions via the WP1 auth
+ * service; on success the session store flips to authed and the root layout's
+ * guards land on Home. Failures go through classifyLoginError, which tells the
+ * four real outcomes apart (wrong credentials, deactivated account, rate
+ * limit with a countdown, server fault) instead of one generic message.
+ * OAuth buttons (GitHub, Spotify) run the WebView ticket flow (FR-12).
  *
- * The round trip runs in the SYSTEM browser - ASWebAuthenticationSession on
- * iOS, Custom Tabs on Android, a popup on web - via `expo-web-browser`'s
- * openAuthSessionAsync, so the browser's own cookies and passkeys apply and
- * the OS sheet is the trusted UI for auth.
- *
- * The flow: `/auth/pocket_id?mode=signin&native=1` (or `&app_origin=` on web)
- * -> Pocket ID -> backend callback -> `omsmusic://oauth/callback?ticket=...`
- * (or `<origin>/oauth/callback`). The ticket is exchanged through
- * POST /sessions/adopt within its 2 minute TTL by `adoptOAuthTicket`, which
- * lands on the shared `establishSession` path. Failures come back as
- * `?error=<code>` and map to the catalog through OAUTH_ERROR_KEYS; a cancel or
- * dismissal of the sheet is not an error and shows nothing.
+ * The passkey button (FR-13) sits ABOVE the email field, mirroring the web
+ * client's order, because the ceremony is discoverable-credential: it needs
+ * neither an email nor a password, so sending the user to the form first would
+ * be backwards. It hides itself when the platform cannot do passkeys, so on
+ * such a device this screen looks exactly as it did before.
  */
-import React, { useState } from "react";
-import * as WebBrowser from "expo-web-browser";
-import { authErrorMessage, classifyAdoptError } from "@/auth/authErrors";
-import {
-  buildOAuthUrl,
-  oauthErrorKey,
-  oauthReturnUrl,
-  parseOAuthCallback,
-  OAUTH_ERROR_KEYS,
-} from "@/auth/oauth";
-import { adoptOAuthTicket } from "@/auth/session";
+import React, { useEffect, useState } from "react";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { authErrorMessage, classifyLoginError } from "@/auth/authErrors";
+import { login } from "@/auth/session";
 import { useT } from "@/i18n";
-import { AuthButton, AuthError, AuthInfo, AuthScreen, AuthTitle } from "./ui";
+import OAuthButtons from "./OAuthButtons";
+import PasskeyButton from "./PasskeyButton";
+import {
+  AuthButton,
+  AuthError,
+  AuthField,
+  AuthLinkRow,
+  AuthScreen,
+  AuthTitle,
+} from "./ui";
 
 export default function LoginScreen() {
   const t = useT();
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
+  const params = useLocalSearchParams<{ email?: string }>();
 
-  const start = async (): Promise<void> => {
-    if (busy) return;
+  const [email, setEmail] = useState(typeof params.email === "string" ? params.email : "");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  /** Seconds left on the server's 429; POST /sessions allows 10/min per IP. */
+  const [cooldown, setCooldown] = useState(0);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const timer = setInterval(() => {
+      setCooldown((value) => (value <= 1 ? 0 : value - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [cooldown]);
+
+  const submit = async (): Promise<void> => {
+    if (busy || cooldown > 0) return;
+    const trimmed = email.trim();
+    if (!trimmed || !password) return;
     setBusy(true);
     setError(null);
     try {
-      const result = await WebBrowser.openAuthSessionAsync(
-        buildOAuthUrl("pocket_id", "signin"),
-        oauthReturnUrl(),
-      );
-      // "cancel"/"dismiss": the user closed the sheet - not an error.
-      if (result.type !== "success") return;
-      const parsed = parseOAuthCallback(result.url);
-      if (parsed === null || parsed.kind === "token") {
-        // An unknown shape, or the legacy raw-token branch this app refuses
-        // on purpose (adopting a token straight out of a URL is a session
-        // fixation primitive).
-        setError(t(OAUTH_ERROR_KEYS.oauth_failed));
-        return;
-      }
-      if (parsed.kind === "error") {
-        setError(t(oauthErrorKey(parsed.error)));
-        return;
-      }
-      await adoptOAuthTicket(parsed.ticket).catch((e: unknown) => {
-        setError(authErrorMessage(classifyAdoptError(e), t));
-      });
-      // Success: the session store flips to authed and the root layout's
-      // guards unmount this screen.
-    } catch {
-      setError(t(OAUTH_ERROR_KEYS.oauth_failed));
-    } finally {
+      await login(trimmed, password);
+      // Success: SessionGate/guards switch to (main); this screen unmounts.
+    } catch (e) {
+      // classifyLoginError separates the four outcomes POST /sessions really
+      // has: 401 wrong credentials, 422 DEACTIVATED account (empty body),
+      // 429 with a retry countdown, and 5xx.
+      const info = classifyLoginError(e);
+      // Hold the button for the window the server reported rather than let the
+      // user spend the rest of the bucket on requests that cannot succeed.
+      if (info.code === "rateLimited") setCooldown(Number(info.params.seconds ?? 60));
+      setError(authErrorMessage(info, t));
       setBusy(false);
     }
   };
@@ -74,12 +73,45 @@ export default function LoginScreen() {
   return (
     <AuthScreen>
       <AuthTitle text={t("native.auth.login.title")} />
-      <AuthInfo text={t("native.auth.login.hint")} />
       <AuthError message={error} />
+      {/* Discoverable-credential ceremony: no email, no password, so it goes
+          first, exactly like the web client. Hides itself when the platform
+          cannot do passkeys. */}
+      <PasskeyButton />
+      <AuthField
+        label={t("native.auth.login.email")}
+        value={email}
+        onChangeText={setEmail}
+        keyboardType="email-address"
+        autoComplete="email"
+      />
+      <AuthField
+        label={t("native.auth.login.password")}
+        value={password}
+        onChangeText={setPassword}
+        secureTextEntry
+        autoComplete="current-password"
+        onSubmitEditing={() => void submit()}
+      />
       <AuthButton
-        label={t("native.auth.login.submit")}
-        onPress={() => void start()}
+        label={
+          cooldown > 0
+            ? t("native.auth.login.retryIn", { seconds: cooldown })
+            : t("native.auth.login.submit")
+        }
+        onPress={() => void submit()}
         busy={busy}
+        disabled={!email.trim() || !password || cooldown > 0}
+      />
+      <OAuthButtons />
+      <AuthLinkRow
+        label={t("native.auth.login.forgotPassword")}
+        onPress={() => router.push("/(auth)/reset")}
+      />
+      <AuthLinkRow
+        hint={t("native.auth.login.noAccount")}
+        label={t("native.auth.login.createAccount")}
+        onPress={() => router.push("/(auth)/signup")}
       />
     </AuthScreen>
   );

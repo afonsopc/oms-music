@@ -957,6 +957,13 @@
     },
     "auth": {
       "errors": {
+        "accountDeactivated": "Esta conta está desactivada, por isso não pode iniciar sessão. Peça a um administrador para a reactivar.",
+        "missingPassword": "Introduza o email e a palavra-passe.",
+        "accountNotFound": "Não existe nenhuma conta com esse email.",
+        "codeInvalid": "Esse código não está correcto. Um código dura 15 minutos e é descartado ao fim de 5 tentativas erradas. Tentativas restantes: {attempts}.",
+        "codeExpired": "Esse código expirou. Os códigos só duram 15 minutos, por isso peça um novo.",
+        "codeBurned": "Demasiadas tentativas erradas. O código foi descartado ao fim de 5 tentativas, por isso peça um novo.",
+        "codeConsumed": "Esse código já foi gasto, por isso peça um novo.",
         "ticketExpired": "O início de sessão demorou demasiado a concluir. Tente novamente.",
         "serverError": "O servidor teve um problema. Tente novamente daqui a pouco."
       },
@@ -967,13 +974,77 @@
         "conflict": "Esta identidade já está associada a outra conta.",
         "internal": "Erro interno. Tente novamente.",
         "spotifyNotAllowlisted": "O acesso ao Spotify está limitado a uma lista de contas aprovadas. Peça a um administrador para adicionar a sua e tente associar novamente.",
-        "emailUnverified": "O email desta conta ainda não foi verificado. Confirme-o em id.omelhorsite.pt e tente novamente.",
         "oauthFailed": "O início de sessão falhou. Tente novamente."
+      },
+      "oauth": {
+        "dividerOr": "ou",
+        "google": "Continuar com a Google",
+        "github": "Continuar com o GitHub",
+        "spotify": "Continuar com o Spotify",
+        "sheetTitle": "Iniciar sessão"
+      },
+      "passkey": {
+        "signIn": "Iniciar sessão com uma chave de acesso",
+        "signInHint": "Usa o Face ID, o Touch ID ou o bloqueio do ecrã. Não precisa de email nem de palavra-passe.",
+        "retryIn": "Tentar novamente dentro de {seconds} s",
+        "errors": {
+          "noCredentials": "Este dispositivo não tem nenhuma chave de acesso para O Melhor Site. Inicie sessão de outra forma e adicione uma nas definições.",
+          "alreadyRegistered": "Este dispositivo já tem uma chave de acesso para a sua conta.",
+          "unsupported": "As chaves de acesso exigem uma versão mais recente do sistema operativo.",
+          "noAuthenticator": "As chaves de acesso exigem um bloqueio de ecrã. Configure primeiro o Face ID, o Touch ID ou um código.",
+          "domain": "Esta aplicação ainda não está associada a omelhorsite.pt, por isso as chaves de acesso não funcionam. Inicie sessão com o email e a palavra-passe.",
+          "unavailable": "Este dispositivo não tem nenhum fornecedor de chaves de acesso disponível.",
+          "busy": "Já está aberto um pedido de chave de acesso.",
+          "failed": "Não foi possível usar a chave de acesso. Tente novamente.",
+          "rejected": "A chave de acesso não foi aceite. Tente novamente.",
+          "challengeExpired": "O pedido demorou demasiado tempo. Tente novamente.",
+          "unknownPasskey": "Esta chave de acesso não está registada.",
+          "deactivated": "Esta conta está desactivada.",
+          "notFound": "Essa chave de acesso já não existe."
+        }
       },
       "login": {
         "title": "Iniciar sessão",
-        "hint": "Entra-se em id.omelhorsite.pt com uma chave de acesso ou com um código enviado por email. As contas novas também se criam lá.",
-        "submit": "Entrar"
+        "email": "Email",
+        "password": "Palavra-passe",
+        "submit": "Iniciar sessão",
+        "retryIn": "Tente novamente dentro de {seconds} s",
+        "forgotPassword": "Esqueceu-se da palavra-passe?",
+        "noAccount": "Ainda não tem conta?",
+        "createAccount": "Criar conta",
+        "invalidCredentials": "Email ou palavra-passe inválidos."
+      },
+      "signup": {
+        "title": "Criar conta",
+        "emailStepInfo": "Introduza o seu email para receber um código de verificação.",
+        "email": "Email",
+        "sendCode": "Enviar código",
+        "emailTaken": "Este email já está registado.",
+        "codeSentTo": "Enviámos um código de 6 dígitos para {email}",
+        "code": "Código",
+        "resend": "Reenviar código",
+        "resendIn": "Reenviar dentro de {seconds} s",
+        "continue": "Continuar",
+        "detailsTitle": "Quase lá - escolha um nome e uma palavra-passe.",
+        "name": "Nome",
+        "password": "Palavra-passe",
+        "submit": "Criar conta",
+        "haveAccount": "Já tem conta?",
+        "signIn": "Iniciar sessão",
+        "back": "Voltar"
+      },
+      "reset": {
+        "title": "Repor palavra-passe",
+        "emailStepInfo": "Introduza o email da sua conta para receber um código.",
+        "email": "Email",
+        "sendCode": "Enviar código",
+        "sentInfo": "Se o email existir, foi enviado um código.",
+        "code": "Código",
+        "newPassword": "Nova palavra-passe",
+        "submit": "Definir nova palavra-passe",
+        "doneInfo": "Palavra-passe actualizada. Inicie sessão com a nova palavra-passe.",
+        "goToLogin": "Ir para iniciar sessão",
+        "back": "Voltar"
       }
     },
     "shell": {
@@ -1039,6 +1110,26 @@
       "empty": "Nenhuma sessão encontrada",
       "renameError": "Não foi possível mudar o nome deste dispositivo.",
       "revokeNote": "As sessões noutros dispositivos só podem terminar a partir do próprio dispositivo."
+    },
+    "passkeys": {
+      "title": "Chaves de acesso",
+      "subtitle": "Inicia sessão com o Face ID, o Touch ID ou o bloqueio do ecrã em vez da palavra-passe.",
+      "addSection": "Adicionar uma chave de acesso",
+      "nickname": "Nome (opcional)",
+      "nicknamePlaceholder": "Este telemóvel",
+      "add": "Criar chave de acesso",
+      "added": "Chave de acesso adicionada.",
+      "removed": "Chave de acesso removida.",
+      "remove": "Remover",
+      "removeTitle": "Remover esta chave de acesso?",
+      "removeMessage": "{name} deixa de iniciar sessão. Podes adicionar uma nova a qualquer momento.",
+      "empty": "Ainda não há chaves de acesso",
+      "unnamed": "Chave de acesso",
+      "created": "Adicionada a {date}",
+      "lastUsed": "Última utilização a {date}",
+      "neverUsed": "Nunca utilizada",
+      "unavailable": "Este dispositivo não consegue criar chaves de acesso, mas as que estão em baixo continuam a funcionar nos dispositivos que as guardam.",
+      "passwordNote": "O email e a palavra-passe continuam a funcionar, por isso remover todas as chaves de acesso não te deixa de fora."
     },
     "downloads": {
       "noWifiRefused": "Sem WiFi - transferência recusada.",
@@ -1132,6 +1223,7 @@
         "sectionLibrary": "Biblioteca",
         "sectionPlayback": "Reprodução e dispositivo",
         "rowDevices": "Dispositivos",
+        "rowPasskeys": "Chaves de acesso",
         "theme": "Tema",
         "themeLight": "Claro",
         "themeDark": "Escuro",

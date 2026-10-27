@@ -27,7 +27,8 @@ export type SettingsSection =
   | "playback"
   | "downloads-overview"
   | "downloads"
-  | "devices";
+  | "devices"
+  | "passkeys";
 
 interface SectionEntry {
   id: SettingsSection;
@@ -103,6 +104,12 @@ const SECTIONS: SectionEntry[] = [
     icon: "cast",
     labelKey: "native.settings.hub.rowDevices",
     route: "/settings/devices",
+  },
+  {
+    id: "passkeys",
+    icon: "circle-check",
+    labelKey: "native.settings.hub.rowPasskeys",
+    route: "/settings/passkeys",
   },
 ];
 

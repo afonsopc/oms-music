@@ -7,13 +7,13 @@
  * session-establishment path. Spotify account LINKING reuses the WebView
  * against /auth/link/spotify?token=<session token>.
  *
- * The URL parsing and the error-code map are pure and live
+ * The URL parsing, the provider list and the error-code map are pure and live
  * in ./oauthCallback so they can be unit tested; they are re-exported here so
  * callers keep importing "@/auth/oauth".
  *
- * Sign-in is Pocket ID only (provider `pocket_id`, id.omelhorsite.pt): the
- * email/password, signup, reset and passkey endpoints are gone from the
- * backend, and passkeys and email codes now live on id.omelhorsite.pt.
+ * Passkeys (FR-13) used to keep a dead stub here; they now live in
+ * ./passkeys, wired to the platform authenticator and to all four
+ * /webauthn_credentials endpoints.
  */
 import { Platform } from "react-native";
 import { API_BASE_URL, oms, omsPublic } from "@/api/oms";
@@ -24,6 +24,7 @@ import { getToken } from "./token";
 export {
   isOAuthCallbackUrl,
   oauthErrorKey,
+  oauthProvidersFor,
   parseOAuthCallback,
   OAUTH_CALLBACK_PREFIX,
   OAUTH_ERROR_KEYS,

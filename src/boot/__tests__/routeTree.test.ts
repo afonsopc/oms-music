@@ -84,6 +84,7 @@ const PUSHED_ROUTES = [
   "settings/downloads.tsx",
   "settings/import.tsx",
   "settings/index.tsx",
+  "settings/passkeys.tsx",
   "settings/playback.tsx",
   "settings/songs.tsx",
 ].sort();

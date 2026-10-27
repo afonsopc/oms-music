@@ -44,21 +44,15 @@ const CALLBACK_PATH = "account/oauth/callback";
 /** The three locales the static export prefixes paths with. */
 const LOCALE_SEGMENTS = new Set(["en", "pt", "lv"]);
 
-/**
- * `pocket_id` is the ONLY way to sign in (id.omelhorsite.pt, passkey or email
- * code; accounts are created there too). `spotify` survives only for account
- * LINKING (/auth/link/spotify), never as a sign-in button.
- */
-export type OAuthProvider = "pocket_id" | "spotify";
-export type OAuthMode = "signin" | "link";
+export type OAuthProvider = "google_oauth2" | "github" | "spotify";
+export type OAuthMode = "signin" | "signup" | "link";
 
 /**
  * Every code `IdentitiesController` can put in `?error=`, plus the two the
  * client raises for itself. Server side:
  * `account_exists`, `account_not_found`, `unauthorized`, `conflict`,
  * `internal` (`identities_controller.rb:71-111`) and
- * `spotify_not_allowlisted` (`:30`, `:130`), plus `email_unverified` when
- * Pocket ID hands back an email it never verified.
+ * `spotify_not_allowlisted` (`:30`, `:130`).
  */
 export type OAuthErrorCode =
   | "account_exists"
@@ -67,7 +61,6 @@ export type OAuthErrorCode =
   | "conflict"
   | "internal"
   | "spotify_not_allowlisted"
-  | "email_unverified"
   | "oauth_state"
   | "oauth_failed";
 
@@ -79,7 +72,6 @@ export const OAUTH_ERROR_KEYS: Record<OAuthErrorCode, string> = {
   conflict: "native.auth.oauthErrors.conflict",
   internal: "native.auth.oauthErrors.internal",
   spotify_not_allowlisted: "native.auth.oauthErrors.spotifyNotAllowlisted",
-  email_unverified: "native.auth.oauthErrors.emailUnverified",
   oauth_state: "native.auth.oauthErrors.oauthFailed",
   oauth_failed: "native.auth.oauthErrors.oauthFailed",
 };
@@ -166,3 +158,21 @@ export const parseOAuthCallback = (url: string): OAuthCallbackResult => {
   return { kind: "error", error: "oauth_failed" };
 };
 
+/**
+ * Which providers the app offers, per mode.
+ *
+ * Google is ON now that the flow runs in the system browser: the backend
+ * answers `?native=1` flows on the omsmusic:// scheme
+ * (IdentitiesController::NATIVE_CALLBACK), so ASWebAuthenticationSession /
+ * Custom Tabs - which Google accepts, unlike embedded webviews
+ * (`disallowed_useragent`) - can complete and hand the ticket back.
+ *
+ * Spotify is dropped from `signup` for the same reason the web drops it
+ * (`frontend/components/account/authentication/OAuthButtons.tsx:34-39`): the
+ * Spotify app is in Dev Mode, so an account that is not on the dashboard
+ * allowlist cannot complete the round trip at all.
+ */
+export const oauthProvidersFor = (mode: OAuthMode): OAuthProvider[] =>
+  mode === "signup"
+    ? ["google_oauth2", "github"]
+    : ["google_oauth2", "github", "spotify"];

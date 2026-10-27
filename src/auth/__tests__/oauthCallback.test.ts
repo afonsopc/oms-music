@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import {
   isOAuthCallbackUrl,
   oauthErrorKey,
+  oauthProvidersFor,
   parseOAuthCallback,
   OAUTH_CALLBACK_PREFIX,
   OAUTH_ERROR_KEYS,
@@ -57,7 +58,6 @@ describe("parseOAuthCallback", () => {
       "conflict",
       "internal",
       "spotify_not_allowlisted",
-      "email_unverified",
     ]) {
       expect(parseOAuthCallback(`${OAUTH_CALLBACK_PREFIX}?error=${code}`)).toEqual({
         kind: "error",
@@ -118,6 +118,18 @@ describe("oauthErrorKey", () => {
 
   it("falls back for a code the backend grows later", () => {
     expect(oauthErrorKey("brand_new_refusal")).toBe(OAUTH_ERROR_KEYS.oauth_failed);
+  });
+});
+
+describe("oauthProvidersFor", () => {
+  it("offers Google now that the flow runs in the system browser", () => {
+    expect(oauthProvidersFor("signin")).toContain("google_oauth2");
+    expect(oauthProvidersFor("signup")).toContain("google_oauth2");
+  });
+
+  it("drops Spotify from signup, where the Dev Mode allowlist blocks it", () => {
+    expect(oauthProvidersFor("signup")).toEqual(["google_oauth2", "github"]);
+    expect(oauthProvidersFor("signin")).toEqual(["google_oauth2", "github", "spotify"]);
   });
 });
 
