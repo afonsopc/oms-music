@@ -957,13 +957,6 @@
     },
     "auth": {
       "errors": {
-        "accountDeactivated": "This account is deactivated, so it cannot sign in. Ask an administrator to restore it.",
-        "missingPassword": "Enter both your email address and your password.",
-        "accountNotFound": "No account uses that email address.",
-        "codeInvalid": "That code is not correct. A code lasts 15 minutes and is discarded after 5 wrong tries. Tries left: {attempts}.",
-        "codeExpired": "That code expired. Codes only last 15 minutes, so request a new one.",
-        "codeBurned": "Too many wrong tries. The code was discarded after 5 attempts, so request a new one.",
-        "codeConsumed": "That code has been used up, so request a new one.",
         "ticketExpired": "The sign-in took too long to finish. Try again.",
         "serverError": "The server had a problem. Try again in a moment."
       },
@@ -974,77 +967,13 @@
         "conflict": "This identity is already linked to another account.",
         "internal": "Internal error. Try again.",
         "spotifyNotAllowlisted": "Spotify access is limited to an approved list of accounts. Ask an administrator to add yours, then try linking again.",
+        "emailUnverified": "This account's email has not been verified yet. Confirm it at id.omelhorsite.pt and try again.",
         "oauthFailed": "Sign-in failed. Try again."
-      },
-      "oauth": {
-        "dividerOr": "or",
-        "google": "Continue with Google",
-        "github": "Continue with GitHub",
-        "spotify": "Continue with Spotify",
-        "sheetTitle": "Sign in"
-      },
-      "passkey": {
-        "signIn": "Sign in with a passkey",
-        "signInHint": "Uses Face ID, Touch ID or your screen lock. No email or password needed.",
-        "retryIn": "Try again in {seconds} s",
-        "errors": {
-          "noCredentials": "This device has no passkey for O Melhor Site. Sign in another way, then add one in Settings.",
-          "alreadyRegistered": "This device already has a passkey for your account.",
-          "unsupported": "Passkeys need a newer version of your operating system.",
-          "noAuthenticator": "Passkeys need a screen lock. Set up Face ID, Touch ID or a passcode first.",
-          "domain": "This app is not linked to omelhorsite.pt yet, so passkeys cannot be used. Sign in with your email and password.",
-          "unavailable": "This device has no passkey provider available.",
-          "busy": "A passkey request is already open.",
-          "failed": "The passkey could not be used. Try again.",
-          "rejected": "That passkey was not accepted. Try again.",
-          "challengeExpired": "The passkey request took too long. Try again.",
-          "unknownPasskey": "This passkey is not registered on O Melhor Site.",
-          "deactivated": "This account is deactivated.",
-          "notFound": "That passkey no longer exists."
-        }
       },
       "login": {
         "title": "Sign in",
-        "email": "Email",
-        "password": "Password",
-        "submit": "Sign in",
-        "retryIn": "Try again in {seconds} s",
-        "forgotPassword": "Forgot your password?",
-        "noAccount": "No account yet?",
-        "createAccount": "Create account",
-        "invalidCredentials": "Invalid email address or password."
-      },
-      "signup": {
-        "title": "Create account",
-        "emailStepInfo": "Enter your email to receive a verification code.",
-        "email": "Email",
-        "sendCode": "Send code",
-        "emailTaken": "This email is already registered.",
-        "codeSentTo": "We sent a 6-digit code to {email}",
-        "code": "Code",
-        "resend": "Resend code",
-        "resendIn": "Resend in {seconds} s",
-        "continue": "Continue",
-        "detailsTitle": "Almost there - pick a name and password.",
-        "name": "Name",
-        "password": "Password",
-        "submit": "Create account",
-        "haveAccount": "Already have an account?",
-        "signIn": "Sign in",
-        "back": "Back"
-      },
-      "reset": {
-        "title": "Reset password",
-        "emailStepInfo": "Enter your account email to receive a reset code.",
-        "email": "Email",
-        "sendCode": "Send code",
-        "sentInfo": "If the email exists, a code was sent.",
-        "code": "Code",
-        "newPassword": "New password",
-        "submit": "Set new password",
-        "doneInfo": "Password updated. Sign in with your new password.",
-        "goToLogin": "Go to sign in",
-        "back": "Back"
+        "hint": "You sign in at id.omelhorsite.pt with a passkey, a password or a code by email. New accounts are created there too.",
+        "submit": "Sign in"
       }
     },
     "shell": {
@@ -1110,26 +1039,6 @@
       "empty": "No sessions found",
       "renameError": "Could not rename this device.",
       "revokeNote": "Other devices can only be signed out from the device itself."
-    },
-    "passkeys": {
-      "title": "Passkeys",
-      "subtitle": "Sign in with Face ID, Touch ID or your screen lock instead of a password.",
-      "addSection": "Add a passkey",
-      "nickname": "Name (optional)",
-      "nicknamePlaceholder": "This phone",
-      "add": "Create a passkey",
-      "added": "Passkey added.",
-      "removed": "Passkey removed.",
-      "remove": "Remove",
-      "removeTitle": "Remove this passkey?",
-      "removeMessage": "{name} will no longer sign you in. You can add a new one at any time.",
-      "empty": "No passkeys yet",
-      "unnamed": "Passkey",
-      "created": "Added {date}",
-      "lastUsed": "Last used {date}",
-      "neverUsed": "Never used",
-      "unavailable": "This device cannot create passkeys, but the ones below still work on the devices that hold them.",
-      "passwordNote": "Your email and password keep working, so removing every passkey does not lock you out."
     },
     "downloads": {
       "noWifiRefused": "No WiFi - download refused.",
@@ -1223,7 +1132,6 @@
         "sectionLibrary": "Library",
         "sectionPlayback": "Playback and device",
         "rowDevices": "Devices",
-        "rowPasskeys": "Passkeys",
         "theme": "Theme",
         "themeLight": "Light",
         "themeDark": "Dark",

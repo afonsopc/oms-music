@@ -177,11 +177,6 @@ export default function SettingsHubScreen() {
           label={t("native.settings.hub.rowDevices")}
           onPress={() => router.push("/settings/devices")}
         />
-        <SettingsRow
-          icon="circle-check"
-          label={t("native.settings.hub.rowPasskeys")}
-          onPress={() => router.push("/settings/passkeys")}
-        />
       </SettingsSection>
 
       <SettingsSection title={t("native.settings.hub.theme")}>

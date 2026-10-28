@@ -11,9 +11,9 @@
  *    auth/token.ts a cada pedido. Sem token e fora de uma origem cookie o
  *    pedido nem sai (tokens ausentes contam para o bucket anónimo).
  *  - `omsPublic()` é o cliente ANÓNIMO para os endpoints que o cliente antigo
- *    chamava com `auth: false` (login, signup, reset, adopt, passkeys,
+ *    chamava com `auth: false` (hoje: adopt do bilhete de início de sessão e
  *    pesquisa de utilizadores). Nunca manda Bearer e um 401 seu não acorda o
- *    guard - é a resposta normal a uma password errada.
+ *    guard - é a resposta normal a um bilhete expirado.
  *
  * A decisão cookie/Bearer é feita em tempo de chamada, como antes: mudar de
  * modo reconstrói as duas instâncias.

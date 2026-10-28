@@ -957,13 +957,6 @@
     },
     "auth": {
       "errors": {
-        "accountDeactivated": "Šis konts ir deaktivizēts, tāpēc tajā nevar pierakstīties. Lūdziet administratoram to atjaunot.",
-        "missingPassword": "Ievadiet gan e-pasta adresi, gan paroli.",
-        "accountNotFound": "Neviens konts neizmanto šo e-pasta adresi.",
-        "codeInvalid": "Šis kods nav pareizs. Kods ir derīgs 15 minūtes un tiek atmests pēc 5 nepareiziem mēģinājumiem. Atlikuši mēģinājumi: {attempts}.",
-        "codeExpired": "Šis kods ir novecojis. Kodi ir derīgi tikai 15 minūtes, tāpēc pieprasiet jaunu.",
-        "codeBurned": "Pārāk daudz nepareizu mēģinājumu. Kods tika atmests pēc 5 mēģinājumiem, tāpēc pieprasiet jaunu.",
-        "codeConsumed": "Šis kods jau ir izlietots, tāpēc pieprasiet jaunu.",
         "ticketExpired": "Pierakstīšanās aizņēma pārāk ilgu laiku. Mēģiniet vēlreiz.",
         "serverError": "Serverim radās problēma. Mēģiniet vēlreiz pēc brīža."
       },
@@ -974,77 +967,13 @@
         "conflict": "Šī identitāte jau ir piesaistīta citam kontam.",
         "internal": "Iekšēja kļūda. Mēģiniet vēlreiz.",
         "spotifyNotAllowlisted": "Spotify piekļuve ir atļauta tikai apstiprinātu kontu sarakstam. Lūdziet administratoram pievienot jūsu kontu un mēģiniet saistīt vēlreiz.",
+        "emailUnverified": "Šī konta e-pasts vēl nav apstiprināts. Apstipriniet to vietnē id.omelhorsite.pt un mēģiniet vēlreiz.",
         "oauthFailed": "Pierakstīšanās neizdevās. Mēģiniet vēlreiz."
-      },
-      "oauth": {
-        "dividerOr": "vai",
-        "google": "Turpināt ar Google",
-        "github": "Turpināt ar GitHub",
-        "spotify": "Turpināt ar Spotify",
-        "sheetTitle": "Pierakstīties"
-      },
-      "passkey": {
-        "signIn": "Pierakstīties ar piekļuves atslēgu",
-        "signInHint": "Izmanto Face ID, Touch ID vai ekrāna bloķēšanu. Nav vajadzīgs e-pasts vai parole.",
-        "retryIn": "Mēģināt vēlreiz pēc {seconds} s",
-        "errors": {
-          "noCredentials": "Šajā ierīcē nav piekļuves atslēgas vietnei O Melhor Site. Pierakstieties citādi un pievienojiet to iestatījumos.",
-          "alreadyRegistered": "Šajā ierīcē jau ir piekļuves atslēga jūsu kontam.",
-          "unsupported": "Piekļuves atslēgām nepieciešama jaunāka operētājsistēmas versija.",
-          "noAuthenticator": "Piekļuves atslēgām nepieciešama ekrāna bloķēšana. Vispirms iestatiet Face ID, Touch ID vai piekļuves kodu.",
-          "domain": "Šī lietotne vēl nav saistīta ar omelhorsite.pt, tāpēc piekļuves atslēgas nedarbojas. Pierakstieties ar e-pastu un paroli.",
-          "unavailable": "Šajā ierīcē nav pieejams neviens piekļuves atslēgu pakalpojums.",
-          "busy": "Piekļuves atslēgas pieprasījums jau ir atvērts.",
-          "failed": "Piekļuves atslēgu neizdevās izmantot. Mēģiniet vēlreiz.",
-          "rejected": "Piekļuves atslēga netika pieņemta. Mēģiniet vēlreiz.",
-          "challengeExpired": "Pieprasījums aizņēma pārāk ilgu laiku. Mēģiniet vēlreiz.",
-          "unknownPasskey": "Šī piekļuves atslēga nav reģistrēta.",
-          "deactivated": "Šis konts ir deaktivizēts.",
-          "notFound": "Šī piekļuves atslēga vairs nepastāv."
-        }
       },
       "login": {
         "title": "Pierakstīties",
-        "email": "E-pasts",
-        "password": "Parole",
-        "submit": "Pierakstīties",
-        "retryIn": "Mēģiniet vēlreiz pēc {seconds} s",
-        "forgotPassword": "Aizmirsāt paroli?",
-        "noAccount": "Vēl nav konta?",
-        "createAccount": "Izveidot kontu",
-        "invalidCredentials": "Nepareiza e-pasta adrese vai parole."
-      },
-      "signup": {
-        "title": "Izveidot kontu",
-        "emailStepInfo": "Ievadiet savu e-pastu, lai saņemtu verifikācijas kodu.",
-        "email": "E-pasts",
-        "sendCode": "Nosūtīt kodu",
-        "emailTaken": "Šis e-pasts jau ir reģistrēts.",
-        "codeSentTo": "Mēs nosūtījām 6 ciparu kodu uz {email}",
-        "code": "Kods",
-        "resend": "Sūtīt kodu vēlreiz",
-        "resendIn": "Sūtīt vēlreiz pēc {seconds} s",
-        "continue": "Turpināt",
-        "detailsTitle": "Gandrīz gatavs - izvēlieties vārdu un paroli.",
-        "name": "Vārds",
-        "password": "Parole",
-        "submit": "Izveidot kontu",
-        "haveAccount": "Jau ir konts?",
-        "signIn": "Pierakstīties",
-        "back": "Atpakaļ"
-      },
-      "reset": {
-        "title": "Atiestatīt paroli",
-        "emailStepInfo": "Ievadiet sava konta e-pastu, lai saņemtu kodu.",
-        "email": "E-pasts",
-        "sendCode": "Nosūtīt kodu",
-        "sentInfo": "Ja e-pasts pastāv, kods tika nosūtīts.",
-        "code": "Kods",
-        "newPassword": "Jaunā parole",
-        "submit": "Iestatīt jauno paroli",
-        "doneInfo": "Parole atjaunināta. Pierakstieties ar jauno paroli.",
-        "goToLogin": "Uz pierakstīšanos",
-        "back": "Atpakaļ"
+        "hint": "Pierakstīšanās notiek vietnē id.omelhorsite.pt ar piekļuves atslēgu, paroli vai e-pasta kodu. Tur var izveidot arī jaunu kontu.",
+        "submit": "Pierakstīties"
       }
     },
     "shell": {
@@ -1110,26 +1039,6 @@
       "empty": "Nav atrasta neviena sesija",
       "renameError": "Neizdevās pārdēvēt šo ierīci.",
       "revokeNote": "Sesijas citās ierīcēs var beigt tikai no pašas ierīces."
-    },
-    "passkeys": {
-      "title": "Piekļuves atslēgas",
-      "subtitle": "Pierakstieties ar Face ID, Touch ID vai ekrāna bloķēšanu paroles vietā.",
-      "addSection": "Pievienot piekļuves atslēgu",
-      "nickname": "Nosaukums (nav obligāts)",
-      "nicknamePlaceholder": "Šis tālrunis",
-      "add": "Izveidot piekļuves atslēgu",
-      "added": "Piekļuves atslēga pievienota.",
-      "removed": "Piekļuves atslēga noņemta.",
-      "remove": "Noņemt",
-      "removeTitle": "Noņemt šo piekļuves atslēgu?",
-      "removeMessage": "{name} vairs nepierakstīs jūs kontā. Jaunu varat pievienot jebkurā laikā.",
-      "empty": "Vēl nav nevienas piekļuves atslēgas",
-      "unnamed": "Piekļuves atslēga",
-      "created": "Pievienota {date}",
-      "lastUsed": "Pēdējoreiz izmantota {date}",
-      "neverUsed": "Nekad nav izmantota",
-      "unavailable": "Šī ierīce nevar izveidot piekļuves atslēgas, taču zemāk redzamās joprojām darbojas ierīcēs, kurās tās glabājas.",
-      "passwordNote": "E-pasts un parole turpina darboties, tāpēc visu piekļuves atslēgu noņemšana neizslēgs jūs no konta."
     },
     "downloads": {
       "noWifiRefused": "Nav WiFi - lejupielāde atteikta.",
@@ -1223,7 +1132,6 @@
         "sectionLibrary": "Bibliotēka",
         "sectionPlayback": "Atskaņošana un ierīce",
         "rowDevices": "Ierīces",
-        "rowPasskeys": "Piekļuves atslēgas",
         "theme": "Motīvs",
         "themeLight": "Gaišs",
         "themeDark": "Tumšs",
