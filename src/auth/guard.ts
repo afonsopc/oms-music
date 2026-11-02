@@ -70,7 +70,7 @@ export const verify = (): Promise<boolean> => {
       // O proxy do SDK avisa este mesmo handler num 401; `inflight` já está
       // preenchido nesse momento, por isso a chamada reentrante só devolve
       // esta promessa - single-flight por construção.
-      await oms().sessions.current();
+      await oms().http.get("/music/session");
       return true;
     } catch (error) {
       if (isApiError(error) && error.status === 401) {

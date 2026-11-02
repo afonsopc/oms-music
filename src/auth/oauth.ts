@@ -48,12 +48,14 @@ export type {
  *    a login ticket, so it is an allowlist, never a free param); any other
  *    origin falls back to the apex site's callback.
  */
-export const buildOAuthUrl = (provider: OAuthProvider, mode: OAuthMode): string => {
+export const buildOAuthUrl = (_provider: OAuthProvider, _mode: OAuthMode): string => {
+  // O login é da própria app de música (cliente "OMS Music" no id), em
+  // /music/auth/start; o regresso (?ticket= / ?error=) tem a mesma forma.
   if (Platform.OS === "web") {
     const origin = encodeURIComponent(window.location.origin);
-    return `${API_BASE_URL}/auth/${provider}?mode=${mode}&app_origin=${origin}`;
+    return `${API_BASE_URL}/music/auth/start?app_origin=${origin}`;
   }
-  return `${API_BASE_URL}/auth/${provider}?mode=${mode}&native=1`;
+  return `${API_BASE_URL}/music/auth/start?native=1`;
 };
 
 /** Where the provider round trip must land for THIS platform. */
@@ -61,54 +63,48 @@ export const oauthReturnUrl = (): string =>
   Platform.OS === "web" ? `${window.location.origin}/oauth/callback` : OAUTH_NATIVE_CALLBACK;
 
 /**
- * Spotify linking while signed in passes the raw session token: the web mints
- * a 2 minute ticket instead because a host-only cookie cannot cross to the API
- * host, but a native client already holds the token
- * (`identities_controller.rb:5-14` accepts either).
- *
- * KNOWN GAP on cookie origins (music.omelhorsite.pt): getToken() is null
- * there by design, so this URL carries an empty token and the link flow
- * fails. The fix is the site's shape - GET /sessions/oauth_ticket (cookie
- * authed) and pass ?ticket= - but it makes this builder async and touches
- * both linkSheet forks, so it rides with the F2 linking work, not here.
+ * Ligar o Spotify (é da app de música: /auth/link/spotify). No nativo vai o
+ * token da sessão no URL (o WebView não tem outra forma de o levar) e o
+ * regresso é o callback https que o WebView intercepta; na web vai o cookie
+ * (o separador novo é do mesmo site) e o regresso é a própria app.
  */
 export const buildLinkUrl = (provider: OAuthProvider): string => {
+  if (Platform.OS === "web") {
+    const origin = encodeURIComponent(window.location.origin);
+    return `${API_BASE_URL}/auth/link/${provider}?app_origin=${origin}`;
+  }
   const token = getToken();
   return `${API_BASE_URL}/auth/link/${provider}?token=${encodeURIComponent(token ?? "")}`;
 };
 
 /**
- * POST /sessions/adopt { ticket } -> { token } and NOTHING else: no user, no
- * session metadata (`sessions_controller.rb:45-52`). The ticket is a signed id
- * with a 2 minute TTL, and adopt resolves it back to the session the callback
- * already minted rather than creating a new one, so replay inside the window
- * returns the same token.
- *
- * Returns the token instead of storing it: token storage, cache reset, cable
- * reconnection and navigation all belong to `session.ts#establishSession`, so
- * every sign-in method lands identically.
+ * POST /music/auth/adopt { ticket } -> { token, session }. O bilhete é
+ * cifrado, vale 2 minutos, e repetido dentro do prazo devolve o mesmo token.
+ * Na web a resposta deixa o cookie httpOnly da sessão da música.
  */
 export const adoptTicket = async (ticket: string): Promise<string> => {
-  const response = await omsPublic().sessions.adopt(ticket);
+  const response = await omsPublic().http.post<{ token?: string }>("/music/auth/adopt", { ticket });
   if (!response?.token) throw new Error("Adopt response missing token");
   return response.token;
 };
 
-/** GET /identities (linked identity management). */
-export interface Identity {
-  id: string;
-  provider: string;
-  email: string | null;
-  name: string | null;
-  avatar_url: string | null;
-  created_at: string;
-  updated_at: string;
+/**
+ * POST /music/auth/exchange: a sessão antiga do omelhorsite (a que o
+ * cliente já tem) passa a uma da música, sem login, com o mesmo id.
+ */
+export const exchangeLegacySession = async (): Promise<string | null> => {
+  const response = await oms().http.post<{ token?: string | null }>("/music/auth/exchange");
+  return response?.token ?? null;
+};
+
+/** A ligação ao Spotify (GET/DELETE /music/spotify). */
+export interface SpotifyLinkStatus {
+  allowed: boolean;
+  connected: boolean;
+  link: { id: string; name: string | null; email: string | null } | null;
 }
 
-// Lacuna do SDK: só tem /admin/identities; as identidades da própria conta
-// (GET/DELETE /identities) vão pelo transporte cru.
-export const listIdentities = (): Promise<Identity[]> =>
-  oms().http.get<Identity[]>("/identities");
+export const getSpotifyLink = (): Promise<SpotifyLinkStatus> =>
+  oms().http.get<SpotifyLinkStatus>("/music/spotify");
 
-export const deleteIdentity = (id: string): Promise<void> =>
-  oms().http.delete<void>(`/identities/${encodeURIComponent(id)}`);
+export const unlinkSpotify = (): Promise<void> => oms().http.delete<void>("/music/spotify");

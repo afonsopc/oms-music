@@ -20,7 +20,8 @@ import type { Session, User } from "@/domain/user";
 import { isCookieAuth } from "./authMode";
 import { clearToken, loadToken, setToken } from "./token";
 import { onAuthLoss, setAuthReady } from "./guard";
-import { adoptTicket } from "./oauth";
+import { adoptTicket, exchangeLegacySession } from "./oauth";
+import { isMusicToken, markWebMigrated, webMigrated } from "./musicSession";
 
 export type SessionStatus = "booting" | "anon" | "authed";
 
@@ -43,7 +44,10 @@ const set = useSessionStore.setState;
 
 // Os tipos do SDK são o fio; os do domínio são o que os ecrãs lêem. Os casts
 // de fronteira ficam nestes dois leitores.
-const fetchMySession = (): Promise<Session> => oms().sessions.current() as Promise<Session>;
+// A sessão é da app de música (GET /music/session); com uma credencial antiga
+// do omelhorsite a resposta traz `legacy: true`.
+const fetchMySession = (): Promise<Session & { legacy?: boolean }> =>
+  oms().http.get<Session & { legacy?: boolean }>("/music/session");
 const fetchUser = (id: string): Promise<User> => oms().account.get(id) as Promise<User>;
 
 // ---------------------------------------------------------------------------
@@ -81,6 +85,26 @@ onAuthLoss(() => {
 });
 
 // ---------------------------------------------------------------------------
+// A sessão antiga do omelhorsite passa a uma da música, sem login
+// ---------------------------------------------------------------------------
+const upgradeLegacySession = async (token: string | null): Promise<void> => {
+  if (isCookieAuth()) {
+    if (webMigrated()) return;
+  } else if (!token || isMusicToken(token)) {
+    return;
+  }
+  try {
+    const fresh = await exchangeLegacySession();
+    if (fresh && !isCookieAuth()) await setToken(fresh);
+    markWebMigrated();
+  } catch (error) {
+    // Sem sessão antiga para trocar: nada a fazer, o probe a seguir decide.
+    // Rede ou servidor em baixo: fica a antiga, que continua a servir.
+    if (isApiError(error) && (error.status === 401 || error.status === 403)) markWebMigrated();
+  }
+};
+
+// ---------------------------------------------------------------------------
 // Boot
 // ---------------------------------------------------------------------------
 export const bootSession = async (): Promise<void> => {
@@ -95,7 +119,14 @@ export const bootSession = async (): Promise<void> => {
     return;
   }
   try {
+    await upgradeLegacySession(token);
     const session = await fetchMySession();
+    if (session.legacy && isCookieAuth() && webMigrated()) {
+      // Já houve sessão da música neste browser e saiu-se dela: o cookie
+      // antigo do omelhorsite.pt não volta a entrar sozinho.
+      await wipeToAnon();
+      return;
+    }
     const user = await fetchUser(session.user_id);
     set({ status: "authed", session, user, offlineBoot: false });
     setAuthReady(true);
@@ -150,6 +181,7 @@ export const establishSession = async (
   seed?: Session | null,
 ): Promise<void> => {
   await setToken(token);
+  markWebMigrated();
   queryClient.clear();
   const session = seed ?? (await fetchMySession());
   set({ status: "authed", session, user: session.user ?? null, offlineBoot: false });
@@ -180,14 +212,12 @@ export const adoptOAuthTicket = async (ticket: string): Promise<void> => {
 };
 
 /**
- * Logout (FR-10): DELETE /sessions/current best-effort (the server always
- * kills the calling session regardless of id; the SDK's signOut swallows a
- * 401/404 and falls back to /sessions/mine + DELETE /sessions/:id); the wipe
- * runs even on failure. SQLite files persist on disk namespaced per user id.
+ * Logout (FR-10): DELETE /music/session best-effort (termina só a sessão da
+ * música; a do id e a do omelhorsite.pt ficam); the wipe runs even on failure. SQLite files persist on disk namespaced per user id.
  */
 export const logout = async (): Promise<void> => {
   try {
-    await oms().sessions.signOut();
+    await oms().http.delete<void>("/music/session");
   } catch {
     // Wipe anyway.
   }
