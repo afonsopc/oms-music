@@ -120,10 +120,10 @@ describe("translateErrors", () => {
     await authed.sessions.current().catch(() => undefined);
     expect(causes).toEqual(["401"]);
 
-    const anon = translateErrors(client(() => json(401, "Invalid email address or password.")), {
+    const anon = translateErrors(client(() => json(401, "Unauthorized")), {
       notifyAuthFailure: false,
     });
-    await anon.sessions.signIn({ email: "a@b.c", password: "x" }).catch(() => undefined);
+    await anon.sessions.current().catch(() => undefined);
     expect(causes).toEqual(["401"]);
   });
 
