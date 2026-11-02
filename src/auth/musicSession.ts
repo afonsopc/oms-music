@@ -11,11 +11,9 @@
  */
 import { Platform } from "react-native";
 
-export const MUSIC_TOKEN_PREFIX = "omsm_";
-const WEB_MIGRATED_KEY = "oms-music.music-session";
+export { isMusicToken, MUSIC_TOKEN_PREFIX } from "./musicToken";
 
-export const isMusicToken = (token: string | null | undefined): boolean =>
-  typeof token === "string" && token.startsWith(MUSIC_TOKEN_PREFIX);
+const WEB_MIGRATED_KEY = "oms-music.music-session";
 
 export const webMigrated = (): boolean => {
   if (Platform.OS !== "web" || typeof window === "undefined") return false;

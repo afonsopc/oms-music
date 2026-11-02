@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { isMusicToken } from "../musicSession";
+import { isMusicToken } from "../musicToken";
 
 describe("isMusicToken", () => {
   test("só os tokens das sessões da música", () => {
