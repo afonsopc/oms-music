@@ -46,9 +46,15 @@ const set = useSessionStore.setState;
 // de fronteira ficam nestes dois leitores.
 // A sessão é da app de música (GET /music/session); com uma credencial antiga
 // do omelhorsite a resposta traz `legacy: true`.
-const fetchMySession = (): Promise<Session & { legacy?: boolean }> =>
-  oms().http.get<Session & { legacy?: boolean }>("/music/session");
+const fetchMySession = (): Promise<Session & { legacy?: boolean; user?: User }> =>
+  oms().http.get<Session & { legacy?: boolean; user?: User }>("/music/session");
 const fetchUser = (id: string): Promise<User> => oms().account.get(id) as Promise<User>;
+
+// A conta: a que o /music/session já traz (a app de música lê-a da base, sem
+// perguntar ao omelhorsite), senão GET /users/:id. Assim o arranque não
+// depende do omelhorsite: com ele em baixo a música continua (resiliencia.md).
+const userOf = async (session: Session & { user?: User }): Promise<User> =>
+  session.user?.id ? session.user : fetchUser(session.user_id);
 
 // ---------------------------------------------------------------------------
 // Logout tasks: subsystems (cable, download scheduler, stores) register a
@@ -127,7 +133,7 @@ export const bootSession = async (): Promise<void> => {
       await wipeToAnon();
       return;
     }
-    const user = await fetchUser(session.user_id);
+    const user = await userOf(session);
     set({ status: "authed", session, user, offlineBoot: false });
     setAuthReady(true);
   } catch (error) {
@@ -145,7 +151,7 @@ export const bootSession = async (): Promise<void> => {
 /** Re-runs the /sessions/mine + /users/:id pair (e.g. after reconnect). */
 export const refreshAccount = async (): Promise<void> => {
   const session = await fetchMySession();
-  const user = await fetchUser(session.user_id);
+  const user = await userOf(session);
   set({ status: "authed", session, user, offlineBoot: false });
 };
 
