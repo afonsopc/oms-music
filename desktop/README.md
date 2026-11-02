@@ -87,9 +87,16 @@ pipeline de assinatura e validado em TODOS os builds, nao no dia do release.
 - Gerar/rodar chaves: `bun run keys` (ver scripts/generate-updater-keys.sh
   para a politica de rotacao; a privada nunca vive no git, mesma disciplina
   da production.key do site).
-- O endpoint `updates.omelhorsite.pt/...` esta declarado mas NAO existe;
-  publicar updates e trabalho de release, fora deste repo. Em Linux o updater
-  so cobre AppImage; com Flatpak/Snap ha que esconder o botao (plano 3.6).
+- A app procura sozinha (`src-tauri/src/updates.rs`): 20 s depois do
+  arranque e de 4 em 4 horas. Havendo versao nova, descarrega e instala em
+  segundo plano e pergunta UMA vez "Há uma versão nova. Reiniciar agora?";
+  com "Depois" entra no proximo arranque. Em Linux so procura num AppImage
+  (deb/Flatpak nao se trocam sozinhos).
+- O endpoint `updates.omelhorsite.pt/oms-music-desktop/...` e um 302 no
+  Traefik do Mini (omelhorsite: `infra/mini/traefik/dynamic/oms-music-updates.yml`)
+  para `releases/latest/download/latest.json` deste repo (publico). Publicar
+  uma versao = release no GitHub com o `latest.json` (url + assinatura de
+  cada plataforma) como asset; o "latest" do GitHub e o que as apps veem.
 
 ## Assinatura macOS e notarizacao (documentado, NAO executado)
 

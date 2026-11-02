@@ -6,7 +6,7 @@
 # da costura src/player/expoAudioAdapter.
 [package]
 name = "oms-music-desktop"
-version = "1.2.0"
+version = "1.2.1"
 description = "Shell Tauri da app de musica de omelhorsite.pt"
 edition = "2021"
 
@@ -40,6 +40,9 @@ tauri-plugin-window-state = "2"
 # vive em tauri.conf.json, a chave privada em desktop/keys/ (gitignored via
 # *.key). Ver scripts/generate-updater-keys.sh.
 tauri-plugin-updater = "2"
+# So para a pergunta nativa "Reiniciar agora?" do updates.rs, chamada do lado
+# Rust. Nenhuma capability lhe da acesso a partir do webview.
+tauri-plugin-dialog = "2"
 # Teclas de media + Now Playing (macOS) + MPRIS (Linux) + SMTC (Windows) numa
 # so abstraccao (plano 3.4). NUNCA tauri-plugin-global-shortcut para teclas de
 # media: RegisterEventHotKey perde para os atalhos de sistema e chega a dar

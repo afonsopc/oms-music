@@ -17,6 +17,7 @@ mod login;
 mod media;
 mod menubar;
 mod miniplayer;
+mod updates;
 
 use tauri::{Manager, WebviewWindowBuilder};
 use tauri_specta::{collect_commands, collect_events};
@@ -94,6 +95,7 @@ pub fn run() {
                 .build(),
         )
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_dialog::init())
         // A camada local-first. O estado e criado vazio: so o cache_open (com
         // um utilizador) e que abre o indice e os directorios.
         .manage(cache::CacheState::default())
@@ -120,6 +122,8 @@ pub fn run() {
             build_main_window(app.handle())?;
             media::init(app.handle())?;
             menubar::init(app.handle())?;
+            // Procura de versoes novas: no arranque e de 4 em 4 horas.
+            updates::init(app.handle());
             Ok(())
         })
         .run(tauri::generate_context!())
