@@ -114,3 +114,28 @@ export const desktopCapabilities = (): DesktopCapabilities | null => {
   if (typeof cacheAvailable !== "boolean" || typeof cacheOrigin !== "string") return null;
   return { cacheAvailable, cacheOrigin };
 };
+
+// ---------------------------------------------------------------------------
+// Login pelo browser do sistema
+// ---------------------------------------------------------------------------
+
+/**
+ * Login (e ligar o Spotify) no desktop: o popup da web não abre no webview do
+ * Tauri, por isso o shell abre `startUrl` no browser do sistema com
+ * `app_origin` = um endereço local seu e devolve o URL do regresso
+ * (`http://127.0.0.1:<porta>/oauth/callback?ticket=…`), com a mesma forma do
+ * da web (`desktop/src-tauri/src/login.rs`). `cancel` quando outro pedido
+ * tomou o lugar, passou o tempo, ou o shell não tem o comando.
+ */
+export const desktopBrowserSession = async (
+  startUrl: string,
+): Promise<{ type: "success"; url: string } | { type: "cancel" }> => {
+  const tauri = getTauriGlobals();
+  if (!tauri) return { type: "cancel" };
+  try {
+    const url = await tauri.core.invoke("browser_login", { startUrl });
+    return typeof url === "string" ? { type: "success", url } : { type: "cancel" };
+  } catch {
+    return { type: "cancel" };
+  }
+};

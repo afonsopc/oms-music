@@ -22,12 +22,14 @@ import * as WebBrowser from "expo-web-browser";
 import { authErrorMessage, classifyAdoptError } from "@/auth/authErrors";
 import {
   buildOAuthUrl,
+  desktopLoginStartUrl,
   oauthErrorKey,
   oauthReturnUrl,
   parseOAuthCallback,
   OAUTH_ERROR_KEYS,
 } from "@/auth/oauth";
 import { adoptOAuthTicket } from "@/auth/session";
+import { desktopBrowserSession, isDesktopShell } from "@/desktop/tauri";
 import { useT } from "@/i18n";
 import { AuthButton, AuthError, AuthInfo, AuthScreen, AuthTitle } from "./ui";
 
@@ -41,10 +43,13 @@ export default function LoginScreen() {
     setBusy(true);
     setError(null);
     try {
-      const result = await WebBrowser.openAuthSessionAsync(
-        buildOAuthUrl("zitadel", "signin"),
-        oauthReturnUrl(),
-      );
+      // No desktop o popup não abre: vai pelo browser do sistema.
+      const result = isDesktopShell()
+        ? await desktopBrowserSession(desktopLoginStartUrl())
+        : await WebBrowser.openAuthSessionAsync(
+            buildOAuthUrl("zitadel", "signin"),
+            oauthReturnUrl(),
+          );
       // "cancel"/"dismiss": the user closed the sheet - not an error.
       if (result.type !== "success") return;
       const parsed = parseOAuthCallback(result.url);

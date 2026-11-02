@@ -21,6 +21,19 @@ async updateNowPlaying(nowPlaying: NowPlaying | null) : Promise<Result<null, str
 }
 },
 /**
+ * Abre `start_url` no browser do sistema com `app_origin` = um endereco
+ * local e devolve o URL do regresso (`http://127.0.0.1:<porta>/...`).
+ * Erros: `cancelled` (outro pedido tomou o lugar), `timeout`, ou o motivo.
+ */
+async browserLogin(startUrl: string) : Promise<Result<string, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("browser_login", { startUrl }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
  * Estado tocar/pausa + posicao. O bridge manda em flips de estado, saltos de
  * seek e num tick lento (5s) enquanto toca - a posicao autoritativa continua
  * do lado do player, isto e so o espelho para a UI da plataforma.
@@ -128,6 +141,22 @@ async cacheSubscribe(onEvent: TAURI_CHANNEL<CacheEvent>) : Promise<Result<null, 
 async cacheDownload(songKey: string, songJson: string, wants: Want[]) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("cache_download", { songKey, songJson, wants }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Exporta um media para a pasta Downloads do sistema (pedido do dono,
+ * 2026-08-16: descarregar musica/original/stems do menu). E EXPORTACAO, nao
+ * offline: nada disto passa pelo indice nem pelos roots da cache. O webview
+ * nao tem plugins fs/http de proposito (capabilities/main.json), por isso o
+ * unico caminho para o disco do utilizador e este comando, com o mesmo
+ * guarda de janela dos restantes.
+ */
+async cacheExport(mediaId: string, filename: string) : Promise<Result<string, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("cache_export", { mediaId, filename }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };

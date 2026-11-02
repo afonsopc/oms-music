@@ -58,6 +58,16 @@ export const buildOAuthUrl = (_provider: OAuthProvider, _mode: OAuthMode): strin
   return `${API_BASE_URL}/music/auth/start?native=1`;
 };
 
+/**
+ * O mesmo início no desktop (Tauri), sem `app_origin`: é o shell que o junta,
+ * com o endereço local onde espera o regresso (src/desktop/tauri.ts).
+ */
+export const desktopLoginStartUrl = (): string => `${API_BASE_URL}/music/auth/start`;
+
+/** Ligar o Spotify no desktop: o token vai no URL, como no nativo. */
+export const desktopLinkStartUrl = (provider: OAuthProvider): string =>
+  `${API_BASE_URL}/auth/link/${provider}?token=${encodeURIComponent(getToken() ?? "")}`;
+
 /** Where the provider round trip must land for THIS platform. */
 export const oauthReturnUrl = (): string =>
   Platform.OS === "web" ? `${window.location.origin}/oauth/callback` : OAUTH_NATIVE_CALLBACK;
