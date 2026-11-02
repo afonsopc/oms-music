@@ -16,6 +16,7 @@
  * compared verbatim against what the server echoes - key order matters.
  */
 import { API_BASE_URL } from "@/api/oms";
+import { MUSIC_CABLE_PATH, SHARED_CABLE_PATH, cablePathFor, cableUrl } from "./routes";
 import type {
   CableClient,
   CableState,
@@ -38,16 +39,12 @@ interface SubscriptionEntry {
   wakeHook: (() => void) | null;
 }
 
-const buildCableUrl = (token: string): string => {
-  const ws = API_BASE_URL.replace(/^http/, "ws");
-  // "" is the cookie-auth credential (auth/token.ts#cableCredential): the
-  // same-site handshake carries the httpOnly session cookie by itself, so no
-  // ?token= is sent at all - the server tries param, header, then cookie.
-  if (!token) return `${ws}/cable`;
-  return `${ws}/cable?token=${encodeURIComponent(token)}`;
-};
+const buildCableUrl = (token: string, path = SHARED_CABLE_PATH): string =>
+  cableUrl(API_BASE_URL, path, token);
 
 class CableClientImpl implements CableClient {
+  constructor(private readonly path = SHARED_CABLE_PATH) {}
+
   private socket: WebSocket | null = null;
   /**
    * The connect() credential: a Bearer token, or "" for cookie auth. The
@@ -172,7 +169,7 @@ class CableClientImpl implements CableClient {
     try {
       // Token in the QUERY ONLY: no Authorization header on the handshake
       // (the first credential candidate wins; a stale header beats the param).
-      socket = new WebSocket(buildCableUrl(this.token));
+      socket = new WebSocket(buildCableUrl(this.token, this.path));
     } catch {
       this.scheduleReconnect();
       return;
@@ -325,10 +322,51 @@ class CableClientImpl implements CableClient {
   }
 }
 
-let singleton: CableClientImpl | null = null;
+/**
+ * What the app sees as "the cable": subscriptions go to the music cable or
+ * the omelhorsite's by channel name; connect, disconnect and the foreground
+ * pump drive both. The state is the music cable's (the player is the one
+ * that reads it).
+ */
+class RoutedCableClient implements CableClient {
+  constructor(
+    private readonly shared: CableClientImpl,
+    private readonly music: CableClientImpl,
+  ) {}
+
+  connect(token: string): void {
+    this.shared.connect(token);
+    this.music.connect(token);
+  }
+
+  disconnect(): void {
+    this.shared.disconnect();
+    this.music.disconnect();
+  }
+
+  subscribe(
+    channelParams: Record<string, unknown>,
+    handlers: CableSubscriptionHandlers,
+  ): CableSubscription {
+    const target = cablePathFor(channelParams) === MUSIC_CABLE_PATH ? this.music : this.shared;
+    return target.subscribe(channelParams, handlers);
+  }
+
+  onStateChange(cb: (s: CableState) => void): () => void {
+    return this.music.onStateChange(cb);
+  }
+
+  notifyForeground(): void {
+    this.shared.notifyForeground();
+    this.music.notifyForeground();
+  }
+}
+
+let singleton: RoutedCableClient | null = null;
 
 /** The one cable for the app lifetime. Connect when authed, disconnect on logout. */
 export const getCableClient = (): CableClient => {
-  if (!singleton) singleton = new CableClientImpl();
+  if (!singleton) singleton = new RoutedCableClient(new CableClientImpl(SHARED_CABLE_PATH), new CableClientImpl(MUSIC_CABLE_PATH));
   return singleton;
 };
+
