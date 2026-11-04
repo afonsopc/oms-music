@@ -234,6 +234,13 @@ private final class StemMixer {
   private var prepared = false
   private var desiredPlaying = false
   private var scheduleOffset: Double = 0
+  /// How far the heard sound trails the rendered one when the pair started
+  /// (output latency + one IO buffer; AirPods ~0.15-0.25 s). The muted
+  /// AVPlayer reports the HEARD time (AVFoundation compensates its own
+  /// output latency), so the pair starts this much further into the file
+  /// and the position subtracts it: both clocks then mean "what is heard
+  /// now", and the lyrics in stems mode stop running ahead of the voice.
+  private var heardDelay: Double = 0
   private var durationSeconds: Double = 0
   private var lastError: String?
 
@@ -448,7 +455,8 @@ private final class StemMixer {
     // Negative until the shared start instant arrives; clamped so the position
     // never walks backwards through the lead window.
     let elapsed = max(0, Double(playerTime.sampleTime) / playerTime.sampleRate)
-    return min(duration, offset + elapsed)
+    let delay = withState { heardDelay }
+    return min(duration, max(0, offset + elapsed - delay))
   }
 
   // MARK: Transport internals (queue only)
@@ -496,13 +504,17 @@ private final class StemMixer {
   /// and would otherwise be exactly one lead ahead of us forever.
   private func startLocked(from seconds: Double) {
     let lead = leadSeconds()
+    let delay = heardDelaySeconds()
     let duration = read { durationSeconds }
-    let offset = min(seconds + lead, duration)
+    let offset = min(seconds + lead + delay, duration)
 
     guard startEngineLocked() else {
       return
     }
-    write { scheduleOffset = offset }
+    write {
+      scheduleOffset = offset
+      heardDelay = delay
+    }
     scheduleLocked(from: offset)
 
     let when = AVAudioTime(hostTime: mach_absolute_time() + AVAudioTime.hostTime(forSeconds: lead))
@@ -535,6 +547,13 @@ private final class StemMixer {
         return false
       }
     }
+  }
+
+  /// Output latency plus one IO buffer, capped: a route that reports
+  /// nonsense must not throw the blend half a second off.
+  private func heardDelaySeconds() -> Double {
+    let session = AVAudioSession.sharedInstance()
+    return clamp(max(0, session.outputLatency) + max(0, session.ioBufferDuration), 0, 0.4)
   }
 
   private func leadSeconds() -> Double {
