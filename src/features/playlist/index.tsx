@@ -30,7 +30,13 @@ import { playlistArtworkSource } from "@/domain/artwork";
 import { splitDuration, totalDuration } from "@/domain/format";
 import { useOfflinePlaylistIdentity } from "@/downloads/collections";
 import type { PlaylistId } from "@/domain/ids";
-import { isLikedMirror, isSystemPlaylist, type PlaylistSong } from "@/domain/playlist";
+import { sourceName } from "./sourceName";
+import {
+  isLikedMirror,
+  isMirrorPlaylist,
+  isSystemPlaylist,
+  type PlaylistSong,
+} from "@/domain/playlist";
 import type { Song } from "@/domain/song";
 import { useLocale, useT } from "@/i18n";
 import { formatDate } from "@/lib/dates";
@@ -84,6 +90,17 @@ const PlaylistBody = ({ playlistId }: { playlistId: PlaylistId }) => {
   const playlist = playlistQuery.data ?? null;
   const system = playlist ? isSystemPlaylist(playlist) : false;
   const likedMirror = playlist ? isLikedMirror(playlist) : false;
+  // Uma playlist de fora só muda lá; para a mudar, uma cópia (fixa ou que
+  // acompanha). O nome do serviço só aparece na web (sourceName).
+  const mirror = playlist ? isMirrorPlaylist(playlist) : false;
+  const provider = playlist ? sourceName(playlist) : null;
+  const viaProvider = useCallback(
+    (key: string, neutralKey: string): string =>
+      provider
+        ? t(`components.music.PlaylistView.${key}`, { provider })
+        : t(`components.music.PlaylistView.${neutralKey}`),
+    [provider, t],
+  );
 
   /**
    * Linha do dono (ponto 16): quase sempre e o proprio (a sessao
@@ -141,8 +158,9 @@ const PlaylistBody = ({ playlistId }: { playlistId: PlaylistId }) => {
         }),
       );
     }
+    if (mirror) parts.push(viaProvider("onlyChangesThere", "onlyChangesAtSource"));
     return parts.join(" • ");
-  }, [songs, songsQuery.isLoading, songsQuery.hasNextPage, system, playlist, t, locale]);
+  }, [songs, songsQuery.isLoading, songsQuery.hasNextPage, system, mirror, viaProvider, playlist, t, locale]);
 
   const addedAtFor = useCallback(
     (_song: Song, index: number) => rows[index]?.created_at,
@@ -232,16 +250,29 @@ const PlaylistBody = ({ playlistId }: { playlistId: PlaylistId }) => {
         onPress: artworkChange.pick,
       });
     }
-    if (system) {
+    const openCopy = { onSuccess: (copy: { id: PlaylistId }) => router.replace(playlistRoute(copy.id)) };
+    if (mirror) {
+      items.push({
+        id: "copy",
+        label: t("components.music.PlaylistView.copyFixed"),
+        icon: "library",
+        disabled: copyMutation.isPending,
+        onPress: () => copyMutation.mutate({ id: playlistId, follow: false }, openCopy),
+      });
+      items.push({
+        id: "copyFollow",
+        label: viaProvider("copyFollow", "copyFollowSource"),
+        icon: "library",
+        disabled: copyMutation.isPending,
+        onPress: () => copyMutation.mutate({ id: playlistId, follow: true }, openCopy),
+      });
+    } else if (system) {
       items.push({
         id: "copy",
         label: t("components.music.PlaylistView.copyToEditable"),
         icon: "library",
         disabled: copyMutation.isPending,
-        onPress: () =>
-          copyMutation.mutate(playlistId, {
-            onSuccess: (copy) => router.replace(playlistRoute(copy.id)),
-          }),
+        onPress: () => copyMutation.mutate(playlistId, openCopy),
       });
     }
     items.push({
@@ -252,7 +283,7 @@ const PlaylistBody = ({ playlistId }: { playlistId: PlaylistId }) => {
       onPress: () => setConfirmDelete(true),
     });
     return items;
-  }, [system, likedMirror, artworkChange, copyMutation, playlistId, router, t, canReorder, reorderMode]);
+  }, [system, mirror, viaProvider, likedMirror, artworkChange, copyMutation, playlistId, router, t, canReorder, reorderMode]);
 
   if (playlistQuery.isError) {
     return (
@@ -269,9 +300,13 @@ const PlaylistBody = ({ playlistId }: { playlistId: PlaylistId }) => {
         kind="playlist"
         title={playlist?.name ?? ""}
         subtitle={
-          system
-            ? t("components.music.PlaylistView.synced")
-            : t("components.music.PlaylistView.playlistLabel")
+          mirror && provider
+            ? t("components.music.PlaylistView.fromProvider", { provider })
+            : system
+              ? t("components.music.PlaylistView.synced")
+              : playlist?.follows_upstream
+                ? viaProvider("followsProvider", "followsSource")
+                : t("components.music.PlaylistView.playlistLabel")
         }
         meta={playlist ? meta : undefined}
         owner={owner}

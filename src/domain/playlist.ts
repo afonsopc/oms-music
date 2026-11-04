@@ -15,7 +15,18 @@ export interface Playlist {
   synced_at: string | null;
   /** True when an outside sync keeps this playlist up to date (read-only here). */
   synced?: boolean;
+  /** Espelho de uma playlist de fora: só de leitura, sai por uma cópia. */
+  mirror?: boolean;
+  /** Cópia que acompanha a original de fora (editável). */
+  follows_upstream?: boolean;
+  /** O nome do serviço de fora (só se mostra na web, ver sourceName). */
+  provider_name?: string | null;
 }
+
+export const isMirrorPlaylist = (p: Playlist): boolean =>
+  typeof p.mirror === "boolean"
+    ? p.mirror
+    : (p.source_kind ?? "").endsWith("_sync");
 
 /**
  * Synced playlists are read-only server-side (rename included). The backend

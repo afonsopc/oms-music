@@ -196,11 +196,19 @@ export const useUploadPlaylistArtwork = () => {
   });
 };
 
-/** Works on system playlists; navigates to the returned copy. */
+/**
+ * Works on system playlists; navigates to the returned copy. `follow`: a
+ * cópia que acompanha a original de fora (só de um espelho).
+ */
 export const useCopyPlaylist = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: PlaylistId) => oms().music.playlists.copy(id) as Promise<Playlist>,
+    mutationFn: (arg: PlaylistId | { id: PlaylistId; follow: boolean }) =>
+      typeof arg === "object"
+        ? (oms().http.post<Playlist>(`/playlists/${encodeURIComponent(String(arg.id))}/copy`, {
+            kind: arg.follow ? "follow" : "fixed",
+          }) as Promise<Playlist>)
+        : (oms().music.playlists.copy(arg) as Promise<Playlist>),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: keys.playlists.all });
     },
