@@ -73,7 +73,7 @@ async miniplayerToggle() : Promise<Result<boolean, string>> {
 },
 /**
  * Muda o preset, aplica ja se a janela existir, e persiste SEMPRE - e esta
- * persistencia que e a nossa melhoria sobre o Spotify.
+ * persistencia que e a nossa melhoria sobre as apps de referencia.
  */
 async miniplayerSetSize(size: MiniplayerSize) : Promise<Result<null, string>> {
     try {
@@ -382,6 +382,38 @@ async cachePurge() : Promise<Result<CacheUsage, string>> {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
+},
+async dlnaDiscover() : Promise<Result<DlnaDevice[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("dlna_discover") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async dlnaLoad(id: string, media: DlnaMedia, positionS: number) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("dlna_load", { id, media, positionS }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async dlnaControl(id: string, action: string, value: number | null) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("dlna_control", { id, action, value }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async dlnaStatus(id: string) : Promise<Result<DlnaStatus, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("dlna_status", { id }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
 }
 }
 
@@ -423,6 +455,21 @@ export type CacheOpen = {
  */
 available: boolean; origin: string; budgetBytes: number }
 export type CacheUsage = { pinnedBytes: number; pinnedFiles: number; evictableBytes: number; evictableFiles: number }
+export type DlnaDevice = { 
+/**
+ * O LOCATION do SSDP: unico por aparelho e estavel enquanto o IP for.
+ */
+id: string; name: string; manufacturer: string | null; model: string | null }
+export type DlnaMedia = { url: string; contentType: string; title: string; artist: string; album: string | null; artworkUrl: string | null; durationS: number | null }
+export type DlnaStatus = { 
+/**
+ * PLAYING, PAUSED_PLAYBACK, STOPPED, TRANSITIONING, NO_MEDIA_PRESENT.
+ */
+state: string; positionS: number; durationS: number; 
+/**
+ * 0..100, quando a TV o diz.
+ */
+volume: number | null }
 /**
  * A linha como o JS a ve. Sem caminhos: o `LocalFileIndex` do fork desktop
  * monta `${origem}/k/${songKey}_${kind}` a partir daqui.

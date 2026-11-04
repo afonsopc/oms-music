@@ -13,6 +13,7 @@
 //! package.json da app nao ganhar dependencias novas.
 
 mod cache;
+mod dlna;
 mod login;
 mod media;
 mod menubar;
@@ -70,6 +71,11 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             cache::commands::cache_lyrics_set::<tauri::Wry>,
             cache::commands::cache_set_budget::<tauri::Wry>,
             cache::commands::cache_purge::<tauri::Wry>,
+            // Transmitir para TVs DLNA (dlna.rs): so a janela principal.
+            dlna::dlna_discover::<tauri::Wry>,
+            dlna::dlna_load::<tauri::Wry>,
+            dlna::dlna_control::<tauri::Wry>,
+            dlna::dlna_status::<tauri::Wry>,
         ])
         .events(collect_events![media::MediaCommand, menubar::ShellCommand])
 }
@@ -101,6 +107,7 @@ pub fn run() {
         // A camada local-first. O estado e criado vazio: so o cache_open (com
         // um utilizador) e que abre o indice e os directorios.
         .manage(cache::CacheState::default())
+        .manage(dlna::DlnaState::default())
         // O protocolo de media, na variante ASSINCRONA. A sincrona corre na
         // thread da UI e faria a janela engasgar-se a cada seek, que e
         // exactamente o gesto que isto existe para tornar instantaneo.

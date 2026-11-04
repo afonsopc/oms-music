@@ -6,6 +6,12 @@ O que entra vai para "Por lançar"; o bump dá-lhe o número.
 
 ## Por lançar
 
+- Transmitir para TVs e colunas: um botão, uma lista com os teus aparelhos, Chromecast, AirPlay e TVs DLNA. O leitor diz "A tocar em Sala (Chromecast)".
+- Chromecast na web (Chrome, Edge), no Android e no iOS: a fila vai para a TV e continua com o telemóvel bloqueado ou a app fechada; play, pausa, saltar, voltar, procurar e volume a partir da app.
+- AirPlay no iOS e no Safari: a lista do sistema dentro da app.
+- Desktop: TVs DLNA (Samsung, LG, Sony…) encontradas na rede.
+- Receptor próprio do Chromecast com os visuais pronto em /cast/receiver (precisa do registo na consola do Google, docs/cast.md).
+
 ## 2.0.1 (2026-11-04)
 
 - Tocar numa tab mostra sempre a raiz dela: no Android, com as Definições (ou um álbum, uma playlist…) abertas, tocar em Início não fazia nada. Tocar outra vez na tab aberta sobe a lista ao topo.

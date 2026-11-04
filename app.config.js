@@ -50,5 +50,31 @@ module.exports = () => {
     expo.ios = { ...expo.ios, buildNumber: process.env.OMS_IOS_BUILD_NUMBER };
   }
 
+  // Transmitir (src/cast): o SDK do Google Cast em iOS e Android. O App ID
+  // do receptor fica no binário (o SDK lê-o no arranque), por isso o receptor
+  // próprio (docs/cast.md) precisa de build novo; até lá, o Default Media
+  // Receiver do Google. O plugin põe a permissão de rede local e o Bonjour
+  // (_googlecast._tcp) no Info.plist.
+  expo.plugins = [
+    ...(expo.plugins ?? []),
+    [
+      "react-native-google-cast",
+      {
+        receiverAppId: (process.env.EXPO_PUBLIC_CAST_APP_ID || "").trim() || "CC1AD845",
+        iosStartDiscoveryAfterFirstTapOnCastButton: false,
+      },
+    ],
+  ];
+  if (expo.ios?.infoPlist && !expo.ios.infoPlist.NSLocalNetworkUsageDescription) {
+    expo.ios = {
+      ...expo.ios,
+      infoPlist: {
+        ...expo.ios.infoPlist,
+        NSLocalNetworkUsageDescription:
+          "Para encontrar as TVs e colunas da tua rede e transmitir música para elas.",
+      },
+    };
+  }
+
   return { ...config, expo };
 };

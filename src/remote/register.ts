@@ -40,6 +40,7 @@ import {
   type RemoteNotice,
 } from "./channel";
 import { setRemoteSongLookup } from "./commands";
+import { castAwareEngine } from "@/cast/session";
 import { deviceRegistrationLabel } from "./deviceName";
 import { querySongLookup } from "./songResolver";
 import { createRemoteTransportDecorator } from "./transport";
@@ -140,7 +141,8 @@ export const registerRemotePlayback = (): void => {
 
   const channel = new PlaybackChannelManager({
     cable: getCableClient(),
-    engine,
+    // Os comandos de outros aparelhos vão para a TV enquanto ela tem o som.
+    engine: castAwareEngine(engine),
     localState: playerStore,
     deviceId: getLaunchDeviceId(),
     deviceLabel: deviceLabelHint(),

@@ -705,7 +705,21 @@
         "offlineRecent": "Offline (recent)",
         "deviceFallback": "Device",
         "needsInteraction": "Needs a tap to resume",
-        "lastSeen": "Seen {minutes} min ago"
+        "lastSeen": "Seen {minutes} min ago",
+        "cast": "Cast",
+        "appDevices": "Your devices",
+        "tvs": "TVs and speakers",
+        "chromecast": "Chromecast",
+        "chromecastHint": "Choose in Chrome",
+        "airplay": "AirPlay",
+        "airplayHint": "Apple speakers and TVs",
+        "searching": "Looking for TVs…",
+        "noTvs": "No TVs found on this network",
+        "connecting": "Connecting…",
+        "stop": "Stop",
+        "castFailed": "Couldn't connect to the TV.",
+        "loadFailed": "The TV couldn't play this song.",
+        "searchAgain": "Search again"
       },
       "RemotePlayback": {
         "noActiveDevice": "No active device",

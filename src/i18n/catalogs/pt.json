@@ -705,7 +705,21 @@
         "offlineRecent": "Offline (recentes)",
         "deviceFallback": "Dispositivo",
         "needsInteraction": "Precisa de um toque para retomar",
-        "lastSeen": "Visto há {minutes} min"
+        "lastSeen": "Visto há {minutes} min",
+        "cast": "Transmitir",
+        "appDevices": "Os teus aparelhos",
+        "tvs": "TVs e colunas",
+        "chromecast": "Chromecast",
+        "chromecastHint": "Escolher no Chrome",
+        "airplay": "AirPlay",
+        "airplayHint": "Colunas e TVs da Apple",
+        "searching": "A procurar TVs…",
+        "noTvs": "Nenhuma TV encontrada nesta rede",
+        "connecting": "A ligar…",
+        "stop": "Parar",
+        "castFailed": "Não foi possível ligar à TV.",
+        "loadFailed": "A TV não conseguiu tocar esta música.",
+        "searchAgain": "Procurar outra vez"
       },
       "RemotePlayback": {
         "noActiveDevice": "Sem dispositivo activo",

@@ -76,7 +76,7 @@ rusqlite_migration = "2.6.0"
 # Escrita em streaming das transferencias (BufWriter sobre tokio::fs) e o
 # semaforo que segura a concorrencia em 3, igual ao TRANSFER_CONCURRENCY do
 # movel. O runtime e o do proprio Tauri (tauri::async_runtime).
-tokio = { version = "1.53.1", features = ["fs", "io-util", "sync", "macros", "rt", "time"] }
+tokio = { version = "1.53.1", features = ["fs", "io-util", "sync", "macros", "rt", "time", "net"] }
 # StreamExt sobre o corpo do reqwest: os bytes vao para o disco a medida que
 # chegam, nunca por um Vec inteiro em memoria.
 futures-util = "0.3.34"

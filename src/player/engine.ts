@@ -400,6 +400,25 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
     this.handleSongTransition("user", { reassert: true });
   }
 
+  /**
+   * Transmitir (src/cast): a TV passou sozinha para outra música da fila.
+   * Move o cursor e a música actual SEM carregar nada: o som está na TV,
+   * e este leitor fica calado (sem fonte) até a transmissão acabar. A
+   * posição vai para o store e para o pendingSeek, para o play seguinte
+   * aqui começar onde a TV ia.
+   */
+  alignQueueIndex(visibleIndex: number, position = 0): void {
+    if (this.player.hasSource) this.stopAndClearSource();
+    const next = ops.setQueueIndex(this.q, visibleIndex);
+    const moved = next.queueIndex !== this.q.queueIndex;
+    this.q = next;
+    if (moved) this.syncQueue();
+    const song = ops.currentSongOf(this.q);
+    this.pendingSeek = position > 0 ? position : null;
+    playerStore.setState({ position, duration: song?.duration ?? playerStore.getState().duration });
+    if (moved) this.deps.onLockScreenUpdate?.(song);
+  }
+
   setShuffle(on: boolean): void {
     const next = ops.setShuffle(this.q, on);
     if (next === this.q) return;

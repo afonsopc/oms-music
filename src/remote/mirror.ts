@@ -22,6 +22,7 @@
  * and stem volumes stay device-local and keep reading the player store.
  */
 import { useSyncExternalStore } from "react";
+import { castStore, initialCastState, type CastStoreState } from "@/cast/store";
 import type { LoopMode } from "@/domain/playback";
 import type { Song } from "@/domain/song";
 import { initialPlayerState, playerStore, type PlayerStoreState } from "@/player/store";
@@ -55,7 +56,28 @@ const EMPTY_ORDER: number[] = [];
 export const computePlaybackView = (
   local: PlayerStoreState,
   remote: RemoteStoreState,
+  cast: CastStoreState = initialCastState,
 ): PlaybackView => {
+  // Uma TV tem o som (src/cast): a fila e a música são as do motor (que as
+  // segue calado), o resto - a tocar, a posição, o volume - é o da TV.
+  if (cast.phase !== "idle") {
+    const song = local.currentSong;
+    return {
+      passive: true,
+      song,
+      playing: cast.playing,
+      buffering: cast.buffering || cast.phase === "connecting",
+      position: cast.position,
+      duration: cast.duration > 0 ? cast.duration : (song?.duration ?? 0),
+      queue: local.queue,
+      queueOrder: local.queueOrder,
+      queueIndex: local.queueIndex,
+      shuffle: local.shuffle,
+      loopMode: local.loopMode,
+      volume: cast.volume,
+      rate: 1,
+    };
+  }
   if (remote.role !== "controller") {
     return {
       passive: false,
@@ -114,14 +136,14 @@ const sameView = (a: PlaybackView, b: PlaybackView): boolean =>
   a.volume === b.volume &&
   a.rate === b.rate;
 
-let cache: PlaybackView = computePlaybackView(initialPlayerState, initialRemoteState);
+let cache: PlaybackView = computePlaybackView(initialPlayerState, initialRemoteState, initialCastState);
 
 /**
  * The projection as of now, referentially stable while nothing it exposes
  * changed (useSyncExternalStore requires a cached snapshot).
  */
 export const getPlaybackView = (): PlaybackView => {
-  const next = computePlaybackView(playerStore.getState(), remoteStore.getState());
+  const next = computePlaybackView(playerStore.getState(), remoteStore.getState(), castStore.getState());
   if (sameView(cache, next)) return cache;
   cache = next;
   return next;
@@ -131,9 +153,11 @@ export const getPlaybackView = (): PlaybackView => {
 export const subscribePlaybackView = (cb: () => void): (() => void) => {
   const unsubLocal = playerStore.subscribe(cb);
   const unsubRemote = remoteStore.subscribe(cb);
+  const unsubCast = castStore.subscribe(cb);
   return () => {
     unsubLocal();
     unsubRemote();
+    unsubCast();
   };
 };
 

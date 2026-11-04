@@ -78,10 +78,17 @@ const inertTransport: TransportActions = {
 
 let baseTransport: TransportActions = inertTransport;
 let decorator: ((base: TransportActions) => TransportActions) | null = null;
+/**
+ * Transmitir (src/cast): por fora de tudo. Enquanto uma TV toca, os botões
+ * mandam na TV; o resto (a fila, o aparelho activo) continua a passar pelo
+ * decorador remoto de baixo.
+ */
+let castDecorator: ((inner: TransportActions) => TransportActions) | null = null;
 let resolved: TransportActions = inertTransport;
 
 const recompute = (): void => {
-  resolved = decorator ? decorator(baseTransport) : baseTransport;
+  const inner = decorator ? decorator(baseTransport) : baseTransport;
+  resolved = castDecorator ? castDecorator(inner) : inner;
 };
 
 /** WP3: the engine registers itself as the base transport. */
@@ -95,6 +102,14 @@ export const setTransportDecorator = (
   d: ((base: TransportActions) => TransportActions) | null,
 ): void => {
   decorator = d;
+  recompute();
+};
+
+/** src/cast: o decorador de transmitir (ou null para o tirar). */
+export const setCastTransportDecorator = (
+  d: ((inner: TransportActions) => TransportActions) | null,
+): void => {
+  castDecorator = d;
   recompute();
 };
 

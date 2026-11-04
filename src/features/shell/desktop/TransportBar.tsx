@@ -36,6 +36,7 @@ import { getShellSlots, useShellSlotsVersion } from "@/features/shell/slots";
 import { useT } from "@/i18n";
 import { usePlayerStore } from "@/player/store";
 import { usePlaybackView } from "@/remote/mirror";
+import { useCastStore } from "@/cast/store";
 import { useRemoteStore } from "@/remote/store";
 import { useTheme } from "@/theme/provider";
 import { ArtworkImage, GhostIconButton, PlayFab, type PopoverAnchor } from "@/ui";
@@ -180,8 +181,11 @@ export const DesktopTransportBar = ({
   // offline - there is nothing to cast to (same rule as the CastButton).
   const remoteRole = useRemoteStore((s) => s.role);
   const activeDeviceId = useRemoteStore((s) => s.activeDeviceId);
-  const castTint =
-    activeDeviceId === null
+  // Uma TV (Chromecast/DLNA) ou o AirPlay com o som contam como "noutro sítio".
+  const castingElsewhere = useCastStore((s) => s.phase !== "idle" || s.airplayRoute !== null);
+  const castTint = castingElsewhere
+    ? tokens.foreground
+    : activeDeviceId === null
       ? tokens.mutedForeground
       : remoteRole === "active"
         ? tokens.primary

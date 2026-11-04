@@ -96,6 +96,8 @@ export interface WebMediaElement {
 export interface WebAudioAdapterEnv {
   /** Element factory; tests inject a fake, the browser gets `new Audio()`. */
   createMedia?: () => WebMediaElement;
+  /** O elemento principal, para o AirPlay do Safari (src/cast/airplayWeb). */
+  onMainMedia?: (media: WebMediaElement) => void;
   /** Media session sink; `null` disables (tests, browsers without it). */
   mediaSession?: MediaSession | null;
   /**
@@ -139,6 +141,7 @@ export const createWebAudioAdapter = (env: WebAudioAdapterEnv = {}): AudioAdapte
     return createInertPrerenderAdapter();
   }
   const media = (env.createMedia ?? (() => new Audio()))();
+  env.onMainMedia?.(media);
   // The engine resolves a source and expects it to start fetching before
   // play() lands (its `buffering` spinner covers exactly that window).
   media.preload = "auto";

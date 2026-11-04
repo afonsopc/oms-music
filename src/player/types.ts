@@ -82,6 +82,8 @@ export interface PlayerEngineExtras {
   getQueueState(): QueueState;
   /** False while a controller stint holds the player at a null source. */
   hasLoadedSource(): boolean;
+  /** Transmitir: segue a música da TV sem carregar som aqui. */
+  alignQueueIndex(visibleIndex: number, position?: number): void;
   insertJamProposal(song: Song): void;
   /**
    * RAW setter, no cascade (web parity: `setSeparationEnabled`). Remote

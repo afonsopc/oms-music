@@ -1,0 +1,387 @@
+<!doctype html>
+<!--
+  O receptor próprio do Chromecast (docs/cast.md). Fica em
+  https://music.omelhorsite.pt/cast/receiver/ e é o URL que se regista na
+  Google Cast SDK Developer Console. Enquanto não houver App ID a app usa o
+  Default Media Receiver do Google e esta página não é usada.
+
+  Toca a fila que a app manda (o leitor do Cast, PlayerManager), mostra os
+  visuais (/viz/, o mesmo motor da app, em ecrã inteiro) sincronizados pela
+  posição do leitor, com a letra e a análise que o servidor dá por um token
+  de 24 h que vem em cada música (customData.viz). Por cima, discreto, a capa,
+  o título e o artista quando a música muda.
+
+  Testar num separador normal, sem Chromecast:
+    /cast/receiver/?demo=<url de um áudio>
+-->
+<html lang="pt">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OMS Music</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #000;
+        color: #fff;
+        overflow: hidden;
+        font-family: -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif;
+      }
+      #viz {
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        border: 0;
+        opacity: 0;
+        transition: opacity 1.2s ease;
+        background: transparent;
+      }
+      #viz.on {
+        opacity: 1;
+      }
+      #card {
+        position: fixed;
+        left: 6vw;
+        right: 6vw;
+        bottom: 7vh;
+        display: flex;
+        align-items: flex-end;
+        gap: 2.4vw;
+        opacity: 0;
+        transform: translateY(1.5vh);
+        transition: opacity 0.8s ease, transform 0.8s ease;
+      }
+      #card.on {
+        opacity: 1;
+        transform: none;
+      }
+      #art {
+        width: 17vh;
+        height: 17vh;
+        object-fit: cover;
+        border-radius: 0.6vh;
+        background: #151515;
+        flex: none;
+      }
+      #meta {
+        min-width: 0;
+        flex: 1;
+        padding-bottom: 0.4vh;
+        text-shadow: 0 0.2vh 1.2vh rgba(0, 0, 0, 0.6);
+      }
+      #title {
+        font-size: 4.4vh;
+        font-weight: 600;
+        line-height: 1.15;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      #artist {
+        font-size: 2.8vh;
+        color: #b5b5b5;
+        margin-top: 0.6vh;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      #bar {
+        height: 0.35vh;
+        background: rgba(255, 255, 255, 0.18);
+        margin-top: 2vh;
+        border-radius: 1vh;
+        overflow: hidden;
+      }
+      #fill {
+        height: 100%;
+        width: 0;
+        background: #fff;
+      }
+      #idle {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 3.2vh;
+        letter-spacing: 0.4vh;
+        color: #8a8a8a;
+        transition: opacity 0.8s ease;
+      }
+      #idle.off {
+        opacity: 0;
+      }
+      #paused {
+        position: fixed;
+        top: 6vh;
+        right: 6vw;
+        font-size: 2.4vh;
+        color: #b5b5b5;
+        opacity: 0;
+        transition: opacity 0.5s ease;
+      }
+      #paused.on {
+        opacity: 1;
+      }
+      cast-media-player {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <iframe id="viz" title="visuais"></iframe>
+    <div id="idle">OMS MUSIC</div>
+    <div id="paused">Em pausa</div>
+    <div id="card">
+      <img id="art" alt="" />
+      <div id="meta">
+        <div id="title"></div>
+        <div id="artist"></div>
+        <div id="bar"><div id="fill"></div></div>
+      </div>
+    </div>
+    <audio id="player" preload="auto"></audio>
+    <script src="https://www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js"></script>
+    <script>
+      (function () {
+        "use strict";
+        var params = new URLSearchParams(location.search);
+        var demo = params.get("demo");
+        var $ = function (id) {
+          return document.getElementById(id);
+        };
+        var viz = $("viz");
+        var vizReady = false;
+        var current = { key: null, title: "", artist: "", art: null, tags: [], bpm: null, viz: null };
+        var lastSentKey = "";
+        var lastSentAt = 0;
+        var cardTimer = null;
+
+        // ---- o motor dos visuais -------------------------------------------
+        var send = function (msg) {
+          if (vizReady && viz.contentWindow) viz.contentWindow.postMessage(msg, location.origin);
+        };
+        window.addEventListener("message", function (e) {
+          if (e.source !== viz.contentWindow || !e.data || !e.data.__viz) return;
+          if (e.data.type === "ready") {
+            vizReady = true;
+            viz.classList.add("on");
+            send({
+              type: "config",
+              mode: "full",
+              selection: "style",
+              cycleOnTrack: true,
+              lyrics: "sometimes",
+              // Os Chromecast têm GPUs modestas.
+              lowPower: true,
+            });
+            pushState(true);
+            if (current.key) loadVizData(current);
+          }
+        });
+
+        // Só agora: o motor diz "ready" uma vez, logo ao carregar, e o
+        // ouvinte de cima tem de já lá estar.
+        viz.src = "/viz/";
+
+        // ---- a letra (o mesmo que src/features/viz/vizLyrics.ts) ---------
+        var parseLrc = function (text) {
+          var out = [];
+          String(text || "")
+            .split(/\r?\n/)
+            .forEach(function (line) {
+              var re = /\[(\d+):(\d+(?:\.\d+)?)\]/g;
+              var times = [];
+              var m;
+              var last = 0;
+              while ((m = re.exec(line))) {
+                times.push(Number(m[1]) * 60 + Number(m[2]));
+                last = re.lastIndex;
+              }
+              var body = line.slice(last).trim();
+              if (!body) return;
+              times.forEach(function (t) {
+                out.push({ time: t, text: body });
+              });
+            });
+          return out.sort(function (a, b) {
+            return a.time - b.time;
+          });
+        };
+        var vizLines = function (lyrics) {
+          if (!lyrics) return null;
+          if (lyrics.words && lyrics.words.length) {
+            var words = lyrics.words.filter(function (l) {
+              return l.w && l.w.length;
+            });
+            return words.map(function (l, i) {
+              var last = l.w[l.w.length - 1];
+              var next = words[i + 1] ? words[i + 1].t : last[1] + 2;
+              return {
+                t: l.t,
+                end: Math.min(next, last[1] + 1.2),
+                text: l.w.map(function (w) {
+                  return w[2];
+                }).join(" "),
+                words: l.w,
+              };
+            });
+          }
+          var parsed = parseLrc(lyrics.synced);
+          if (!parsed.length) return null;
+          return parsed.map(function (l, i) {
+            return {
+              t: l.time,
+              end: i + 1 < parsed.length ? Math.min(parsed[i + 1].time, l.time + 8) : l.time + 5,
+              text: l.text,
+            };
+          });
+        };
+
+        // Só se fala com o nosso servidor, por muito que o customData diga.
+        var trustedApi = function (api) {
+          try {
+            var u = new URL(api);
+            return u.protocol === "https:" && (u.hostname === "omelhorsite.pt" || u.hostname.endsWith(".omelhorsite.pt"));
+          } catch (e) {
+            return false;
+          }
+        };
+
+        var loadVizData = function (song) {
+          var v = song.viz;
+          if (!v || !v.t || !trustedApi(v.api) || !song.songId) return;
+          var key = song.key;
+          fetch(v.api.replace(/\/$/, "") + "/media/cast_viz?song_id=" + encodeURIComponent(song.songId) + "&t=" + encodeURIComponent(v.t))
+            .then(function (r) {
+              return r.ok ? r.json() : null;
+            })
+            .then(function (body) {
+              if (!body || current.key !== key) return;
+              send({ type: "analysis", songId: key, data: body.analysis || null });
+              send({ type: "lyrics", songId: key, lines: vizLines(body.lyrics) });
+            })
+            .catch(function () {});
+        };
+
+        // ---- o ecrã ------------------------------------------------------
+        var showCard = function () {
+          $("card").classList.add("on");
+          clearTimeout(cardTimer);
+          // Com os visuais a correr o cartão sai ao fim de uns segundos.
+          cardTimer = setTimeout(function () {
+            if (vizReady) $("card").classList.remove("on");
+          }, 9000);
+        };
+
+        var setSong = function (info) {
+          var md = (info && info.metadata) || {};
+          var cd = (info && info.customData) || {};
+          var key = cd.key || (info && (info.contentId || info.contentUrl)) || null;
+          if (key === current.key) return;
+          current = {
+            key: key,
+            songId: cd.songId || cd.key || null,
+            title: md.title || "",
+            artist: md.artist || md.albumArtist || "",
+            art: md.images && md.images[0] ? md.images[0].url : null,
+            tags: cd.tags || [],
+            bpm: cd.bpm || null,
+            viz: cd.viz || null,
+          };
+          $("title").textContent = current.title;
+          $("artist").textContent = current.artist;
+          if (current.art) $("art").src = current.art;
+          else $("art").removeAttribute("src");
+          $("idle").classList.add("off");
+          showCard();
+          pushState(true);
+          loadVizData(current);
+        };
+
+        var position = function () {
+          return demo ? audio.currentTime : pm ? pm.getCurrentTimeSec() : 0;
+        };
+        var duration = function () {
+          return demo ? audio.duration || 0 : pm ? pm.getDurationSec() : 0;
+        };
+        var isPlaying = function () {
+          if (demo) return !audio.paused && !audio.ended;
+          return pm && pm.getPlayerState() === cast.framework.messages.PlayerState.PLAYING;
+        };
+
+        var pushState = function (force) {
+          var playing = isPlaying();
+          var stateKey = (current.key || "") + "|" + playing;
+          var now = Date.now();
+          if (!force && stateKey === lastSentKey && now - lastSentAt < 5000) return;
+          lastSentKey = stateKey;
+          lastSentAt = now;
+          $("paused").classList.toggle("on", !!current.key && !playing);
+          if (!playing) showCard();
+          send({
+            type: "state",
+            song: current.key
+              ? { id: current.key, title: current.title, artist: current.artist, artworkUrl: current.art, tags: current.tags, bpm: current.bpm }
+              : null,
+            playing: playing,
+            position: position(),
+            at: now,
+          });
+        };
+
+        var audio = $("player");
+        var pm = null;
+        setInterval(function () {
+          var d = duration();
+          $("fill").style.width = d > 0 ? Math.min(100, (position() / d) * 100) + "%" : "0";
+          pushState(false);
+        }, 500);
+
+        // ---- modo de teste num separador ---------------------------------
+        if (demo) {
+          setSong({
+            contentId: demo,
+            metadata: { title: params.get("title") || "Teste", artist: params.get("artist") || "OMS Music" },
+            customData: { key: "demo" },
+          });
+          audio.src = demo;
+          audio.controls = true;
+          audio.style.cssText = "display:block;position:fixed;top:2vh;left:2vw;z-index:9";
+          ["play", "pause", "seeked", "ended"].forEach(function (ev) {
+            audio.addEventListener(ev, function () {
+              pushState(true);
+            });
+          });
+          return;
+        }
+
+        // ---- o Cast ------------------------------------------------------
+        var ctx = cast.framework.CastReceiverContext.getInstance();
+        pm = ctx.getPlayerManager();
+        if (typeof pm.setMediaElement === "function") {
+          pm.setMediaElement(audio);
+        } else {
+          document.body.appendChild(document.createElement("cast-media-player"));
+        }
+        var E = cast.framework.events.EventType;
+        [E.PLAYER_LOAD_COMPLETE, E.MEDIA_STATUS, E.PLAYING, E.PAUSE, E.SEEKED, E.BUFFERING, E.ENDED, E.MEDIA_FINISHED].forEach(
+          function (type) {
+            pm.addEventListener(type, function () {
+              setSong(pm.getMediaInformation());
+              pushState(true);
+            });
+          },
+        );
+        var options = new cast.framework.CastReceiverOptions();
+        // Áudio simples (mp4/mp3/flac): nada de MPL/Shaka.
+        options.skipPlayersLoad = true;
+        options.maxInactivity = 3600;
+        ctx.start(options);
+      })();
+    </script>
+  </body>
+</html>

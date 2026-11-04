@@ -238,6 +238,7 @@ export class FakeEngine implements RemoteEngine {
   hasLoadedSource(): boolean {
     return this.sourceLoaded;
   }
+  alignQueueIndex(): void {}
   insertJamProposal(): void {
     this.record("insertJamProposal");
   }

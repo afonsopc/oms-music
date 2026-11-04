@@ -17,7 +17,16 @@
  * no snapshot ever received): there is nothing to cast to.
  */
 import React, { useEffect, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Platform, Pressable, Text, View } from "react-native";
+import { showAirplayPickerWeb } from "@/cast/airplayWeb";
+import { discoverDlna, startDlnaSession } from "@/cast/drivers/dlna";
+import { startNativeCastDiscovery, startNativeCastSession } from "@/cast/drivers/nativeCast";
+import { requestWebCastSession } from "@/cast/drivers/webCast";
+import { castCapabilities } from "@/cast/register";
+import { endCast } from "@/cast/session";
+import { castDeviceLabel, castStore, isCasting, useCastStore } from "@/cast/store";
+import type { CastTarget } from "@/cast/types";
+import { getRoutePickerView } from "../../../modules/oms-native";
 import { useT } from "@/i18n";
 import { useTheme } from "@/theme/provider";
 import { GhostIconButton, Icon, BottomSheet, type IconName } from "@/ui";
@@ -43,6 +52,9 @@ import type { OverlaySlot } from "@/features/shell/slots";
  */
 const DEVICE_ICON: IconName = "cast";
 
+/** O selector AirPlay do iOS (AVRoutePickerView), resolvido uma vez. */
+const RoutePicker = Platform.OS === "ios" ? getRoutePickerView() : null;
+
 const useFallbackLabel = (): string => useT()("components.music.DevicePicker.deviceFallback");
 
 // ---------------------------------------------------------------------------
@@ -59,6 +71,8 @@ const DeviceRow = ({
   hint,
   hintMuted,
   first,
+  overlay,
+  busy,
 }: {
   label: string;
   onPress?: () => void;
@@ -71,6 +85,10 @@ const DeviceRow = ({
   /** "seen X min ago" reads muted; the emerald tone stays for live hints. */
   hintMuted?: boolean;
   first?: boolean;
+  /** Vista nativa por cima da linha (o selector AirPlay do iOS). */
+  overlay?: React.ReactNode;
+  /** A ligar: o ponto fica a piscar devagar em vez do visto. */
+  busy?: boolean;
 }) => {
   const { tokens } = useTheme();
   return (
@@ -104,11 +122,14 @@ const DeviceRow = ({
       </View>
       {checked ? (
         <Icon name="check" size={18} color={tokens.primary} />
+      ) : busy ? (
+        <Text style={{ color: tokens.mutedForeground, fontSize: 12 }}>…</Text>
       ) : online ? (
         <View
           style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: tokens.foreground }}
         />
       ) : null}
+      {overlay}
     </Pressable>
   );
 };
@@ -162,34 +183,52 @@ export const DevicePickerBody = ({ onTransfer }: { onTransfer?: () => void }) =>
     .filter(({ presence }) => presence.kind !== "gone");
   const recents = devices.filter((d) => !d.online);
 
+  const castPhase = useCastStore((s) => s.phase);
+  const castName = useCastStore((s) => s.deviceName);
+  const castKind = useCastStore((s) => s.kind);
+  const airplayRoute = useCastStore((s) => s.airplayRoute);
+  const casting = castPhase !== "idle";
+
   const transfer = (deviceId: string): void => {
+    // Escolher um aparelho da app tira o som da TV.
+    if (isCasting()) endCast({ resumeHere: false, stopTv: true });
     remoteTransferTo(deviceId);
     onTransfer?.();
   };
+
+  const playHere = (): void => {
+    if (isCasting()) {
+      endCast({ resumeHere: true, stopTv: true });
+      onTransfer?.();
+      return;
+    }
+    if (yourDeviceId) transfer(yourDeviceId);
+  };
+
+  const castLabel = casting ? castDeviceLabel(castName, castKind) : null;
+  const airplayLabel = airplayRoute ? castDeviceLabel(airplayRoute, "airplay") : null;
+  const playingOn = castLabel ?? airplayLabel ?? (activeDevice ? deviceDisplayLabel(activeDevice, fallback) : null);
 
   return (
     <>
       <View style={{ paddingHorizontal: 16, paddingBottom: 8, gap: 4 }}>
         <Text style={{ color: tokens.foreground, fontSize: 18, fontWeight: "800" }}>
-          {t("components.music.DevicePicker.devices")}
+          {t("components.music.DevicePicker.cast")}
         </Text>
         <Text style={{ color: tokens.mutedForeground, fontSize: 13 }}>
-          {activeDevice
-            ? `${t("components.music.DevicePicker.playingOnLabel")} ${deviceDisplayLabel(
-                activeDevice,
-                fallback,
-              )}`
+          {playingOn
+            ? `${t("components.music.DevicePicker.playingOnLabel")} ${playingOn}`
             : t("components.music.DevicePicker.noActiveDevice")}
         </Text>
       </View>
       <View style={{ borderTopWidth: 1, borderTopColor: tokens.border }}>
-        {yourDeviceId ? (
+        {yourDeviceId || casting ? (
           <DeviceRow
             first
             label={t("components.music.DevicePicker.playHere")}
-            disabled={!ready || role === "active"}
-            checked={role === "active"}
-            onPress={() => transfer(yourDeviceId)}
+            disabled={!casting && (!ready || role === "active")}
+            checked={!casting && role === "active"}
+            onPress={playHere}
           />
         ) : null}
         {onlineOthers.map(({ device, presence }) => (
@@ -237,7 +276,180 @@ export const DevicePickerBody = ({ onTransfer }: { onTransfer?: () => void }) =>
           </View>
         ) : null}
       </View>
+      <CastTargets onPicked={onTransfer} />
     </>
+  );
+};
+
+const SectionTitle = ({ text }: { text: string }) => {
+  const { tokens } = useTheme();
+  return (
+    <Text
+      style={{
+        color: tokens.mutedForeground,
+        fontSize: 11,
+        fontWeight: "700",
+        textTransform: "uppercase",
+        letterSpacing: 1,
+        paddingHorizontal: 16,
+        paddingTop: 12,
+        paddingBottom: 4,
+      }}
+    >
+      {text}
+    </Text>
+  );
+};
+
+/**
+ * TVs e colunas: Chromecast (a lista do SDK no telemóvel; a do Chrome na
+ * web), AirPlay (a lista do sistema) e TVs DLNA (no computador). Procura
+ * enquanto a lista está aberta.
+ */
+const CastTargets = ({ onPicked }: { onPicked?: () => void }) => {
+  const t = useT();
+  const { tokens } = useTheme();
+  const caps = castCapabilities();
+  const targets = useCastStore((s) => s.targets);
+  const phase = useCastStore((s) => s.phase);
+  const castName = useCastStore((s) => s.deviceName);
+  const castKind = useCastStore((s) => s.kind);
+  const error = useCastStore((s) => s.error);
+  const airplayRoute = useCastStore((s) => s.airplayRoute);
+  const airplayAvailable = useCastStore((s) => s.airplayAvailable);
+  // No computador procura TVs DLNA logo que a lista abre.
+  const [searching, setSearching] = useState(caps.dlna);
+
+  const search = (): void => {
+    if (!caps.dlna) return;
+    setSearching(true);
+    void discoverDlna().finally(() => setSearching(false));
+  };
+
+  useEffect(() => {
+    castStore.setState({ error: null });
+    const stop = caps.chromecastNativeList ? startNativeCastDiscovery() : () => undefined;
+    if (caps.dlna) void discoverDlna().finally(() => setSearching(false));
+    return stop;
+  }, [caps.chromecastNativeList, caps.dlna]);
+
+  if (!caps.chromecast && !caps.airplay && !caps.dlna) return null;
+
+  const isCurrent = (target: CastTarget): boolean =>
+    phase !== "idle" && castKind === target.kind && castName === target.name;
+
+  const pick = (target: CastTarget): void => {
+    if (isCurrent(target)) return;
+    if (phase !== "idle") endCast({ resumeHere: false, stopTv: true });
+    if (target.kind === "dlna") startDlnaSession(target);
+    else void startNativeCastSession(target);
+    onPicked?.();
+  };
+
+  const chromecasts = targets.filter((x) => x.kind === "chromecast");
+  const tvs = targets.filter((x) => x.kind === "dlna");
+  const rows: React.ReactNode[] = [];
+
+  if (phase !== "idle" && castKind === "chromecast" && caps.chromecast && !caps.chromecastNativeList) {
+    rows.push(
+      <DeviceRow
+        key="cc-current"
+        label={castDeviceLabel(castName, castKind)}
+        checked={phase === "connected"}
+        busy={phase === "connecting"}
+        hint={t("components.music.DevicePicker.stop")}
+        hintMuted
+        onPress={() => endCast({ resumeHere: true, stopTv: true })}
+      />,
+    );
+  } else if (caps.chromecast && !caps.chromecastNativeList) {
+    rows.push(
+      <DeviceRow
+        key="cc-web"
+        label={t("components.music.DevicePicker.chromecast")}
+        hint={t("components.music.DevicePicker.chromecastHint")}
+        hintMuted
+        busy={phase === "connecting" && castKind === "chromecast"}
+        onPress={() => {
+          if (phase !== "idle") endCast({ resumeHere: false, stopTv: true });
+          void requestWebCastSession();
+          onPicked?.();
+        }}
+      />,
+    );
+  }
+  for (const target of chromecasts) {
+    rows.push(
+      <DeviceRow
+        key={target.id}
+        label={castDeviceLabel(target.name, "chromecast")}
+        checked={isCurrent(target) && phase === "connected"}
+        busy={isCurrent(target) && phase === "connecting"}
+        onPress={() => pick(target)}
+      />,
+    );
+  }
+  if (caps.airplay && (Platform.OS === "ios" ? !!RoutePicker : airplayAvailable)) {
+    rows.push(
+      <DeviceRow
+        key="airplay"
+        label={airplayRoute ? castDeviceLabel(airplayRoute, "airplay") : t("components.music.DevicePicker.airplay")}
+        hint={airplayRoute ? null : t("components.music.DevicePicker.airplayHint")}
+        hintMuted
+        checked={!!airplayRoute}
+        onPress={RoutePicker ? () => undefined : () => void showAirplayPickerWeb()}
+        overlay={
+          RoutePicker ? (
+            <RoutePicker style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} />
+          ) : null
+        }
+      />,
+    );
+  }
+  for (const target of tvs) {
+    rows.push(
+      <DeviceRow
+        key={target.id}
+        label={castDeviceLabel(target.name, "dlna")}
+        hint={target.detail ?? null}
+        hintMuted
+        checked={isCurrent(target) && phase === "connected"}
+        busy={isCurrent(target) && phase === "connecting"}
+        onPress={() => pick(target)}
+      />,
+    );
+  }
+  if (caps.dlna) {
+    rows.push(
+      <DeviceRow
+        key="dlna-search"
+        label={
+          searching
+            ? t("components.music.DevicePicker.searching")
+            : tvs.length === 0
+              ? t("components.music.DevicePicker.noTvs")
+              : t("components.music.DevicePicker.searchAgain")
+        }
+        hint={tvs.length === 0 && !searching ? t("components.music.DevicePicker.searchAgain") : null}
+        hintMuted
+        disabled={searching}
+        onPress={search}
+      />,
+    );
+  }
+
+  return (
+    <View style={{ borderTopWidth: 1, borderTopColor: tokens.border }}>
+      <SectionTitle text={t("components.music.DevicePicker.tvs")} />
+      {rows.map((row, i) => (i === 0 ? React.cloneElement(row as React.ReactElement<{ first?: boolean }>, { first: true }) : row))}
+      {error ? (
+        <Text style={{ color: tokens.mutedForeground, fontSize: 12, paddingHorizontal: 16, paddingVertical: 8 }}>
+          {error === "connect_failed"
+            ? t("components.music.DevicePicker.castFailed")
+            : t("components.music.DevicePicker.loadFailed")}
+        </Text>
+      ) : null}
+    </View>
   );
 };
 
@@ -268,11 +480,17 @@ export const CastButton = () => {
   const activeDeviceId = useRemoteStore((s) => s.activeDeviceId);
   const activeDevice = useRemoteStore(selectActiveDevice);
   const [open, setOpen] = useState(false);
+  const casting = useCastStore((s) => s.phase !== "idle");
+  const castName = useCastStore((s) => s.deviceName);
+  const castKind = useCastStore((s) => s.kind);
+  const airplayRoute = useCastStore((s) => s.airplayRoute);
+  const caps = castCapabilities();
 
-  if (role === "offline") return null;
+  // Sem sessão não há aparelhos da app, mas pode haver TVs.
+  if (role === "offline" && !casting && !caps.chromecast && !caps.airplay && !caps.dlna) return null;
 
   const tint =
-    activeDeviceId === null
+    activeDeviceId === null && !casting && !airplayRoute
       ? tokens.mutedForeground
       : tokens.foreground;
 
@@ -283,11 +501,15 @@ export const CastButton = () => {
         size={18}
         color={tint}
         accessibilityLabel={
-          activeDevice
-            ? t("components.music.DevicePicker.playingOn", {
-                device: deviceDisplayLabel(activeDevice, fallback),
-              })
-            : t("components.music.DevicePicker.noActiveDevice")
+          casting
+            ? t("components.music.DevicePicker.playingOn", { device: castDeviceLabel(castName, castKind) })
+            : airplayRoute
+              ? t("components.music.DevicePicker.playingOn", { device: castDeviceLabel(airplayRoute, "airplay") })
+              : activeDevice
+                ? t("components.music.DevicePicker.playingOn", {
+                    device: deviceDisplayLabel(activeDevice, fallback),
+                  })
+                : t("components.music.DevicePicker.cast")
         }
         onPress={() => setOpen(true)}
         style={{ width: 36, height: 36 }}
@@ -322,10 +544,20 @@ const ControllerStripBody = ({ attached = false }: { attached?: boolean }) => {
   const { tokens } = useTheme();
   const fallback = useFallbackLabel();
   const activeDevice = useRemoteStore(selectActiveDevice);
+  const castPhase = useCastStore((s) => s.phase);
+  const castName = useCastStore((s) => s.deviceName);
+  const castKind = useCastStore((s) => s.kind);
+  const airplayRoute = useCastStore((s) => s.airplayRoute);
   const [open, setOpen] = useState(false);
-  const label = t("components.music.BottomBar.playingOn", {
-    device: deviceDisplayLabel(activeDevice, fallback),
-  });
+  const device =
+    castPhase === "connecting"
+      ? `${castDeviceLabel(castName, castKind)} · ${t("components.music.DevicePicker.connecting")}`
+      : castPhase === "connected"
+        ? castDeviceLabel(castName, castKind)
+        : airplayRoute
+          ? castDeviceLabel(airplayRoute, "airplay")
+          : deviceDisplayLabel(activeDevice, fallback);
+  const label = t("components.music.BottomBar.playingOn", { device });
 
   return (
     <>
@@ -366,8 +598,19 @@ export const ControllerStripAttached = () => <ControllerStripBody attached />;
 
 /** Overlay slot consumed by the shell host (WP2). */
 export const controllerStripSlot: OverlaySlot = {
-  isActive: () => remoteStore.getState().role === "controller",
-  subscribe: (cb: () => void) => remoteStore.subscribe(cb),
+  // Também enquanto uma TV (ou o AirPlay) tem o som: "A tocar em Sala (Chromecast)".
+  isActive: () => {
+    const cast = castStore.getState();
+    return remoteStore.getState().role === "controller" || cast.phase !== "idle" || cast.airplayRoute !== null;
+  },
+  subscribe: (cb: () => void) => {
+    const a = remoteStore.subscribe(cb);
+    const b = castStore.subscribe(cb);
+    return () => {
+      a();
+      b();
+    };
+  },
   Component: ControllerStrip,
   Attached: ControllerStripAttached,
 };

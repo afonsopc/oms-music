@@ -705,7 +705,21 @@
         "offlineRecent": "Bezsaistē (nesenās)",
         "deviceFallback": "Ierīce",
         "needsInteraction": "Nepieciešams pieskāriens, lai atsāktu",
-        "lastSeen": "Redzēta pirms {minutes} min"
+        "lastSeen": "Redzēta pirms {minutes} min",
+        "cast": "Straumēt",
+        "appDevices": "Tavas ierīces",
+        "tvs": "Televizori un skaļruņi",
+        "chromecast": "Chromecast",
+        "chromecastHint": "Izvēlēties Chrome",
+        "airplay": "AirPlay",
+        "airplayHint": "Apple skaļruņi un televizori",
+        "searching": "Meklē televizorus…",
+        "noTvs": "Šajā tīklā nav atrasts neviens televizors",
+        "connecting": "Savienojas…",
+        "stop": "Apturēt",
+        "castFailed": "Neizdevās savienoties ar televizoru.",
+        "loadFailed": "Televizors nevarēja atskaņot šo dziesmu.",
+        "searchAgain": "Meklēt vēlreiz"
       },
       "RemotePlayback": {
         "noActiveDevice": "Nav aktīvas ierīces",

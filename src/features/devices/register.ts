@@ -13,6 +13,7 @@
  */
 import { registerCastButton, registerControllerStripOverlay } from "@/features/shell/slots";
 import { registerRemotePlayback } from "@/remote/register";
+import { registerCast } from "@/cast/register";
 import { CastButton, controllerStripSlot } from "./DevicePicker";
 
 let registered = false;
@@ -21,6 +22,8 @@ export const registerDeviceSurfaces = (): void => {
   if (registered) return;
   registered = true;
   registerRemotePlayback();
+  // Transmitir (Chromecast, AirPlay, DLNA): por cima do transporte remoto.
+  registerCast();
   registerCastButton(CastButton);
   registerControllerStripOverlay(controllerStripSlot);
 };

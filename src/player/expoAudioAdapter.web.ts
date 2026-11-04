@@ -19,6 +19,7 @@
  */
 import { routeRemoteCommand } from "./lockScreen";
 import type { AudioAdapter } from "./types";
+import { setMainWebMedia } from "./webMainMedia";
 import { createWebAudioAdapter, installAutoplayUnlock } from "./webAudioAdapter";
 
 export const createExpoAudioAdapter = (): AudioAdapter => {
@@ -33,5 +34,6 @@ export const createExpoAudioAdapter = (): AudioAdapter => {
     // device (FR-63 parity with oms-native on iOS) - unlike expo-audio's
     // web controller, which maps nexttrack/previoustrack onto +-10 s seeks.
     onRemoteTrackCommand: (kind) => routeRemoteCommand({ kind }),
+    onMainMedia: setMainWebMedia,
   });
 };

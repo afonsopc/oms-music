@@ -45,3 +45,11 @@ export {
   type StemMixerLiveStatus,
   type StemMixerSubscription,
 } from "./src/stemMixerBridge";
+export {
+  currentAudioRoute,
+  getRoutePickerView,
+  isAirPlayPickerAvailable,
+  onAudioRouteChange,
+  type AudioRoute,
+  type RoutePickerProps,
+} from "./src/OmsAirPlay";
