@@ -95,7 +95,7 @@ rm -rf "$CHECK"
 # Assinatura do updater (minisign): a chave que assinou e a do tauri.conf.json.
 bun -e '
   const fs = require("fs");
-  const keyId = (b64) => Buffer.from(Buffer.from(b64, "base64").toString().split("\n")[1], "base64").subarray(2, 10).toString("hex");
+  const keyId = (b64) => Buffer.from(Buffer.from(b64, "base64").toString().split("\n")[1], "base64").subarray(2, 10).reverse().toString("hex");
   const pub = require("./src-tauri/tauri.conf.json").plugins.updater.pubkey;
   const sig = fs.readFileSync(process.argv[1], "utf8").trim();
   if (keyId(pub) !== keyId(sig)) { console.error("chave do .sig != pubkey do updater"); process.exit(1); }
@@ -128,7 +128,7 @@ ls -la "$OUT"
 
 # --- publicar --------------------------------------------------------------------
 SHA="$(git rev-parse HEAD)"
-git rev-parse -q --verify "refs/tags/${TAG}" > /dev/null || git tag "$TAG" "$SHA"
+git rev-parse -q --verify "refs/tags/${TAG}" > /dev/null || git tag -a "$TAG" -m "OMS Music ${VERSION} (desktop)" "$SHA"
 git push origin "refs/tags/${TAG}"
 gh release create "$TAG" -R "$REPO" "$OUT"/* --verify-tag --latest \
   --title "OMS Music ${VERSION} (desktop)" \
