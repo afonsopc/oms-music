@@ -2,10 +2,11 @@
  * Ajudantes do pacote tipografia (só destas cenas).
  *
  * - `Lyric`: a linha que está a tocar (`env.lyric`) partida em palavras, com
- *   a hora a que cada palavra acende (o motor só dá a linha; os tempos são
- *   estimados pelo tamanho das palavras, como o motor faz quando a letra não
- *   os tem). Sem letra, alterna o título e o artista de dois em dois
- *   compassos; entre duas linhas segura a anterior uns segundos.
+ *   a hora a que cada palavra acende: a do alinhamento de cada palavra
+ *   (`env.lyricWords`, a mesma da letra e da camada de letra do motor) e só
+ *   sem ela estimada pelo tamanho das palavras. Sem letra, alterna o título
+ *   e o artista de dois em dois compassos; entre duas linhas segura a
+ *   anterior uns segundos.
  * - `units`: o texto em pedaços para desenhar letra a letra sem estragar as
  *   escritas que ligam as letras (árabe, devanágari...: aí vai palavra a
  *   palavra) e na ordem visual certa nas da direita para a esquerda.
@@ -14,7 +15,7 @@
  */
 import { GLSL_HEAD } from "../../lib/shader";
 import { cachedProgram, deleteTarget, prewarmProgram, sharedTriangle, target, uniforms, type Target } from "../../lib/gl";
-import type { SceneEnv, SceneHost, SceneInstance, SceneMeta, SceneModule, Signal } from "../../lib/scene";
+import { WORD_LEAD_S, type SceneEnv, type SceneHost, type SceneInstance, type SceneMeta, type SceneModule, type Signal } from "../../lib/scene";
 import { WIDE, uploadTexture } from "../../lib/text";
 
 export { WIDE };
@@ -157,9 +158,25 @@ export class Lyric {
       next = which === 0 ? titleOf(env) : artistOf(env);
       real = false;
     }
-    if (next === this.text && real === this.real) return false;
-    this.set(next, t, real, which);
-    return true;
+    const changed = !(next === this.text && real === this.real);
+    if (changed) this.set(next, t, real, which);
+    if (real && l && l.trim()) this.timed(env, t);
+    return changed;
+  }
+
+  /**
+   * Os tempos reais das palavras, passados para o relógio da cena (`t`): a
+   * cada frame, para seguir um salto ou outra velocidade. Só quando as
+   * palavras batem com o texto partido (as mesmas, pela mesma ordem).
+   */
+  private timed(env: SceneEnv, t: number) {
+    const ws = env.lyricWords;
+    if (!ws || (ws.length !== this.n && !(this.n === MAXW && ws.length > MAXW))) return;
+    const shift = t - env.lyricTime - WORD_LEAD_S;
+    for (let i = 0; i < this.n; i++) {
+      this.starts[i] = ws[i][0] + shift;
+      this.ends[i] = Math.max(ws[i][1], ws[i][0] + 0.05) + shift;
+    }
   }
 
   /** Forçar uma linha (o título ao entrar, por exemplo). */

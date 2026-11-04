@@ -11,6 +11,7 @@
  * protector de ecrã, falhada nas de glitch, ASCII nas de terminal, néon nas
  * de synthwave, tinta nas calmas.
  */
+import { WORD_LEAD_S } from "./lib/scene";
 import type { LyricsMode, VizLyricLine, VizSection, VizSong } from "./protocol";
 
 export type LyricStyle = "extrude" | "glitch" | "ascii" | "neon" | "ink" | "none";
@@ -58,6 +59,18 @@ const repeated = (lines: VizLyricLine[]): Set<string> => {
     if (k) count.set(k, (count.get(k) ?? 0) + 1);
   }
   return new Set([...count].filter(([, n]) => n >= 2).map(([k]) => k));
+};
+
+/**
+ * As palavras da linha com o tempo de cada uma (s da música), ou null quando
+ * a linha não as tem (as cenas estimam pelo tamanho). Numa linha `whole` (o
+ * alinhador não confia) todas acendem no início da linha.
+ */
+export const lineWordTimes = (line: VizLyricLine | null): [number, number, string][] | null => {
+  if (!line) return null;
+  if (line.words && line.words.length && !line.whole) return line.words;
+  if (line.whole) return line.text.split(/\s+/).filter(Boolean).map((w): [number, number, string] => [line.t, line.end, w]);
+  return null;
 };
 
 export class Overlays {
@@ -256,18 +269,23 @@ export class Overlays {
       document.body.appendChild(el);
       this.lineEl = el;
     }
-    for (const w of this.wordEls) if (t >= w.t - 0.03 && !w.el.classList.contains("on")) w.el.classList.add("on");
+    for (const w of this.wordEls) if (t >= w.t - WORD_LEAD_S && !w.el.classList.contains("on")) w.el.classList.add("on");
   }
 
-  /** A linha que está a tocar, para cenas que a desenham elas próprias (Colagem). */
-  currentLine(t: number): string {
-    if (!this.lines) return "";
-    let best = "";
+  /** A linha que está a tocar (com as palavras), para cenas que a desenham elas próprias. */
+  current(t: number): VizLyricLine | null {
+    if (!this.lines) return null;
+    let best: VizLyricLine | null = null;
     for (const l of this.lines) {
-      if (l.t <= t && t <= l.end + 0.3) best = l.text;
+      if (l.t <= t && t <= l.end + 0.3) best = l;
       if (l.t > t) break;
     }
     return best;
+  }
+
+  /** O texto da linha que está a tocar (Colagem, tipografia). */
+  currentLine(t: number): string {
+    return this.current(t)?.text ?? "";
   }
 
   clearAll() {

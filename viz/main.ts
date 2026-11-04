@@ -10,7 +10,7 @@ import { lerp } from "./lib/ease";
 import type { FrameInfo, SceneEnv, SceneHost, SceneInstance, SceneLayer, SceneMeta, SceneModule } from "./lib/scene";
 import { type FromViz, type LyricsMode, type SceneName, type ToViz, type VizFx, type VizSection, type VizSong } from "./protocol";
 import { decode, sample, sectionAt, Smoother, type Decoded, type Signal } from "./signal";
-import { Overlays, type LyricStyle } from "./overlays";
+import { Overlays, lineWordTimes, type LyricStyle } from "./overlays";
 import { familyFor, localBagStore, ScenePicker, type PickContext } from "./selector";
 import { SCENES } from "./scenes/_registry";
 
@@ -114,6 +114,8 @@ const env: SceneEnv = {
   cover: null,
   coverTex: null,
   lyric: "",
+  lyricWords: null,
+  lyricTime: 0,
   lowPower,
   tier: tier(),
   reduceMotion,
@@ -460,7 +462,11 @@ const drawFrame = (dt: number, t: number, s: Signal) => {
   if (colors !== targetFor) { targetFor = colors; targetVecs = colors.map(hexToVec); }
   for (let i = 0; i < 3; i++) for (let k = 0; k < 3; k++) cv[i][k] = lerp(cv[i][k], targetVecs[i][k], 0.04);
   if (!current) return;
-  env.lyric = overlays.currentLine(lyricPosition());
+  const lt = lyricPosition();
+  const line = overlays.current(lt);
+  env.lyric = line?.text ?? "";
+  env.lyricWords = lineWordTimes(line);
+  env.lyricTime = lt;
   const [w, h] = layerSize(current.meta.layer);
   frameInfo.dt = dt;
   frameInfo.w = w;

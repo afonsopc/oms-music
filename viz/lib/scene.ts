@@ -65,6 +65,14 @@ export interface SceneEnv {
   coverTex: WebGLTexture | null;
   /** A linha da letra que está a tocar ("" sem letra). */
   lyric: string;
+  /**
+   * As palavras dessa linha com o tempo de cada uma em s da música
+   * ([início, fim, palavra], pela ordem do texto), ou null quando a letra só
+   * tem o tempo da linha. Comparar com `lyricTime`, nunca com o `t` da cena.
+   */
+  lyricWords: [number, number, string][] | null;
+  /** O instante da letra que se ouve agora (s da música, já com o atraso do aparelho). */
+  lyricTime: number;
   lowPower: boolean;
   /** Nível do aparelho: 1 fraco, 2 médio, 3 forte. */
   tier: 1 | 2 | 3;
@@ -140,3 +148,10 @@ export const metaErrors = (m: SceneMeta, file?: string): string[] => {
   if (m.artwork && !["overlay", "own"].includes(m.artwork)) e.push(`artwork inválido "${m.artwork}"`);
   return e;
 };
+
+/**
+ * A palavra acende um pouco antes do seu tempo: a transição do "on" leva
+ * ~60 ms a chegar ao brilho todo. O mesmo na camada de letra e nas cenas que
+ * desenham a letra elas próprias.
+ */
+export const WORD_LEAD_S = 0.03;
