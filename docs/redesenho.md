@@ -280,9 +280,71 @@ teste é o TestFlight.
   todas as cenas, 0 frames perdidos por janela de 2 s; o título 3D, a mais
   pesada (24 camadas de DOM), 57 fps.
 
-Capturas: `docs/redesenho/ronda2/antes/`, `ronda2/depois/` (produção v94) e
+Capturas: `docs/redesenho/ronda2/antes/`, `ronda2/depois/` (produção v94 a v100) e
 `ronda2/visuais/` (cada cena). Vídeos (fora do repo, 14 MB):
-`~/Documents/oms/builds/oms-music-ronda2/videos/`.
+`~/Documents/oms/builds/oms-music-ronda2/videos/` (uma por cena, a folha do
+telemóvel, a fronteira do refrão do "Hometown", a Colagem com letra).
+
+### O ecrã inteiro é o visualizador (tarde do dia 4)
+
+O modo cinema saiu. O ⤢ da barra, o do painel, o menu do desktop e o atalho
+abrem `/visualizer` e pedem o ecrã inteiro a sério (Fullscreen API no browser,
+a janela no Tauri); `/now-playing` no computador vai para lá; no telemóvel a
+folha continua a ser o leitor e o ⤢ dela também abre o visualizador. Por
+cima das cenas: progresso com a onda, gosto, fila, letra (sempre / às vezes /
+nunca), volume, "Visuais" (aleatório ou pelo estilo da música, favoritas e
+banidas) e o encaixe da Montagem (`features/viz/montageSlot.ts`, de outro
+trabalho). Esc ou sair do ecrã inteiro fecham.
+
+**23 cenas**: aurora (fundo do leitor), retorno (MilkDrop), caleidoscópio,
+túnel, cromado, plasma, canos 3D, título 3D, Mystify, estrelas,
+osciloscópio, ambiente de trabalho, synthwave, metal líquido, cidade de
+voxels, galáxia, VHS, datamosh, tinta, película, chuva de terminal, vectores,
+8 bits e a **Colagem**, inspirada no visualizador do cobaltforever para
+"gecgecgec (remix)" que o dono adora (parede do título a preto e branco, a
+capa em caixilho a saltar, a letra enorme sobre fundo quente com grão, cortes
+secos; nada copiado). "Pelo estilo": géneros das etiquetas da música, e sem
+eles o BPM e a energia média.
+
+### Secções: as mudanças seguem a música
+
+Regra do dono: nada de mudar por tempo. A análise v2 (`Music::AudioAnalysis`)
+parte a música em secções: um vector por segundo (energia das 5 faixas e
+densidade de ataques, normalizados à música), uma curva de novidade (distância
+entre a média dos 8 s antes e a dos 8 s depois, mais o salto de energia),
+fronteiras nos picos (8 s entre elas), troços agrupados pelo som (o refrão que
+volta tem o mesmo grupo) e um tipo: a queda é um salto de energia e de graves
+depois de uma subida ou de uma pausa; o refrão é um troço forte cujo grupo se
+repete. No motor: queda e refrão mudam de visual com um clarão (o refrão que
+volta traz o visual do primeiro), a capa entra e a letra fica à vista; as
+fronteiras pequenas só rodam a paleta. Sem secções, saltos de energia ao vivo
+(média curta contra média longa) e, em último caso, uma mudança a cada 2,5
+minutos.
+
+Exemplo, "Hometown" (conta de teste, 120 BPM):
+
+| início | secção | intensidade | grupo | |
+|---|---|---|---|---|
+| 0:00 | intro | 0,89 | 0 | |
+| 2:00 | refrão | 1,00 | 1 | muda de visual |
+| 2:17 | verso | 0,83 | 2 | paleta |
+| 2:32 | forte | 0,99 | 3 | paleta |
+| 2:49 | verso | 0,90 | 4 | paleta |
+| 2:59 | refrão | 0,95 | 1 | volta o visual dos 2:00 |
+| 3:46 | fim | 0,00 | 5 | |
+
+E "Chlorine": queda aos 0:18 e refrões aos 1:12, 2:37 e 4:38, todos no mesmo
+grupo da queda.
+
+### Letra e capa em momentos
+
+A letra (palavra a palavra quando o servidor tem os tempos; só por linha com a
+tradução ligada) aparece nos refrões, nas quedas, nos 10 s depois de um
+momento grande e de 4 em 4 linhas; cada palavra salta no seu tempo, as longas
+ficam maiores. O estilo vem da cena: 3D extrudido (protectores de ecrã),
+falhado (glitch), ASCII (terminal), néon (synthwave), tinta (calmas). A capa
+entra nos momentos grandes: voo com volta 3D, estilhaço em ladrilhos, píxeis
+ou caleidoscópio. No início de cada música, o cartão do título.
 
 ### Fica para depois
 
