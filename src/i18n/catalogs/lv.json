@@ -820,7 +820,14 @@
         "deleteChatConfirm": "Dzēst šo sarunu? To nevar atsaukt.",
         "chatLoadError": "Neizdevās ielādēt šo sarunu.",
         "historyTitle": "Iepriekšējās sarunas",
-        "moreSongs": "un vēl {count, plural, one {# dziesma} other {# dziesmas}}"
+        "moreSongs": "un vēl {count, plural, one {# dziesma} other {# dziesmas}}",
+        "confirm": "Apstiprināt",
+        "cancel": "Atcelt",
+        "confirmYes": "Jā, turpini",
+        "confirmNo": "Nē, atstāj",
+        "undo": "Atsaukt",
+        "undoMessage": "Atsauc to, ko tikko izdarīji",
+        "importFailed": "Pašlaik to neizdevās importēt."
       },
       "Dj": {
         "title": "O Melhor DJ",

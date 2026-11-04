@@ -820,7 +820,14 @@
         "deleteChatConfirm": "Apagar esta conversa? Não é possível desfazer.",
         "chatLoadError": "Não foi possível carregar esta conversa.",
         "historyTitle": "Conversas anteriores",
-        "moreSongs": "e mais {count, plural, one {# música} other {# músicas}}"
+        "moreSongs": "e mais {count, plural, one {# música} other {# músicas}}",
+        "confirm": "Confirmar",
+        "cancel": "Cancelar",
+        "confirmYes": "Sim, confirmo",
+        "confirmNo": "Não, deixa estar",
+        "undo": "Desfazer",
+        "undoMessage": "Desfaz o que fizeste",
+        "importFailed": "Não deu para importar isso agora."
       },
       "Dj": {
         "title": "O Melhor DJ",

@@ -14,6 +14,32 @@ import { artistNamesLine } from "@/domain/format";
 import { albumRoute, artistRoute, playlistRoute } from "@/lib/routes";
 import { getPlayerEngine } from "@/player/register";
 import { playerStore } from "@/player/store";
+import { setLocale, type Locale } from "@/i18n";
+import { isTranslationTarget } from "@/lyrics/translation";
+import { storeTranslationOn, storeTranslationTarget } from "@/features/lyrics/targetStore";
+import type { ThemeMode } from "@/theme/provider";
+import { runImportAction, type ImportAction } from "./imports";
+
+/**
+ * As acções novas (2026-11-04), ainda fora do SDK: saltar para um tempo,
+ * abrir a letra (traduzida), mudar uma definição e, só na web e no
+ * computador, importar.
+ */
+type ExtraAction =
+  | { action: "seek"; seconds: number }
+  | { action: "show_lyrics"; translate?: string }
+  | { action: "set_setting"; key: "theme" | "language" | "lyrics_translation"; value: string }
+  | { action: "open"; target: "lyrics" | "queue" }
+  | ImportAction;
+
+export type AnyAssistantAction = AssistantAction | ExtraAction;
+
+/** O que só um componente React tem à mão (o tema vem do contexto). */
+export interface AssistantActionContext {
+  setThemeMode?: (mode: ThemeMode) => void;
+  /** Uma importação pedida que falhou: o chat diz porquê. */
+  onImportError?: (action: ImportAction, error: unknown) => void;
+}
 
 /** O que useRouter devolve (expo-router não exporta o tipo directamente). */
 type Router = ReturnType<typeof useRouter>;
@@ -60,19 +86,61 @@ const openHref = (action: Extract<AssistantAction, { action: "open" }>) => {
   }
 };
 
-const runAction = (action: AssistantAction, router: Router): void => {
-  const transport = getTransport();
+const runExtraAction = (action: ExtraAction, router: Router, ctx: AssistantActionContext): boolean => {
   switch (action.action) {
+    case "seek":
+      getTransport().seek(action.seconds);
+      return true;
+    case "show_lyrics":
+      if (action.translate && isTranslationTarget(action.translate)) {
+        storeTranslationTarget(action.translate);
+        storeTranslationOn(true);
+      }
+      router.push("/(player)/lyrics");
+      return true;
+    case "set_setting":
+      if (action.key === "theme" && ["light", "dark", "system"].includes(action.value)) {
+        ctx.setThemeMode?.(action.value as ThemeMode);
+      } else if (action.key === "language" && ["pt", "en", "lv"].includes(action.value)) {
+        setLocale(action.value as Locale);
+      } else if (action.key === "lyrics_translation") {
+        if (action.value === "off") storeTranslationOn(false);
+        else if (isTranslationTarget(action.value)) {
+          storeTranslationTarget(action.value);
+          storeTranslationOn(true);
+        }
+      }
+      return true;
+    case "open":
+      if (action.target === "lyrics" || action.target === "queue") {
+        router.push(action.target === "lyrics" ? "/(player)/lyrics" : "/(player)/queue");
+        return true;
+      }
+      return false;
+    case "import_link":
+    case "follow_artist":
+    case "sync_playlist_link":
+      runImportAction(action).catch((error: unknown) => ctx.onImportError?.(action, error));
+      return true;
+  }
+  return false;
+};
+
+const runAction = (action: AnyAssistantAction, router: Router, ctx: AssistantActionContext): void => {
+  if (runExtraAction(action as ExtraAction, router, ctx)) return;
+  const known = action as AssistantAction;
+  const transport = getTransport();
+  switch (known.action) {
     case "play":
       // As musicas vem serializadas pelo servidor (SongBlueprint inteiro); o
       // Song do SDK e o fio, o do dominio marca os ids - por isso a conversao
       // passa por unknown: os ids do dominio sao marcados e os do fio nao.
-      if (action.shuffle) {
-        transport.setQueue(action.songs as unknown as Song[], undefined, { shuffle: true });
-      } else transport.setQueue(action.songs as unknown as Song[], 0);
+      if (known.shuffle) {
+        transport.setQueue(known.songs as unknown as Song[], undefined, { shuffle: true });
+      } else transport.setQueue(known.songs as unknown as Song[], 0);
       break;
     case "queue":
-      queueSongs(action.songs as unknown as Song[], action.mode);
+      queueSongs(known.songs as unknown as Song[], known.mode);
       break;
     case "pause":
       transport.pause();
@@ -87,25 +155,25 @@ const runAction = (action: AssistantAction, router: Router): void => {
       transport.previous();
       break;
     case "set_shuffle":
-      transport.setShuffle(action.on);
+      transport.setShuffle(known.on);
       break;
     case "set_loop":
-      transport.setLoopMode(action.mode);
+      transport.setLoopMode(known.mode);
       break;
     case "set_volume":
-      transport.setVolume(action.value);
+      transport.setVolume(known.value);
       break;
     case "set_rate":
-      transport.setRate(action.value);
+      transport.setRate(known.value);
       break;
     case "sleep_timer":
       // Local ao dispositivo que ouve, como no cog (settingsSheet).
-      if ("off" in action) getPlayerEngine().setSleepTimer(null);
-      else if ("end_of_song" in action) getPlayerEngine().setSleepTimer({ endOfSong: true });
-      else if (action.minutes) getPlayerEngine().setSleepTimer({ minutes: action.minutes });
+      if ("off" in known) getPlayerEngine().setSleepTimer(null);
+      else if ("end_of_song" in known) getPlayerEngine().setSleepTimer({ endOfSong: true });
+      else if (known.minutes) getPlayerEngine().setSleepTimer({ minutes: known.minutes });
       break;
     case "open":
-      router.push(openHref(action));
+      router.push(openHref(known));
       break;
   }
 };
@@ -115,12 +183,13 @@ const runAction = (action: AssistantAction, router: Router): void => {
  * afundar as seguintes nem o chat: engole-se com um warn.
  */
 export const runAssistantActions = (
-  actions: readonly AssistantAction[] | undefined,
+  actions: readonly AnyAssistantAction[] | undefined,
   router: Router,
+  ctx: AssistantActionContext = {},
 ): void => {
   for (const action of actions ?? []) {
     try {
-      runAction(action, router);
+      runAction(action, router, ctx);
     } catch (error) {
       console.warn("[assistant] action failed", action.action, error);
     }

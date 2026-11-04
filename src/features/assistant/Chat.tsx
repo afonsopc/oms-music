@@ -31,11 +31,17 @@ import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 import {
-  sendAssistantMessage,
+  streamAssistantMessage,
   type AssistantAnswer,
   type AssistantChatDetail,
+  type AssistantStreamAnswer,
 } from "@/api/queries/assistantChats";
-import { collectPlayerContext, runAssistantActions } from "@/features/assistant/actions";
+import {
+  collectPlayerContext,
+  runAssistantActions,
+  type AnyAssistantAction,
+} from "@/features/assistant/actions";
+import { assistantCapabilities } from "@/features/assistant/capabilities";
 import { useAssistantChat } from "@/api/queries/assistantChats";
 import { keys } from "@/api/queryKeys";
 import { isApiError } from "@/domain/api";
@@ -66,6 +72,10 @@ interface Bubble {
    */
   songs?: Song[];
   error?: boolean;
+  /** Uma pergunta antes de tirar coisas: Confirmar manda o token. */
+  confirm?: AssistantStreamAnswer["confirm"];
+  /** Esta resposta mexeu em playlists ou gostos: dá para desfazer. */
+  undoable?: boolean;
 }
 
 /**
@@ -103,7 +113,7 @@ export const ChatBody = ({
 }) => {
   const t = useT();
   const router = useRouter();
-  const { tokens } = useTheme();
+  const { tokens, setMode } = useTheme();
   const queryClient = useQueryClient();
   const gutter = useGutter();
   const topPadding = useContentTopPadding(12);
@@ -117,19 +127,32 @@ export const ChatBody = ({
   );
   const [input, setInput] = useState("");
   const [pending, setPending] = useState(false);
+  // O que o servidor diz enquanto trabalha ("A procurar na biblioteca…").
+  const [progress, setProgress] = useState<string | null>(null);
   const scrollRef = useRef<ScrollView>(null);
 
   const readOnly = chat?.read_only ?? false;
 
   const send = useCallback(
-    (raw: string): void => {
+    (raw: string, confirmToken?: string): void => {
       const content = raw.trim();
       if (!content || pending || readOnly) return;
       haptics.select();
       setInput("");
       setPending(true);
-      setBubbles((prev) => [...prev, { role: "user", content }]);
-      sendAssistantMessage(content, serverChatId ?? undefined, collectPlayerContext())
+      setProgress(null);
+      // Uma pergunta respondida deixa de ter botões.
+      setBubbles((prev) => [
+        ...prev.map((b) => (b.confirm ? { ...b, confirm: undefined } : b)),
+        { role: "user", content },
+      ]);
+      streamAssistantMessage(content, {
+        chatId: serverChatId ?? undefined,
+        player: collectPlayerContext(),
+        capabilities: assistantCapabilities(),
+        confirm: confirmToken,
+        onProgress: (p) => setProgress(p.text),
+      })
         .then((answer) => {
           setServerChatId(answer.chat_id);
           haptics.success();
@@ -140,11 +163,21 @@ export const ChatBody = ({
               content: answer.reply,
               playlist: answer.playlist,
               songs: songsOf(answer),
+              confirm: answer.confirm,
+              undoable: (answer.undo?.snapshot_ids.length ?? 0) > 0,
             },
           ]);
           // As acções de leitor vêm validadas do servidor; executar depois
           // de mostrar a resposta, para o texto explicar o que se ouve.
-          runAssistantActions(answer.actions, router);
+          runAssistantActions(answer.actions as AnyAssistantAction[] | undefined, router, {
+            setThemeMode: setMode,
+            onImportError: () =>
+              setBubbles((prev) => [
+                ...prev,
+                { role: "assistant", content: t(`${A}.importFailed`), error: true },
+              ]),
+          });
+          if (answer.playlist) void queryClient.invalidateQueries({ queryKey: keys.playlists.all });
           // A lista ordena por last_message_at e a sessão pode ter acabado
           // de nascer: a tab tem de o saber.
           void queryClient.invalidateQueries({ queryKey: keys.assistantChats.list });
@@ -187,10 +220,11 @@ export const ChatBody = ({
         })
         .finally(() => {
           setPending(false);
+          setProgress(null);
           scrollRef.current?.scrollToEnd({ animated: true });
         });
     },
-    [openedId, pending, queryClient, readOnly, router, serverChatId, t],
+    [openedId, pending, queryClient, readOnly, router, serverChatId, setMode, t],
   );
 
   const suggestions = [
@@ -324,6 +358,21 @@ export const ChatBody = ({
                       <Icon name="chevron-right" size={18} color={tokens.mutedForeground} />
                     </Pressable>
                   ) : null}
+                  {bubble.confirm ? (
+                    <View style={{ flexDirection: "row", gap: 16 }}>
+                      <TextButton
+                        label={t(`${A}.confirm`)}
+                        icon="check"
+                        onPress={() => send(t(`${A}.confirmYes`), bubble.confirm!.token)}
+                      />
+                      <TextButton label={t(`${A}.cancel`)} onPress={() => send(t(`${A}.confirmNo`))} />
+                    </View>
+                  ) : null}
+                  {bubble.undoable && i === bubbles.length - 1 && !pending ? (
+                    <View style={{ flexDirection: "row" }}>
+                      <TextButton label={t(`${A}.undo`)} icon="history" onPress={() => send(t(`${A}.undoMessage`))} />
+                    </View>
+                  ) : null}
                 </View>
               </Reveal>
             ),
@@ -335,7 +384,13 @@ export const ChatBody = ({
               <Skeleton width="82%" height={13} />
               <Skeleton width="68%" height={13} />
               <Skeleton width="44%" height={13} />
-              <WaitHint active style={{ alignItems: "flex-start", paddingVertical: 4 }} />
+              {progress ? (
+                <Text style={[pageType.meta, { color: tokens.mutedForeground, paddingVertical: 4 }]}>
+                  {progress}
+                </Text>
+              ) : (
+                <WaitHint active style={{ alignItems: "flex-start", paddingVertical: 4 }} />
+              )}
             </View>
           ) : null}
 

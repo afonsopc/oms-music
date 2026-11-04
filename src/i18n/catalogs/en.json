@@ -820,7 +820,14 @@
         "deleteChatConfirm": "Delete this chat? This cannot be undone.",
         "chatLoadError": "Could not load this chat.",
         "historyTitle": "Past chats",
-        "moreSongs": "and {count, plural, one {# more song} other {# more songs}}"
+        "moreSongs": "and {count, plural, one {# more song} other {# more songs}}",
+        "confirm": "Confirm",
+        "cancel": "Cancel",
+        "confirmYes": "Yes, go ahead",
+        "confirmNo": "No, leave it",
+        "undo": "Undo",
+        "undoMessage": "Undo what you just did",
+        "importFailed": "Could not import that right now."
       },
       "Dj": {
         "title": "O Melhor DJ",
