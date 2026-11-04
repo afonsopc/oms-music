@@ -17,6 +17,7 @@ import { ShellTabBar } from "@/features/shell/ShellTabBar";
 import { TabIcon } from "@/features/shell/TabIcon";
 import { useT } from "@/i18n";
 import { useTheme } from "@/theme/provider";
+import { FONT_SANS } from "@/theme/typography";
 
 export const unstable_settings = { anchor: "(home)" };
 
@@ -34,6 +35,7 @@ export default function TabsLayoutWeb() {
           backgroundColor: tokens.background,
           borderTopColor: tokens.border,
         },
+        tabBarLabelStyle: { fontFamily: FONT_SANS },
         sceneStyle: { backgroundColor: tokens.background },
       }}
     >

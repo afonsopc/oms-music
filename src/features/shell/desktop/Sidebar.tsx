@@ -41,7 +41,6 @@ import { TabIcon, type TabIconName } from "@/features/shell/TabIcon";
 import { useT } from "@/i18n";
 import { useTheme } from "@/theme/provider";
 import { RADIUS } from "@/theme/tokens";
-import { FONT_SERIF } from "@/theme/typography";
 import {
   ArtworkImage,
   EmptyState,
@@ -310,12 +309,12 @@ export const DesktopSidebar = ({ collapsed, onToggleCollapsed, tauri = false }: 
           style={{ position: "absolute", top: 0, left: 0, right: 0, height: TAURI_TOP_INSET }}
         />
       ) : null}
-      {/* A marca: a palavra, com serifa, sem logótipo nem caixa. */}
+      {/* A marca: a palavra, sem logótipo nem caixa. */}
       <View style={{ height: 44, justifyContent: "center", paddingHorizontal: collapsed ? 0 : 12, alignItems: collapsed ? "center" : "flex-start" }}>
         <Text
           accessibilityRole="header"
           numberOfLines={1}
-          style={{ fontFamily: FONT_SERIF, fontSize: collapsed ? 22 : 26, lineHeight: 30, color: tokens.foreground, letterSpacing: -0.4 }}
+          style={{ fontSize: collapsed ? 20 : 22, lineHeight: 28, fontWeight: "800", color: tokens.foreground, letterSpacing: -0.4 }}
         >
           {collapsed ? "M" : t("native.desktop.brand")}
         </Text>
@@ -343,7 +342,7 @@ export const DesktopSidebar = ({ collapsed, onToggleCollapsed, tauri = false }: 
       >
         {collapsed ? null : (
           <Text
-            style={{ color: tokens.foreground, fontFamily: FONT_SERIF, fontSize: 20, lineHeight: 26, flexShrink: 1 }}
+            style={{ color: tokens.foreground, fontSize: 17, lineHeight: 22, fontWeight: "700", flexShrink: 1 }}
             numberOfLines={1}
           >
             {t("components.music.Sidebar.libraryTitle")}

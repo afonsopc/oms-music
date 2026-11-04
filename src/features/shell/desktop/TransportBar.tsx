@@ -39,7 +39,6 @@ import { usePlaybackView } from "@/remote/mirror";
 import { useRemoteStore } from "@/remote/store";
 import { useTheme } from "@/theme/provider";
 import { LIKED_INK } from "@/theme/tokens";
-import { FONT_SERIF } from "@/theme/typography";
 import { useArtworkTint } from "@/theme/useArtworkTint";
 import { ArtworkImage, artworkSourceUri, GhostIconButton, PlayFab, type PopoverAnchor } from "@/ui";
 import { CinemaOverlay, toggleCinema } from "@/features/player/cinema";
@@ -292,7 +291,7 @@ export const DesktopTransportBar = ({
             )}
             <View style={{ flexShrink: 1, minWidth: 0 }}>
               <Text
-                style={{ color: tokens.foreground, fontFamily: FONT_SERIF, fontSize: 19, lineHeight: 24 }}
+                style={{ color: tokens.foreground, fontSize: 15, lineHeight: 20, fontWeight: "600" }}
                 numberOfLines={1}
                 accessibilityRole="button"
                 accessibilityLabel={t("components.music.SongCard.openAlbum")}

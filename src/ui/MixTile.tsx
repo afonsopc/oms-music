@@ -14,7 +14,7 @@ import { foregroundWash } from "./uiTheme";
 import type { MixKind } from "@/domain/mixes";
 import { useTheme } from "@/theme/provider";
 import { MIX_KIND_GRADIENTS, MIX_KIND_TINTS, RADIUS } from "@/theme/tokens";
-import { FONT_SERIF, typeScale } from "@/theme/typography";
+import { typeScale } from "@/theme/typography";
 import { TILE_WIDTH } from "./Tile";
 
 /** Stamp text size stepped by length (web stampSizeClass). */
@@ -62,9 +62,8 @@ export const MixTileArtwork = ({ kind, stamp, artworkUri, size, icon }: MixTileA
     <Text
       style={{
         color: tint.ink,
-        fontFamily: FONT_SERIF,
-        fontWeight: "500",
-        letterSpacing: -0.3,
+        fontWeight: "800",
+        letterSpacing: -0.4,
         fontSize,
         lineHeight: Math.round(fontSize * 1.08),
       }}

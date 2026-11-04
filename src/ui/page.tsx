@@ -18,7 +18,6 @@ import React, { useEffect, useState } from "react";
 import { Pressable, Text, View, type StyleProp, type TextStyle, type ViewStyle } from "react-native";
 import { useT } from "@/i18n";
 import { useTheme } from "@/theme/provider";
-import { FONT_SERIF } from "@/theme/typography";
 import { Icon, type IconName } from "./icons";
 import { Reveal } from "./motion";
 import { waitPhraseKey } from "./motionMath";
@@ -31,13 +30,10 @@ export const GUTTER_DESKTOP = 40;
 
 export const useGutter = (): number => (useDesktopShell() ? GUTTER_DESKTOP : GUTTER);
 
-/**
- * Escala de texto da página (a mesma em todos os ecrãs). Títulos e secções
- * com serifa (Newsreader 500, o único peso que existe: nada de 700/800 nela).
- */
+/** Escala de texto da página (a mesma em todos os ecrãs): títulos em negrito, sem serifa. */
 export const pageType = {
-  title: { fontFamily: FONT_SERIF, fontSize: 34, lineHeight: 40, fontWeight: "500", letterSpacing: -0.6 } as TextStyle,
-  section: { fontFamily: FONT_SERIF, fontSize: 23, lineHeight: 28, fontWeight: "500", letterSpacing: -0.2 } as TextStyle,
+  title: { fontSize: 32, lineHeight: 38, fontWeight: "800", letterSpacing: -0.6 } as TextStyle,
+  section: { fontSize: 22, lineHeight: 27, fontWeight: "700", letterSpacing: -0.3 } as TextStyle,
   label: { fontSize: 13, lineHeight: 16, fontWeight: "600", letterSpacing: 0.1 } as TextStyle,
   body: { fontSize: 16, lineHeight: 21 } as TextStyle,
   meta: { fontSize: 14, lineHeight: 18 } as TextStyle,
@@ -60,7 +56,7 @@ export const PageTitle = ({
       minimumFontScale={0.75}
       style={[
         pageType.title,
-        desktop ? { fontSize: 46, lineHeight: 52, letterSpacing: -0.9 } : null,
+        desktop ? { fontSize: 36, lineHeight: 42, letterSpacing: -0.7 } : null,
         { color: tokens.foreground, flexShrink: 1 },
         style,
       ]}
@@ -139,7 +135,7 @@ export const SectionLabel = ({
       <Text
         style={[
           pageType.section,
-          desktop ? { fontSize: 27, lineHeight: 32 } : null,
+          desktop ? { fontSize: 24, lineHeight: 30 } : null,
           { color: tokens.foreground, flex: 1 },
         ]}
         numberOfLines={1}

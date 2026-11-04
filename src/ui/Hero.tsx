@@ -45,7 +45,6 @@ import { useT } from "@/i18n";
 import { withAlpha } from "@/theme/contrast";
 import { useTheme } from "@/theme/provider";
 import type { KindTint } from "@/theme/tokens";
-import { FONT_SERIF } from "@/theme/typography";
 import { useArtworkTint } from "@/theme/useArtworkTint";
 
 export type HeroKind = "playlist" | "album" | "artist" | "mix" | "radio";
@@ -241,11 +240,10 @@ export const Hero = ({
             minimumFontScale={0.7}
             style={{
               color: tokens.foreground,
-              fontFamily: FONT_SERIF,
               fontSize: titleSize,
               lineHeight: Math.round(titleSize * 1.08),
-              fontWeight: "500",
-              letterSpacing: -0.8,
+              fontWeight: "800",
+              letterSpacing: -1,
             }}
           >
             {title}
@@ -295,11 +293,10 @@ export const Hero = ({
             numberOfLines={2}
             style={{
               color: tokens.foreground,
-              fontFamily: FONT_SERIF,
-              fontSize: titleType.fontSize,
-              lineHeight: Math.round(titleType.fontSize * 1.08),
-              fontWeight: "500",
-              letterSpacing: titleType.fontSize >= 56 ? -1.6 : -0.8,
+              fontSize: Math.min(56, titleType.fontSize),
+              lineHeight: Math.round(Math.min(56, titleType.fontSize) * 1.1),
+              fontWeight: "800",
+              letterSpacing: -1,
             }}
           >
             {title}
@@ -348,11 +345,10 @@ export const Hero = ({
           numberOfLines={2}
           style={{
             color: tokens.foreground,
-            fontFamily: FONT_SERIF,
-            fontSize: titleSize + 2,
-            lineHeight: Math.round((titleSize + 2) * 1.1),
-            fontWeight: "500",
-            letterSpacing: -0.5,
+            fontSize: titleSize,
+            lineHeight: Math.round(titleSize * 1.12),
+            fontWeight: "800",
+            letterSpacing: -0.6,
           }}
         >
           {title}

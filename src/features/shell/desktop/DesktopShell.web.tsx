@@ -23,14 +23,14 @@
  * on plain divs; everything INSIDE each zone is regular RN code. The main
  * pane measures itself and provides its width as the container width
  * (ui/shellLayout), which is what makes the main-sm..xl breakpoints
- * container-true. It also caps content at `contentMax` and centers it.
+ * container-true. The content column fills the whole main zone (ronda 2b).
  */
 import React, { useState } from "react";
 import { useWindowDimensions, View } from "react-native";
 import { isDesktopShell as isTauriShell } from "@/desktop/tauri";
 import { useT } from "@/i18n";
 import { useTheme } from "@/theme/provider";
-import { BREAKPOINTS, ContainerWidthProvider, useDesktopShell, useRightPanelWide } from "@/ui";
+import { ContainerWidthProvider, useDesktopShell, useRightPanelWide } from "@/ui";
 import {
   readRightPanelOpen,
   readRightPanelTenant,
@@ -204,21 +204,18 @@ export const DesktopShell = ({ children }: DesktopShellProps) => {
     ? { ...zone, gridArea: "main" }
     : { flex: "1 1 0%", minHeight: 0, display: "flex", flexDirection: "column" };
 
-  // A coluna do conteúdo pára de crescer em BREAKPOINTS.contentMax e centra
-  // na zona principal (as margens laterais são iguais dos dois lados). Only
-  // meaningful on desktop; on mobile the cap can never bind, but keeping the
-  // element mounted keeps the navigator alive across the breakpoint.
-  const contentMax: React.CSSProperties = desktop
-    ? {
-        flex: "1 1 0%",
-        minHeight: 0,
-        display: "flex",
-        flexDirection: "column",
-        width: "100%",
-        maxWidth: BREAKPOINTS.contentMax,
-        margin: "0 auto",
-      }
-    : { flex: "1 1 0%", minHeight: 0, display: "flex", flexDirection: "column" };
+  // A coluna do conteúdo ocupa a zona principal TODA, da barra lateral ao
+  // painel (ou à borda): nada de caixa centrada com bandas vazias dos lados
+  // (queixa do dono 2026-11-04, Brave com zoom num ecrã largo). Só o texto
+  // corrido tem medida máxima, dentro de cada ecrã. The element stays mounted
+  // across the breakpoint so the navigator survives a resize.
+  const contentMax: React.CSSProperties = {
+    flex: "1 1 0%",
+    minHeight: 0,
+    display: "flex",
+    flexDirection: "column",
+    width: "100%",
+  };
 
   return (
     <div style={outer}>
