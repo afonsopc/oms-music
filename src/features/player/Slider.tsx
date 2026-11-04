@@ -118,7 +118,7 @@ export const Slider = ({
         onLayout={(event: LayoutChangeEvent) => {
           widthRef.current = event.nativeEvent.layout.width;
         }}
-        style={{ height: 32, justifyContent: "center", opacity: disabled ? 0.4 : 1 }}
+        style={{ height: 44, justifyContent: "center", opacity: disabled ? 0.4 : 1 }}
       >
         <SliderTrack
           shown={shown}
@@ -126,6 +126,7 @@ export const Slider = ({
           fill={fill}
           trackColor={trackColor ?? tokens.muted}
           thumbSize={thumbSize}
+          active={dragValue !== null}
         />
       </View>
     </GestureDetector>

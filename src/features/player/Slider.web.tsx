@@ -87,7 +87,7 @@ export const Slider = ({
       accessibilityValue={{ min: 0, max: 100, now: Math.round(shown * 100) }}
       style={
         {
-          height: 32,
+          height: 44,
           justifyContent: "center",
           opacity: disabled ? 0.4 : 1,
           cursor: disabled ? "default" : "pointer",
@@ -101,6 +101,7 @@ export const Slider = ({
         fill={fill}
         trackColor={trackColor ?? tokens.muted}
         thumbSize={thumbSize}
+        active={dragValue !== null}
       />
     </View>
   );

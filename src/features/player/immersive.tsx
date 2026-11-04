@@ -13,12 +13,17 @@
  * A capa nitida e full-bleed e desvanece para o mesmo veu, o que a costura ao
  * fundo em vez de a pousar la em cima como um cartao.
  */
-import React from "react";
-import { StyleSheet, View } from "react-native";
+import React, { useEffect, useState } from "react";
+import { Animated, Platform, StyleSheet, View } from "react-native";
+import { useArtworkTint } from "@/theme/useArtworkTint";
 import type { Song } from "@/domain/song";
 import { songArtworkSource } from "@/domain/artwork";
 import { useTheme } from "@/theme/provider";
-import { ArtworkImage, gradientBackground } from "@/ui";
+import { ArtworkImage, artworkSourceUri, gradientBackground } from "@/ui";
+import { useReducedMotion } from "@/ui/motion";
+
+/** A capa em pausa: um pouco mais pequena, como quem respira fundo. */
+const PAUSED_SCALE = 0.82;
 
 /** rgb do veu por tema; as paragens de alpha sao as mesmas nos dois. */
 const washRgb = (scheme: "light" | "dark"): string =>
@@ -38,9 +43,9 @@ const washRgb = (scheme: "light" | "dark"): string =>
 const washStops = (rgb: string, dense: boolean): string =>
   dense
     ? `linear-gradient(to bottom, rgba(${rgb}, 0.74) 0%, rgba(${rgb}, 0.82) 45%, rgba(${rgb}, 0.92) 80%, rgba(${rgb}, 0.96) 100%)`
-    : // Mais escuro do que era (redesenho 2026-11-04): a capa dá só um
-      // ambiente, o ecrã continua preto e cinzento.
-      `linear-gradient(to bottom, rgba(${rgb}, 0.55) 0%, rgba(${rgb}, 0.74) 40%, rgba(${rgb}, 0.92) 78%, rgba(${rgb}, 0.97) 100%)`;
+    : // Ronda 2 (idioma Apple Music): a cor da capa É o fundo; o véu só
+      // escurece o fundo do ecrã, onde vivem os comandos.
+      `linear-gradient(to bottom, rgba(${rgb}, 0.18) 0%, rgba(${rgb}, 0.28) 45%, rgba(${rgb}, 0.5) 80%, rgba(${rgb}, 0.62) 100%)`;
 
 /**
  * A copia desfocada, esticada a pagina inteira, mais o veu que garante o
@@ -55,15 +60,24 @@ export const ImmersiveBackdrop = ({
 }) => {
   const { scheme } = useTheme();
   const rgb = washRgb(scheme);
+  const artworkUri = song ? artworkSourceUri(songArtworkSource(song)) : null;
+  const tint = useArtworkTint(song ? String(song.id) : null, artworkUri);
   return (
-    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+    <View
+      pointerEvents="none"
+      style={[
+        StyleSheet.absoluteFill,
+        { backgroundColor: tint.wash },
+        Platform.OS === "web" ? ({ transitionProperty: "background-color", transitionDuration: "700ms" } as object) : null,
+      ]}
+    >
       {song ? (
         <ArtworkImage
           source={songArtworkSource(song)}
           songId={song.id}
           // A mesma resolucao do resto da app (ficheiro local primeiro, rede
           // depois), so que desfocada - offline continua a haver fundo.
-          blurRadius={40}
+          blurRadius={60}
           contentFit="cover"
           // width/height/borderRadius EXPLICITOS: o ArtworkImage assume um
           // quadrado de 40 com cantos redondos e junta o `style` a seguir, por
@@ -73,11 +87,12 @@ export const ImmersiveBackdrop = ({
           // none). Reportado pelo dono a 2026-08-15.
           style={{
             position: "absolute",
-            top: 0,
-            left: 0,
-            width: "100%",
-            height: "100%",
+            top: "-15%",
+            left: "-15%",
+            width: "130%",
+            height: "130%",
             borderRadius: 0,
+            opacity: 0.85,
           }}
         />
       ) : null}
@@ -92,27 +107,45 @@ export const ImmersiveBackdrop = ({
  * primeira versao era full-bleed com fade; ele viu o AM ao lado e preferiu
  * este, que e um objecto pousado sobre o ambiente em vez de fazer parte dele.
  */
-export const ImmersiveArtwork = ({ song, size }: { song: Song; size: number }) => (
-  <View
-    style={{
-      width: size,
-      height: size,
-      borderRadius: 12,
-      // A sombra e o que separa a capa do fundo, ja que ambos saem da mesma
-      // imagem; sem ela a capa parecia colada ao desfoque.
-      shadowColor: "#000",
-      shadowOpacity: 0.45,
-      shadowRadius: 28,
-      shadowOffset: { width: 0, height: 14 },
-      elevation: 18,
-    }}
-  >
-    <ArtworkImage
-      source={songArtworkSource(song)}
-      songId={song.id}
-      contentFit="cover"
-      borderRadius={12}
-      style={{ width: size, height: size }}
-    />
-  </View>
-);
+/**
+ * A capa grande do leitor. Encolhe um pouco quando está em pausa e volta ao
+ * tamanho com uma mola quando toca (o gesto do Apple Music), no driver
+ * nativo: nada disto passa pela thread de JS depois de arrancar.
+ */
+export const ImmersiveArtwork = ({ song, size, playing = true }: { song: Song; size: number; playing?: boolean }) => {
+  const reduceMotion = useReducedMotion();
+  const [scale] = useState(() => new Animated.Value(playing ? 1 : PAUSED_SCALE));
+  useEffect(() => {
+    const to = playing ? 1 : PAUSED_SCALE;
+    if (reduceMotion) {
+      scale.setValue(to);
+      return;
+    }
+    Animated.spring(scale, { toValue: to, damping: 16, stiffness: 180, mass: 0.8, useNativeDriver: Platform.OS !== "web" }).start();
+  }, [playing, reduceMotion, scale]);
+  return (
+    <Animated.View
+      style={{
+        width: size,
+        height: size,
+        borderRadius: 12,
+        transform: [{ scale }],
+        // A sombra e o que separa a capa do fundo, ja que ambos saem da mesma
+        // imagem; sem ela a capa parecia colada ao desfoque.
+        shadowColor: "#000",
+        shadowOpacity: playing ? 0.45 : 0.25,
+        shadowRadius: 28,
+        shadowOffset: { width: 0, height: 14 },
+        elevation: 18,
+      }}
+    >
+      <ArtworkImage
+        source={songArtworkSource(song)}
+        songId={song.id}
+        contentFit="cover"
+        borderRadius={12}
+        style={{ width: size, height: size }}
+      />
+    </Animated.View>
+  );
+};

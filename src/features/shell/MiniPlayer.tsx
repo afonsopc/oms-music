@@ -34,12 +34,15 @@ import { usePillPlayerState, usePillProgress } from "./usePillPlayerState";
 import { OVERLAY_PILL_HEIGHT } from "./metrics";
 import { PauseGlyph, PlayGlyph } from "./glyphs";
 import { MiniPlayerSwipe } from "./MiniPlayerSwipe";
+import { openPlayerSheet } from "@/features/player/sheet/sheetStore";
+import { hasOptimisticPlay, togglePlaybackOptimistic, useShownPlaying } from "@/features/player/optimisticPlay";
 import type { MiniSwipe } from "./miniSwipeMath";
 
 const ART = 44;
 
 export const MiniPlayer = ({ attachedTop = false }: { attachedTop?: boolean }) => {
-  const { song, playing, buffering } = usePillPlayerState();
+  const { song, buffering } = usePillPlayerState();
+  const playing = useShownPlaying();
   useShellSlotsVersion();
   const { tokens } = useTheme();
   const t = useT();
@@ -57,11 +60,17 @@ export const MiniPlayer = ({ attachedTop = false }: { attachedTop?: boolean }) =
 
   const CastButton = getShellSlots().castButton;
   const artistsLine = formatArtists(song);
-  const openPlayer = () => router.push("/(player)/now-playing");
+  // Abrir é deslizar a folha (ronda 2); a rota só fica para onde não há folha.
+  const openPlayer = () => {
+    haptics.tap();
+    if (!openPlayerSheet()) router.push("/(player)/now-playing");
+  };
 
   const onSwipe = (swipe: Exclude<MiniSwipe, null>) => {
     haptics.tap();
-    if (swipe === "open") openPlayer();
+    if (swipe === "open") {
+      if (!openPlayerSheet()) router.push("/(player)/now-playing");
+    }
     else if (swipe === "next") getTransport().next();
     else getTransport().previous();
   };
@@ -135,7 +144,7 @@ export const MiniPlayer = ({ attachedTop = false }: { attachedTop?: boolean }) =
           onPress={(event) => {
             event.stopPropagation();
             haptics.tap();
-            getTransport().toggle();
+            togglePlaybackOptimistic();
           }}
           style={({ pressed }) => ({
             width: 44,
@@ -146,7 +155,7 @@ export const MiniPlayer = ({ attachedTop = false }: { attachedTop?: boolean }) =
             transform: [{ scale: pressed ? 0.92 : 1 }],
           })}
         >
-          {buffering ? (
+          {buffering && !hasOptimisticPlay() ? (
             <ActivityIndicator size="small" color={tokens.foreground} />
           ) : playing ? (
             <PauseGlyph color={tokens.foreground} size={16} />

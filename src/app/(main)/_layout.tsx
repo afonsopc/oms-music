@@ -18,6 +18,7 @@
 import React from "react";
 import { View } from "react-native";
 import { Stack } from "expo-router";
+import { PlayerSheetProvider } from "@/features/player/sheet/PlayerSheet";
 import { DesktopShell } from "@/features/shell/desktop/DesktopShell";
 import { useServiceUsagePing } from "@/features/shell/useServiceUsagePing";
 import { useTheme } from "@/theme/provider";
@@ -30,12 +31,16 @@ export default function MainLayout() {
   return (
     <DesktopShell>
       <View style={{ flex: 1, backgroundColor: tokens.background }}>
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            contentStyle: { backgroundColor: tokens.background },
-          }}
-        />
+        {/* A folha do leitor do telemóvel vive por cima de tudo o que é
+            (main), montada uma vez (features/player/sheet). */}
+        <PlayerSheetProvider>
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              contentStyle: { backgroundColor: tokens.background },
+            }}
+          />
+        </PlayerSheetProvider>
       </View>
     </DesktopShell>
   );

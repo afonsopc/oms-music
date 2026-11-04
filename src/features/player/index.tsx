@@ -58,6 +58,9 @@ import { foregroundWash } from "@/ui/uiTheme";
 import { ImmersiveArtwork } from "./immersive";
 import { DjNowArtwork } from "@/features/dj/DjArtwork";
 import { togglePlayerMode, usePlayerModeStore } from "./mode";
+import { hasOptimisticPlay, togglePlaybackOptimistic, useShownPlaying } from "./optimisticPlay";
+import { usePlayerSurfaceLive } from "./sheet/liveSurface";
+import { closePlayerSheet } from "./sheet/sheetStore";
 import { Slider } from "./Slider";
 
 const NP = "components.music.NowPlayingSheet";
@@ -91,7 +94,9 @@ const ScrubBar = () => {
   // Uma intervencao do DJ nao se arrasta (dono, 2026-08-31: "sem dar pra dar
   // scrub"): a barra sai do ecra em vez de ficar la a dizer que da.
   const djClip = usePlaybackView((v) => isDjClip(v.song));
-  const position = usePlaybackView((v) => v.position);
+  // Com a folha fechada a barra não ouve os 4 Hz da posição (ronda 2).
+  const live = usePlayerSurfaceLive();
+  const position = usePlaybackView((v) => (live ? v.position : 0));
   const duration = usePlaybackView((v) => v.duration);
   const passive = usePlaybackView((v) => v.passive);
   // Loop de secção A-B: marcas locais (o loop nunca viaja pelo cabo), por
@@ -143,7 +148,7 @@ const ScrubBar = () => {
             style={{
               position: "absolute",
               left: `${Math.min(1, Math.max(0, mark / duration)) * 100}%`,
-              top: 8,
+              top: 14,
               width: 2,
               height: 16,
               marginLeft: -1,
@@ -242,6 +247,7 @@ export default function NowPlayingBody() {
   useShellSlotsVersion();
 
   const song = usePlaybackView((v) => v.song);
+  const shownPlaying = useShownPlaying();
   const likedIds = useLikedIds();
   const toggleLike = useToggleLike();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -255,6 +261,11 @@ export default function NowPlayingBody() {
   // mobile modal's alone now - the desktop panel has its own lean tenant.)
   const openInMain = useCallback(
     (route: Href) => {
+      // Na folha do telemóvel: fecha-a e navega por baixo dela.
+      if (closePlayerSheet()) {
+        router.push(route);
+        return;
+      }
       if (router.canDismiss()) router.dismissAll();
       router.push(route);
     },
@@ -288,7 +299,7 @@ export default function NowPlayingBody() {
           {isDjClip(song) ? (
             <DjNowArtwork size={artworkSize} />
           ) : (
-            <ImmersiveArtwork song={song} size={artworkSize} />
+            <ImmersiveArtwork song={song} size={artworkSize} playing={shownPlaying} />
           )}
         </View>
 
@@ -386,7 +397,7 @@ export const PlayerChrome = () => {
   const t = useT();
   const { scheme, tokens } = useTheme();
   useShellSlotsVersion();
-  const playing = usePlaybackView((v) => v.playing);
+  const playing = useShownPlaying();
   const buffering = usePlaybackView((v) => v.buffering);
   const mode = usePlayerModeStore((s) => s.mode);
   const CastButton = getShellSlots().castButton;
@@ -438,7 +449,7 @@ export const PlayerChrome = () => {
             a ser um botao - toggle() corre por INTENCAO, portanto carregar
             aqui cancela um arranque que esta a demorar de mais, que e
             precisamente o que quem carrega quer dizer. */}
-        {buffering ? (
+        {buffering && !hasOptimisticPlay() ? (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t(`${NP}.loading`)}
@@ -457,7 +468,7 @@ export const PlayerChrome = () => {
             accessibilityLabel={playing ? t(`${NP}.pause`) : t(`${NP}.play`)}
             onPress={() => {
               haptics.tap();
-              getTransport().toggle();
+              togglePlaybackOptimistic();
             }}
           />
         )}

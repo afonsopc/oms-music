@@ -90,7 +90,7 @@ const DockScrub = ({ color }: { color: string }) => {
     <View style={{ flexDirection: "row", alignItems: "center", gap: 6, height: 16 }}>
       <Text style={[time, { textAlign: "right" }]}>{formatDuration(shownSeconds)}</Text>
       <View style={{ flex: 1, height: 16, justifyContent: "center" }}>
-        <View style={{ position: "absolute", left: 0, right: 0, top: -8 }}>
+        <View style={{ position: "absolute", left: 0, right: 0, top: -14 }}>
           <Slider
             value={fraction}
             accessibilityLabel={t("native.player.progress")}

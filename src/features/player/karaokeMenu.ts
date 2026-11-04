@@ -11,6 +11,7 @@
  * nunca existem (fonte única presigned, DESIGN 10.3).
  */
 import { router } from "expo-router";
+import { openPlayerSheet } from "@/features/player/sheet/sheetStore";
 import { registerSongMenuSlot, type SongMenuSlotHook } from "@/contracts/songMenu";
 import { getTransport } from "@/contracts/transport";
 import { setPlayerMode } from "@/features/player/mode";
@@ -35,7 +36,7 @@ const useKaraokeSlot: SongMenuSlotHook = (ctx) => {
           else getTransport().setQueue([ctx.song], 0);
         }
         setPlayerMode("karaoke");
-        if (!inPlayer) router.push("/(player)/now-playing");
+        if (!inPlayer && !openPlayerSheet()) router.push("/(player)/now-playing");
       },
     },
   ];

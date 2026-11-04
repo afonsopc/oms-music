@@ -27,17 +27,23 @@ export const SliderTrack = ({
   fill,
   trackColor,
   thumbSize,
+  active = false,
 }: {
   shown: number;
   height: number;
   fill: string;
   trackColor: string;
   thumbSize: number;
-}) => (
+  /** A arrastar: a barra engrossa (ronda 2), para o dedo saber que a agarrou. */
+  active?: boolean;
+}) => {
+  const h = active ? Math.round(height * 1.8) : height;
+  const thumb = active && thumbSize > 0 ? Math.round(thumbSize * 1.4) : thumbSize;
+  return (
   <View
     style={{
-      height,
-      borderRadius: height / 2,
+      height: h,
+      borderRadius: h / 2,
       backgroundColor: trackColor,
       overflow: "visible",
     }}
@@ -45,8 +51,8 @@ export const SliderTrack = ({
     <View
       style={{
         width: `${shown * 100}%`,
-        height,
-        borderRadius: height / 2,
+        height: h,
+        borderRadius: h / 2,
         backgroundColor: fill,
       }}
     />
@@ -55,13 +61,14 @@ export const SliderTrack = ({
       style={{
         position: "absolute",
         left: `${shown * 100}%`,
-        top: height / 2 - thumbSize / 2,
-        width: thumbSize,
-        height: thumbSize,
-        marginLeft: -thumbSize / 2,
-        borderRadius: thumbSize / 2,
+        top: h / 2 - thumb / 2,
+        width: thumb,
+        height: thumb,
+        marginLeft: -thumb / 2,
+        borderRadius: thumb / 2,
         backgroundColor: fill,
       }}
     />
   </View>
 );
+};
