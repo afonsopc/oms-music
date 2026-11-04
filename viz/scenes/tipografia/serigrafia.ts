@@ -7,7 +7,7 @@
  * tinta toda. A cada oito compassos um cartaz novo, noutras cores.
  */
 import { barPhase } from "../../lib/beat";
-import { SANS, TEXT_HEAD, artistOf, fit, textShader, titleOf, upper, wrapLines } from "./_lib";
+import { RTL_RE, SANS, TEXT_HEAD, artistOf, fit, textShader, titleOf, upper, wrapLines } from "./_lib";
 
 export default textShader({
   id: "serigrafia",
@@ -83,15 +83,22 @@ void main(){
     ctx.font = font(h * 0.2);
     const lines = wrapLines(ctx, title, (w - m * 2) / 0.78, 4);
     let y = m;
+    const rtl = RTL_RE.test(title);
     ctx.textBaseline = "top";
+    ctx.textAlign = rtl ? "right" : "left";
     ctx.fillStyle = "#f00";
-    for (const l of lines) {
-      const sz = Math.min(h * 0.24, fit(ctx, l, (w - m * 2) / 0.78, font, h * 0.24));
+    const sizes = lines.map((l) => Math.min(h * 0.24, fit(ctx, l, (w - m * 2) / 0.78, font, h * 0.24)));
+    // o título não passa de metade da folha (fica lugar para o artista e a letra)
+    const tot = sizes.reduce((a, b) => a + b * 0.92, 0);
+    const k = tot > h * 0.55 ? (h * 0.55) / tot : 1;
+    lines.forEach((l, i) => {
+      const sz = sizes[i] * k;
       ctx.font = font(sz);
-      ctx.fillText(l, m / 0.78, y);
+      ctx.fillText(l, (rtl ? w - m : m) / 0.78, y);
       y += sz * 0.92;
-    }
+    });
     ctx.restore();
+    ctx.textAlign = "left";
     // o artista e a linha da letra
     ctx.textBaseline = "alphabetic";
     ctx.fillStyle = "#0f0";

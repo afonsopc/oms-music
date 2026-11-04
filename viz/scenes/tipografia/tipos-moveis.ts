@@ -80,7 +80,14 @@ export default canvasScene({
     ctx.font = font(100);
     const line = upper(text);
     const lw = Math.max(1, ctx.measureText(line).width);
-    let size = Math.min((100 * pw) / lw, h * (big ? 0.3 : 0.2));
+    let size = Math.min((100 * pw) / lw, h * (big ? 0.24 : 0.2));
+    if (size < h * 0.09 && n >= 2 && !big) {
+      // linha comprida: em duas fiadas
+      const half = Math.ceil(n / 2);
+      addRow(ws.slice(0, half).join(" "), starts.subarray(0, half), half, ws.slice(0, half), t, ctx, ink, big);
+      addRow(ws.slice(half, n).join(" "), starts.subarray(half, n), n - half, ws.slice(half, n), t, ctx, ink, big);
+      return;
+    }
     let sx = 1;
     if (size < h * 0.07) { sx = Math.max(0.55, size / (h * 0.07)); size = Math.min(h * 0.07, (100 * pw) / (lw * sx)); }
     if (rowY + size * 0.95 > h - m) newSheet();
