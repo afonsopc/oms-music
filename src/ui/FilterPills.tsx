@@ -77,7 +77,7 @@ export const FilterPills = ({
   }, [active, barX, barW, reduce]);
 
   const row = (
-    <View style={{ flexDirection: "row", gap: 22, height: TAB_HEIGHT }}>
+    <View accessibilityRole="tablist" style={{ flexDirection: "row", gap: 22, height: TAB_HEIGHT }}>
       {active ? (
         <Animated.View
           pointerEvents="none"

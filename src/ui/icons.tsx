@@ -20,6 +20,7 @@ export interface IconProps {
 
 export const Icon = ({ name, size = 20, color, filled = false, style }: IconProps) => (
   <Image
+    alt=""
     source={{ uri: iconUri(name, color, filled) }}
     style={[{ width: size, height: size }, style]}
     contentFit="contain"

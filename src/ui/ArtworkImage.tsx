@@ -173,6 +173,8 @@ export const ArtworkImage = ({
       }}
       style={[{ width: size, height: size, borderRadius: radius }, style]}
       accessible={false}
+      // Decorativa (o título está ao lado): alt vazio, como pede o HTML.
+      alt=""
     />
   );
 };

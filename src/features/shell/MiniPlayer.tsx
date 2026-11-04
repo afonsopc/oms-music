@@ -100,6 +100,7 @@ export const MiniPlayer = ({ attachedTop = false }: { attachedTop?: boolean }) =
           <DjNowArtwork size={ART} />
         ) : (
           <Image
+            alt=""
             source={artworkSource}
             placeholder={PLACEHOLDER_ARTWORK}
             recyclingKey={String(song.id)}

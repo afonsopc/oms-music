@@ -64,6 +64,7 @@ export const AboutArtistCard = ({ embedded = false }: { embedded?: boolean } = {
       {photoUri ? (
         <View>
           <Image
+            alt=""
             source={{ uri: photoUri }}
             style={{ width: "100%", height: PHOTO_HEIGHT }}
             contentFit="cover"

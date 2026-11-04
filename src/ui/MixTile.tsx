@@ -77,6 +77,7 @@ export const MixTileArtwork = ({ kind, stamp, artworkUri, size, icon }: MixTileA
       {artworkUri ? (
         <>
           <Image
+            alt=""
             source={{ uri: artworkUri }}
             contentFit="cover"
             style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}

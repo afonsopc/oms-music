@@ -62,6 +62,7 @@ export const ArtistGallery = ({ urls }: ArtistGalleryProps) => {
         }}
       >
         <Image
+          alt=""
           source={{ uri }}
           contentFit="cover"
           transition={400}

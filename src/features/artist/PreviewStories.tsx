@@ -74,6 +74,7 @@ export const ArtistPreviewStories = ({
       <View style={{ flex: 1, backgroundColor: "#000" }}>
         {imageUri ? (
           <Image
+            alt=""
             source={{ uri: imageUri }}
             contentFit="cover"
             blurRadius={24}

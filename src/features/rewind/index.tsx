@@ -117,6 +117,7 @@ const CardShell = ({ artUri, children }: { artUri?: string | null; children: Rea
     {artUri ? (
       <>
         <Image
+          alt=""
           source={{ uri: artUri }}
           contentFit="cover"
           blurRadius={50}
@@ -374,6 +375,7 @@ export default function RewindScreen() {
               {uri ? (
                 <Reveal order={0}>
                   <Image
+                    alt=""
                     source={{ uri }}
                     style={{ width: artSize, height: artSize, borderRadius: artSize / 2 }}
                     contentFit="cover"

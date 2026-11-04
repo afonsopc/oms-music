@@ -109,6 +109,7 @@ export const ArtistSpotlight = ({
         {backdrop ? (
           <FadeIn duration={320} style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}>
             <Image
+              alt=""
               source={{ uri: backdrop }}
               contentFit="cover"
               transition={0}
