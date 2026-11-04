@@ -21,11 +21,13 @@ const sameName = (a: string, b: string): boolean =>
 
 export const runImportAction = async (action: ImportAction): Promise<void> => {
   switch (action.action) {
+    // Qualquer link (Spotify, YouTube, mixes, SoundCloud, Deezer…): o serviço
+    // de importar percebe o que é, como a caixa "Cola um link".
     case "import_link":
-      await oms().http.post("/song_imports", { source_url: action.url }, { retry: false });
+      await oms().http.post("/link_imports", { url: action.url }, { retry: false });
       return;
     case "sync_playlist_link":
-      await oms().http.post("/youtube_syncs", { url: action.url }, { retry: false });
+      await oms().http.post("/link_imports", { url: action.url, mode: "sync" }, { retry: false });
       return;
     case "follow_artist": {
       const found = await oms().http.get<{ spotify?: ArtistHit[] }>("/artist_imports/search", {
