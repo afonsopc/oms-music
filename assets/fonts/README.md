@@ -15,3 +15,18 @@ Historial: até à 1.1.0 a display era a `DrukWide-Super-Trial.otf`, uma **trial
 da Commercial Type que não pode ser redistribuída nem embutida em produto. A OMS
 Wide foi desenhada de raiz com as mesmas proporções (medidas, não decalcadas)
 para que nenhum layout mexesse.
+
+## Inter e Newsreader (ronda 2 do redesenho, 2026-11-04)
+
+| Ficheiro | O que é | Licença |
+| --- | --- | --- |
+| `public/fonts/inter-4-latin*.woff2` | Inter 4 variável (400 a 800), a letra de toda a interface na web e no desktop. | SIL OFL 1.1 |
+| `public/fonts/newsreader-500-latin*.woff2` | Newsreader 500 (tamanho óptico 48), os títulos com serifa na web e no desktop. | SIL OFL 1.1 |
+| `Newsreader-Medium.ttf` | A mesma Newsreader 500 para iOS e Android (expo-font, família `OMSSerif`). | SIL OFL 1.1 |
+
+Os woff2 vêm do Google Fonts já divididos em latin e latin-ext (o latin-ext só
+desce quando a página tem letras dessas, por exemplo em letão). Servidos por
+nós, nunca de fora. O react-native-web está remendado (`patches/`) para pôr a
+`OMS Sans` (a Inter) à cabeça da pilha de sistema: sem isso o Linux e o
+Windows caíam na Arial/Liberation. No iOS e no Android a interface fica na
+letra do sistema (SF Pro, Roboto); os títulos usam a Newsreader em todo o lado.

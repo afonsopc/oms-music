@@ -63,6 +63,7 @@
   },
   "private": true,
   "patchedDependencies": {
-    "@omelhorsite/sdk@0.15.1": "patches/@omelhorsite%2Fsdk@0.15.1.patch"
+    "@omelhorsite/sdk@0.15.1": "patches/@omelhorsite%2Fsdk@0.15.1.patch",
+    "react-native-web@0.21.2": "patches/react-native-web@0.21.2.patch"
   }
 }
