@@ -909,7 +909,8 @@
       "profileMenu": "Atvērt profila izvēlni",
       "viewQueue": "Skatīt rindu",
       "moreThanSongs": "vairāk nekā {count} dziesmas",
-      "syncedOn": "sinhronizēta {date}"
+      "syncedOn": "sinhronizēta {date}",
+      "brand": "Mūzika"
     },
     "library": {
       "settings": "Iestatījumi",

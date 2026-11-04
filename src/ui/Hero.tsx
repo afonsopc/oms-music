@@ -32,7 +32,7 @@ import {
 } from "react-native";
 import { Image } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { ArtworkImage } from "./ArtworkImage";
+import { ArtworkImage, artworkSourceUri } from "./ArtworkImage";
 import { heroMinHeight, heroTitleType } from "./breakpoints";
 import { InitialsAvatar } from "./InitialsAvatar";
 import { FadeIn, Reveal } from "./motion";
@@ -44,6 +44,9 @@ import type { ArtworkSource } from "@/domain/artwork";
 import { useT } from "@/i18n";
 import { withAlpha } from "@/theme/contrast";
 import { useTheme } from "@/theme/provider";
+import type { KindTint } from "@/theme/tokens";
+import { FONT_SERIF } from "@/theme/typography";
+import { useArtworkTint } from "@/theme/useArtworkTint";
 
 export type HeroKind = "playlist" | "album" | "artist" | "mix" | "radio";
 
@@ -73,6 +76,11 @@ export interface HeroProps {
   accentColor?: string;
   /** Mantido por compatibilidade; já não pinta nada. */
   accentKey?: string;
+  /**
+   * O tom do cabeçalho (ronda 2). Por omissão sai da capa (`image`, ou
+   * `backdropUri`); as Gostadas e as mixes sem foto passam o seu.
+   */
+  tint?: KindTint;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -157,9 +165,10 @@ export const Hero = ({
   image,
   backdropUri,
   artworkSlot,
+  tint,
   style,
 }: HeroProps) => {
-  const { tokens } = useTheme();
+  const { tokens, scheme } = useTheme();
   const t = useT();
   const { height, width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -171,6 +180,18 @@ export const Hero = ({
   const isArtistBackdrop = kind === "artist" && !!backdropUri;
   const artistAvatar = kind === "artist" && !backdropUri;
   const muted = tokens.mutedForeground;
+
+  // O tom calmo da capa por trás do cabeçalho: no telemóvel desce de cima
+  // até ao fundo; no computador é uma elipse que se desfaz antes das bordas
+  // da coluna (sem arestas duras numa página centrada).
+  const tintUri = tint ? null : (backdropUri ?? artworkSourceUri(image ?? null));
+  const derived = useArtworkTint(tintUri, tintUri);
+  const wash = tint ? tint[scheme].wash : derived.wash;
+  const washStyle = gradientBackground(
+    desktopShell
+      ? `radial-gradient(ellipse 80% 110% at 28% 0%, ${wash} 0%, ${withAlpha(wash, 0.75)} 35%, transparent 78%)`
+      : linearGradient("to bottom", `${wash} 0%`, `${withAlpha(wash, 0.6)} 55%`, `${tokens.background} 100%`),
+  );
 
   // -------------------------------------------------------------------------
   // Artista com foto: a foto de ponta a ponta e o nome por cima.
@@ -220,10 +241,11 @@ export const Hero = ({
             minimumFontScale={0.7}
             style={{
               color: tokens.foreground,
+              fontFamily: FONT_SERIF,
               fontSize: titleSize,
-              lineHeight: Math.round(titleSize * 1.06),
-              fontWeight: "800",
-              letterSpacing: -1,
+              lineHeight: Math.round(titleSize * 1.08),
+              fontWeight: "500",
+              letterSpacing: -0.8,
             }}
           >
             {title}
@@ -238,7 +260,7 @@ export const Hero = ({
   // Computador: capa à esquerda, texto ao lado.
   // -------------------------------------------------------------------------
   if (desktopShell) {
-    const size = Math.round(Math.min(232, Math.max(168, containerWidth * 0.18)));
+    const size = Math.round(Math.min(300, Math.max(200, containerWidth * 0.22)));
     const titleType = heroTitleType(containerWidth, title.length);
     const art = artistAvatar ? (
       image && image.kind !== "initials" ? (
@@ -257,10 +279,11 @@ export const Hero = ({
           {
             flexDirection: "row",
             alignItems: "flex-end",
-            gap: 28,
+            gap: 36,
             paddingHorizontal: gutter,
-            paddingTop: 40,
-            paddingBottom: 8,
+            paddingTop: 48,
+            paddingBottom: 16,
+            ...washStyle,
           },
           style,
         ]}
@@ -272,10 +295,11 @@ export const Hero = ({
             numberOfLines={2}
             style={{
               color: tokens.foreground,
+              fontFamily: FONT_SERIF,
               fontSize: titleType.fontSize,
-              lineHeight: titleType.lineHeight,
-              fontWeight: "800",
-              letterSpacing: titleType.fontSize >= 56 ? -2 : -1,
+              lineHeight: Math.round(titleType.fontSize * 1.08),
+              fontWeight: "500",
+              letterSpacing: titleType.fontSize >= 56 ? -1.6 : -0.8,
             }}
           >
             {title}
@@ -309,7 +333,7 @@ export const Hero = ({
   return (
     <View
       style={[
-        { paddingHorizontal: gutter, paddingTop: insets.top + BACK_ROOM, paddingBottom: 4, gap: 18 },
+        { paddingHorizontal: gutter, paddingTop: insets.top + BACK_ROOM, paddingBottom: 4, gap: 18, ...washStyle },
         style,
       ]}
     >
@@ -324,10 +348,11 @@ export const Hero = ({
           numberOfLines={2}
           style={{
             color: tokens.foreground,
-            fontSize: titleSize,
-            lineHeight: Math.round(titleSize * 1.1),
-            fontWeight: "800",
-            letterSpacing: -0.8,
+            fontFamily: FONT_SERIF,
+            fontSize: titleSize + 2,
+            lineHeight: Math.round((titleSize + 2) * 1.1),
+            fontWeight: "500",
+            letterSpacing: -0.5,
           }}
         >
           {title}
@@ -361,9 +386,9 @@ export const HeroPlaceholder = ({ kind = "playlist" }: { kind?: HeroKind }) => {
     );
   }
   if (desktopShell) {
-    const size = Math.round(Math.min(232, Math.max(168, containerWidth * 0.18)));
+    const size = Math.round(Math.min(300, Math.max(200, containerWidth * 0.22)));
     return (
-      <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 28, paddingHorizontal: gutter, paddingTop: 40, paddingBottom: 8 }}>
+      <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 36, paddingHorizontal: gutter, paddingTop: 48, paddingBottom: 16 }}>
         <Skeleton width={size} height={size} borderRadius={HERO_ART_RADIUS} />
         <View style={{ flex: 1, gap: 12 }}>
           <Skeleton width="55%" height={56} />

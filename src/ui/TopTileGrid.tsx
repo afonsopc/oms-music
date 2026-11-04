@@ -64,24 +64,28 @@ const TopTileCard = ({ item, columns }: { item: TopTileItem; columns: number }) 
         // cover it - the second tile wrapped and the grid rendered ONE column.
         flexBasis: `${100 / columns - 2}%`,
         flexGrow: 1,
-        height: 56,
+        height: 64,
         flexDirection: "row",
         alignItems: "center",
-        gap: 12,
+        gap: 14,
+        paddingRight: 8,
         borderRadius: RADIUS,
         overflow: "hidden",
         // Web-only: RN honra `cursor` em iPads com trackpad, e a superficie
         // nativa congelada nao muda nem cosmeticamente.
         ...(Platform.OS === "web" ? { cursor: "pointer" as const } : null),
-        backgroundColor: foregroundWash(
-          scheme,
-          pressed ? 0.12 : desktopShell && hovered ? 0.1 : 0.06,
-        ),
+        // Ronda 2: sem caixa cinzenta. Só a capa e
+        // o nome; o fundo acende ao passar o rato ou ao tocar.
+        backgroundColor: pressed
+          ? foregroundWash(scheme, 0.1)
+          : desktopShell && hovered
+            ? foregroundWash(scheme, 0.06)
+            : "transparent",
       })}
     >
-      <ArtworkImage source={item.artwork} size={56} shape="square" borderRadius={0} />
+      <ArtworkImage source={item.artwork} size={64} shape="rounded" />
       <Text
-        style={{ flex: 1, color: tokens.foreground, fontSize: 14, fontWeight: "600" }}
+        style={{ flex: 1, color: tokens.foreground, fontSize: 15, lineHeight: 19, fontWeight: "500" }}
         numberOfLines={2}
       >
         {item.title}

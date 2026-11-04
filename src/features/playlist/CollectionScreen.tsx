@@ -12,6 +12,7 @@
  * FR-93 via WP8's settings).
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { KindTint } from "@/theme/tokens";
 import { FlatList, useWindowDimensions, View } from "react-native";
 import { useLikedIds, useToggleLike } from "@/api/queries/likedSongs";
 import { getTransport } from "@/contracts/transport";
@@ -82,6 +83,8 @@ export interface CollectionScreenProps {
   artworkSlot?: (size: number) => React.ReactNode;
   accentColor?: string;
   accentKey?: string;
+  /** O tom do cabeçalho (Gostadas, mixes sem foto); por omissão o da capa. */
+  tint?: KindTint;
   /** Accent-extraction URI when the artwork slot hides the real image. */
   extractionUri?: string | null;
   songs: Song[];
@@ -129,6 +132,7 @@ export const CollectionScreen = ({
   artworkSlot,
   accentColor,
   accentKey,
+  tint,
   extractionUri,
   songs,
   isLoading = false,
@@ -410,6 +414,7 @@ export const CollectionScreen = ({
         artworkSlot={artworkSlot}
         accentColor={accentColor}
         accentKey={accentKey}
+        tint={tint}
         backdropUri={kind === "artist" ? undefined : (extractionUri ?? undefined)}
       />
       <ActionBar

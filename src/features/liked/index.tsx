@@ -17,7 +17,7 @@ import { useSessionStore } from "@/auth/session";
 import { splitDuration, totalDuration } from "@/domain/format";
 import type { Song } from "@/domain/song";
 import { useT } from "@/i18n";
-import { LIKED_ACCENT } from "@/theme/tokens";
+import { LIKED_ACCENT, LIKED_TINT } from "@/theme/tokens";
 import { LikedArtwork } from "@/ui";
 import { CollectionScreen } from "@/features/playlist/CollectionScreen";
 
@@ -73,6 +73,7 @@ export default function LikedScreen() {
       }
       artworkSlot={(size) => <LikedArtwork size={size} />}
       accentColor={LIKED_ACCENT}
+      tint={LIKED_TINT}
       songs={songs}
       isLoading={likedQuery.isLoading}
       isError={likedQuery.isError}

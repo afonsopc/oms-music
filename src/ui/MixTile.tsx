@@ -10,13 +10,11 @@ import React from "react";
 import { Pressable, Text, View, type StyleProp, type ViewStyle } from "react-native";
 import { Image } from "expo-image";
 import { Icon, type IconName } from "./icons";
-import { foregroundWash, gradientBackground, linearGradient } from "./uiTheme";
+import { foregroundWash } from "./uiTheme";
 import type { MixKind } from "@/domain/mixes";
-import { AA_LARGE, ON_DARK, preferredOn } from "@/theme/contrast";
-import { MIX_TILE_SCRIM } from "@/theme/gradients";
 import { useTheme } from "@/theme/provider";
-import { MIX_KIND_GRADIENTS, RADIUS } from "@/theme/tokens";
-import { typeScale } from "@/theme/typography";
+import { MIX_KIND_GRADIENTS, MIX_KIND_TINTS, RADIUS } from "@/theme/tokens";
+import { FONT_SERIF, typeScale } from "@/theme/typography";
 import { TILE_WIDTH } from "./Tile";
 
 /** Stamp text size stepped by length (web stampSizeClass). */
@@ -52,15 +50,28 @@ export interface MixTileArtworkProps {
 
 /** The gradient square alone (also used as a Hero artworkSlot). */
 export const MixTileArtwork = ({ kind, stamp, artworkUri, size, icon }: MixTileArtworkProps) => {
+  const { scheme } = useTheme();
   const gradient = MIX_KIND_GRADIENTS[kind];
-  // Over a photo the surface is the scrim (dark at both ends by design); with
-  // no photo it is the kind gradient's middle stop. The stamp is display type
-  // (weight 900, 16-30px) so the large-text threshold is the right bar, and
-  // white clears it on all four kind gradients.
-  const ink = preferredOn(
-    artworkUri ? MIX_TILE_SCRIM[2] : gradient.colors[1],
-    ON_DARK,
-    AA_LARGE,
+  const tint = MIX_KIND_TINTS[kind][scheme];
+  // Ronda 2 (2026-11-04): cada tipo de mix tem um tom calmo seu (fundo
+  // profundo no escuro, pastel no claro) e o nome vai com serifa, em letra
+  // normal. Com foto do artista, a foto enche o mosaico e o nome assenta
+  // numa faixa do tom em baixo, como a capa de uma revista.
+  const fontSize = Math.round(stampFontSize(stamp) * (size >= 160 ? 1.05 : 0.9));
+  const stampText = (
+    <Text
+      style={{
+        color: tint.ink,
+        fontFamily: FONT_SERIF,
+        fontWeight: "500",
+        letterSpacing: -0.3,
+        fontSize,
+        lineHeight: Math.round(fontSize * 1.08),
+      }}
+      numberOfLines={artworkUri ? 2 : 3}
+    >
+      {stamp}
+    </Text>
   );
   return (
     <View
@@ -69,9 +80,7 @@ export const MixTileArtwork = ({ kind, stamp, artworkUri, size, icon }: MixTileA
         height: size,
         borderRadius: RADIUS,
         overflow: "hidden",
-        padding: 12,
-        justifyContent: "space-between",
-        ...gradientBackground(linearGradient("135deg", ...gradient.colors)),
+        backgroundColor: tint.wash,
       }}
     >
       {artworkUri ? (
@@ -80,36 +89,30 @@ export const MixTileArtwork = ({ kind, stamp, artworkUri, size, icon }: MixTileA
             alt=""
             source={{ uri: artworkUri }}
             contentFit="cover"
-            style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
+            style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: "34%" }}
             accessible={false}
           />
           <View
-            pointerEvents="none"
             style={{
               position: "absolute",
-              top: 0,
               left: 0,
               right: 0,
               bottom: 0,
-              ...gradientBackground(linearGradient("to bottom", ...MIX_TILE_SCRIM)),
+              height: "34%",
+              paddingHorizontal: 12,
+              justifyContent: "center",
+              backgroundColor: tint.wash,
             }}
-          />
+          >
+            {stampText}
+          </View>
         </>
-      ) : null}
-      <Icon name={icon ?? gradient.icon} size={24} color={ink} />
-      <Text
-        style={{
-          color: ink,
-          fontWeight: "900",
-          textTransform: "uppercase",
-          letterSpacing: -0.4,
-          fontSize: stampFontSize(stamp),
-          lineHeight: stampFontSize(stamp) * 1.02,
-        }}
-        numberOfLines={3}
-      >
-        {stamp}
-      </Text>
+      ) : (
+        <View style={{ flex: 1, padding: 14, justifyContent: "space-between" }}>
+          <Icon name={icon ?? gradient.icon} size={22} color={tint.ink} />
+          {stampText}
+        </View>
+      )}
     </View>
   );
 };

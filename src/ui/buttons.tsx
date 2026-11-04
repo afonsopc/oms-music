@@ -7,6 +7,7 @@ import { ActivityIndicator, Pressable, type StyleProp, type ViewStyle } from "re
 import { Icon, type IconName } from "./icons";
 import { heavyShadow } from "./uiTheme";
 import { useTheme } from "@/theme/provider";
+import { LIKED_INK } from "@/theme/tokens";
 
 export interface PlayFabProps {
   playing?: boolean;
@@ -94,8 +95,10 @@ export const GhostIconButton = ({
   accessibilityLabel,
   style,
 }: GhostIconButtonProps) => {
-  const { tokens } = useTheme();
-  const tint = color ?? (active ? tokens.primary : tokens.foreground);
+  const { tokens, scheme } = useTheme();
+  // O coração gostado é sempre o lilás calmo das Gostadas (ronda 2).
+  const likedHeart = icon === "heart" && filled;
+  const tint = color ?? (likedHeart ? LIKED_INK[scheme] : active ? tokens.primary : tokens.foreground);
   return (
     <Pressable
       onPress={onPress}

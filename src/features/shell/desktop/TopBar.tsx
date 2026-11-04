@@ -23,12 +23,6 @@ import { GhostIconButton } from "@/ui";
 import { AccountMenu } from "./AccountMenu";
 import { TopBarSearch } from "./TopBarSearch";
 
-/** Largura dos semaforos do macOS + folga (overlay title bar). Os 72 do
- *  primeiro corte deixavam o chevron de "recuar" colado a luz verde
- *  (medicao no ecra do dono, 2026-08-15): os botoes acabam por volta dos
- *  76pt da margem esquerda da janela. */
-const TRAFFIC_LIGHTS_INSET = 96;
-
 export const DesktopTopBar = () => {
   const t = useT();
   const tauri = isTauriShell();
@@ -44,8 +38,9 @@ export const DesktopTopBar = () => {
         flexDirection: "row",
         alignItems: "center",
         gap: 4,
-        paddingLeft: tauri ? TRAFFIC_LIGHTS_INSET : 8,
-        paddingRight: 8,
+        // Os semáforos do Tauri vivem agora no topo da barra lateral (ronda 2).
+        paddingLeft: 30,
+        paddingRight: 40,
       }}
     >
       <GhostIconButton
@@ -58,11 +53,10 @@ export const DesktopTopBar = () => {
         accessibilityLabel={t("native.desktop.forward")}
         onPress={() => window.history.forward()}
       />
-      <View style={{ flex: 1, alignItems: "center" }} pointerEvents="box-none">
+      <View style={{ flex: 1, alignItems: "flex-start", paddingLeft: 12 }} pointerEvents="box-none">
         <TopBarSearch />
       </View>
-      {/* O cluster direito equilibra o esquerdo para o campo centrar. */}
-      <View style={{ width: tauri ? 88 : 52, alignItems: "flex-end" }}>
+      <View style={{ width: 52, alignItems: "flex-end" }}>
         <AccountMenu />
       </View>
     </View>

@@ -32,7 +32,7 @@ describe("BREAKPOINTS tokens", () => {
     expect(BREAKPOINTS.mainMd).toBe(600);
     expect(BREAKPOINTS.mainLg).toBe(765);
     expect(BREAKPOINTS.mainXl).toBe(1116);
-    expect(BREAKPOINTS.contentMax).toBe(1600);
+    expect(BREAKPOINTS.contentMax).toBe(1440);
   });
 
   it("gates the shells at the window tokens, inclusive at the edge", () => {

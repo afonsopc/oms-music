@@ -2,12 +2,13 @@
  * Desktop shell, web fork (plano-uma-so-app 4.1): at >= 900px of window the
  * (main) tree renders inside a real CSS grid -
  *
- *   "topbar    topbar    topbar"
  *   "sidebar   main      rightpanel"
  *   "player    player    player"
  *
- * with an 8px gap and every zone a rounded card, exactly the plan's zone
- * map. The topbar and the transport bar are grid ROWS, not overlays, so no
+ * Ronda 2 do redesenho (2026-11-04): um só fundo, sem cartões nem folgas,
+ * zonas separadas por um traço fino; a barra de cima (pesquisa, conta) vive
+ * no topo da coluna principal; o painel da direita só existe aberto (sem
+ * carril); o leitor é a doca de baixo. The transport bar is a grid ROW, not an overlay, so no
  * screen needs compensatory bottom padding and the sidebar, main pane and
  * right panel scroll independently without ever pushing the player off
  * screen (the OverlayHost.tsx:53 problem, solved by geometry).
@@ -30,7 +31,6 @@ import { isDesktopShell as isTauriShell } from "@/desktop/tauri";
 import { useT } from "@/i18n";
 import { useTheme } from "@/theme/provider";
 import { BREAKPOINTS, ContainerWidthProvider, useDesktopShell, useRightPanelWide } from "@/ui";
-import { foregroundWash } from "@/ui/uiTheme";
 import {
   readRightPanelOpen,
   readRightPanelTenant,
@@ -77,16 +77,19 @@ export interface DesktopShellProps {
   children: React.ReactNode;
 }
 
-const GAP = 8;
+/** Sem folgas entre zonas (ronda 2): só traços finos. */
+const GAP = 0;
+/** A pega dos divisores, por cima do traço. */
+const RESIZE_HANDLE = 6;
 const TOPBAR_HEIGHT = 56;
-const TRANSPORT_HEIGHT = 88;
+const TRANSPORT_HEIGHT = 84;
 const SIDEBAR_RAIL_WIDTH = 72;
-const PANEL_RAIL_WIDTH = 32;
+const PANEL_RAIL_WIDTH = 0;
 
 export const DesktopShell = ({ children }: DesktopShellProps) => {
   const desktop = useDesktopShell();
   const panelWide = useRightPanelWide();
-  const { tokens, scheme } = useTheme();
+  const { tokens } = useTheme();
   const { width: windowWidth } = useWindowDimensions();
   const t = useT();
   /** Dentro do shell Tauri a janela nao tem barra de titulo propria. */
@@ -150,7 +153,8 @@ export const DesktopShell = ({ children }: DesktopShellProps) => {
   const expandedSidebarWidth = Math.min(clampSidebarWidth(wantedSidebarWidth), sidebarMax);
   const sidebarWidth = collapsed ? SIDEBAR_RAIL_WIDTH : expandedSidebarWidth;
   const panelColumnWidth = clampRightPanelWidth(wantedPanelWidth, windowWidth, sidebarWidth, GAP);
-  const panelWidth = panelWide && panelOpen ? panelColumnWidth : PANEL_RAIL_WIDTH;
+  const panelShown = panelWide && panelOpen;
+  const panelWidth = panelColumnWidth;
 
   /** Live drag: the column tracks the pointer, floored at the usable minimum. */
   const resizeSidebar = (next: number): void => {
@@ -168,15 +172,17 @@ export const DesktopShell = ({ children }: DesktopShellProps) => {
     writeSidebarWidth(width);
   };
 
-  /** Every zone is a card: surface wash over the page background, radius 8. */
-  const card: React.CSSProperties = {
-    borderRadius: 8,
-    backgroundColor: foregroundWash(scheme, 0.05),
-    overflow: "hidden",
+  /**
+   * Ronda 2 (2026-11-04): nada de cartões. Um só fundo, as zonas separadas
+   * por um traço fino; o leitor é a doca de baixo, tingida pela capa.
+   */
+  const hairline = tokens.border;
+  const zone: React.CSSProperties = {
     minWidth: 0,
     minHeight: 0,
     display: "flex",
     flexDirection: "column",
+    overflow: "hidden",
   };
 
   const outer: React.CSSProperties = desktop
@@ -184,11 +190,9 @@ export const DesktopShell = ({ children }: DesktopShellProps) => {
         flex: "1 1 0%",
         minHeight: 0,
         display: "grid",
-        gridTemplateColumns: `${sidebarWidth}px minmax(0, 1fr) ${panelWidth}px`,
-        gridTemplateRows: `${TOPBAR_HEIGHT}px minmax(0, 1fr) ${playerRowHeight}px`,
-        gridTemplateAreas: `"topbar topbar topbar" "sidebar main rightpanel" "player player player"`,
-        gap: GAP,
-        padding: GAP,
+        gridTemplateColumns: `${sidebarWidth}px minmax(0, 1fr) ${panelShown ? panelWidth : 0}px`,
+        gridTemplateRows: `minmax(0, 1fr) ${playerRowHeight}px`,
+        gridTemplateAreas: `"sidebar main rightpanel" "player player player"`,
         boxSizing: "border-box",
         backgroundColor: tokens.background,
       }
@@ -197,13 +201,13 @@ export const DesktopShell = ({ children }: DesktopShellProps) => {
       { flex: "1 1 0%", minHeight: 0, display: "flex", flexDirection: "column" };
 
   const main: React.CSSProperties = desktop
-    ? { ...card, gridArea: "main" }
+    ? { ...zone, gridArea: "main" }
     : { flex: "1 1 0%", minHeight: 0, display: "flex", flexDirection: "column" };
 
-  // The plan's content-max: the main content stops growing at 1600px and
-  // centers. Only meaningful on desktop; on mobile the cap can never bind,
-  // but keeping the element mounted keeps the navigator alive across the
-  // breakpoint.
+  // A coluna do conteúdo pára de crescer em BREAKPOINTS.contentMax e centra
+  // na zona principal (as margens laterais são iguais dos dois lados). Only
+  // meaningful on desktop; on mobile the cap can never bind, but keeping the
+  // element mounted keeps the navigator alive across the breakpoint.
   const contentMax: React.CSSProperties = desktop
     ? {
         flex: "1 1 0%",
@@ -250,14 +254,6 @@ export const DesktopShell = ({ children }: DesktopShellProps) => {
         />
       ) : null}
       {desktop ? (
-        // overflow visible + zIndex, unlike the other cards: the search
-        // typeahead hangs BELOW this row, and later grid siblings (main)
-        // would otherwise paint over it.
-        <div key="topbar" style={{ ...card, gridArea: "topbar", overflow: "visible", zIndex: 30 }}>
-          <DesktopTopBar />
-        </div>
-      ) : null}
-      {desktop ? (
         // Wrapper, not the card itself: the resizer must live in the grid
         // GAP (right: -8) and the card's overflow:hidden would clip it there.
         <div
@@ -270,8 +266,8 @@ export const DesktopShell = ({ children }: DesktopShellProps) => {
             minHeight: 0,
           }}
         >
-          <div style={{ ...card, flex: "1 1 0%" }}>
-            <DesktopSidebar collapsed={collapsed} onToggleCollapsed={toggleSidebar} />
+          <div style={{ ...zone, flex: "1 1 0%", borderRight: `1px solid ${hairline}` }}>
+            <DesktopSidebar collapsed={collapsed} onToggleCollapsed={toggleSidebar} tauri={tauri} />
           </div>
           {collapsed ? null : (
             <PanelResizer
@@ -282,7 +278,7 @@ export const DesktopShell = ({ children }: DesktopShellProps) => {
               // inside of snaps to the collapsed rail (commitSidebarWidth).
               min={SIDEBAR_RAIL_WIDTH}
               max={sidebarMax}
-              gap={GAP}
+              gap={RESIZE_HANDLE}
               label={t("native.desktop.resizeSidebar")}
               onResize={resizeSidebar}
               onCommit={commitSidebarWidth}
@@ -292,7 +288,18 @@ export const DesktopShell = ({ children }: DesktopShellProps) => {
       ) : null}
       <div key="main" style={main}>
         <div style={contentMax}>
+          {desktop ? (
+            // A barra de cima vive DENTRO da coluna do conteúdo (alinhada com
+            // ela, sem cartão próprio). overflow visible + zIndex: a lista da
+            // pesquisa pendura por baixo e não pode ficar tapada.
+            <div key="topbar" style={{ height: TOPBAR_HEIGHT, flex: "0 0 auto", position: "relative", zIndex: 30, display: "flex" }}>
+              <DesktopTopBar />
+            </div>
+          ) : null}
+          {/* Com chave: a barra de cima aparece e desaparece ao lado dela no
+              limite dos 900 px, e sem chave o navegador remontava. */}
           <View
+            key="content"
             style={{ flex: 1 }}
             onLayout={(event) => setMainWidth(Math.round(event.nativeEvent.layout.width))}
           >
@@ -302,9 +309,9 @@ export const DesktopShell = ({ children }: DesktopShellProps) => {
           </View>
         </div>
       </div>
-      {desktop ? (
-        // Wrapper, not the card itself: the resizer must live in the grid
-        // GAP (left: -8) and the card's overflow:hidden would clip it there.
+      {desktop && panelShown ? (
+        // Wrapper, not the zone itself: the resizer must sit on the edge and
+        // the zone's overflow:hidden would clip it there.
         <div
           key="rightpanel"
           style={{
@@ -315,17 +322,17 @@ export const DesktopShell = ({ children }: DesktopShellProps) => {
             minHeight: 0,
           }}
         >
-          <div style={{ ...card, flex: "1 1 0%" }}>
+          <div style={{ ...zone, flex: "1 1 0%", borderLeft: `1px solid ${hairline}` }}>
             <DesktopRightPanel
               wide={panelWide}
-              open={panelWide && panelOpen}
+              open={panelShown}
               tenant={panelTenant}
               width={panelWidth}
               onSelectTenant={selectTenant}
               onClose={() => setPanelOpenPersisted(false)}
             />
           </div>
-          {panelWide && panelOpen ? (
+          {panelShown ? (
             <PanelResizer
               width={panelColumnWidth}
               min={RIGHT_PANEL_MIN_WIDTH}
@@ -333,7 +340,7 @@ export const DesktopShell = ({ children }: DesktopShellProps) => {
                 RIGHT_PANEL_MIN_WIDTH,
                 rightPanelWidthCeiling(windowWidth, sidebarWidth, GAP),
               )}
-              gap={GAP}
+              gap={RESIZE_HANDLE}
               label={t("native.desktop.resizePanel")}
               onResize={setWantedPanelWidth}
               onCommit={(width) => {
@@ -345,7 +352,7 @@ export const DesktopShell = ({ children }: DesktopShellProps) => {
         </div>
       ) : null}
       {desktop ? (
-        <div key="player" style={{ ...card, gridArea: "player" }}>
+        <div key="player" style={{ ...zone, gridArea: "player", borderTop: `1px solid ${hairline}`, overflow: "visible" }}>
           {/* Encostada: primeira linha do MESMO cartao do transporte, sem
               margem nem cantos, portanto sem folga nenhuma por baixo. */}
           {AttachedStrip ? <AttachedStrip /> : null}

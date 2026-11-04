@@ -25,7 +25,7 @@ import { getTransport } from "@/contracts/transport";
 import { useLocale, useT } from "@/i18n";
 import { formatDate, formatElapsed } from "@/lib/dates";
 import { useTheme } from "@/theme/provider";
-import { RADIUS } from "@/theme/tokens";
+import { LIKED_INK, RADIUS } from "@/theme/tokens";
 import { foregroundWash, photoScrim } from "./uiTheme";
 import { haptics } from "@/lib/haptics";
 
@@ -396,7 +396,7 @@ const SongRowInner = ({
                 row, and in panel form every non-title glyph is width the
                 title needs more; everywhere else it renders as shipped. */}
             {liked && !(desktopShell && onToggleLike) && !panelGate.panel ? (
-              <Icon name="heart" size={14} color={tokens.foreground} filled />
+              <Icon name="heart" size={14} color={LIKED_INK[scheme]} filled />
             ) : null}
             <DownloadBadge songId={song.id} />
           </View>
@@ -475,7 +475,7 @@ const SongRowInner = ({
               <Icon
                 name="heart"
                 size={16}
-                color={liked ? tokens.foreground : tokens.mutedForeground}
+                color={liked ? LIKED_INK[scheme] : tokens.mutedForeground}
                 filled={liked}
               />
             </Pressable>

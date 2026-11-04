@@ -79,8 +79,8 @@ export const writeSidebarSearch = (search: string): void => {
   kvSet(SIDEBAR_SEARCH_KEY, search);
 };
 
-/** The right panel defaults to open where it fits: it is the point of 1200px. */
-export const readRightPanelOpen = (): boolean => kvGet(RIGHT_PANEL_OPEN_KEY) !== "0";
+/** Fechado por omissão (ronda 2): a coluna principal tem o ecrã todo até se pedir a fila ou a letra. */
+export const readRightPanelOpen = (): boolean => kvGet(RIGHT_PANEL_OPEN_KEY) === "1";
 
 export const writeRightPanelOpen = (open: boolean): void => {
   kvSet(RIGHT_PANEL_OPEN_KEY, open ? "1" : "0");

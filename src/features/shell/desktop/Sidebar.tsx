@@ -27,7 +27,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { useRouter, useSegments } from "expo-router";
+import { usePathname, useRouter, useSegments } from "expo-router";
 import { usePlaylists } from "@/api/queries/playlists";
 import { useLibraryAlbums, useLibraryArtists } from "@/features/library/queries";
 import {
@@ -41,6 +41,7 @@ import { TabIcon, type TabIconName } from "@/features/shell/TabIcon";
 import { useT } from "@/i18n";
 import { useTheme } from "@/theme/provider";
 import { RADIUS } from "@/theme/tokens";
+import { FONT_SERIF } from "@/theme/typography";
 import {
   ArtworkImage,
   EmptyState,
@@ -58,7 +59,12 @@ import {
 export interface DesktopSidebarProps {
   collapsed: boolean;
   onToggleCollapsed: () => void;
+  /** Dentro do Tauri: os semáforos do macOS flutuam no canto, a faixa de cima fica livre e arrasta a janela. */
+  tauri?: boolean;
 }
+
+/** Altura da faixa dos semáforos no Tauri (a mesma banda da barra de cima). */
+const TAURI_TOP_INSET = 40;
 
 interface NavItem {
   key: TabIconName;
@@ -93,31 +99,46 @@ const NavRow = ({
 }) => {
   const { tokens } = useTheme();
   const t = useT();
-  const tint = active ? tokens.primary : tokens.mutedForeground;
+  const tint = active ? tokens.foreground : tokens.mutedForeground;
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={t(item.labelKey)}
       accessibilityState={{ selected: active }}
-      style={({ pressed }) => ({
+      style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => ({
         flexDirection: "row",
         alignItems: "center",
         justifyContent: collapsed ? "center" : "flex-start",
         gap: 14,
-        height: 44,
+        height: 42,
         paddingHorizontal: collapsed ? 0 : 12,
         borderRadius: RADIUS,
+        backgroundColor: hovered && !active ? tokens.secondary : "transparent",
         opacity: pressed ? 0.7 : 1,
       })}
     >
+      {/* A marca do activo: um traço curto à esquerda, não uma pílula. */}
+      {active && !collapsed ? (
+        <View
+          style={{
+            position: "absolute",
+            left: 0,
+            top: 12,
+            bottom: 12,
+            width: 3,
+            borderRadius: 2,
+            backgroundColor: tokens.foreground,
+          }}
+        />
+      ) : null}
       <TabIcon name={item.key} color={tint} />
       {collapsed ? null : (
         <Text
           style={{
-            color: active ? tokens.foreground : tokens.mutedForeground,
-            fontSize: 15,
-            fontWeight: "600",
+            color: tint,
+            fontSize: 16,
+            fontWeight: active ? "600" : "500",
           }}
           numberOfLines={1}
         >
@@ -128,27 +149,29 @@ const NavRow = ({
   );
 };
 
-/** Compact library row: 36px artwork, one-line name + kind subtitle. */
-const SidebarRow = ({ row, onPress }: { row: LibraryRow; onPress: () => void }) => {
+/** Library row: 44px artwork, one-line name + kind subtitle. */
+const SidebarRow = ({ row, active, onPress }: { row: LibraryRow; active: boolean; onPress: () => void }) => {
   const { tokens } = useTheme();
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={row.name}
-      style={({ pressed }) => ({
+      accessibilityState={{ selected: active }}
+      style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => ({
         flexDirection: "row",
         alignItems: "center",
-        gap: 10,
+        gap: 12,
         paddingHorizontal: 12,
         paddingVertical: 6,
         borderRadius: RADIUS,
+        backgroundColor: active || hovered ? tokens.secondary : "transparent",
         opacity: pressed ? 0.7 : 1,
       })}
     >
       <ArtworkImage
         source={row.artwork}
-        size={36}
+        size={44}
         shape={row.circular ? "circle" : "rounded"}
         recyclingKey={row.key}
       />
@@ -157,8 +180,9 @@ const SidebarRow = ({ row, onPress }: { row: LibraryRow; onPress: () => void }) 
           <Text
             style={{
               color: tokens.foreground,
-              fontSize: 13,
-              fontWeight: row.pinned ? "700" : "500",
+              fontSize: 15,
+              lineHeight: 19,
+              fontWeight: row.pinned ? "600" : "500",
               flexShrink: 1,
             }}
             numberOfLines={1}
@@ -169,7 +193,7 @@ const SidebarRow = ({ row, onPress }: { row: LibraryRow; onPress: () => void }) 
             <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: tokens.mutedForeground }} />
           ) : null}
         </View>
-        <Text style={{ color: tokens.mutedForeground, fontSize: 11 }} numberOfLines={1}>
+        <Text style={{ color: tokens.mutedForeground, fontSize: 13, lineHeight: 17, marginTop: 1 }} numberOfLines={1}>
           {row.subtitle}
         </Text>
       </View>
@@ -177,7 +201,7 @@ const SidebarRow = ({ row, onPress }: { row: LibraryRow; onPress: () => void }) 
   );
 };
 
-export const DesktopSidebar = ({ collapsed, onToggleCollapsed }: DesktopSidebarProps) => {
+export const DesktopSidebar = ({ collapsed, onToggleCollapsed, tauri = false }: DesktopSidebarProps) => {
   const { tokens } = useTheme();
   const t = useT();
   const router = useRouter();
@@ -250,6 +274,7 @@ export const DesktopSidebar = ({ collapsed, onToggleCollapsed }: DesktopSidebarP
     (wantsAlbums && albumsQuery.isLoading);
 
   const activeTab = segments.includes("(tabs)") ? segments[segments.length - 1] : null;
+  const currentPath = usePathname();
 
   const pills = [
     { key: "all", label: t("components.music.Sidebar.filterAll") },
@@ -261,7 +286,7 @@ export const DesktopSidebar = ({ collapsed, onToggleCollapsed }: DesktopSidebarP
   // The pinned row keeps the list technically non-empty, so the loading /
   // empty message drops to the FOOTER whenever only Liked Songs rendered.
   const statusFallback = isLoading ? (
-    <Text style={{ color: tokens.mutedForeground, fontSize: 12, paddingHorizontal: 12 }}>
+    <Text style={{ color: tokens.mutedForeground, fontSize: 14, paddingHorizontal: 12 }}>
       {t("components.music.Sidebar.loading")}
     </Text>
   ) : (
@@ -278,8 +303,24 @@ export const DesktopSidebar = ({ collapsed, onToggleCollapsed }: DesktopSidebarP
   return (
     // paddingBottom 0: a lista rola ate BATER no limite do cartao (feedback
     // do dono); so o topo respira.
-    <View style={{ flex: 1, paddingHorizontal: collapsed ? 6 : 10, paddingTop: 10, gap: 4 }}>
-      <View style={{ gap: 2 }}>
+    <View style={{ flex: 1, paddingHorizontal: collapsed ? 8 : 12, paddingTop: tauri ? TAURI_TOP_INSET : 18, gap: 4 }}>
+      {tauri ? (
+        <View
+          {...{ dataSet: { "tauri-drag-region": "true" } }}
+          style={{ position: "absolute", top: 0, left: 0, right: 0, height: TAURI_TOP_INSET }}
+        />
+      ) : null}
+      {/* A marca: a palavra, com serifa, sem logótipo nem caixa. */}
+      <View style={{ height: 44, justifyContent: "center", paddingHorizontal: collapsed ? 0 : 12, alignItems: collapsed ? "center" : "flex-start" }}>
+        <Text
+          accessibilityRole="header"
+          numberOfLines={1}
+          style={{ fontFamily: FONT_SERIF, fontSize: collapsed ? 22 : 26, lineHeight: 30, color: tokens.foreground, letterSpacing: -0.4 }}
+        >
+          {collapsed ? "M" : t("native.desktop.brand")}
+        </Text>
+      </View>
+      <View style={{ gap: 2, marginTop: 6 }}>
         {NAV_ITEMS.map((item) => (
           <NavRow
             key={item.key}
@@ -297,12 +338,12 @@ export const DesktopSidebar = ({ collapsed, onToggleCollapsed }: DesktopSidebarP
           alignItems: "center",
           justifyContent: collapsed ? "center" : "space-between",
           paddingLeft: collapsed ? 0 : 12,
-          marginTop: 8,
+          marginTop: 22,
         }}
       >
         {collapsed ? null : (
           <Text
-            style={{ color: tokens.foreground, fontSize: 15, fontWeight: "700", flexShrink: 1 }}
+            style={{ color: tokens.foreground, fontFamily: FONT_SERIF, fontSize: 20, lineHeight: 26, flexShrink: 1 }}
             numberOfLines={1}
           >
             {t("components.music.Sidebar.libraryTitle")}
@@ -339,13 +380,13 @@ export const DesktopSidebar = ({ collapsed, onToggleCollapsed }: DesktopSidebarP
               alignItems: "center",
               gap: 8,
               paddingHorizontal: 10,
-              height: 34,
-              borderRadius: 999,
+              height: 38,
+              borderRadius: RADIUS,
               backgroundColor: tokens.secondary,
-              marginTop: 4,
+              marginTop: 6,
             }}
           >
-            <Icon name="search" size={14} color={tokens.mutedForeground} />
+            <Icon name="search" size={16} color={tokens.mutedForeground} />
             <TextInput
               value={search}
               onChangeText={setSearch}
@@ -353,7 +394,7 @@ export const DesktopSidebar = ({ collapsed, onToggleCollapsed }: DesktopSidebarP
               placeholderTextColor={tokens.mutedForeground}
               autoCorrect={false}
               accessibilityLabel={t("components.music.Sidebar.searchPlaceholder")}
-              style={{ flex: 1, color: tokens.foreground, fontSize: 13 }}
+              style={{ flex: 1, color: tokens.foreground, fontSize: 15 }}
             />
             {search.length > 0 ? (
               <Pressable
@@ -372,7 +413,11 @@ export const DesktopSidebar = ({ collapsed, onToggleCollapsed }: DesktopSidebarP
             data={data}
             keyExtractor={(row) => row.key}
             renderItem={({ item }) => (
-              <SidebarRow row={item} onPress={() => router.push(item.route)} />
+              <SidebarRow
+                row={item}
+                active={typeof item.route === "string" && currentPath === item.route}
+                onPress={() => router.push(item.route)}
+              />
             )}
             ListEmptyComponent={statusFallback}
             ListFooterComponent={data.length > 0 && rows.length === 0 ? statusFallback : null}

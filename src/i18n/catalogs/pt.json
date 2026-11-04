@@ -909,7 +909,8 @@
       "profileMenu": "Abrir o menu de perfil",
       "viewQueue": "Ver fila",
       "moreThanSongs": "mais de {count} músicas",
-      "syncedOn": "sincronizada a {date}"
+      "syncedOn": "sincronizada a {date}",
+      "brand": "Música"
     },
     "library": {
       "settings": "Definições",

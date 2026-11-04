@@ -18,22 +18,26 @@ import React, { useEffect, useState } from "react";
 import { Pressable, Text, View, type StyleProp, type TextStyle, type ViewStyle } from "react-native";
 import { useT } from "@/i18n";
 import { useTheme } from "@/theme/provider";
+import { FONT_SERIF } from "@/theme/typography";
 import { Icon, type IconName } from "./icons";
 import { Reveal } from "./motion";
 import { waitPhraseKey } from "./motionMath";
 import { useDesktopShell } from "./shellLayout";
 import { Skeleton } from "./skeletons";
 
-/** Margem lateral: 20 no telemóvel, 32 no computador. */
+/** Margem lateral: 20 no telemóvel, 40 no computador. */
 export const GUTTER = 20;
-export const GUTTER_DESKTOP = 32;
+export const GUTTER_DESKTOP = 40;
 
 export const useGutter = (): number => (useDesktopShell() ? GUTTER_DESKTOP : GUTTER);
 
-/** Escala de texto da página (a mesma em todos os ecrãs). */
+/**
+ * Escala de texto da página (a mesma em todos os ecrãs). Títulos e secções
+ * com serifa (Newsreader 500, o único peso que existe: nada de 700/800 nela).
+ */
 export const pageType = {
-  title: { fontSize: 30, lineHeight: 34, fontWeight: "800", letterSpacing: -0.8 } as TextStyle,
-  section: { fontSize: 20, lineHeight: 24, fontWeight: "700", letterSpacing: -0.4 } as TextStyle,
+  title: { fontFamily: FONT_SERIF, fontSize: 34, lineHeight: 40, fontWeight: "500", letterSpacing: -0.6 } as TextStyle,
+  section: { fontFamily: FONT_SERIF, fontSize: 23, lineHeight: 28, fontWeight: "500", letterSpacing: -0.2 } as TextStyle,
   label: { fontSize: 13, lineHeight: 16, fontWeight: "600", letterSpacing: 0.1 } as TextStyle,
   body: { fontSize: 16, lineHeight: 21 } as TextStyle,
   meta: { fontSize: 14, lineHeight: 18 } as TextStyle,
@@ -47,13 +51,19 @@ export const PageTitle = ({
   style?: StyleProp<TextStyle>;
 }) => {
   const { tokens } = useTheme();
+  const desktop = useDesktopShell();
   return (
     <Text
       accessibilityRole="header"
       numberOfLines={1}
       adjustsFontSizeToFit
       minimumFontScale={0.75}
-      style={[pageType.title, { color: tokens.foreground, flexShrink: 1 }, style]}
+      style={[
+        pageType.title,
+        desktop ? { fontSize: 46, lineHeight: 52, letterSpacing: -0.9 } : null,
+        { color: tokens.foreground, flexShrink: 1 },
+        style,
+      ]}
     >
       {children}
     </Text>
@@ -112,6 +122,7 @@ export const SectionLabel = ({
 }) => {
   const { tokens } = useTheme();
   const gutter = useGutter();
+  const desktop = useDesktopShell();
   return (
     <View
       style={[
@@ -125,7 +136,14 @@ export const SectionLabel = ({
         style,
       ]}
     >
-      <Text style={[pageType.section, { color: tokens.foreground, flex: 1 }]} numberOfLines={1}>
+      <Text
+        style={[
+          pageType.section,
+          desktop ? { fontSize: 27, lineHeight: 32 } : null,
+          { color: tokens.foreground, flex: 1 },
+        ]}
+        numberOfLines={1}
+      >
         {title}
       </Text>
       {actionLabel && onAction ? (

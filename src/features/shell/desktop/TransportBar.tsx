@@ -38,7 +38,10 @@ import { usePlayerStore } from "@/player/store";
 import { usePlaybackView } from "@/remote/mirror";
 import { useRemoteStore } from "@/remote/store";
 import { useTheme } from "@/theme/provider";
-import { ArtworkImage, GhostIconButton, PlayFab, type PopoverAnchor } from "@/ui";
+import { LIKED_INK } from "@/theme/tokens";
+import { FONT_SERIF } from "@/theme/typography";
+import { useArtworkTint } from "@/theme/useArtworkTint";
+import { ArtworkImage, artworkSourceUri, GhostIconButton, PlayFab, type PopoverAnchor } from "@/ui";
 import { CinemaOverlay, toggleCinema } from "@/features/player/cinema";
 import { DjButton } from "./DjButton";
 import { PlayerSettingsPopover } from "@/features/player/settingsSheet";
@@ -52,45 +55,74 @@ const nextLoopMode = (mode: LoopMode): LoopMode =>
   mode === "none" ? "all" : mode === "all" ? "one" : "none";
 
 /**
- * Position/duration leaf: the one part of the bar the 4 Hz ticks re-render.
- * While dragging, the drag value wins over the store value so the thumb does
+ * Position leaves: the only parts of the dock the 4 Hz ticks re-render. The
+ * bar runs along the dock's top edge (a 32px hit area straddling the line);
+ * while dragging, the drag value wins over the store value so the thumb does
  * not fight the ticks (same contract as the player's ScrubBar).
  */
-const TransportScrub = () => {
+let dragSecondsShared: number | null = null;
+const dragListeners = new Set<() => void>();
+const setDragShared = (value: number | null): void => {
+  dragSecondsShared = value;
+  dragListeners.forEach((listener) => listener());
+};
+const useDragSeconds = (): number | null => {
+  const [, force] = useState(0);
+  React.useEffect(() => {
+    const listener = (): void => force((n) => n + 1);
+    dragListeners.add(listener);
+    return () => {
+      dragListeners.delete(listener);
+    };
+  }, []);
+  return dragSecondsShared;
+};
+
+const DockProgress = ({ color }: { color: string }) => {
   const t = useT();
   const { tokens } = useTheme();
   const position = usePlaybackView((v) => v.position);
   const duration = usePlaybackView((v) => v.duration);
-  const [dragSeconds, setDragSeconds] = useState<number | null>(null);
-
+  const dragSeconds = useDragSeconds();
   const shownSeconds = dragSeconds ?? position;
   const fraction = duration > 0 ? Math.min(1, Math.max(0, shownSeconds / duration)) : 0;
-  const timeStyle = {
-    color: tokens.mutedForeground,
-    fontSize: 11,
-    fontVariant: ["tabular-nums" as const],
-    width: 40,
-  };
-
   return (
-    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-      <Text style={[timeStyle, { textAlign: "right" }]}>{formatDuration(shownSeconds)}</Text>
-      <View style={{ flex: 1 }}>
-        <Slider
-          value={fraction}
-          accessibilityLabel={t("native.player.progress")}
-          disabled={duration <= 0}
-          height={3}
-          thumbSize={10}
-          onSlide={(value) => setDragSeconds(value * duration)}
-          onCommit={(value) => {
-            setDragSeconds(null);
-            getTransport().seek(value * duration);
-          }}
-        />
-      </View>
-      <Text style={timeStyle}>{formatDuration(duration)}</Text>
+    <View style={{ position: "absolute", left: 0, right: 0, top: -16, zIndex: 5 }}>
+      <Slider
+        value={fraction}
+        accessibilityLabel={t("native.player.progress")}
+        disabled={duration <= 0}
+        height={3}
+        thumbSize={11}
+        fillColor={color}
+        trackColor={tokens.border}
+        onSlide={(value) => setDragShared(value * duration)}
+        onCommit={(value) => {
+          setDragShared(null);
+          getTransport().seek(value * duration);
+        }}
+      />
     </View>
+  );
+};
+
+const DockTime = () => {
+  const { tokens } = useTheme();
+  const position = usePlaybackView((v) => v.position);
+  const duration = usePlaybackView((v) => v.duration);
+  const dragSeconds = useDragSeconds();
+  return (
+    <Text
+      style={{
+        color: tokens.mutedForeground,
+        fontSize: 13,
+        fontVariant: ["tabular-nums"],
+        marginLeft: 6,
+      }}
+      numberOfLines={1}
+    >
+      {formatDuration(dragSeconds ?? position)} / {formatDuration(duration)}
+    </Text>
   );
 };
 
@@ -103,7 +135,7 @@ const TransportVolume = () => {
   // ignored, so the control is retired rather than left lying.
   if (!supported) return null;
   return (
-    <View style={{ width: 96 }}>
+    <View style={{ width: 110, marginHorizontal: 6 }}>
       <Slider
         value={volume}
         accessibilityLabel={t("native.player.volume")}
@@ -133,7 +165,7 @@ export const DesktopTransportBar = ({
   onToggleTenant,
   onTogglePanel,
 }: DesktopTransportBarProps) => {
-  const { tokens } = useTheme();
+  const { tokens, scheme } = useTheme();
   const t = useT();
   const router = useRouter();
   useShellSlotsVersion();
@@ -177,35 +209,72 @@ export const DesktopTransportBar = ({
         ? tokens.primary
         : tokens.foreground;
 
+  const artworkUri = song ? artworkSourceUri(songArtworkSource(song)) : null;
+  const tint = useArtworkTint(song ? String(song.id) : null, artworkUri);
+  const likedInk = LIKED_INK[scheme];
+
   const tenantActive = (tenant: RightPanelTenant): boolean =>
     panelOpen && activeTenant === tenant;
 
+  const iconTint = tint.ink;
+
   return (
     <View
-      style={{
-        flex: 1,
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 16,
-        paddingHorizontal: 16,
-      }}
+      style={
+        {
+          flex: 1,
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 20,
+          paddingHorizontal: 20,
+          backgroundColor: song ? tint.wash : tokens.background,
+          transitionProperty: "background-color",
+          transitionDuration: "600ms",
+          transitionTimingFunction: "ease",
+        } as object
+      }
     >
-      {/* Left: what is playing. Empty surface (never a collapsed bar) when
-          nothing is loaded, so the grid row keeps its height. */}
+      {/* O progresso é a aresta de cima da doca, de ponta a ponta. */}
+      {song ? <DockProgress color={iconTint} /> : null}
+
+      {/* Esquerda: o transporte (a forma própria da doca: comandos primeiro,
+          depois o que está a tocar, o tempo à direita). */}
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+        <GhostIconButton
+          icon="skip-back"
+          size={20}
+          disabled={!song}
+          accessibilityLabel={t(`${BB}.previous`)}
+          onPress={() => getTransport().previous()}
+        />
+        <PlayFab
+          playing={playing}
+          loading={buffering}
+          size={46}
+          accessibilityLabel={playing ? t(`${BB}.pause`) : t(`${BB}.play`)}
+          onPress={() => getTransport().toggle()}
+        />
+        <GhostIconButton
+          icon="skip-forward"
+          size={20}
+          disabled={!song}
+          accessibilityLabel={t(`${BB}.next`)}
+          onPress={() => getTransport().next()}
+        />
+      </View>
+
+      {/* Meio: o que está a tocar. Vazio (nunca uma barra encolhida) quando
+          não há nada, para a linha da grelha manter a altura. */}
       <View
-        style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 12, minWidth: 0 }}
+        style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 14, minWidth: 0 }}
       >
         {song ? (
           <>
-            {/* Artwork e titulo abrem o album JA COM a musica destacada
+            {/* Capa e título abrem o álbum JÁ COM a música destacada
                 (songHighlightRoute, o hash do FR-44); o artista abre o
-                perfil dele - o idioma das apps de referencia, pedido do dono
-                (2026-08-17). Sao Pressable/onPress e nao links para
-                continuarem a viver dentro da linha da grelha. */}
-            {/* Uma intervencao do DJ nao abre album nenhum: mostra a capa
-                dele a falar e mais nada (features/dj). */}
+                perfil dele. Uma intervenção do DJ não abre álbum nenhum. */}
             {isDjClip(song) ? (
-              <DjNowArtwork size={48} />
+              <DjNowArtwork size={56} />
             ) : (
               <Pressable
                 accessibilityRole="button"
@@ -216,14 +285,14 @@ export const DesktopTransportBar = ({
                 <ArtworkImage
                   source={songArtworkSource(song)}
                   songId={song.id}
-                  size={48}
+                  size={56}
                   recyclingKey={String(song.id)}
                 />
               </Pressable>
             )}
             <View style={{ flexShrink: 1, minWidth: 0 }}>
               <Text
-                style={{ color: tokens.foreground, fontSize: 13, fontWeight: "600" }}
+                style={{ color: tokens.foreground, fontFamily: FONT_SERIF, fontSize: 19, lineHeight: 24 }}
                 numberOfLines={1}
                 accessibilityRole="button"
                 accessibilityLabel={t("components.music.SongCard.openAlbum")}
@@ -233,7 +302,7 @@ export const DesktopTransportBar = ({
               </Text>
               {artistsLine ? (
                 <Text
-                  style={{ color: tokens.mutedForeground, fontSize: 12, marginTop: 1 }}
+                  style={{ color: tokens.mutedForeground, fontSize: 14, lineHeight: 18, marginTop: 1 }}
                   numberOfLines={1}
                   accessibilityRole="button"
                   accessibilityLabel={t("components.music.SongCard.openArtist")}
@@ -247,75 +316,22 @@ export const DesktopTransportBar = ({
               icon="heart"
               active={liked}
               filled={liked}
-              size={16}
+              size={18}
+              color={liked ? likedInk : undefined}
               accessibilityLabel={liked ? t(`${BB}.unlike`) : t(`${BB}.like`)}
               onPress={() => toggleLike.mutate({ songId: song.id, liked })}
             />
+            {song ? <DockTime /> : null}
           </>
         ) : null}
       </View>
 
-      {/* Center: transport + scrub, capped so it never sprawls edge to edge
-          on an ultrawide (the audit's space-between complaint). gap 0: the
-          buttons' own hit padding already separates them from the scrub. */}
-      <View style={{ flex: 2, maxWidth: 640, gap: 0 }}>
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 8,
-          }}
-        >
-          <GhostIconButton
-            icon="shuffle"
-            active={shuffle}
-            size={16}
-            disabled={!song}
-            accessibilityLabel={t(`${BB}.shuffle`)}
-            onPress={() => getTransport().setShuffle(!shuffle)}
-          />
-          <GhostIconButton
-            icon="skip-back"
-            size={18}
-            disabled={!song}
-            accessibilityLabel={t(`${BB}.previous`)}
-            onPress={() => getTransport().previous()}
-          />
-          <PlayFab
-            playing={playing}
-            loading={buffering}
-            size={36}
-            accessibilityLabel={playing ? t(`${BB}.pause`) : t(`${BB}.play`)}
-            onPress={() => getTransport().toggle()}
-          />
-          <GhostIconButton
-            icon="skip-forward"
-            size={18}
-            disabled={!song}
-            accessibilityLabel={t(`${BB}.next`)}
-            onPress={() => getTransport().next()}
-          />
-          <GhostIconButton
-            icon={loopMode === "one" ? "repeat-1" : "repeat"}
-            active={loopMode !== "none"}
-            size={16}
-            disabled={!song}
-            accessibilityLabel={t(`${BB}.loop`)}
-            onPress={() => getTransport().setLoopMode(nextLoopMode(loopMode))}
-          />
-        </View>
-        <TransportScrub />
-      </View>
-
-      {/* Right cluster, the plan's order: panel toggle, lyrics, queue,
-          devices, volume, full player. At >= 1200px the tenant toggles drive
-          the right panel; below that the panel cannot open, so queue keeps
-          its full-screen route and the cast slot keeps its sheet - exactly
-          the pre-panel behaviour. */}
+      {/* Direita: modos, painel, aparelhos, volume e o resto. At >= 1200px
+          the tenant toggles drive the right panel; below that the panel
+          cannot open, so queue keeps its full-screen route and the cast slot
+          keeps its sheet. */}
       <View
         style={{
-          flex: 1,
           flexDirection: "row",
           alignItems: "center",
           justifyContent: "flex-end",
@@ -323,26 +339,36 @@ export const DesktopTransportBar = ({
           minWidth: 0,
         }}
       >
+        <GhostIconButton
+          icon="shuffle"
+          active={shuffle}
+          size={17}
+          disabled={!song}
+          accessibilityLabel={t(`${BB}.shuffle`)}
+          onPress={() => getTransport().setShuffle(!shuffle)}
+        />
+        <GhostIconButton
+          icon={loopMode === "one" ? "repeat-1" : "repeat"}
+          active={loopMode !== "none"}
+          size={17}
+          disabled={!song}
+          accessibilityLabel={t(`${BB}.loop`)}
+          onPress={() => getTransport().setLoopMode(nextLoopMode(loopMode))}
+        />
+        <View style={{ width: 1, height: 22, backgroundColor: tokens.border, marginHorizontal: 8 }} />
         {panelAvailable ? (
           <>
             <GhostIconButton
-              icon="list-start"
-              active={panelOpen}
-              size={18}
-              accessibilityLabel={t("native.desktop.toggleRightPanel")}
-              onPress={onTogglePanel}
-            />
-            <GhostIconButton
               icon="mic-vocal"
               active={tenantActive("lyrics")}
-              size={16}
+              size={18}
               accessibilityLabel={t("native.desktop.tenantLyrics")}
               onPress={() => onToggleTenant("lyrics")}
             />
             <GhostIconButton
               icon="list-music"
               active={tenantActive("queue")}
-              size={18}
+              size={19}
               accessibilityLabel={t("native.desktop.tenantQueue")}
               onPress={() => onToggleTenant("queue")}
             />
@@ -350,46 +376,46 @@ export const DesktopTransportBar = ({
               <GhostIconButton
                 icon="cast"
                 active={tenantActive("devices")}
-                size={18}
+                size={19}
                 color={tenantActive("devices") ? undefined : castTint}
                 accessibilityLabel={t("native.desktop.tenantDevices")}
                 onPress={() => onToggleTenant("devices")}
               />
             ) : null}
+            <GhostIconButton
+              icon="list-start"
+              active={panelOpen}
+              size={19}
+              accessibilityLabel={t("native.desktop.toggleRightPanel")}
+              onPress={onTogglePanel}
+            />
           </>
         ) : (
           <>
             {CastButton ? <CastButton /> : null}
             <GhostIconButton
               icon="list-music"
-              size={18}
+              size={19}
               accessibilityLabel={t(`${BB}.queue`)}
               onPress={() => router.push("/(player)/queue")}
             />
           </>
         )}
         <TransportVolume />
-        {/* Cinema mode: a fullscreen glyph, because that is what it does -
-            the old disc icon pushed the MOBILE modal player over the
-            desktop shell, which fit nothing. The overlay renders above the
-            grid while this bar stays visible and in charge. */}
-        {/* A porta das configs de playback (velocidade, vocal/instrumental,
-            EQ, sleep timer): o cog do player mobile, aqui como botao da
-            barra - sem ele o desktop nao tinha COMO chegar a estas opcoes
-            (feedback do dono 2026-08-14). */}
-        {/* Teste de O Melhor DJ (dono, 2026-08-16); integracao a serio na vaga 2. */}
-        {/* Sem nada a tocar tambem se comeca uma estacao: e ela que ENCHE
-            a fila (dono, 2026-08-31). */}
+        {/* Sem nada a tocar também se começa uma estação: é ela que ENCHE a
+            fila (dono, 2026-08-31). */}
         <DjButton disabled={false} />
+        {/* A porta das definições do som (velocidade, voz, EQ, temporizador). */}
         <View ref={playbackSettingsButton} collapsable={false}>
           <GhostIconButton
             icon="audio-waveform"
-            size={17}
+            size={18}
             disabled={!song}
             accessibilityLabel={t("components.music.Settings.PlaybackPage.title")}
             onPress={openPlaybackSettings}
           />
         </View>
+        {/* Modo cinema: o leitor em ecrã inteiro por cima do shell. */}
         <GhostIconButton
           icon="maximize"
           size={18}

@@ -17,7 +17,15 @@ import { PressableScale, Reveal } from "@/ui/motion";
 import { SectionLabel, useGutter } from "@/ui/page";
 
 /** Largura de um cartão numa fila: grande no telemóvel, um pouco mais no computador. */
-export const useCardWidth = (): number => (useDesktopShell() ? 184 : 152);
+export const useCardWidth = (): number => {
+  const desktop = useDesktopShell();
+  const containerWidth = useContainerWidth();
+  if (!desktop) return 152;
+  // Computador: seis capas por linha visível da coluna (ronda 2; antes 184
+  // fixos, pequenas num ecrã largo), entre 180 e 236.
+  const usable = containerWidth - 2 * 40 - 5 * 14;
+  return Math.round(Math.max(180, Math.min(236, usable / 6)));
+};
 
 const RAIL_GAP = 14;
 

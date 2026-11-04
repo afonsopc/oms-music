@@ -59,7 +59,7 @@ const QUICK_GRID_ITEMS = 8;
 const QUICK_GRID_RECENTS = 7;
 /** Um só pedido alimenta grelha e fila. */
 const RECENT_ALBUMS_LIMIT = 12;
-const GRID_GAP = 8;
+const GRID_GAP = 12;
 const GRID_ROW = 56;
 
 const nodeArtwork = (nodeId: string | null | undefined): ArtworkSource =>
@@ -91,21 +91,20 @@ const QuickTile = memo(function QuickTile({ item, width }: { item: TopTileItem; 
       onPress={item.onPress}
       accessibilityRole="button"
       accessibilityLabel={item.title}
+      // Ronda 2: sem a caixa cinzenta: a capa
+      // e o nome ao lado, mais nada.
       style={{
         width,
         height: GRID_ROW,
         flexDirection: "row",
         alignItems: "center",
-        gap: 10,
-        borderRadius: 6,
-        overflow: "hidden",
-        backgroundColor: tokens.secondary,
+        gap: 12,
       }}
     >
-      <ArtworkImage source={item.artwork} size={GRID_ROW} shape="square" />
+      <ArtworkImage source={item.artwork} size={GRID_ROW} shape="rounded" />
       <Text
         numberOfLines={2}
-        style={{ flex: 1, color: tokens.foreground, fontSize: 14, lineHeight: 18, fontWeight: "600", paddingRight: 8 }}
+        style={{ flex: 1, color: tokens.foreground, fontSize: 15, lineHeight: 19, fontWeight: "500", paddingRight: 4 }}
       >
         {item.title}
       </Text>

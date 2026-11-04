@@ -909,7 +909,8 @@
       "profileMenu": "Open the profile menu",
       "viewQueue": "Show queue",
       "moreThanSongs": "more than {count} songs",
-      "syncedOn": "synced on {date}"
+      "syncedOn": "synced on {date}",
+      "brand": "Music"
     },
     "library": {
       "settings": "Settings",

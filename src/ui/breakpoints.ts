@@ -30,8 +30,8 @@ export const BREAKPOINTS = {
   mainLg: 765,
   /** Container width where the duration column stops being fixed-width. */
   mainXl: 1116,
-  /** The main content stops growing here and centers itself. */
-  contentMax: 1600,
+  /** The main content stops growing here and centers itself (ronda 2: 1440, a medida de uma página e não de um ecrã). */
+  contentMax: 1440,
 } as const;
 
 export type MainBucket = "sm" | "md" | "lg" | "xl";

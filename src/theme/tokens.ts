@@ -135,6 +135,16 @@ export const LIKED_GRADIENT = ["#3a3a3a", "#262626", "#141414"] as const;
  */
 export const EMERALD = "#059669"; // emerald-600 (strip background)
 export const EMERALD_BADGE = "#10b981"; // emerald-500 (badge tint)
+/**
+ * As Gostadas (ronda 2): um lilás calmo, o eco do roxo de antes sem gritar.
+ * `LIKED_INK` é o coração e os detalhes; `LIKED_WASH` o fundo da coleção.
+ */
+export const LIKED_INK = { dark: "#b8a6ee", light: "#6a52c4" } as const;
+export const LIKED_WASH = { dark: "#1d1a2b", light: "#efeafc" } as const;
+export const LIKED_TINT = {
+  dark: { wash: LIKED_WASH.dark, ink: LIKED_INK.dark },
+  light: { wash: LIKED_WASH.light, ink: LIKED_INK.light },
+} as const;
 /** Song accent extraction fallback (FR-66). */
 export const ACCENT_FALLBACK = "#FF5555";
 /** Hero accent fallback. */
@@ -206,6 +216,40 @@ export const MIX_KIND_GRADIENTS: Record<MixKind, KindGradient> = {
 
 /** Radio kind accents: artist radios share the top_artist family, song
  *  radios the repeat_rewind family (screens-content.md section 13). */
+/**
+ * Os tons das mixes (ronda 2, 2026-11-04): o preto total era deprimente.
+ * Cada tipo de mix tem uma cor calma e sua; `wash` é o fundo do mosaico
+ * (fundo profundo no escuro, pastel no claro) e `ink` o texto por cima, com
+ * contraste AA nos dois temas (theme/__tests__/tints.test.ts).
+ */
+export interface SchemeTint {
+  wash: string;
+  ink: string;
+}
+export type KindTint = Record<"light" | "dark", SchemeTint>;
+
+export const MIX_KIND_TINTS: Record<MixKind, KindTint> = {
+  // azul de fim de tarde
+  top_artist: { dark: { wash: "#1c2636", ink: "#b3c8ec" }, light: { wash: "#e4ecf8", ink: "#2a4670" } },
+  // salva
+  this_is: { dark: { wash: "#1b2820", ink: "#acd5ba" }, light: { wash: "#e3f1e8", ink: "#2c5a3e" } },
+  // rosa velho
+  monthly_rewind: { dark: { wash: "#2b1c23", ink: "#ebb4c5" }, light: { wash: "#f9e6ec", ink: "#7a3350" } },
+  // âmbar
+  year_mix: { dark: { wash: "#2a2416", ink: "#e9cf98" }, light: { wash: "#f8efdb", ink: "#6b4f1f" } },
+  // lilás
+  repeat_rewind: { dark: { wash: "#221c2e", ink: "#c7b8ee" }, light: { wash: "#eee8fa", ink: "#4b387e" } },
+  // barro
+  time_capsule: { dark: { wash: "#2a1f18", ink: "#e6bea4" }, light: { wash: "#f8e9df", ink: "#72432a" } },
+  // verde-água
+  discoveries: { dark: { wash: "#172828", ink: "#a2d6d3" }, light: { wash: "#e0f2f1", ink: "#22584f" } },
+};
+
+export const RADIO_KIND_TINTS: Record<"artist" | "song", KindTint> = {
+  artist: MIX_KIND_TINTS.top_artist,
+  song: MIX_KIND_TINTS.time_capsule,
+};
+
 export const RADIO_KIND_GRADIENTS: Record<"artist" | "song", KindGradient> = {
   artist: {
     colors: ["#3a3a3a", "#242424", "#121212"],

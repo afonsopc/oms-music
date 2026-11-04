@@ -244,29 +244,26 @@ export const TopBarSearch = () => {
       style={{
         position: "relative",
         width: "100%",
-        maxWidth: 440,
+        maxWidth: 520,
         display: "flex",
         flexDirection: "column",
       }}
     >
       <View
         style={{
-          height: 40,
-          borderRadius: 20,
-          backgroundColor: tokens.secondary,
+          height: 44,
           flexDirection: "row",
           alignItems: "center",
-          gap: 8,
-          paddingHorizontal: 14,
-          // The pill's own focus treatment (keyboard a11y): the border is
-          // always there so focusing never shifts layout, and lights up in
-          // the theme's `ring` token - dark ink on the light secondary,
-          // light gray on the dark one - when the field has the caret.
-          borderWidth: 1,
-          borderColor: focused ? tokens.ring : "transparent",
+          gap: 10,
+          paddingHorizontal: 2,
+          // Ronda 2: um campo de jornal, só com o traço por baixo (nada de
+          // pílula). O traço acende no tom do `ring` quando tem o cursor
+          // (a11y de teclado) e nunca muda de espessura, para não saltar.
+          borderBottomWidth: 1,
+          borderColor: focused ? tokens.ring : tokens.border,
         }}
       >
-        <Icon name="search" size={16} color={tokens.mutedForeground} />
+        <Icon name="search" size={18} color={tokens.mutedForeground} />
         <TextInput
           ref={inputRef}
           value={text}
@@ -293,7 +290,7 @@ export const TopBarSearch = () => {
           placeholderTextColor={tokens.mutedForeground}
           autoCorrect={false}
           accessibilityLabel={t(`${MSI}.ariaSearch`)}
-          style={[{ flex: 1, color: tokens.foreground, fontSize: 14 }, NO_UA_OUTLINE]}
+          style={[{ flex: 1, color: tokens.foreground, fontSize: 16 }, NO_UA_OUTLINE]}
         />
         {text.length > 0 ? (
           <Pressable

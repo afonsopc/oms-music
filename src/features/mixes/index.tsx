@@ -22,7 +22,7 @@ import { useT } from "@/i18n";
 import { mixDescription, mixStampText, mixTitle } from "@/i18n/mixLabels";
 import { playlistRoute } from "@/lib/routes";
 import { useTheme } from "@/theme/provider";
-import { MIX_KIND_GRADIENTS, RADIUS } from "@/theme/tokens";
+import { MIX_KIND_GRADIENTS, MIX_KIND_TINTS, RADIUS } from "@/theme/tokens";
 import { artworkSourceUri, Icon, MixTileArtwork } from "@/ui";
 import { CollectionScreen } from "@/features/playlist/CollectionScreen";
 
@@ -90,6 +90,7 @@ export default function MixScreen() {
       // fall back to the kind accent.
       accentColor={artistUri ? undefined : mix ? MIX_KIND_GRADIENTS[mix.kind].accent : undefined}
       accentKey={artistUri ? `mix:${slug}` : undefined}
+      tint={!artistUri && mix ? MIX_KIND_TINTS[mix.kind] : undefined}
       extractionUri={artistUri}
       recentEntry={
         mix
