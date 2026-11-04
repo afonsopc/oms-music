@@ -244,26 +244,26 @@ export const TopBarSearch = () => {
       style={{
         position: "relative",
         width: "100%",
-        maxWidth: 520,
         display: "flex",
         flexDirection: "column",
       }}
     >
       <View
         style={{
-          height: 44,
+          height: 36,
           flexDirection: "row",
           alignItems: "center",
-          gap: 10,
-          paddingHorizontal: 2,
-          // Ronda 2: um campo de jornal, só com o traço por baixo (nada de
-          // pílula). O traço acende no tom do `ring` quando tem o cursor
-          // (a11y de teclado) e nunca muda de espessura, para não saltar.
-          borderBottomWidth: 1,
-          borderColor: focused ? tokens.ring : tokens.border,
+          gap: 8,
+          paddingHorizontal: 10,
+          borderRadius: 8,
+          backgroundColor: tokens.secondary,
+          // O contorno existe sempre (nada salta) e acende no `ring` quando
+          // o campo tem o cursor (a11y de teclado).
+          borderWidth: 1,
+          borderColor: focused ? tokens.ring : "transparent",
         }}
       >
-        <Icon name="search" size={18} color={tokens.mutedForeground} />
+        <Icon name="search" size={16} color={tokens.mutedForeground} />
         <TextInput
           ref={inputRef}
           value={text}
@@ -290,7 +290,7 @@ export const TopBarSearch = () => {
           placeholderTextColor={tokens.mutedForeground}
           autoCorrect={false}
           accessibilityLabel={t(`${MSI}.ariaSearch`)}
-          style={[{ flex: 1, color: tokens.foreground, fontSize: 16 }, NO_UA_OUTLINE]}
+          style={[{ flex: 1, color: tokens.foreground, fontSize: 15 }, NO_UA_OUTLINE]}
         />
         {text.length > 0 ? (
           <Pressable
@@ -312,9 +312,11 @@ export const TopBarSearch = () => {
           style={[
             {
               position: "absolute",
-              top: 44,
+              top: 42,
               left: 0,
-              right: 0,
+              // Na barra lateral o campo é estreito: a lista sai para a
+              // direita, por cima do conteúdo.
+              width: 440,
               zIndex: 100,
               borderRadius: 12,
               backgroundColor: tokens.popover,

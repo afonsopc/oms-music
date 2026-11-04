@@ -89,7 +89,7 @@ const PANEL_RAIL_WIDTH = 0;
 export const DesktopShell = ({ children }: DesktopShellProps) => {
   const desktop = useDesktopShell();
   const panelWide = useRightPanelWide();
-  const { tokens } = useTheme();
+  const { tokens, scheme } = useTheme();
   const { width: windowWidth } = useWindowDimensions();
   const t = useT();
   /** Dentro do shell Tauri a janela nao tem barra de titulo propria. */
@@ -177,6 +177,8 @@ export const DesktopShell = ({ children }: DesktopShellProps) => {
    * por um traço fino; o leitor é a doca de baixo, tingida pela capa.
    */
   const hairline = tokens.border;
+  // A barra lateral um degrau acima do fundo, como no Apple Music.
+  const sidebarBg = scheme === "dark" ? "#21201e" : "#f6f5f3";
   const zone: React.CSSProperties = {
     minWidth: 0,
     minHeight: 0,
@@ -258,12 +260,15 @@ export const DesktopShell = ({ children }: DesktopShellProps) => {
           style={{
             gridArea: "sidebar",
             position: "relative",
+            zIndex: 40,
             display: "flex",
             minWidth: 0,
             minHeight: 0,
           }}
         >
-          <div style={{ ...zone, flex: "1 1 0%", borderRight: `1px solid ${hairline}` }}>
+          {/* overflow visível: a lista da pesquisa sai da barra lateral para
+              cima do conteúdo. */}
+          <div style={{ ...zone, flex: "1 1 0%", overflow: "visible", borderRight: `1px solid ${hairline}`, backgroundColor: sidebarBg }}>
             <DesktopSidebar collapsed={collapsed} onToggleCollapsed={toggleSidebar} tauri={tauri} />
           </div>
           {collapsed ? null : (

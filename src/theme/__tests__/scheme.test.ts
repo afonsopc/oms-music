@@ -338,8 +338,9 @@ describe("text over artwork-derived gradients", () => {
     // music section) ride the same gradient, so they are swept too.
     const accentsFor = (scheme: ResolvedScheme): string[] => [
       ...samples.map((average) => heroAccentVariants(average)[scheme]),
+      // As Gostadas e a secção da música já não pintam o hero com estas
+      // cores (ronda 2: o tom vem de theme/tint, testado em tints.test.ts).
       LIKED_ACCENT,
-      MUSIC_ACCENT,
     ];
     let worstMuted = Number.POSITIVE_INFINITY;
     for (const scheme of SCHEMES) {

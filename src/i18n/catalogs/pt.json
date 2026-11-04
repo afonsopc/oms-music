@@ -304,7 +304,7 @@
         "recommendationsToday": "Recomendações para hoje",
         "yourPlaylists": "As tuas playlists",
         "yourArtists": "Os teus artistas",
-        "showAll": "Mostrar tudo",
+        "showAll": "Ver tudo",
         "scrollPrev": "Anterior",
         "scrollNext": "Seguinte",
         "playlistSubtitle": "Playlist",
@@ -910,7 +910,12 @@
       "viewQueue": "Ver fila",
       "moreThanSongs": "mais de {count} músicas",
       "syncedOn": "sincronizada a {date}",
-      "brand": "Música"
+      "brand": "Música",
+      "navExplore": "Explorar",
+      "navRadio": "Rádio",
+      "sectionLibrary": "Biblioteca",
+      "sectionPlaylists": "Playlists",
+      "navAlbums": "Álbuns"
     },
     "library": {
       "settings": "Definições",
@@ -1159,6 +1164,9 @@
     "import": {
       "stepPicked": "Ficheiros escolhidos",
       "stepLibrary": "Na tua biblioteca"
+    },
+    "collection": {
+      "shuffleShort": "Aleatório"
     }
   }
 }

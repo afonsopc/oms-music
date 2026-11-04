@@ -24,6 +24,7 @@ import { Platform } from "react-native";
 import { NativeTabs } from "expo-router/unstable-native-tabs";
 import { useT } from "@/i18n";
 import { useTheme } from "@/theme/provider";
+import { ACCENT } from "@/theme/tokens";
 
 export const unstable_settings = { anchor: "(home)" };
 
@@ -36,7 +37,7 @@ const OWN_INSETS = Platform.OS === "ios";
 
 export default function TabsLayout() {
   const t = useT();
-  const { tokens } = useTheme();
+  const { scheme } = useTheme();
 
   return (
     // minimizeBehavior "never": a pill do mini-player e nossa e flutua num
@@ -44,7 +45,7 @@ export default function TabsLayout() {
     // "automatic" do iOS 26) a pill andava aos saltos. Deixar a barra
     // minimizar exige mudar a pill para NativeTabs.BottomAccessory, que e
     // outro trabalho.
-    <NativeTabs tintColor={tokens.primary} minimizeBehavior="never">
+    <NativeTabs tintColor={ACCENT[scheme].ink} minimizeBehavior="never">
       <NativeTabs.Trigger name="(home)" disableAutomaticContentInsets={OWN_INSETS}>
         <NativeTabs.Trigger.Label>{t("native.shell.tabHome")}</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf={{ default: "house", selected: "house.fill" }} md="home" />

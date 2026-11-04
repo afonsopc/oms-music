@@ -910,7 +910,12 @@
       "viewQueue": "Show queue",
       "moreThanSongs": "more than {count} songs",
       "syncedOn": "synced on {date}",
-      "brand": "Music"
+      "brand": "Music",
+      "navExplore": "Explore",
+      "navRadio": "Radio",
+      "sectionLibrary": "Library",
+      "sectionPlaylists": "Playlists",
+      "navAlbums": "Albums"
     },
     "library": {
       "settings": "Settings",
@@ -1159,6 +1164,9 @@
     "import": {
       "stepPicked": "Files chosen",
       "stepLibrary": "In your library"
+    },
+    "collection": {
+      "shuffleShort": "Shuffle"
     }
   }
 }

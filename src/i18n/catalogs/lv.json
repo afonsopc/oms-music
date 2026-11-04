@@ -910,7 +910,12 @@
       "viewQueue": "Skatīt rindu",
       "moreThanSongs": "vairāk nekā {count} dziesmas",
       "syncedOn": "sinhronizēta {date}",
-      "brand": "Mūzika"
+      "brand": "Mūzika",
+      "navExplore": "Izpētīt",
+      "navRadio": "Radio",
+      "sectionLibrary": "Bibliotēka",
+      "sectionPlaylists": "Atskaņošanas saraksti",
+      "navAlbums": "Albumi"
     },
     "library": {
       "settings": "Iestatījumi",
@@ -1159,6 +1164,9 @@
     "import": {
       "stepPicked": "Faili izvēlēti",
       "stepLibrary": "Tavā bibliotēkā"
+    },
+    "collection": {
+      "shuffleShort": "Jaukt"
     }
   }
 }

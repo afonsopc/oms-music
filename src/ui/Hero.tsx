@@ -44,7 +44,7 @@ import type { ArtworkSource } from "@/domain/artwork";
 import { useT } from "@/i18n";
 import { withAlpha } from "@/theme/contrast";
 import { useTheme } from "@/theme/provider";
-import type { KindTint } from "@/theme/tokens";
+import { ACCENT, type KindTint } from "@/theme/tokens";
 import { useArtworkTint } from "@/theme/useArtworkTint";
 
 export type HeroKind = "playlist" | "album" | "artist" | "mix" | "radio";
@@ -95,7 +95,8 @@ const BACK_ROOM = 48;
  * as primeiras músicas) nem de 460 (um tablet não a faz cartaz).
  */
 export const heroArtSizePhone = (width: number, height: number, gutter: number): number =>
-  Math.round(Math.max(180, Math.min(width - gutter * 2, height * 0.5, 460)));
+  // Ronda 2: a capa a 70 % da largura, centrada (o idioma do Apple Music).
+  Math.round(Math.max(180, Math.min((width - gutter * 2) * 0.78, height * 0.4, 420)));
 
 /**
  * Título no telemóvel: 34 quando cabe numa linha; senão o maior degrau que
@@ -110,7 +111,50 @@ export const phoneTitleSize = (textWidth: number, length: number): number => {
   return steps.find((s) => s <= twoLines) ?? 22;
 };
 
-const OwnerRow = ({ owner, color }: { owner: HeroOwner; color: string }) => (
+/**
+ * O fundo do cabeçalho (ronda 2, idioma Apple Music): a própria capa,
+ * desfocada e esticada, sobre o tom dela, a desvanecer para o fundo da
+ * página. GPU (filtro do browser / blur nativo do expo-image), uma vez por
+ * capa.
+ */
+const CoverBackdrop = ({ uri, wash }: { uri: string | null; wash: string }) => {
+  const { tokens, scheme } = useTheme();
+  return (
+    <View pointerEvents="none" style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, overflow: "hidden", backgroundColor: wash }}>
+      {uri ? (
+        <FadeIn duration={420} style={{ position: "absolute", top: "-20%", left: "-10%", right: "-10%", bottom: "-20%" }}>
+          <Image
+            alt=""
+            source={{ uri }}
+            contentFit="cover"
+            blurRadius={60}
+            style={{ width: "100%", height: "100%", opacity: scheme === "dark" ? 0.55 : 0.5 }}
+            accessible={false}
+          />
+        </FadeIn>
+      ) : null}
+      <View
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          ...gradientBackground(
+            linearGradient(
+              "to bottom",
+              `${withAlpha(tokens.background, scheme === "dark" ? 0.15 : 0.25)} 0%`,
+              `${withAlpha(tokens.background, 0.55)} 60%`,
+              `${tokens.background} 100%`,
+            ),
+          ),
+        }}
+      />
+    </View>
+  );
+};
+
+const OwnerRow = ({ owner, color, center = false }: { owner: HeroOwner; color: string; center?: boolean }) => (
   <Pressable
     onPress={owner.onPress}
     disabled={!owner.onPress}
@@ -120,7 +164,7 @@ const OwnerRow = ({ owner, color }: { owner: HeroOwner; color: string }) => (
       flexDirection: "row",
       alignItems: "center",
       gap: 8,
-      alignSelf: "flex-start",
+      alignSelf: center ? "center" : "flex-start",
       opacity: pressed ? 0.6 : 1,
     })}
   >
@@ -186,11 +230,8 @@ export const Hero = ({
   const tintUri = tint ? null : (backdropUri ?? artworkSourceUri(image ?? null));
   const derived = useArtworkTint(tintUri, tintUri);
   const wash = tint ? tint[scheme].wash : derived.wash;
-  const washStyle = gradientBackground(
-    desktopShell
-      ? `radial-gradient(ellipse 80% 110% at 28% 0%, ${wash} 0%, ${withAlpha(wash, 0.75)} 35%, transparent 78%)`
-      : linearGradient("to bottom", `${wash} 0%`, `${withAlpha(wash, 0.6)} 55%`, `${tokens.background} 100%`),
-  );
+  const coverUri = tint ? null : tintUri;
+  const backdrop = <CoverBackdrop uri={coverUri} wash={wash} />;
 
   // -------------------------------------------------------------------------
   // Artista com foto: a foto de ponta a ponta e o nome por cima.
@@ -281,11 +322,11 @@ export const Hero = ({
             paddingHorizontal: gutter,
             paddingTop: 48,
             paddingBottom: 16,
-            ...washStyle,
           },
           style,
         ]}
       >
+        {backdrop}
         {art ? <FadeIn duration={260}>{art}</FadeIn> : null}
         <Reveal style={{ flex: 1, minWidth: 0, gap: 10 }}>
           <Text
@@ -301,7 +342,7 @@ export const Hero = ({
           >
             {title}
           </Text>
-          {owner ? <OwnerRow owner={owner} color={tokens.foreground} /> : null}
+          {owner ? <OwnerRow owner={owner} color={ACCENT[scheme].ink} /> : null}
           <MetaLine kindLine={kindLine} meta={meta} color={muted} size={14} />
         </Reveal>
       </View>
@@ -330,30 +371,32 @@ export const Hero = ({
   return (
     <View
       style={[
-        { paddingHorizontal: gutter, paddingTop: insets.top + BACK_ROOM, paddingBottom: 4, gap: 18, ...washStyle },
+        { paddingHorizontal: gutter, paddingTop: insets.top + BACK_ROOM, paddingBottom: 4, gap: 18 },
         style,
       ]}
     >
+      {backdrop}
       {art ? (
         <FadeIn duration={260} style={{ alignItems: artistAvatar ? "flex-start" : "center" }}>
           {art}
         </FadeIn>
       ) : null}
-      <Reveal order={1} style={{ gap: 8 }}>
+      <Reveal order={1} style={{ gap: 6, alignItems: artistAvatar ? "flex-start" : "center" }}>
         <Text
           accessibilityRole="header"
           numberOfLines={2}
           style={{
             color: tokens.foreground,
-            fontSize: titleSize,
-            lineHeight: Math.round(titleSize * 1.12),
+            textAlign: artistAvatar ? "left" : "center",
+            fontSize: Math.min(26, titleSize),
+            lineHeight: Math.round(Math.min(26, titleSize) * 1.15),
             fontWeight: "800",
-            letterSpacing: -0.6,
+            letterSpacing: -0.5,
           }}
         >
           {title}
         </Text>
-        {owner ? <OwnerRow owner={owner} color={muted} /> : null}
+        {owner ? <OwnerRow owner={owner} color={ACCENT[scheme].ink} center={!artistAvatar} /> : null}
         <MetaLine kindLine={kindLine} meta={meta} color={muted} size={14} />
       </Reveal>
     </View>

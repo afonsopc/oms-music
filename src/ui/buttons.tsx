@@ -7,7 +7,7 @@ import { ActivityIndicator, Pressable, type StyleProp, type ViewStyle } from "re
 import { Icon, type IconName } from "./icons";
 import { heavyShadow } from "./uiTheme";
 import { useTheme } from "@/theme/provider";
-import { LIKED_INK } from "@/theme/tokens";
+import { ACCENT, ON_ACCENT } from "@/theme/tokens";
 
 export interface PlayFabProps {
   playing?: boolean;
@@ -19,7 +19,7 @@ export interface PlayFabProps {
   style?: StyleProp<ViewStyle>;
 }
 
-/** Round primary play/pause button (monochrome `primary`, FR tokens). */
+/** Round play/pause button, no destaque rosa-vermelho (ronda 2) com o glifo branco. */
 export const PlayFab = ({
   playing = false,
   loading = false,
@@ -28,7 +28,7 @@ export const PlayFab = ({
   accessibilityLabel,
   style,
 }: PlayFabProps) => {
-  const { tokens } = useTheme();
+  const { scheme } = useTheme();
   return (
     <Pressable
       onPress={onPress}
@@ -47,7 +47,7 @@ export const PlayFab = ({
           width: size,
           height: size,
           borderRadius: size / 2,
-          backgroundColor: tokens.primary,
+          backgroundColor: ACCENT[scheme].fill,
           alignItems: "center",
           justifyContent: "center",
           transform: [{ scale: pressed ? 0.96 : 1 }],
@@ -57,12 +57,12 @@ export const PlayFab = ({
       ]}
     >
       {loading ? (
-        <ActivityIndicator color={tokens.primaryForeground} />
+        <ActivityIndicator color={ON_ACCENT} />
       ) : (
         <Icon
           name={playing ? "pause" : "play"}
           size={size * 0.42}
-          color={tokens.primaryForeground}
+          color={ON_ACCENT}
           filled
         />
       )}
@@ -98,7 +98,7 @@ export const GhostIconButton = ({
   const { tokens, scheme } = useTheme();
   // O coração gostado é sempre o lilás calmo das Gostadas (ronda 2).
   const likedHeart = icon === "heart" && filled;
-  const tint = color ?? (likedHeart ? LIKED_INK[scheme] : active ? tokens.primary : tokens.foreground);
+  const tint = color ?? (likedHeart || active ? ACCENT[scheme].ink : tokens.foreground);
   return (
     <Pressable
       onPress={onPress}

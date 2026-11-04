@@ -17,19 +17,20 @@ import { ShellTabBar } from "@/features/shell/ShellTabBar";
 import { TabIcon } from "@/features/shell/TabIcon";
 import { useT } from "@/i18n";
 import { useTheme } from "@/theme/provider";
+import { ACCENT } from "@/theme/tokens";
 import { FONT_SANS } from "@/theme/typography";
 
 export const unstable_settings = { anchor: "(home)" };
 
 export default function TabsLayoutWeb() {
   const t = useT();
-  const { tokens } = useTheme();
+  const { tokens, scheme } = useTheme();
   return (
     <Tabs
       tabBar={(props) => <ShellTabBar {...props} />}
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: tokens.primary,
+        tabBarActiveTintColor: ACCENT[scheme].ink,
         tabBarInactiveTintColor: tokens.mutedForeground,
         tabBarStyle: {
           backgroundColor: tokens.background,

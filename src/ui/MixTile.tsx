@@ -57,7 +57,7 @@ export const MixTileArtwork = ({ kind, stamp, artworkUri, size, icon }: MixTileA
   // profundo no escuro, pastel no claro) e o nome vai com serifa, em letra
   // normal. Com foto do artista, a foto enche o mosaico e o nome assenta
   // numa faixa do tom em baixo, como a capa de uma revista.
-  const fontSize = Math.round(stampFontSize(stamp) * (size >= 160 ? 1.05 : 0.9));
+  const fontSize = Math.round(stampFontSize(stamp) * (size >= 160 ? 0.92 : 0.8));
   const stampText = (
     <Text
       style={{

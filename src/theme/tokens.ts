@@ -34,57 +34,70 @@ export interface ThemeTokens {
 const hsl = (h: number, s: number, l: number): string => `hsl(${h}, ${s}%, ${l}%)`;
 
 /**
- * Light palette. Neutros puros (redesenho 2026-11-04, regra do dono: preto e
- * cinzentos, sem o azulado do zinc de antes), como o omelhorsite.pt.
+ * Ronda 2 (2026-11-04): o dono escolheu o idioma do Apple Music. Escuro
+ * SUAVE (cinzentos quentes, nunca preto puro) e um claro a sério; a cor vem
+ * das capas e de UM destaque rosa-vermelho calmo (ACCENT).
  */
 export const lightTokens: ThemeTokens = {
   background: "#ffffff",
-  foreground: "#0a0a0a",
+  foreground: "#141312",
   card: "#ffffff",
-  cardForeground: "#0a0a0a",
+  cardForeground: "#141312",
   popover: "#ffffff",
-  popoverForeground: "#0a0a0a",
-  primary: "#0a0a0a",
-  primaryForeground: "#fafafa",
-  secondary: "#f4f4f4",
-  secondaryForeground: "#0a0a0a",
-  muted: "#e8e8e8",
-  mutedForeground: "#6b6b6b",
-  accent: "#f4f4f4",
-  accentForeground: "#0a0a0a",
+  popoverForeground: "#141312",
+  primary: "#141312",
+  primaryForeground: "#ffffff",
+  secondary: "#f3f2f0",
+  secondaryForeground: "#141312",
+  muted: "#e6e4e1",
+  mutedForeground: "#6c6864",
+  accent: "#f3f2f0",
+  accentForeground: "#141312",
   destructive: hsl(0, 84.2, 60.2),
-  destructiveForeground: "#fafafa",
-  success: hsl(83, 100, 24),
-  successForeground: "#fafafa",
-  border: "#e6e6e6",
-  input: "#e6e6e6",
-  ring: "#0a0a0a",
+  destructiveForeground: "#ffffff",
+  success: hsl(140, 60, 30),
+  successForeground: "#ffffff",
+  border: "#e7e5e2",
+  input: "#e2e0dc",
+  ring: "#141312",
 };
 
-/** Dark palette: quase preto, superfícies em degraus de cinzento. */
+/** Escuro suave: cinzentos quentes em degraus, texto quase branco. */
 export const darkTokens: ThemeTokens = {
-  background: "#0a0a0a",
-  foreground: "#f5f5f5",
-  card: "#111111",
-  cardForeground: "#f5f5f5",
-  popover: "#161616",
-  popoverForeground: "#f5f5f5",
-  primary: "#f5f5f5",
-  primaryForeground: "#0a0a0a",
-  secondary: "#1a1a1a",
-  secondaryForeground: "#f5f5f5",
-  muted: "#262626",
-  mutedForeground: "#a1a1a1",
-  accent: "#1a1a1a",
-  accentForeground: "#f5f5f5",
-  destructive: hsl(0, 62.8, 30.6),
+  background: "#1c1b1a",
+  foreground: "#f5f3f0",
+  card: "#232220",
+  cardForeground: "#f5f3f0",
+  popover: "#2a2927",
+  popoverForeground: "#f5f3f0",
+  primary: "#f5f3f0",
+  primaryForeground: "#1c1b1a",
+  secondary: "#2a2927",
+  secondaryForeground: "#f5f3f0",
+  muted: "#383633",
+  mutedForeground: "#a8a39d",
+  accent: "#2a2927",
+  accentForeground: "#f5f3f0",
+  destructive: hsl(0, 62.8, 40),
   destructiveForeground: "#fafafa",
-  success: hsl(83, 44, 44),
+  success: hsl(140, 44, 44),
   successForeground: "#fafafa",
-  border: "#1f1f1f",
-  input: "#262626",
-  ring: "#d4d4d4",
+  border: "#302e2c",
+  input: "#383633",
+  ring: "#d6d2cc",
 };
+
+/**
+ * O destaque: um rosa-vermelho calmo, a única cor fixa da interface (links
+ * "Ver tudo", o separador activo, o coração, o botão Tocar). `ink` é para
+ * texto e ícones sobre o fundo do tema; `fill` é o fundo dos botões, com
+ * texto branco por cima.
+ */
+export const ACCENT = {
+  dark: { ink: "#ff6b7f", fill: "#d93a52" },
+  light: { ink: "#c42a43", fill: "#d93a52" },
+} as const;
+export const ON_ACCENT = "#ffffff";
 
 /** Resolved scheme name. Declared here so pure modules need no React import. */
 export type ResolvedScheme = "light" | "dark";
@@ -98,7 +111,7 @@ export const tokensFor = (scheme: ResolvedScheme): ThemeTokens =>
   scheme === "dark" ? darkTokens : lightTokens;
 
 /** Base corner radius (px). Pills and play buttons are fully round. */
-export const RADIUS = 8;
+export const RADIUS = 10;
 
 // ---------------------------------------------------------------------------
 // Fixed identity colors
@@ -136,11 +149,11 @@ export const LIKED_GRADIENT = ["#3a3a3a", "#262626", "#141414"] as const;
 export const EMERALD = "#059669"; // emerald-600 (strip background)
 export const EMERALD_BADGE = "#10b981"; // emerald-500 (badge tint)
 /**
- * As Gostadas (ronda 2): um lilás calmo, o eco do roxo de antes sem gritar.
+ * As Gostadas (ronda 2): o coração no destaque rosa-vermelho.
  * `LIKED_INK` é o coração e os detalhes; `LIKED_WASH` o fundo da coleção.
  */
-export const LIKED_INK = { dark: "#b8a6ee", light: "#6a52c4" } as const;
-export const LIKED_WASH = { dark: "#1d1a2b", light: "#efeafc" } as const;
+export const LIKED_INK = { dark: ACCENT.dark.ink, light: ACCENT.light.ink } as const;
+export const LIKED_WASH = { dark: "#3a2328", light: "#fdf1f3" } as const;
 export const LIKED_TINT = {
   dark: { wash: LIKED_WASH.dark, ink: LIKED_INK.dark },
   light: { wash: LIKED_WASH.light, ink: LIKED_INK.light },

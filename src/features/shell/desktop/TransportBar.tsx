@@ -38,7 +38,6 @@ import { usePlayerStore } from "@/player/store";
 import { usePlaybackView } from "@/remote/mirror";
 import { useRemoteStore } from "@/remote/store";
 import { useTheme } from "@/theme/provider";
-import { LIKED_INK } from "@/theme/tokens";
 import { useArtworkTint } from "@/theme/useArtworkTint";
 import { ArtworkImage, artworkSourceUri, GhostIconButton, PlayFab, type PopoverAnchor } from "@/ui";
 import { CinemaOverlay, toggleCinema } from "@/features/player/cinema";
@@ -77,7 +76,8 @@ const useDragSeconds = (): number | null => {
   return dragSecondsShared;
 };
 
-const DockProgress = ({ color }: { color: string }) => {
+/** O progresso na base do visor: tempo, barra, tempo. */
+const DockScrub = ({ color }: { color: string }) => {
   const t = useT();
   const { tokens } = useTheme();
   const position = usePlaybackView((v) => v.position);
@@ -85,43 +85,30 @@ const DockProgress = ({ color }: { color: string }) => {
   const dragSeconds = useDragSeconds();
   const shownSeconds = dragSeconds ?? position;
   const fraction = duration > 0 ? Math.min(1, Math.max(0, shownSeconds / duration)) : 0;
+  const time = { color: tokens.mutedForeground, fontSize: 11, fontVariant: ["tabular-nums" as const], width: 34 };
   return (
-    <View style={{ position: "absolute", left: 0, right: 0, top: -16, zIndex: 5 }}>
-      <Slider
-        value={fraction}
-        accessibilityLabel={t("native.player.progress")}
-        disabled={duration <= 0}
-        height={3}
-        thumbSize={11}
-        fillColor={color}
-        trackColor={tokens.border}
-        onSlide={(value) => setDragShared(value * duration)}
-        onCommit={(value) => {
-          setDragShared(null);
-          getTransport().seek(value * duration);
-        }}
-      />
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 6, height: 16 }}>
+      <Text style={[time, { textAlign: "right" }]}>{formatDuration(shownSeconds)}</Text>
+      <View style={{ flex: 1, height: 16, justifyContent: "center" }}>
+        <View style={{ position: "absolute", left: 0, right: 0, top: -8 }}>
+          <Slider
+            value={fraction}
+            accessibilityLabel={t("native.player.progress")}
+            disabled={duration <= 0}
+            height={3}
+            thumbSize={9}
+            fillColor={color}
+            trackColor={tokens.border}
+            onSlide={(value) => setDragShared(value * duration)}
+            onCommit={(value) => {
+              setDragShared(null);
+              getTransport().seek(value * duration);
+            }}
+          />
+        </View>
+      </View>
+      <Text style={time}>{formatDuration(duration)}</Text>
     </View>
-  );
-};
-
-const DockTime = () => {
-  const { tokens } = useTheme();
-  const position = usePlaybackView((v) => v.position);
-  const duration = usePlaybackView((v) => v.duration);
-  const dragSeconds = useDragSeconds();
-  return (
-    <Text
-      style={{
-        color: tokens.mutedForeground,
-        fontSize: 13,
-        fontVariant: ["tabular-nums"],
-        marginLeft: 6,
-      }}
-      numberOfLines={1}
-    >
-      {formatDuration(dragSeconds ?? position)} / {formatDuration(duration)}
-    </Text>
   );
 };
 
@@ -134,7 +121,7 @@ const TransportVolume = () => {
   // ignored, so the control is retired rather than left lying.
   if (!supported) return null;
   return (
-    <View style={{ width: 110, marginHorizontal: 6 }}>
+    <View style={{ width: 96, marginLeft: 16, marginRight: 8 }}>
       <Slider
         value={volume}
         accessibilityLabel={t("native.player.volume")}
@@ -164,7 +151,7 @@ export const DesktopTransportBar = ({
   onToggleTenant,
   onTogglePanel,
 }: DesktopTransportBarProps) => {
-  const { tokens, scheme } = useTheme();
+  const { tokens } = useTheme();
   const t = useT();
   const router = useRouter();
   useShellSlotsVersion();
@@ -210,38 +197,33 @@ export const DesktopTransportBar = ({
 
   const artworkUri = song ? artworkSourceUri(songArtworkSource(song)) : null;
   const tint = useArtworkTint(song ? String(song.id) : null, artworkUri);
-  const likedInk = LIKED_INK[scheme];
 
   const tenantActive = (tenant: RightPanelTenant): boolean =>
     panelOpen && activeTenant === tenant;
 
-  const iconTint = tint.ink;
-
   return (
     <View
-      style={
-        {
-          flex: 1,
-          flexDirection: "row",
-          alignItems: "center",
-          gap: 20,
-          paddingHorizontal: 20,
-          backgroundColor: song ? tint.wash : tokens.background,
-          transitionProperty: "background-color",
-          transitionDuration: "600ms",
-          transitionTimingFunction: "ease",
-        } as object
-      }
+      style={{
+        flex: 1,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 16,
+        paddingHorizontal: 20,
+      }}
     >
-      {/* O progresso é a aresta de cima da doca, de ponta a ponta. */}
-      {song ? <DockProgress color={iconTint} /> : null}
-
-      {/* Esquerda: o transporte (a forma própria da doca: comandos primeiro,
-          depois o que está a tocar, o tempo à direita). */}
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+      {/* Esquerda: o transporte inteiro, como no Apple Music. */}
+      <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 4, minWidth: 0 }}>
+        <GhostIconButton
+          icon="shuffle"
+          active={shuffle}
+          size={17}
+          disabled={!song}
+          accessibilityLabel={t(`${BB}.shuffle`)}
+          onPress={() => getTransport().setShuffle(!shuffle)}
+        />
         <GhostIconButton
           icon="skip-back"
-          size={20}
+          size={22}
           disabled={!song}
           accessibilityLabel={t(`${BB}.previous`)}
           onPress={() => getTransport().previous()}
@@ -249,31 +231,49 @@ export const DesktopTransportBar = ({
         <PlayFab
           playing={playing}
           loading={buffering}
-          size={46}
+          size={44}
           accessibilityLabel={playing ? t(`${BB}.pause`) : t(`${BB}.play`)}
           onPress={() => getTransport().toggle()}
         />
         <GhostIconButton
           icon="skip-forward"
-          size={20}
+          size={22}
           disabled={!song}
           accessibilityLabel={t(`${BB}.next`)}
           onPress={() => getTransport().next()}
         />
+        <GhostIconButton
+          icon={loopMode === "one" ? "repeat-1" : "repeat"}
+          active={loopMode !== "none"}
+          size={17}
+          disabled={!song}
+          accessibilityLabel={t(`${BB}.loop`)}
+          onPress={() => getTransport().setLoopMode(nextLoopMode(loopMode))}
+        />
       </View>
 
-      {/* Meio: o que está a tocar. Vazio (nunca uma barra encolhida) quando
-          não há nada, para a linha da grelha manter a altura. */}
+      {/* Meio: o visor. Capa, título e artista ao centro, o progresso na
+          base; o fundo leva o tom da capa. Vazio quando não toca nada. */}
       <View
-        style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 14, minWidth: 0 }}
+        style={
+          {
+            flex: 2,
+            maxWidth: 640,
+            height: 60,
+            borderRadius: 10,
+            overflow: "hidden",
+            backgroundColor: song ? tint.wash : tokens.secondary,
+            transitionProperty: "background-color",
+            transitionDuration: "600ms",
+            flexDirection: "row",
+            alignItems: "center",
+          } as object
+        }
       >
         {song ? (
           <>
-            {/* Capa e título abrem o álbum JÁ COM a música destacada
-                (songHighlightRoute, o hash do FR-44); o artista abre o
-                perfil dele. Uma intervenção do DJ não abre álbum nenhum. */}
             {isDjClip(song) ? (
-              <DjNowArtwork size={56} />
+              <DjNowArtwork size={60} />
             ) : (
               <Pressable
                 accessibilityRole="button"
@@ -284,53 +284,58 @@ export const DesktopTransportBar = ({
                 <ArtworkImage
                   source={songArtworkSource(song)}
                   songId={song.id}
-                  size={56}
+                  size={60}
+                  borderRadius={0}
                   recyclingKey={String(song.id)}
                 />
               </Pressable>
             )}
-            <View style={{ flexShrink: 1, minWidth: 0 }}>
-              <Text
-                style={{ color: tokens.foreground, fontSize: 15, lineHeight: 20, fontWeight: "600" }}
-                numberOfLines={1}
-                accessibilityRole="button"
-                accessibilityLabel={t("components.music.SongCard.openAlbum")}
-                onPress={() => router.push(songHighlightRoute(song))}
-              >
-                {song.title}
-              </Text>
-              {artistsLine ? (
-                <Text
-                  style={{ color: tokens.mutedForeground, fontSize: 14, lineHeight: 18, marginTop: 1 }}
-                  numberOfLines={1}
-                  accessibilityRole="button"
-                  accessibilityLabel={t("components.music.SongCard.openArtist")}
-                  onPress={() => router.push(songArtistRoute(song))}
-                >
-                  {artistsLine}
-                </Text>
-              ) : null}
+            <View style={{ flex: 1, minWidth: 0, paddingHorizontal: 12, paddingTop: 6, paddingBottom: 4 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                <View style={{ flex: 1, minWidth: 0, alignItems: "center" }}>
+                  <Text
+                    style={{ color: tokens.foreground, fontSize: 14, lineHeight: 18, fontWeight: "600" }}
+                    numberOfLines={1}
+                    accessibilityRole="button"
+                    accessibilityLabel={t("components.music.SongCard.openAlbum")}
+                    onPress={() => router.push(songHighlightRoute(song))}
+                  >
+                    {song.title}
+                  </Text>
+                  {artistsLine ? (
+                    <Text
+                      style={{ color: tokens.mutedForeground, fontSize: 13, lineHeight: 17 }}
+                      numberOfLines={1}
+                      accessibilityRole="button"
+                      accessibilityLabel={t("components.music.SongCard.openArtist")}
+                      onPress={() => router.push(songArtistRoute(song))}
+                    >
+                      {artistsLine}
+                    </Text>
+                  ) : null}
+                </View>
+                <GhostIconButton
+                  icon="heart"
+                  active={liked}
+                  filled={liked}
+                  size={16}
+                  accessibilityLabel={liked ? t(`${BB}.unlike`) : t(`${BB}.like`)}
+                  onPress={() => toggleLike.mutate({ songId: song.id, liked })}
+                />
+              </View>
+              <DockScrub color={tint.ink} />
             </View>
-            <GhostIconButton
-              icon="heart"
-              active={liked}
-              filled={liked}
-              size={18}
-              color={liked ? likedInk : undefined}
-              accessibilityLabel={liked ? t(`${BB}.unlike`) : t(`${BB}.like`)}
-              onPress={() => toggleLike.mutate({ songId: song.id, liked })}
-            />
-            {song ? <DockTime /> : null}
           </>
         ) : null}
       </View>
 
-      {/* Direita: modos, painel, aparelhos, volume e o resto. At >= 1200px
+      {/* Direita: volume, letra, fila, aparelhos e o resto. At >= 1200px
           the tenant toggles drive the right panel; below that the panel
           cannot open, so queue keeps its full-screen route and the cast slot
           keeps its sheet. */}
       <View
         style={{
+          flex: 1,
           flexDirection: "row",
           alignItems: "center",
           justifyContent: "flex-end",
@@ -338,23 +343,7 @@ export const DesktopTransportBar = ({
           minWidth: 0,
         }}
       >
-        <GhostIconButton
-          icon="shuffle"
-          active={shuffle}
-          size={17}
-          disabled={!song}
-          accessibilityLabel={t(`${BB}.shuffle`)}
-          onPress={() => getTransport().setShuffle(!shuffle)}
-        />
-        <GhostIconButton
-          icon={loopMode === "one" ? "repeat-1" : "repeat"}
-          active={loopMode !== "none"}
-          size={17}
-          disabled={!song}
-          accessibilityLabel={t(`${BB}.loop`)}
-          onPress={() => getTransport().setLoopMode(nextLoopMode(loopMode))}
-        />
-        <View style={{ width: 1, height: 22, backgroundColor: tokens.border, marginHorizontal: 8 }} />
+        <TransportVolume />
         {panelAvailable ? (
           <>
             <GhostIconButton
@@ -381,13 +370,6 @@ export const DesktopTransportBar = ({
                 onPress={() => onToggleTenant("devices")}
               />
             ) : null}
-            <GhostIconButton
-              icon="list-start"
-              active={panelOpen}
-              size={19}
-              accessibilityLabel={t("native.desktop.toggleRightPanel")}
-              onPress={onTogglePanel}
-            />
           </>
         ) : (
           <>
@@ -400,7 +382,6 @@ export const DesktopTransportBar = ({
             />
           </>
         )}
-        <TransportVolume />
         {/* Sem nada a tocar também se começa uma estação: é ela que ENCHE a
             fila (dono, 2026-08-31). */}
         <DjButton disabled={false} />

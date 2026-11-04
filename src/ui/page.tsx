@@ -18,6 +18,7 @@ import React, { useEffect, useState } from "react";
 import { Pressable, Text, View, type StyleProp, type TextStyle, type ViewStyle } from "react-native";
 import { useT } from "@/i18n";
 import { useTheme } from "@/theme/provider";
+import { ACCENT } from "@/theme/tokens";
 import { Icon, type IconName } from "./icons";
 import { Reveal } from "./motion";
 import { waitPhraseKey } from "./motionMath";
@@ -104,7 +105,7 @@ export const PageHeader = ({
   );
 };
 
-/** Rótulo de secção: pequeno, cinzento, com uma acção opcional à direita. */
+/** Título de secção em negrito, com "Ver tudo" (no destaque) à direita quando há destino. */
 export const SectionLabel = ({
   title,
   actionLabel,
@@ -116,7 +117,7 @@ export const SectionLabel = ({
   onAction?: () => void;
   style?: StyleProp<ViewStyle>;
 }) => {
-  const { tokens } = useTheme();
+  const { tokens, scheme } = useTheme();
   const gutter = useGutter();
   const desktop = useDesktopShell();
   return (
@@ -146,7 +147,7 @@ export const SectionLabel = ({
         <Pressable accessibilityRole="button" onPress={onAction} hitSlop={10}>
           {({ pressed }) => (
             <Text
-              style={[pageType.label, { color: tokens.mutedForeground, opacity: pressed ? 0.6 : 1 }]}
+              style={{ color: ACCENT[scheme].ink, fontSize: 15, fontWeight: "500", opacity: pressed ? 0.6 : 1 }}
             >
               {actionLabel}
             </Text>
