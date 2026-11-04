@@ -49,9 +49,13 @@ export const stateMessage = (): ToViz => {
 };
 
 /**
- * Manda o estado quando muda a música ou o play/pausa, e de 5 em 5 s para
- * acertar o relógio (o motor interpola entre medições).
+ * Manda o estado quando muda a música ou o play/pausa, e de segundo a
+ * segundo para acertar o relógio (o motor interpola entre medições, com a
+ * hora em que cada uma foi lida, e desfaz as diferenças pequenas sem saltar:
+ * viz/clock.ts). O motor deixa de extrapolar 2,5 s depois da última.
  */
+const RESYNC_MS = 1000;
+
 export const followPlayback = (send: (msg: ToViz) => void): (() => void) => {
   let lastKey = "";
   let lastSent = 0;
@@ -59,7 +63,7 @@ export const followPlayback = (send: (msg: ToViz) => void): (() => void) => {
     const v = getPlaybackView();
     const key = `${v.song?.id ?? ""}|${v.playing}`;
     const now = Date.now();
-    if (force || key !== lastKey || now - lastSent > 5000) {
+    if (force || key !== lastKey || now - lastSent >= RESYNC_MS) {
       lastKey = key;
       lastSent = now;
       send(stateMessage());
@@ -70,7 +74,7 @@ export const followPlayback = (send: (msg: ToViz) => void): (() => void) => {
     noteTick();
     push();
   });
-  const id = setInterval(() => push(), 5000);
+  const id = setInterval(() => push(), RESYNC_MS);
   return () => {
     unsub();
     clearInterval(id);

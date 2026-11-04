@@ -38,7 +38,9 @@ export const useVizLyrics = (songId: string | null): VizLyricLine[] | null => {
         .map((l, i, all) => {
           const last = l.w[l.w.length - 1];
           const next = all[i + 1]?.t ?? last[1] + 2;
-          return { t: l.t, end: Math.min(next, last[1] + 1.2), text: l.w.map((w) => w[2]).join(" "), words: l.w };
+          const line = { t: l.t, end: Math.min(next, last[1] + 1.2), text: l.w.map((w) => w[2]).join(" ") };
+          // Sem confiança nas palavras: a linha acende inteira no seu tempo.
+          return l.low ? { ...line, whole: true } : { ...line, words: l.w };
         });
     }
     return byLine;

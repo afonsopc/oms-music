@@ -4,6 +4,8 @@ import type { UserId } from "./ids";
 export interface LyricsWordLine {
   t: number;
   w: [number, number, string][];
+  /** O alinhador não confia nas palavras desta linha: acende-se a linha inteira. */
+  low?: boolean;
 }
 
 export interface Lyrics {

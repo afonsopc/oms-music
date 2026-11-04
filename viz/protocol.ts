@@ -46,12 +46,17 @@ export interface VizSection {
   big: boolean;
 }
 
-/** Uma linha da letra: início e fim em s, e as palavras [início, fim, palavra] quando há. */
+/**
+ * Uma linha da letra: início e fim em s, e as palavras [início, fim, palavra]
+ * quando há. `whole`: os tempos das palavras não são de confiança, a linha
+ * acende inteira (sem palavras, o motor reparte-as pela linha).
+ */
 export interface VizLyricLine {
   t: number;
   end: number;
   text: string;
   words?: [number, number, string][];
+  whole?: boolean;
 }
 
 export type LyricsMode = "always" | "sometimes" | "never";
@@ -95,6 +100,8 @@ export type ToViz =
       /** Mudar de cena quando muda a música. */
       cycleOnTrack?: boolean;
       lyrics?: LyricsMode;
+      /** O atraso da letra deste aparelho (ms, positivo atrasa). */
+      lyricsDelayMs?: number;
     }
   | { type: "next"; dir: 1 | -1 };
 

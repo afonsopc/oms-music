@@ -46,7 +46,8 @@ import { isApiError } from "@/domain/api";
 import type { SongId } from "@/domain/ids";
 import type { Lyrics, LrcLine, LyricsTranslationTarget, LyricsWordLine } from "@/domain/lyrics";
 import { useT } from "@/i18n";
-import { activeLineIndex, estimatePosition, parseLrc } from "@/lyrics/lrc";
+import { activeLineIndex, parseLrc } from "@/lyrics/lrc";
+import { useLyricClock } from "@/lyrics/useLyricClock";
 import { awaitJob, generateLyricsSync, type SyncOutcome, syncOutcome } from "@/lyrics/syncJob";
 import { LINE_LEAD_S, wordsForLines, wordsSung } from "@/lyrics/words";
 import {
@@ -60,7 +61,6 @@ import {
   getPlaybackView,
   subscribePlaybackView,
   usePlaybackView,
-  type PlaybackView,
 } from "@/remote/mirror";
 import { withAlpha } from "@/theme/contrast";
 import { useTheme } from "@/theme/provider";
@@ -337,34 +337,10 @@ export default function LyricsBody() {
   // unfocused, while playback is paused, or when the song has no synced lines
   // (battery rule); the index resets to -1 whenever the parsed lines change
   // (song change).
-  const clockRef = useRef({ position: 0, at: Date.now(), playing: false, rate: 1, duration: 0 });
-  useEffect(() => {
-    const sample = (view: PlaybackView): void => {
-      clockRef.current = {
-        position: view.position,
-        at: Date.now(),
-        playing: view.playing,
-        rate: view.rate,
-        duration: view.duration,
-      };
-    };
-    let previous = getPlaybackView();
-    sample(previous);
-    return subscribePlaybackView(() => {
-      const view = getPlaybackView();
-      if (
-        view.position !== previous.position ||
-        view.playing !== previous.playing ||
-        view.rate !== previous.rate ||
-        view.duration !== previous.duration
-      ) {
-        sample(view);
-      }
-      previous = view;
-    });
-  }, []);
-
-  const estimatedPosition = useCallback((): number => estimatePosition(clockRef.current, Date.now()), []);
+  // O relógio vem de useLyricClock (viz/clock.ts): só as leituras que mudam
+  // contam, os saltos pequenos desfazem-se sem piscar, e soma o atraso da
+  // letra deste aparelho.
+  const estimatedPosition = useLyricClock();
 
   const playing = usePlaybackView((v) => v.playing);
   const [activeIndex, setActiveIndex] = useState(-1);

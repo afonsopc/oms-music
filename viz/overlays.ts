@@ -241,6 +241,7 @@ export class Overlays {
       const words = line.words && line.words.length
         ? line.words
         : line.text.split(/\s+/).filter(Boolean).map((w, i, all): [number, number, string] => {
+            if (line.whole) return [line.t, line.end, w];
             const span = Math.max(0.3, line.end - line.t);
             const a = line.t + (span * 0.8 * i) / all.length;
             return [a, a + (span * 0.8) / all.length, w];

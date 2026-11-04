@@ -602,7 +602,11 @@
           "shareListeningError": "Não foi possível actualizar a definição.",
           "diagnosticsTitle": "Diagnóstico de reprodução",
           "diagnosticsDescription": "Copia os últimos eventos do leitor, para enviar quando algo falha.",
-          "diagnosticsCopied": "Copiado. Cola onde precisares."
+          "diagnosticsCopied": "Copiado. Cola onde precisares.",
+          "lyricsDelayTitle": "Atraso da letra",
+          "lyricsDelayDescription": "Se a letra aparece antes da voz neste aparelho (colunas Bluetooth), atrasa-a. Toca para voltar a 0.",
+          "lyricsDelayEarlier": "Letra mais cedo",
+          "lyricsDelayLater": "Letra mais tarde"
         }
       },
       "Sidebar": {

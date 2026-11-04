@@ -602,7 +602,11 @@
           "shareListeningError": "Could not update the setting.",
           "diagnosticsTitle": "Playback diagnostics",
           "diagnosticsDescription": "Copies the audio engine's recent events, ready to paste into a bug report.",
-          "diagnosticsCopied": "Copied. Paste it wherever you need."
+          "diagnosticsCopied": "Copied. Paste it wherever you need.",
+          "lyricsDelayTitle": "Lyrics delay",
+          "lyricsDelayDescription": "If lyrics show before the voice on this device (Bluetooth speakers), delay them. Tap to reset to 0.",
+          "lyricsDelayEarlier": "Lyrics earlier",
+          "lyricsDelayLater": "Lyrics later"
         }
       },
       "Sidebar": {

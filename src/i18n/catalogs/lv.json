@@ -602,7 +602,11 @@
           "shareListeningError": "Neizdevās atjaunināt iestatījumu.",
           "diagnosticsTitle": "Atskaņošanas diagnostika",
           "diagnosticsDescription": "Nokopē audio dzinēja pēdējos notikumus, gatavus ielīmēšanai kļūdas ziņojumā.",
-          "diagnosticsCopied": "Nokopēts. Ielīmē, kur nepieciešams."
+          "diagnosticsCopied": "Nokopēts. Ielīmē, kur nepieciešams.",
+          "lyricsDelayTitle": "Dziesmu vārdu aizture",
+          "lyricsDelayDescription": "Ja vārdi šajā ierīcē parādās pirms balss (Bluetooth skaļruņi), aizturi tos. Pieskaries, lai atiestatītu uz 0.",
+          "lyricsDelayEarlier": "Vārdi agrāk",
+          "lyricsDelayLater": "Vārdi vēlāk"
         }
       },
       "Sidebar": {

@@ -15,6 +15,12 @@ describe("wordsForLines", () => {
     expect(words[2]?.[0][2]).toBe("Again");
   });
 
+  test("a line the aligner does not trust lights whole (no words)", () => {
+    const low = wordsForLines(lines, [{ t: 14.5, w: [[14.5, 15, "Again"]], low: true }]);
+    expect(low[2]).toBeNull();
+    expect(wordsForLines(lines, [{ t: 14.5, w: [[14.5, 15, "Again"]] }])[2]?.[0][2]).toBe("Again");
+  });
+
   test("no words from the server means no words anywhere", () => {
     expect(wordsForLines(lines, undefined)).toEqual([null, null, null]);
   });

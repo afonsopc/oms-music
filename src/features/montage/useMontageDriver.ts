@@ -18,7 +18,7 @@ const followState = (send: (m: ToMontage) => void): (() => void) => {
     const v = getPlaybackView();
     const key = `${v.song?.id ?? ""}|${v.playing}`;
     const now = Date.now();
-    if (force || key !== lastKey || now - lastSent > 2000) {
+    if (force || key !== lastKey || now - lastSent >= 1000) {
       lastKey = key;
       lastSent = now;
       const m = stateMessage();
@@ -30,7 +30,7 @@ const followState = (send: (m: ToMontage) => void): (() => void) => {
     noteTick();
     push();
   });
-  const id = setInterval(() => push(), 2000);
+  const id = setInterval(() => push(), 1000);
   return () => {
     unsub();
     clearInterval(id);

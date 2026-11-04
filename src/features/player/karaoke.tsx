@@ -26,7 +26,8 @@ import { getTransport } from "@/contracts/transport";
 import type { LrcLine } from "@/domain/lyrics";
 import { useIsOffline } from "@/features/shell/OfflineBanner";
 import { useT } from "@/i18n";
-import { activeLineIndex, estimatePosition, parseLrc } from "@/lyrics/lrc";
+import { activeLineIndex, parseLrc } from "@/lyrics/lrc";
+import { useLyricClock } from "@/lyrics/useLyricClock";
 import { getPlayerEngine } from "@/player/register";
 import { stemModeResidentLocally } from "@/player/sources";
 import { playerStore, usePlayerStore } from "@/player/store";
@@ -34,7 +35,6 @@ import {
   getPlaybackView,
   subscribePlaybackView,
   usePlaybackView,
-  type PlaybackView,
 } from "@/remote/mirror";
 import { useRemoteStore, type RemoteStoreState } from "@/remote/store";
 import { useTheme } from "@/theme/provider";
@@ -163,25 +163,10 @@ export default function KaraokeBody() {
   const synced = lyricsQuery.data?.synced ?? null;
   const lines = useMemo(() => (synced ? parseLrc(synced) : []), [synced]);
 
-  // Relógio extrapolado igual ao da vista de letras (FR-77): a projecção
-  // tica a 4 Hz e entre ticks a frame estima `position + elapsed * rate`;
-  // o estado só muda quando o índice activo muda.
-  const clockRef = useRef({ position: 0, at: Date.now(), playing: false, rate: 1, duration: 0 });
-  useEffect(() => {
-    const sample = (view: PlaybackView): void => {
-      clockRef.current = {
-        position: view.position,
-        at: Date.now(),
-        playing: view.playing,
-        rate: view.rate,
-        duration: view.duration,
-      };
-    };
-    sample(getPlaybackView());
-    return subscribePlaybackView(() => sample(getPlaybackView()));
-  }, []);
-
-  const estimatedPosition = useCallback((): number => estimatePosition(clockRef.current, Date.now()), []);
+  // O relógio da letra (src/lyrics/useLyricClock: as leituras de 4 Hz
+  // extrapoladas por frame, suaves, com o atraso deste aparelho); o estado
+  // só muda quando o índice activo muda.
+  const estimatedPosition = useLyricClock();
 
   const playing = usePlaybackView((v) => v.playing);
   const [activeIndex, setActiveIndex] = useState(-1);

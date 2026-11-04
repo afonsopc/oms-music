@@ -4,12 +4,21 @@
  * multipart PATCH /users/:id. Optimistic flip with rollback + inline error.
  */
 import React, { useState } from "react";
-import { Platform, Share } from "react-native";
+import { Platform, Share, Text, View } from "react-native";
 import { useUpdateUser } from "@/api/queries/users";
 import { refreshAccount, useSessionStore } from "@/auth/session";
 import { useT } from "@/i18n";
 import { haptics } from "@/lib/haptics";
+import {
+  LYRICS_DELAY_MAX_MS,
+  LYRICS_DELAY_MIN_MS,
+  LYRICS_DELAY_STEP_MS,
+  setLyricsDelay,
+  useLyricsDelay,
+} from "@/lyrics/delay";
 import { playbackTraceText } from "@/player/trace";
+import { useTheme } from "@/theme/provider";
+import { GhostIconButton } from "@/ui";
 import { NoticeBanner, SettingsPage, SettingsRow, SettingsSection, SwitchRow } from "./ui";
 
 export default function PlaybackSettingsScreen() {
@@ -83,6 +92,10 @@ export default function PlaybackSettingsScreen() {
         />
       </SettingsSection>
 
+      <SettingsSection>
+        <LyricsDelayRow />
+      </SettingsSection>
+
       {/* Para quando alguma coisa falha: fica em "Avançado", fora do caminho. */}
       <SettingsSection title={t("native.settings.advanced")}>
         <SettingsRow
@@ -95,3 +108,46 @@ export default function PlaybackSettingsScreen() {
     </SettingsPage>
   );
 }
+
+/**
+ * O atraso da letra deste aparelho (src/lyrics/delay.ts): de 20 em 20 ms,
+ * para as saídas de som que chegam depois do que o leitor diz.
+ */
+const LyricsDelayRow = () => {
+  const t = useT();
+  const { tokens } = useTheme();
+  const ms = useLyricsDelay((s) => s.ms);
+  const step = (dir: 1 | -1): void => {
+    haptics.select();
+    setLyricsDelay(ms + dir * LYRICS_DELAY_STEP_MS);
+  };
+  return (
+    <SettingsRow
+      first
+      label={t("components.music.Settings.PlaybackPage.lyricsDelayTitle")}
+      detail={t("components.music.Settings.PlaybackPage.lyricsDelayDescription")}
+      onPress={ms !== 0 ? () => setLyricsDelay(0) : undefined}
+      trailing={
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 2 }}>
+          <GhostIconButton
+            icon="chevron-left"
+            size={18}
+            disabled={ms <= LYRICS_DELAY_MIN_MS}
+            onPress={() => step(-1)}
+            accessibilityLabel={t("components.music.Settings.PlaybackPage.lyricsDelayEarlier")}
+          />
+          <Text style={{ color: tokens.foreground, fontVariant: ["tabular-nums"], minWidth: 64, textAlign: "center" }}>
+            {ms > 0 ? `+${ms}` : ms} ms
+          </Text>
+          <GhostIconButton
+            icon="chevron-right"
+            size={18}
+            disabled={ms >= LYRICS_DELAY_MAX_MS}
+            onPress={() => step(1)}
+            accessibilityLabel={t("components.music.Settings.PlaybackPage.lyricsDelayLater")}
+          />
+        </View>
+      }
+    />
+  );
+};

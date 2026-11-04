@@ -5,13 +5,15 @@
  * um shader que desenha o vídeo com os efeitos: clarão, zoom de soco,
  * abanão, cores partidas, negativo e grão. Tudo pela posição da música.
  */
+import { LyricClock } from "../viz/clock";
 import type { FromMontage, MontageSpec, ToMontage } from "./protocol";
 import { buildTimeline, clipTime, rateAt, segmentAt, type Segment } from "./timeline";
 
 // ---------------------------------------------------------------- estado
 let playing = false;
-let basePos = 0;
-let baseAt = Date.now();
+// A posição pelas leituras da app, com a hora em que foram lidas; as
+// diferenças pequenas desfazem-se sem saltar (viz/clock.ts).
+const clock = new LyricClock(3);
 let reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 let paused = false;
 let spec: MontageSpec | null = null;
@@ -21,7 +23,7 @@ let drops: number[] = [];
 const blobs = new Map<number, string>(); // id do clipe -> blob: URL
 let loading = 0;
 
-const position = () => basePos + (playing ? (Date.now() - baseAt) / 1000 : 0);
+const position = () => clock.raw(Date.now());
 
 const post = (msg: FromMontage) => {
   const rn = (window as { ReactNativeWebView?: { postMessage(s: string): void } }).ReactNativeWebView;
@@ -337,8 +339,7 @@ const handle = (msg: ToMontage) => {
   switch (msg.type) {
     case "state":
       playing = msg.playing;
-      basePos = msg.position;
-      baseAt = msg.at;
+      clock.read({ position: msg.position, playing: msg.playing }, msg.at);
       if (!playing) for (const s of slots) s.el.pause();
       break;
     case "analysis":

@@ -11,7 +11,11 @@ export const LINE_LEAD_S = 0.15;
 
 const MATCH_SLACK_S = 0.06;
 
-/** As palavras de cada linha parseada (null onde não há). */
+/**
+ * As palavras de cada linha parseada (null onde não há, e nas linhas em que
+ * o alinhador não confia: aí acende a linha inteira, nunca palavras no
+ * sítio errado).
+ */
 export const wordsForLines = (
   lines: readonly LrcLine[],
   words: readonly LyricsWordLine[] | null | undefined,
@@ -25,7 +29,7 @@ export const wordsForLines = (
     const hit = sorted[cursor];
     if (hit && Math.abs(hit.t - line.time) <= MATCH_SLACK_S && hit.w.length > 0) {
       cursor++;
-      return hit.w;
+      return hit.low ? null : hit.w;
     }
     return null;
   });

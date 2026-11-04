@@ -4,6 +4,7 @@
  * vivem em viz/scenes/<pacote>/<id>.ts, cada uma no seu pedaço de JS que só
  * se carrega quando é precisa (o índice, gerado, só traz o meta).
  */
+import { LyricClock } from "./clock";
 import { hexToVec, textureFrom } from "./lib/gl";
 import { lerp } from "./lib/ease";
 import type { FrameInfo, SceneEnv, SceneHost, SceneInstance, SceneLayer, SceneMeta, SceneModule } from "./lib/scene";
@@ -22,8 +23,10 @@ const devMode = query.has("gallery") || query.has("test");
 // ---------------------------------------------------------------- estado
 let song: VizSong | null = null;
 let playing = false;
-let basePos = 0;
-let baseAt = Date.now();
+// A posição: leituras da app com a hora em que foram lidas (a mesma hora do
+// aparelho), por isso o atraso do postMessage/WebView não conta. A app manda
+// uma por segundo; a letra usa o atraso deste aparelho, os visuais não.
+const clock = new LyricClock(2.5);
 const analyses = new Map<string, Decoded | null>();
 let colors: [string, string, string] = ["#6b5bd6", "#e2557a", "#2bb3a6"];
 let mode: "background" | "full" = "background";
@@ -366,8 +369,7 @@ const handle = (msg: ToViz) => {
       const changed = msg.song?.id !== song?.id;
       song = msg.song;
       playing = msg.playing;
-      basePos = msg.position;
-      baseAt = msg.at;
+      clock.read({ position: msg.position, playing: msg.playing, key: msg.song?.id ?? "" }, msg.at);
       if (changed) {
         loadCover(song?.artworkUrl ?? null);
         syncEnv();
@@ -407,6 +409,7 @@ const handle = (msg: ToViz) => {
       if (msg.banned) banned = msg.banned;
       if (msg.cycleOnTrack !== undefined) cycleOnTrack = msg.cycleOnTrack;
       if (msg.lyrics) lyricsMode = msg.lyrics;
+      if (msg.lyricsDelayMs !== undefined) clock.delayMs = msg.lyricsDelayMs;
       syncEnv();
       if (mode !== "full") overlays.clearAll();
       if (mode === "background") {
@@ -441,7 +444,8 @@ addEventListener("keydown", (e) => {
 });
 
 // ---------------------------------------------------------------- frames
-const position = () => basePos + (playing ? (Date.now() - baseAt) / 1000 : 0);
+const position = () => clock.raw(Date.now());
+const lyricPosition = () => clock.now(Date.now());
 let last = performance.now();
 let tAcc = 0;
 const frameTimes: number[] = [];
@@ -456,7 +460,7 @@ const drawFrame = (dt: number, t: number, s: Signal) => {
   if (colors !== targetFor) { targetFor = colors; targetVecs = colors.map(hexToVec); }
   for (let i = 0; i < 3; i++) for (let k = 0; k < 3; k++) cv[i][k] = lerp(cv[i][k], targetVecs[i][k], 0.04);
   if (!current) return;
-  env.lyric = overlays.currentLine(position());
+  env.lyric = overlays.currentLine(lyricPosition());
   const [w, h] = layerSize(current.meta.layer);
   frameInfo.dt = dt;
   frameInfo.w = w;
@@ -553,7 +557,7 @@ const loop = (now: number) => {
   if (mode === "full") {
     const pos = position();
     const si = sectionAt(d, pos);
-    overlays.frame(pos, lyricsMode, lyricStyle(), si >= 0 && d ? d.sections[si] : null, colors[1], song?.id);
+    overlays.frame(lyricPosition(), lyricsMode, lyricStyle(), si >= 0 && d ? d.sections[si] : null, colors[1], song?.id);
   }
   if (performance.now() < flashUntil) stage.style.filter = "brightness(2.2) contrast(1.3)";
   else if (flashUntil) { flashUntil = 0; applyFxFilterOnly(); }

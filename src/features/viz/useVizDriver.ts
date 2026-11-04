@@ -5,6 +5,7 @@
  */
 import { useEffect, useRef, useState } from "react";
 import { songArtworkSource } from "@/domain/artwork";
+import { useLyricsDelay } from "@/lyrics/delay";
 import { usePlaybackView } from "@/remote/mirror";
 import { useArtworkAccent } from "@/theme/useArtworkTint";
 import { artworkSourceUri } from "@/ui";
@@ -49,6 +50,7 @@ export const useVizDriver = (send: (msg: ToViz) => void, props: VizFrameProps) =
   }, [ready, songId, analysis.data]);
 
   const { mode, scene, chaos, fx, paused, selection, cycleOnTrack, lyrics } = props;
+  const lyricsDelayMs = useLyricsDelay((s) => s.ms);
   const fxKey = JSON.stringify(fx ?? {});
   const favKey = JSON.stringify(props.favorites ?? []);
   const banKey = JSON.stringify(props.banned ?? []);
@@ -67,8 +69,9 @@ export const useVizDriver = (send: (msg: ToViz) => void, props: VizFrameProps) =
       favorites: JSON.parse(favKey),
       banned: JSON.parse(banKey),
       cycleOnTrack,
+      lyricsDelayMs,
     });
-  }, [ready, mode, scene, chaos, fxKey, paused, reduceMotion, lyrics, selection, favKey, banKey, cycleOnTrack]);
+  }, [ready, mode, scene, chaos, fxKey, paused, reduceMotion, lyrics, selection, favKey, banKey, cycleOnTrack, lyricsDelayMs]);
 
   // A letra (palavra a palavra quando o servidor a tem; com "tradução"
   // ligada, as linhas traduzidas), só no ecrã inteiro.
