@@ -20,6 +20,12 @@ importa os ficheiros do próprio utilizador (definições > importar, que chama
   catálogos partilhados (`src/i18n/catalogs/*.json` vão para as apps
   nativas). O par nativo, `elsewhere.tsx`, devolve `null`. O Metro nunca leva
   um `.web.tsx` para iOS nem Android.
+- A Montagem do visualizador (`src/features/montage/`, motor em `montage/`)
+  só TOCA clipes que já estão na biblioteca (núcleo: `GET /montage_clips`,
+  `GET/PUT /songs/:id/montage`). Ir buscar clipes novos (`/clip_fetches`, no
+  serviço de importação) e os textos que falam disso vivem só em
+  `src/features/montage/clipSource.web.ts`; o par nativo, `clipSource.ts`,
+  diz `canFetchClips = false` e não chama nada.
 - No desktop o link abre no browser do sistema pelo comando do shell
   `open_import_page` (`desktop/src-tauri/src/login.rs`), que só abre esse
   endereço fixo.
