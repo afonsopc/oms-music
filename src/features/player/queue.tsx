@@ -10,7 +10,7 @@
  *  - jam proposals carry their proposer attribution (SongRow renders the
  *    `@handle` suffix) and cannot be removed either, since the host queue
  *    owns them;
- *  - long-press drag on the grip reorders through
+ *  - drag on the grip (every row has one) reorders through
  *    `reorderQueue(fromVisible, toVisible)`.
  *
  * The quartet is read through `remote/mirror`: while controlling another
@@ -30,7 +30,8 @@ import { useTheme } from "@/theme/provider";
 import { EmptyState, Icon, SongTable, type IconName } from "@/ui";
 import { DjQueue } from "@/features/dj/DjQueue";
 import { useDjStation } from "@/features/dj/station";
-import { foregroundWash } from "@/ui/uiTheme";
+import { pageType } from "@/ui/page";
+import { haptics } from "@/lib/haptics";
 
 const QP = "components.music.QueuePanel";
 const K = "native.player";
@@ -41,11 +42,11 @@ const nextLoopMode = (mode: LoopMode): LoopMode =>
   mode === "none" ? "all" : mode === "all" ? "one" : "none";
 
 /**
- * Pill de modo (idioma Apple Music, pedido do dono 2026-08-14): shuffle e
- * repeat sairam da linha de transporte do player e vivem AQUI, no topo da
- * fila, como capsulas translucidas - o sitio exacto onde o AM as tem.
+ * Baralhar e repetir no topo da fila, ao lado de "A seguir": ícones simples
+ * (redesenho 2026-11-04; eram cápsulas). Aceso = branco com um ponto por
+ * baixo; apagado = cinzento.
  */
-const ModePill = ({
+const QueueToggle = ({
   icon,
   active,
   label,
@@ -56,29 +57,35 @@ const ModePill = ({
   label: string;
   onPress: () => void;
 }) => {
-  const { tokens, scheme } = useTheme();
+  const { tokens } = useTheme();
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ selected: active }}
-      onPress={onPress}
+      onPress={() => {
+        haptics.select();
+        onPress();
+      }}
+      hitSlop={6}
       style={({ pressed }) => ({
-        flex: 1,
+        width: 44,
+        height: 44,
         alignItems: "center",
         justifyContent: "center",
-        height: 44,
-        borderRadius: 22,
-        backgroundColor: active
-          ? foregroundWash(scheme, 0.28)
-          : foregroundWash(scheme, 0.1),
-        opacity: pressed ? 0.7 : 1,
+        opacity: pressed ? 0.6 : 1,
       })}
     >
-      <Icon
-        name={icon}
-        size={18}
-        color={active ? tokens.foreground : tokens.mutedForeground}
+      <Icon name={icon} size={20} color={active ? tokens.foreground : tokens.mutedForeground} />
+      <View
+        style={{
+          position: "absolute",
+          bottom: 4,
+          width: 4,
+          height: 4,
+          borderRadius: 2,
+          backgroundColor: active ? tokens.foreground : "transparent",
+        }}
       />
     </Pressable>
   );
@@ -135,37 +142,31 @@ export default function QueueBody() {
       <View
         style={{
           flexDirection: "row",
-          gap: 10,
-          paddingHorizontal: 20,
-          paddingBottom: 14,
+          alignItems: "center",
+          paddingLeft: 20,
+          paddingRight: 12,
+          paddingBottom: 4,
         }}
       >
-        <ModePill
+        <Text
+          accessibilityRole="header"
+          style={[pageType.section, { color: tokens.foreground, flex: 1, fontSize: 18 }]}
+        >
+          {t(`${K}.upNext`)}
+        </Text>
+        <QueueToggle
           icon="shuffle"
           active={shuffle}
           label={t(`${NP}.shuffle`)}
           onPress={() => getTransport().setShuffle(!shuffle)}
         />
-        <ModePill
+        <QueueToggle
           icon={loopMode === "one" ? "repeat-1" : "repeat"}
           active={loopMode !== "none"}
           label={t(`${NP}.loop`)}
           onPress={() => getTransport().setLoopMode(nextLoopMode(loopMode))}
         />
       </View>
-      <Text
-        style={{
-          color: tokens.mutedForeground,
-          fontSize: 11,
-          fontWeight: "700",
-          letterSpacing: 1,
-          textTransform: "uppercase",
-          paddingHorizontal: 20,
-          paddingBottom: 6,
-        }}
-      >
-        {t(`${K}.upNext`)}
-      </Text>
       <SongTable
         songs={visible}
         columns={["index", "title", "duration"]}

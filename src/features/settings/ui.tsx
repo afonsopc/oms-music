@@ -1,12 +1,13 @@
 /**
  * Small shared primitives for the settings and import screens (WP11):
- * section cards, navigation/switch rows, labelled text fields, inline
- * notices, tabs, chips, progress bars and the defensive ApiError-to-copy
- * mapping (bare-string bodies render verbatim, FR-5).
+ * the page frame, sections, navigation/switch/check rows, labelled text
+ * fields, inline notices, chips, progress bars and the defensive
+ * ApiError-to-copy mapping (bare-string bodies render verbatim, FR-5).
  */
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Animated,
   Pressable,
   ScrollView,
   Switch,
@@ -18,12 +19,16 @@ import {
   type ViewStyle,
 } from "react-native";
 import { isApiError } from "@/domain/api";
+import { useContentBottomPadding, useContentTopPadding } from "@/features/shell/metrics";
 import { useT } from "@/i18n";
+import { haptics } from "@/lib/haptics";
 import { switchColors } from "@/theme/switchColors";
 import { useTheme } from "@/theme/provider";
 import { statusInkFor } from "@/theme/scheme";
 import { RADIUS } from "@/theme/tokens";
-import { Icon, type IconName } from "@/ui";
+import { Icon, Skeleton, type IconName } from "@/ui";
+import { Reveal, useTween } from "@/ui/motion";
+import { PageTitle, WaitHint, useGutter } from "@/ui/page";
 
 export const useApiErrorMessage = (): ((error: unknown) => string) => {
   const t = useT();
@@ -39,6 +44,47 @@ export const useApiErrorMessage = (): ((error: unknown) => string) => {
     }
     return t("native.common.unknownError");
   };
+};
+
+/** Largura máxima do conteúdo das definições no computador. */
+const PAGE_MAX_WIDTH = 720;
+
+/**
+ * A moldura de todas as páginas das definições (redesenho 2026-11-04): UM
+ * título (a seta de voltar flutua por cima, paga no padding de cima), a
+ * margem do ecrã (useGutter) e as secções em cascata por baixo.
+ */
+export const SettingsPage = ({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) => {
+  const { tokens } = useTheme();
+  const gutter = useGutter();
+  const topPadding = useContentTopPadding();
+  const bottomPadding = useContentBottomPadding();
+  let order = 0;
+  return (
+    <ScrollView
+      style={{ flex: 1, backgroundColor: tokens.background }}
+      keyboardShouldPersistTaps="handled"
+      contentContainerStyle={{
+        paddingHorizontal: gutter,
+        paddingTop: topPadding,
+        paddingBottom: bottomPadding,
+        gap: 28,
+        width: "100%",
+        maxWidth: PAGE_MAX_WIDTH,
+      }}
+    >
+      <PageTitle>{title}</PageTitle>
+      {React.Children.map(children, (child) =>
+        child ? <Reveal order={order++}>{child}</Reveal> : null,
+      )}
+    </ScrollView>
+  );
 };
 
 /**
@@ -152,12 +198,69 @@ export const SwitchRow = ({
       trailing={
         <Switch
           value={value}
-          onValueChange={onValueChange}
+          onValueChange={(next) => {
+            haptics.select();
+            onValueChange(next);
+          }}
           disabled={disabled}
           {...switchColors(tokens, value)}
         />
       }
     />
+  );
+};
+
+/**
+ * Uma opção de uma escolha única (tema, idioma): a linha simples, com um
+ * visto na escolhida. Substitui os botões segmentados em pílula.
+ */
+export const CheckRow = ({
+  label,
+  selected,
+  onPress,
+  first = false,
+}: {
+  label: string;
+  selected: boolean;
+  onPress: () => void;
+  first?: boolean;
+}) => {
+  const { tokens } = useTheme();
+  const shown = useTween(selected ? 1 : 0, { duration: 180 });
+  return (
+    <Pressable
+      onPress={() => {
+        if (selected) return;
+        haptics.select();
+        onPress();
+      }}
+      accessibilityRole="radio"
+      accessibilityState={{ checked: selected }}
+      style={({ pressed }) => ({
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 14,
+        minHeight: 52,
+        paddingVertical: 12,
+        borderTopWidth: first ? 0 : 1,
+        borderTopColor: tokens.border,
+        opacity: pressed ? 0.6 : 1,
+      })}
+    >
+      <Text
+        style={{
+          flex: 1,
+          color: tokens.foreground,
+          fontSize: 16,
+          fontWeight: selected ? "600" : "400",
+        }}
+      >
+        {label}
+      </Text>
+      <Animated.View style={{ opacity: shown, transform: [{ scale: shown }] }}>
+        <Icon name="check" size={20} color={tokens.foreground} />
+      </Animated.View>
+    </Pressable>
   );
 };
 
@@ -224,11 +327,7 @@ export const NoticeBanner = ({
           flexDirection: "row",
           alignItems: "center",
           gap: 8,
-          borderWidth: 1,
-          borderColor: tokens.border,
-          borderRadius: RADIUS,
-          padding: 12,
-          backgroundColor: tokens.card,
+          paddingVertical: 4,
         },
         style,
       ]}
@@ -243,15 +342,17 @@ export const NoticeBanner = ({
   );
 };
 
-export const InlineSpinnerRow = ({ label }: { label: string }) => {
-  const { tokens } = useTheme();
-  return (
-    <View style={{ flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 16 }}>
-      <ActivityIndicator color={tokens.mutedForeground} />
-      <Text style={{ color: tokens.mutedForeground, fontSize: 14 }}>{label}</Text>
-    </View>
-  );
-};
+/**
+ * Uma espera dentro de uma secção: duas linhas a brilhar e a frase que muda
+ * (WaitHint). Nunca um spinner solto. `label` fica para os leitores de ecrã.
+ */
+export const InlineSpinnerRow = ({ label, onRetry }: { label: string; onRetry?: () => void }) => (
+  <View accessibilityLabel={label} style={{ gap: 8, paddingVertical: 16 }}>
+    <Skeleton width="60%" height={13} />
+    <Skeleton width="35%" height={11} />
+    <WaitHint active onRetry={onRetry} style={{ alignItems: "flex-start" }} />
+  </View>
+);
 
 export const PrimaryButton = ({
   label,

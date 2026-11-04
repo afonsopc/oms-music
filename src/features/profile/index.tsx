@@ -15,7 +15,7 @@
  * never through `imageUrl()`, and never cached beyond the query.
  */
 import React, { useMemo } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { ScrollView, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { avatarUrl } from "@/api/mediaUrl";
 import { acceptedFriends, useRelationships } from "@/api/queries/relationships";
@@ -24,18 +24,20 @@ import { useSessionStore } from "@/auth/session";
 import type { UserId } from "@/domain/ids";
 import { useContentBottomPadding, useContentTopPadding } from "@/features/shell/metrics";
 import { useT } from "@/i18n";
+import { haptics } from "@/lib/haptics";
 import { artistNamesLine, formatSnapshotDuration, musicProfileArtistImage } from "@/social/display";
 import { useListeningStore } from "@/social/listeningStore";
 import { useTheme } from "@/theme/provider";
+import { ArtworkImage, EmptyState, ErrorState, InitialsAvatar, PlayingBars } from "@/ui";
+import { Reveal } from "@/ui/motion";
 import {
-  ArtworkImage,
-  EmptyState,
-  ErrorState,
-  Icon,
-  InitialsAvatar,
-  PlayingBars,
-  SongRowSkeleton,
-} from "@/ui";
+  ListSkeleton,
+  PageState,
+  pageType,
+  SectionLabel,
+  TextButton,
+  useGutter,
+} from "@/ui/page";
 
 const PROFILE = "native.profile";
 
@@ -46,66 +48,73 @@ interface ProfilePerson {
   name: string;
 }
 
-const Section = ({ title, children }: { title: string; children: React.ReactNode }) => {
-  const { tokens } = useTheme();
-  return (
-    <View style={{ gap: 8 }}>
-      <Text style={{ color: tokens.mutedForeground, fontSize: 13, fontWeight: "700" }}>
-        {title}
-      </Text>
-      {children}
-    </View>
-  );
-};
+const Section = ({
+  title,
+  order,
+  children,
+}: {
+  title: string;
+  order: number;
+  children: React.ReactNode;
+}) => (
+  <Reveal order={order}>
+    <SectionLabel title={title} />
+    {children}
+  </Reveal>
+);
 
+/** A song from a profile snapshot: 56 px, cover 48, grey meta, no box. */
 const SnapshotSongRow = ({
   index,
   title,
   artistNames,
   artworkUrl,
   duration,
-  trailing,
 }: {
   index?: number;
   title: string;
   artistNames: unknown;
   artworkUrl: string | null;
   duration: number;
-  trailing?: string;
 }) => {
   const { tokens } = useTheme();
+  const gutter = useGutter();
   return (
-    <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+    <View
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 14,
+        height: 64,
+        paddingHorizontal: gutter,
+      }}
+    >
       {index !== undefined ? (
         <Text
-          style={{
-            width: 16,
-            textAlign: "right",
-            color: tokens.mutedForeground,
-            fontSize: 12,
-            fontVariant: ["tabular-nums"],
-          }}
+          style={[
+            pageType.meta,
+            {
+              width: 18,
+              textAlign: "right",
+              color: tokens.mutedForeground,
+              fontVariant: ["tabular-nums"],
+            },
+          ]}
         >
           {index + 1}
         </Text>
       ) : null}
-      <ArtworkImage uri={artworkUrl} size={36} />
-      <View style={{ flex: 1, minWidth: 0 }}>
-        <Text numberOfLines={1} style={{ color: tokens.foreground, fontSize: 14 }}>
+      <ArtworkImage uri={artworkUrl} size={48} />
+      <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+        <Text numberOfLines={1} style={[pageType.body, { color: tokens.foreground, fontWeight: "500" }]}>
           {title}
         </Text>
-        <Text numberOfLines={1} style={{ color: tokens.mutedForeground, fontSize: 12 }}>
+        <Text numberOfLines={1} style={[pageType.meta, { color: tokens.mutedForeground }]}>
           {artistNamesLine(artistNames)}
         </Text>
       </View>
-      <Text
-        style={{
-          color: tokens.mutedForeground,
-          fontSize: 12,
-          fontVariant: ["tabular-nums"],
-        }}
-      >
-        {trailing ?? formatSnapshotDuration(duration)}
+      <Text style={[pageType.meta, { color: tokens.mutedForeground, fontVariant: ["tabular-nums"] }]}>
+        {formatSnapshotDuration(duration)}
       </Text>
     </View>
   );
@@ -135,98 +144,73 @@ const ProfileHeader = ({
   const t = useT();
   const router = useRouter();
   const { tokens } = useTheme();
-  // A linha de números das apps de referencia ("0 seguidores · A seguir 7"), com os
-  // números que a API consegue jurar: amigos e plays de 30 dias.
+  const gutter = useGutter();
+  // Uma linha cinzenta com os números que a API consegue jurar (amigos e
+  // plays de 30 dias) e, num amigo, a palavra "Amigos": sem pílula.
   const stats = [
+    !isSelf && isFriend ? t(`${PROFILE}.friendBadge`) : null,
     friendsCount !== null ? t(`${PROFILE}.friendsCount`, { count: friendsCount }) : null,
     plays30d !== null ? t(`${PROFILE}.playsLastMonth`, { count: plays30d }) : null,
   ].filter(Boolean);
   return (
-    <View style={{ gap: 14 }}>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 18 }}>
-        {person.id ? (
-          <ArtworkImage uri={avatarUrl(person.id)} size={112} shape="circle" />
-        ) : (
-          <InitialsAvatar name={person.name} size={112} />
-        )}
-        <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
-          <Text
-            numberOfLines={2}
-            style={{ color: tokens.foreground, fontSize: 28, fontWeight: "900", letterSpacing: -0.5 }}
-          >
-            {person.name}
-          </Text>
-          {person.handle ? (
-            <Text numberOfLines={1} style={{ color: tokens.mutedForeground, fontSize: 14 }}>
-              @{person.handle}
+    <Reveal>
+      <View style={{ paddingHorizontal: gutter, gap: 16 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 18 }}>
+          {person.id ? (
+            <ArtworkImage uri={avatarUrl(person.id)} size={96} shape="circle" />
+          ) : (
+            <InitialsAvatar name={person.name} size={96} />
+          )}
+          <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
+            <Text
+              accessibilityRole="header"
+              numberOfLines={2}
+              style={[pageType.title, { color: tokens.foreground }]}
+            >
+              {person.name}
             </Text>
-          ) : null}
-          {stats.length > 0 ? (
-            <Text numberOfLines={1} style={{ color: tokens.mutedForeground, fontSize: 13 }}>
-              {stats.join(" • ")}
-            </Text>
-          ) : null}
-          {!isSelf && isFriend ? (
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                alignSelf: "flex-start",
-                gap: 5,
-                paddingHorizontal: 10,
-                paddingVertical: 3,
-                borderRadius: 999,
-                backgroundColor: tokens.secondary,
+            {person.handle ? (
+              <Text numberOfLines={1} style={[pageType.meta, { color: tokens.mutedForeground }]}>
+                @{person.handle}
+              </Text>
+            ) : null}
+            {stats.length > 0 ? (
+              <Text numberOfLines={2} style={[pageType.meta, { color: tokens.mutedForeground }]}>
+                {stats.join(" · ")}
+              </Text>
+            ) : null}
+          </View>
+        </View>
+        {/* A linha de acções SOB o hero, como no screenshot do dono
+            (2026-08-18). Só no próprio perfil: para os outros a API ainda não
+            tem mutações de amizade para prometer botões. */}
+        {isSelf ? (
+          <View style={{ flexDirection: "row", gap: 10 }}>
+            <TextButton
+              label={t(`${PROFILE}.editProfile`)}
+              onPress={() => {
+                haptics.select();
+                router.push("/account");
               }}
-            >
-              <Icon name="users" size={12} color={tokens.secondaryForeground} />
-              <Text
-                style={{ color: tokens.secondaryForeground, fontSize: 11, fontWeight: "700" }}
-              >
-                {t(`${PROFILE}.friendBadge`)}
-              </Text>
-            </View>
-          ) : null}
-        </View>
+            />
+            <TextButton
+              label={t(`${PROFILE}.settingsAction`)}
+              onPress={() => {
+                haptics.select();
+                router.push("/settings");
+              }}
+            />
+          </View>
+        ) : null}
       </View>
-      {/* A linha de acções SOB o hero, como no screenshot do dono
-          (2026-08-18). Só no próprio perfil: para os outros a API ainda não
-          tem mutações de amizade para prometer botões. */}
-      {isSelf ? (
-        <View style={{ flexDirection: "row", gap: 10 }}>
-          {(
-            [
-              { key: "edit", label: t(`${PROFILE}.editProfile`), route: "/account" as const },
-              { key: "settings", label: t(`${PROFILE}.settingsAction`), route: "/settings" as const },
-            ]
-          ).map((action) => (
-            <Pressable
-              key={action.key}
-              accessibilityRole="button"
-              onPress={() => router.push(action.route)}
-              style={({ pressed }) => ({
-                paddingHorizontal: 16,
-                paddingVertical: 8,
-                borderRadius: 999,
-                borderWidth: 1,
-                borderColor: tokens.border,
-                opacity: pressed ? 0.7 : 1,
-              })}
-            >
-              <Text style={{ color: tokens.foreground, fontSize: 13, fontWeight: "700" }}>
-                {action.label}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-      ) : null}
-    </View>
+    </Reveal>
   );
 };
 
 export default function ProfileScreen() {
   const t = useT();
   const { tokens } = useTheme();
+  const gutter = useGutter();
   const bottomPadding = useContentBottomPadding();
   const topPadding = useContentTopPadding();
   const params = useLocalSearchParams<{ idOrHandle?: string }>();
@@ -292,7 +276,7 @@ export default function ProfileScreen() {
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: tokens.background }}
-      contentContainerStyle={{ padding: 16, paddingTop: topPadding, paddingBottom: bottomPadding, gap: 20 }}
+      contentContainerStyle={{ paddingTop: topPadding, paddingBottom: bottomPadding + 16 }}
     >
       {/* The page opens as a PROFILE - the old bare "Música" heading made
           this look like a generic music page (owner report 2026-08-14). */}
@@ -309,10 +293,8 @@ export default function ProfileScreen() {
       />
 
       {query.isLoading ? (
-        <View style={{ gap: 8 }}>
-          <SongRowSkeleton />
-          <SongRowSkeleton />
-          <SongRowSkeleton />
+        <View style={{ paddingTop: 28 }}>
+          <PageState loading onRetry={() => void query.refetch()} skeleton={<ListSkeleton rows={6} />} />
         </View>
       ) : query.isError ? (
         <ErrorState onRetry={() => void query.refetch()} />
@@ -322,18 +304,25 @@ export default function ProfileScreen() {
       ) : (
         <>
           {live && nowPlaying?.song ? (
-            <Section title={t(`${PROFILE}.listeningNow`)}>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-                <ArtworkImage uri={nowPlaying.song.artwork_url} size={56} />
-                <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+            <Section order={1} title={t(`${PROFILE}.listeningNow`)}>
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 14,
+                  paddingHorizontal: gutter,
+                }}
+              >
+                <ArtworkImage uri={nowPlaying.song.artwork_url} size={64} />
+                <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
                   <PlayingBars count={3} />
                   <Text
                     numberOfLines={1}
-                    style={{ color: tokens.foreground, fontSize: 15, fontWeight: "600" }}
+                    style={[pageType.body, { color: tokens.foreground, fontWeight: "600" }]}
                   >
                     {nowPlaying.song.title}
                   </Text>
-                  <Text numberOfLines={1} style={{ color: tokens.mutedForeground, fontSize: 13 }}>
+                  <Text numberOfLines={1} style={[pageType.meta, { color: tokens.mutedForeground }]}>
                     {artistNamesLine(nowPlaying.song.artist_names)}
                   </Text>
                 </View>
@@ -342,75 +331,60 @@ export default function ProfileScreen() {
           ) : null}
 
           {topArtists.length > 0 ? (
-            <Section title={t(`${PROFILE}.topArtists`)}>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <View style={{ flexDirection: "row", gap: 14 }}>
-                  {topArtists.map((artist) => (
-                    <View key={artist.id} style={{ width: 76, alignItems: "center", gap: 6 }}>
-                      <ArtworkImage
-                        uri={musicProfileArtistImage(artist)}
-                        size={72}
-                        shape="circle"
-                      />
-                      <Text
-                        numberOfLines={1}
-                        style={{
-                          color: tokens.foreground,
-                          fontSize: 12,
-                          fontWeight: "600",
-                          width: "100%",
-                          textAlign: "center",
-                        }}
-                      >
-                        {artist.name}
-                      </Text>
-                      <Text style={{ color: tokens.mutedForeground, fontSize: 10 }}>
-                        {t(`${PROFILE}.plays`, { count: artist.play_count })}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
+            <Section order={2} title={t(`${PROFILE}.topArtists`)}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ paddingHorizontal: gutter, gap: 16 }}
+              >
+                {topArtists.map((artist) => (
+                  <View key={artist.id} style={{ width: 104, gap: 6 }}>
+                    <ArtworkImage uri={musicProfileArtistImage(artist)} size={104} shape="circle" />
+                    <Text
+                      numberOfLines={1}
+                      style={[pageType.meta, { color: tokens.foreground, fontWeight: "600", textAlign: "center" }]}
+                    >
+                      {artist.name}
+                    </Text>
+                    <Text
+                      numberOfLines={1}
+                      style={{ color: tokens.mutedForeground, fontSize: 12, textAlign: "center" }}
+                    >
+                      {t(`${PROFILE}.plays`, { count: artist.play_count })}
+                    </Text>
+                  </View>
+                ))}
               </ScrollView>
             </Section>
           ) : null}
 
           {topSongs.length > 0 ? (
-            <Section title={t(`${PROFILE}.topSongs`)}>
-              <View style={{ gap: 10 }}>
-                {topSongs.map((song, index) => (
-                  <SnapshotSongRow
-                    key={song.id}
-                    index={index}
-                    title={song.title}
-                    artistNames={song.artist_names}
-                    artworkUrl={song.artwork_url}
-                    duration={song.duration}
-                  />
-                ))}
-              </View>
+            <Section order={3} title={t(`${PROFILE}.topSongs`)}>
+              {topSongs.map((song, index) => (
+                <SnapshotSongRow
+                  key={song.id}
+                  index={index}
+                  title={song.title}
+                  artistNames={song.artist_names}
+                  artworkUrl={song.artwork_url}
+                  duration={song.duration}
+                />
+              ))}
             </Section>
           ) : null}
 
           {recent.length > 0 ? (
-            <Section title={t(`${PROFILE}.recent`)}>
-              <View style={{ gap: 10 }}>
-                {recent.map((song, index) => (
-                  <SnapshotSongRow
-                    key={`${song.id}-${index}`}
-                    title={song.title}
-                    artistNames={song.artist_names}
-                    artworkUrl={song.artwork_url}
-                    duration={song.duration}
-                  />
-                ))}
-              </View>
+            <Section order={4} title={t(`${PROFILE}.recent`)}>
+              {recent.map((song, index) => (
+                <SnapshotSongRow
+                  key={`${song.id}-${index}`}
+                  title={song.title}
+                  artistNames={song.artist_names}
+                  artworkUrl={song.artwork_url}
+                  duration={song.duration}
+                />
+              ))}
             </Section>
-          ) : null}
-
-          {typeof profile?.plays_30d === "number" && profile.plays_30d > 0 ? (
-            <Text style={{ color: tokens.mutedForeground, fontSize: 12 }}>
-              {t(`${PROFILE}.playsLastMonth`, { count: profile.plays_30d })}
-            </Text>
           ) : null}
         </>
       )}

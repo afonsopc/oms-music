@@ -1,20 +1,28 @@
 /**
  * Settings hub (FR-95): Import / Songs / Artists / Playback plus the
- * native-only Downloads settings and Devices entries, and the app prefs
- * inline - theme light/dark/system (FR-18 UI) and language en/pt/lv
- * (FR-19 UI). Screen bodies live in their own files; this screen only
- * navigates.
+ * Downloads and Devices entries, and the app prefs inline - theme
+ * light/dark/system (FR-18 UI) and language en/pt/lv (FR-19 UI). Screen
+ * bodies live in their own files; this screen only navigates.
+ *
+ * Redesenho 2026-11-04: uma só moldura (SettingsPage), linhas sem caixa, e o
+ * tema e o idioma como linhas simples com um visto na escolhida (eram
+ * botões em pílula).
  */
 import React from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { View } from "react-native";
 import { useRouter } from "expo-router";
-import { useContentBottomPadding, useContentTopPadding } from "@/features/shell/metrics";
 import { LOCALES, setLocale, useLocale, useT, type Locale } from "@/i18n";
 import { useTheme, type ThemeMode } from "@/theme/provider";
 import { useDesktopShell } from "@/ui";
-import { SettingsRow, SettingsSection } from "./ui";
+import { CheckRow, SettingsPage, SettingsRow, SettingsSection } from "./ui";
 
-const THEME_MODES: readonly ThemeMode[] = ["light", "dark", "system"];
+const THEME_MODES: readonly ThemeMode[] = ["system", "dark", "light"];
+
+const THEME_LABEL_KEYS: Record<ThemeMode, string> = {
+  light: "native.settings.hub.themeLight",
+  dark: "native.settings.hub.themeDark",
+  system: "native.settings.hub.themeSystem",
+};
 
 const LANGUAGE_LABEL_KEYS: Record<Locale, string> = {
   en: "native.settings.hub.languageEn",
@@ -22,49 +30,35 @@ const LANGUAGE_LABEL_KEYS: Record<Locale, string> = {
   lv: "native.settings.hub.languageLv",
 };
 
-const SegmentedRow = <T extends string>({
-  options,
-  labels,
-  value,
-  onChange,
-}: {
-  options: readonly T[];
-  labels: Record<T, string>;
-  value: T;
-  onChange: (next: T) => void;
-}) => {
-  const { tokens } = useTheme();
+/** Tema e idioma: iguais no telemóvel e no computador. */
+const Preferences = () => {
+  const t = useT();
+  const { mode, setMode } = useTheme();
+  const locale = useLocale();
   return (
-    <View style={{ flexDirection: "row", gap: 8, padding: 12 }}>
-      {options.map((option) => {
-        const active = option === value;
-        return (
-          <Pressable
+    <View style={{ gap: 28 }}>
+      <SettingsSection title={t("native.settings.hub.theme")}>
+        {THEME_MODES.map((option, index) => (
+          <CheckRow
             key={option}
-            onPress={() => onChange(option)}
-            accessibilityRole="button"
-            accessibilityState={{ selected: active }}
-            style={({ pressed }) => ({
-              flex: 1,
-              alignItems: "center",
-              paddingVertical: 10,
-              borderRadius: 999,
-              backgroundColor: active ? tokens.primary : tokens.secondary,
-              opacity: pressed ? 0.8 : 1,
-            })}
-          >
-            <Text
-              style={{
-                color: active ? tokens.primaryForeground : tokens.foreground,
-                fontSize: 13,
-                fontWeight: "600",
-              }}
-            >
-              {labels[option]}
-            </Text>
-          </Pressable>
-        );
-      })}
+            first={index === 0}
+            label={t(THEME_LABEL_KEYS[option])}
+            selected={option === mode}
+            onPress={() => setMode(option)}
+          />
+        ))}
+      </SettingsSection>
+      <SettingsSection title={t("native.settings.hub.language")}>
+        {LOCALES.map((option, index) => (
+          <CheckRow
+            key={option}
+            first={index === 0}
+            label={t(LANGUAGE_LABEL_KEYS[option])}
+            selected={option === locale}
+            onPress={() => setLocale(option)}
+          />
+        ))}
+      </SettingsSection>
     </View>
   );
 };
@@ -72,62 +66,21 @@ const SegmentedRow = <T extends string>({
 export default function SettingsHubScreen() {
   const t = useT();
   const router = useRouter();
-  const { tokens, mode, setMode } = useTheme();
-  const locale = useLocale();
-  const bottomPadding = useContentBottomPadding();
-  const topPadding = useContentTopPadding();
   // Desktop (plan 4.3, settings row): the split shell already lists every
   // section on the left, so this screen becomes the "General" DETAIL only -
   // theme and language, no duplicate navigation rows. Mobile keeps the hub.
   const desktop = useDesktopShell();
 
-  const themeLabels: Record<ThemeMode, string> = {
-    light: t("native.settings.hub.themeLight"),
-    dark: t("native.settings.hub.themeDark"),
-    system: t("native.settings.hub.themeSystem"),
-  };
-  const languageLabels = Object.fromEntries(
-    LOCALES.map((l) => [l, t(LANGUAGE_LABEL_KEYS[l])]),
-  ) as Record<Locale, string>;
-
   if (desktop) {
     return (
-      <ScrollView
-        style={{ flex: 1, backgroundColor: tokens.background }}
-        contentContainerStyle={{ padding: 24, gap: 20 }}
-      >
-        <Text style={{ color: tokens.foreground, fontSize: 28, fontWeight: "800" }}>
-          {t("native.desktop.settingsGeneral")}
-        </Text>
-        <SettingsSection title={t("native.settings.hub.theme")}>
-          <SegmentedRow
-            options={THEME_MODES}
-            labels={themeLabels}
-            value={mode}
-            onChange={setMode}
-          />
-        </SettingsSection>
-        <SettingsSection title={t("native.settings.hub.language")}>
-          <SegmentedRow
-            options={LOCALES}
-            labels={languageLabels}
-            value={locale}
-            onChange={setLocale}
-          />
-        </SettingsSection>
-      </ScrollView>
+      <SettingsPage title={t("native.desktop.settingsGeneral")}>
+        <Preferences />
+      </SettingsPage>
     );
   }
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: tokens.background }}
-      contentContainerStyle={{ padding: 16, paddingTop: topPadding, paddingBottom: bottomPadding, gap: 20 }}
-    >
-      <Text style={{ color: tokens.foreground, fontSize: 28, fontWeight: "800" }}>
-        {t("native.settings.hub.title")}
-      </Text>
-
+    <SettingsPage title={t("native.settings.hub.title")}>
       <SettingsSection title={t("native.settings.hub.sectionLibrary")}>
         <SettingsRow
           first
@@ -166,7 +119,7 @@ export default function SettingsHubScreen() {
         />
         {/* Distinct label from the downloads OVERVIEW row above: both read
             "Transferências" before, and two identical rows in the same
-            section looked like a bug (owner report 2026-08-14). */}
+            section looked broken (owner report 2026-08-14). */}
         <SettingsRow
           icon="cloud-check"
           label={t("native.settings.hub.rowDownloadSettings")}
@@ -179,18 +132,7 @@ export default function SettingsHubScreen() {
         />
       </SettingsSection>
 
-      <SettingsSection title={t("native.settings.hub.theme")}>
-        <SegmentedRow options={THEME_MODES} labels={themeLabels} value={mode} onChange={setMode} />
-      </SettingsSection>
-
-      <SettingsSection title={t("native.settings.hub.language")}>
-        <SegmentedRow
-          options={LOCALES}
-          labels={languageLabels}
-          value={locale}
-          onChange={setLocale}
-        />
-      </SettingsSection>
-    </ScrollView>
+      <Preferences />
+    </SettingsPage>
   );
 }

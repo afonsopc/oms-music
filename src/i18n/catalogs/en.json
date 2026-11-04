@@ -54,7 +54,7 @@
       },
       "ArtistView": {
         "songs": "songs",
-        "listeners": "Last.fm listeners",
+        "listeners": "listeners",
         "popular": "Popular",
         "discography": "Discography",
         "participatesIn": "Participates in",
@@ -632,7 +632,7 @@
         "uploadingArtwork": "Uploading artwork...",
         "artworkChangedSuccessfully": "Artwork changed successfully",
         "errorOccurred": "An error occurred",
-        "changeArtwork": "Change Artwork",
+        "changeArtwork": "Change cover",
         "cropArtwork": "Crop Artwork",
         "cropDescription": "Crop your artwork to the desired size"
       },
@@ -944,7 +944,7 @@
       "inFlightTitle": "Downloading",
       "queued": "Queued",
       "settingsTitle": "Download settings",
-      "wifiOnlyTitle": "Only over WiFi",
+      "wifiOnlyTitle": "Wi-Fi only",
       "wifiOnlyDetail": "New downloads are refused on mobile data.",
       "includeStemsTitle": "Include separated stems",
       "includeStemsDetail": "Also downloads the vocals and the instrumental when they exist. Uses about twice the storage.",
@@ -1055,14 +1055,18 @@
         "metadataToolRun": "Modify and save",
         "metadataToolSaved": "Saved to {uri}",
         "metadataToolTooLarge": "That file is over 50 MB.",
-        "metadataToolGenre": "Genre"
+        "metadataToolGenre": "Genre",
+        "search": "Search songs, artists or albums"
       },
       "artists": {
         "mediaImage": "photo",
         "mediaBanner": "banner",
         "mediaGallery": "gallery",
-        "emptyFiltered": "No artists match this filter."
-      }
+        "emptyFiltered": "No artists match this filter.",
+        "count": "{count, plural, one {# artist} other {# artists}}",
+        "noPhoto": "no photo"
+      },
+      "advanced": "Advanced"
     },
     "jam": {
       "hostBadge": "Host",
@@ -1103,7 +1107,10 @@
       "goodAfternoon": "Good afternoon",
       "goodEvening": "Good evening",
       "recentlyPlayed": "Recently played",
-      "viewProfile": "View profile"
+      "viewProfile": "View profile",
+      "emptyAll": "Nothing played yet. Search for a song to start.",
+      "emptyFilter": "Nothing here yet.",
+      "emptyAction": "Search"
     },
     "playlist": {
       "reorder": "Reorder songs",
@@ -1129,7 +1136,9 @@
       "cacheDetail": "{files} files, {size} of {budget}",
       "cachePurge": "Clear",
       "cacheWaste": "Ahead-of-time: {written} fetched, {wasted} dropped unplayed ({percent}%)",
-      "cacheEmpty": "Nothing cached yet."
+      "cacheEmpty": "Nothing cached yet.",
+      "inFlight": "{count, plural, one {Downloading # song} other {Downloading # songs}}",
+      "onDevice": "On this device"
     },
     "exports": {
       "menuSong": "Download song",
@@ -1140,6 +1149,15 @@
     },
     "dj": {
       "open": "O Melhor DJ"
+    },
+    "account": {
+      "signOut": "Sign out",
+      "signOutTitle": "Sign out?",
+      "signOutMessage": "You can sign back in any time."
+    },
+    "import": {
+      "stepPicked": "Files chosen",
+      "stepLibrary": "In your library"
     }
   }
 }

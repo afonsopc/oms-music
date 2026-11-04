@@ -3,7 +3,9 @@ import {
   artistParamsFromChips,
   chipsFromSong,
   codecOptions,
+  activeSheetFilters,
   filterSongs,
+  hasTextFilter,
   mergeLookups,
   EMPTY_SONG_FILTERS,
 } from "../songsFilters";
@@ -168,5 +170,33 @@ describe("mergeLookups", () => {
     const c = song({ id: 3 as SongId, title: "C" });
     const merged = mergeLookups([a, b], [b, c]);
     expect(merged.map((s) => s.id)).toEqual([1, 2, 3]);
+  });
+});
+
+describe("filterSongs query (one box)", () => {
+  const song = (id: number, title: string, album: string | null, artist: string): Song =>
+    ({
+      id,
+      title,
+      album,
+      artists: [{ name: artist, position: 0, role: "primary" }],
+    }) as unknown as Song;
+  const library = [
+    song(1, "Fado Menor", "Lisboa", "Amália"),
+    song(2, "Avante", "Sempre", "Fernando Farinha"),
+    song(3, "Outra", "Fado Vivo", "Carlos"),
+  ];
+
+  it("matches the title, the artist or the album", () => {
+    const ids = (q: string) =>
+      filterSongs(library, { ...EMPTY_SONG_FILTERS, query: q }).map((s) => s.id);
+    expect(ids("fado")).toEqual([1, 3]);
+    expect(ids("farinha")).toEqual([2]);
+    expect(ids("  ")).toEqual([1, 2, 3]);
+  });
+
+  it("counts as a text filter", () => {
+    expect(hasTextFilter({ ...EMPTY_SONG_FILTERS, query: "x" })).toBe(true);
+    expect(activeSheetFilters({ ...EMPTY_SONG_FILTERS, codecs: ["flac"], qualities: ["lossy"] })).toBe(2);
   });
 });

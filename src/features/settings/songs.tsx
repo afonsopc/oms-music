@@ -1,14 +1,14 @@
 /**
- * Songs management (FR-96). Infinite /songs at 500/page (the hard server cap)
- * with a load-more button and a `<loaded>+` total; client-side filters over
- * the loaded pages (title / artist / album substring, quality, codec)
- * with a PARALLEL server search folded in so a track the infinite query has
- * not reached yet still shows up; multi-select bulk delete with confirm; the
- * per-song edit dialog (multipart artwork + the always-present
+ * Songs management (FR-96). Infinite /songs at 500/page (the hard server cap),
+ * the next pages loading on by themselves; ONE search box over the loaded
+ * pages (title, artist or album) plus quality/format in a sheet, with a
+ * PARALLEL server title search folded in so a track the infinite query has
+ * not reached yet still shows up; virtualized fixed-height rows; multi-select
+ * bulk delete with confirm; the per-song edit dialog (multipart artwork + the always-present
  * `featured_artist_names[]` key) and the FR-126 metadata modifier row.
  */
-import React, { useCallback, useMemo, useState } from "react";
-import { ActivityIndicator, FlatList, Pressable, Text, View } from "react-native";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { FlatList, Pressable, Text, View } from "react-native";
 import { guardedQueryFn } from "@/api/queries/common";
 import { listSongsPage, useDeleteSong, useSongsInfinite } from "@/api/queries/songs";
 import { keys } from "@/api/queryKeys";
@@ -20,12 +20,15 @@ import type { SongId } from "@/domain/ids";
 import type { Song } from "@/domain/song";
 import { useContentBottomPadding, useContentTopPadding } from "@/features/shell/metrics";
 import { useT } from "@/i18n";
+import { haptics } from "@/lib/haptics";
 import { useTheme } from "@/theme/provider";
-import { RADIUS } from "@/theme/tokens";
-import { ArtworkImage, BottomSheet, ConfirmDialog, EmptyState, ErrorState, Icon } from "@/ui";
+import { ArtworkImage, BottomSheet, ConfirmDialog, Icon } from "@/ui";
+import { FadeIn } from "@/ui/motion";
+import { ListSkeleton, PageState, PageTitle, useGutter } from "@/ui/page";
 import { MetadataModifierDialog } from "./metadataModifier";
 import { SongEditDialog } from "./SongEditDialog";
 import {
+  activeSheetFilters,
   codecOptions,
   filterSongs,
   hasTextFilter,
@@ -34,12 +37,9 @@ import {
   type SongFilterState,
 } from "./songsFilters";
 import {
-  GhostButton,
-  PrimaryButton,
   SearchField,
-  SettingsSection,
   SettingsRow,
-  ToggleChip,
+  SettingsSection,
   useApiErrorMessage,
   useDebounced,
 } from "./ui";
@@ -47,40 +47,35 @@ import {
 const TABLE_KEY = "components.music.Settings.SongsTable";
 const DELETE_KEY = `${TABLE_KEY}.DeleteSongDialog`;
 
-/** Server-side match beyond the loaded pages (web useSongLibrarySearch). */
+/** Fixed row height: lets the list skip measuring (getItemLayout). */
+const ROW_HEIGHT = 64;
+
+/** Pages loaded without being asked (500 each). */
+const AUTO_PAGES = 6;
+
+/** Server-side match beyond the loaded pages (web useSongLibrarySearch).
+ *  The one search box asks the server by TITLE; artist and album matches
+ *  come from the loaded pages, which load on by themselves. */
 const SONG_SEARCH_LIMIT = 100;
 
-const useSongLibrarySearch = (title: string, album: string) => {
+const useSongLibrarySearch = (term: string) => {
   const authReady = useAuthReady();
-  const debouncedTitle = useDebounced(title.trim(), 300);
-  const debouncedAlbum = useDebounced(album.trim(), 300);
-  const enabled = debouncedTitle.length > 1 || debouncedAlbum.length > 1;
-  const filters = { title: debouncedTitle, album: debouncedAlbum, limit: SONG_SEARCH_LIMIT };
+  const debounced = useDebounced(term.trim(), 300);
+  const enabled = debounced.length > 1;
+  const filters = { title: debounced, album: "", limit: SONG_SEARCH_LIMIT };
   const key = keys.songs.list(filters);
 
   const query = useQuery<Song[]>({
     queryKey: key,
     queryFn: guardedQueryFn(key, () =>
-      // Partial matches on both columns (search bucket); one page of results.
-      listSongsPage({
-        search: {
-          ...(debouncedTitle ? { title: debouncedTitle } : {}),
-          ...(debouncedAlbum ? { album: debouncedAlbum } : {}),
-        },
-        page: 1,
-        pageSize: SONG_SEARCH_LIMIT,
-      }),
+      listSongsPage({ search: { title: debounced }, page: 1, pageSize: SONG_SEARCH_LIMIT }),
     ),
     enabled: authReady && enabled,
     // Server matches stay usable while the term is still being narrowed.
     staleTime: 60 * 1000,
   });
 
-  return {
-    lookups: query.data ?? [],
-    isSearching: enabled && query.isFetching,
-    hasServerAnswer: enabled && query.isSuccess,
-  };
+  return { lookups: query.data ?? [], isSearching: enabled && query.isFetching };
 };
 
 const SongManagementRow = React.memo(
@@ -88,115 +83,96 @@ const SongManagementRow = React.memo(
     song,
     selected,
     selecting,
+    gutter,
     onPress,
     onLongPress,
   }: {
     song: Song;
     selected: boolean;
     selecting: boolean;
-    onPress: () => void;
-    onLongPress: () => void;
+    gutter: number;
+    onPress: (song: Song) => void;
+    onLongPress: (song: Song) => void;
   }) => {
     const { tokens } = useTheme();
     const t = useT();
     const artwork = useMemo(() => songArtworkSource(song), [song]);
-    const stems = !!song.vocals_media_id && !!song.instrumental_media_id;
+    const meta = [formatArtists(song) || t(`${TABLE_KEY}.columns.unknownArtist`), song.album]
+      .filter(Boolean)
+      .join(" · ");
 
     return (
       <Pressable
-        onPress={onPress}
-        onLongPress={onLongPress}
+        onPress={() => onPress(song)}
+        onLongPress={() => onLongPress(song)}
         delayLongPress={280}
         accessibilityRole="button"
         accessibilityState={{ selected }}
-        style={({ pressed }) => ({
+        accessibilityLabel={song.title}
+        style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => ({
+          height: ROW_HEIGHT,
           flexDirection: "row",
           alignItems: "center",
-          gap: 12,
-          paddingHorizontal: 16,
-          paddingVertical: 10,
-          backgroundColor: selected ? tokens.secondary : "transparent",
-          opacity: pressed ? 0.7 : 1,
+          gap: 14,
+          paddingHorizontal: gutter,
+          backgroundColor:
+            pressed || selected ? tokens.secondary : hovered ? tokens.accent : "transparent",
         })}
       >
         {selecting ? (
-          <Icon
-            name={selected ? "circle-check" : "plus"}
-            size={18}
-            color={selected ? tokens.primary : tokens.mutedForeground}
-          />
+          <FadeIn duration={160}>
+            <Icon
+              name={selected ? "circle-check" : "plus"}
+              size={20}
+              color={selected ? tokens.foreground : tokens.mutedForeground}
+            />
+          </FadeIn>
         ) : null}
         <ArtworkImage source={artwork} songId={song.id} size={44} />
-        <View style={{ flex: 1, gap: 2 }}>
-          <Text numberOfLines={1} style={{ color: tokens.foreground, fontSize: 14, fontWeight: "600" }}>
+        <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+          <Text numberOfLines={1} style={{ color: tokens.foreground, fontSize: 16, fontWeight: "500" }}>
             {song.title}
           </Text>
-          <Text numberOfLines={1} style={{ color: tokens.mutedForeground, fontSize: 12 }}>
-            {formatArtists(song) || t(`${TABLE_KEY}.columns.unknownArtist`)}
-            {song.album ? ` - ${song.album}` : ""}
+          <Text numberOfLines={1} style={{ color: tokens.mutedForeground, fontSize: 14 }}>
+            {meta}
           </Text>
         </View>
-        <View style={{ alignItems: "flex-end", gap: 3 }}>
-          <Text
-            style={{
-              color: tokens.mutedForeground,
-              fontSize: 12,
-              fontVariant: ["tabular-nums"],
-            }}
-          >
-            {formatDuration(song.duration)}
-          </Text>
-          <View style={{ flexDirection: "row", gap: 6, alignItems: "center" }}>
-            {song.audio_lossless ? (
-              <Text style={{ color: tokens.mutedForeground, fontSize: 10, fontWeight: "700" }}>
-                {t(`${TABLE_KEY}.columns.lossless`)}
-              </Text>
-            ) : null}
-            {stems ? <Icon name="audio-waveform" size={13} color={tokens.mutedForeground} /> : null}
-          </View>
-        </View>
+        <Text style={{ color: tokens.mutedForeground, fontSize: 14, fontVariant: ["tabular-nums"] }}>
+          {formatDuration(song.duration)}
+        </Text>
       </Pressable>
     );
   },
 );
 SongManagementRow.displayName = "SongManagementRow";
 
-const FilterGroup = ({
+/** Uma opção que se liga e desliga (filtros): linha simples com um visto. */
+const ToggleCheckRow = ({
   label,
-  options,
-  selected,
-  onToggle,
-  labelFor,
+  checked,
+  onPress,
+  first,
 }: {
   label: string;
-  options: string[];
-  selected: string[];
-  onToggle: (value: string) => void;
-  labelFor?: (value: string) => string;
+  checked: boolean;
+  onPress: () => void;
+  first: boolean;
 }) => {
-  const t = useT();
   const { tokens } = useTheme();
   return (
-    <View style={{ gap: 8 }}>
-      <Text style={{ color: tokens.mutedForeground, fontSize: 12, fontWeight: "700" }}>
-        {label}
-      </Text>
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-        {options.length === 0 ? (
-          <Text style={{ color: tokens.mutedForeground, fontSize: 12 }}>
-            {t("native.settings.songs.noFilterOptions")}
-          </Text>
-        ) : null}
-        {options.map((option) => (
-          <ToggleChip
-            key={option}
-            label={labelFor ? labelFor(option) : option.toUpperCase()}
-            active={selected.includes(option)}
-            onPress={() => onToggle(option)}
-          />
-        ))}
-      </View>
-    </View>
+    <SettingsRow
+      first={first}
+      label={label}
+      onPress={() => {
+        haptics.select();
+        onPress();
+      }}
+      trailing={
+        <View style={{ width: 20, height: 20 }}>
+          {checked ? <Icon name="check" size={20} color={tokens.foreground} /> : null}
+        </View>
+      }
+    />
   );
 };
 
@@ -221,48 +197,89 @@ const FiltersSheet = ({
 
   return (
     <BottomSheet visible={visible} onClose={onClose}>
-      <View style={{ paddingHorizontal: 20, paddingVertical: 8, gap: 18 }}>
-        <Text style={{ color: tokens.foreground, fontSize: 17, fontWeight: "700" }}>
-          {t("native.settings.songs.filtersTitle")}
-        </Text>
-        <FilterGroup
-          label={t(`${TABLE_KEY}.filterByQuality`)}
-          options={["lossless", "lossy"]}
-          selected={filters.qualities}
-          onToggle={(value) =>
-            onChange({ ...filters, qualities: toggle(filters.qualities, value) })
-          }
-          labelFor={(value) =>
-            value === "lossless" ? t(`${TABLE_KEY}.qualityLossless`) : t(`${TABLE_KEY}.qualityLossy`)
-          }
-        />
-        <FilterGroup
-          label={t(`${TABLE_KEY}.filterByCodec`)}
-          options={codecs}
-          selected={filters.codecs}
-          onToggle={(value) => onChange({ ...filters, codecs: toggle(filters.codecs, value) })}
-        />
-        <View style={{ flexDirection: "row", gap: 12 }}>
-          <View style={{ flex: 1 }}>
-            <GhostButton
-              label={t("native.settings.songs.filtersClear")}
-              onPress={() =>
-                onChange({ ...filters, qualities: [], codecs: [] })
-              }
-            />
-          </View>
-          <View style={{ flex: 1 }}>
-            <PrimaryButton label={t("native.common.ok")} onPress={onClose} />
-          </View>
+      <View style={{ paddingHorizontal: 20, paddingVertical: 8, gap: 24 }}>
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <Text style={{ flex: 1, color: tokens.foreground, fontSize: 20, fontWeight: "700" }}>
+            {t("native.settings.songs.filtersTitle")}
+          </Text>
+          {activeSheetFilters(filters) > 0 ? (
+            <Pressable
+              accessibilityRole="button"
+              hitSlop={10}
+              onPress={() => onChange({ ...filters, qualities: [], codecs: [] })}
+            >
+              <Text style={{ color: tokens.mutedForeground, fontSize: 14, fontWeight: "600" }}>
+                {t("native.settings.songs.filtersClear")}
+              </Text>
+            </Pressable>
+          ) : null}
         </View>
+        <SettingsSection title={t(`${TABLE_KEY}.filterByQuality`)}>
+          {(["lossless", "lossy"] as const).map((value, index) => (
+            <ToggleCheckRow
+              key={value}
+              first={index === 0}
+              label={
+                value === "lossless"
+                  ? t(`${TABLE_KEY}.qualityLossless`)
+                  : t(`${TABLE_KEY}.qualityLossy`)
+              }
+              checked={filters.qualities.includes(value)}
+              onPress={() => onChange({ ...filters, qualities: toggle(filters.qualities, value) })}
+            />
+          ))}
+        </SettingsSection>
+        {codecs.length > 0 ? (
+          <SettingsSection title={t(`${TABLE_KEY}.filterByCodec`)}>
+            {codecs.map((value, index) => (
+              <ToggleCheckRow
+                key={value}
+                first={index === 0}
+                label={value.toUpperCase()}
+                checked={filters.codecs.includes(value)}
+                onPress={() => onChange({ ...filters, codecs: toggle(filters.codecs, value) })}
+              />
+            ))}
+          </SettingsSection>
+        ) : null}
       </View>
     </BottomSheet>
+  );
+};
+
+/** Acção de texto pequena (Filtros, Seleccionar, Apagar). */
+const TextAction = ({
+  label,
+  onPress,
+  destructive = false,
+}: {
+  label: string;
+  onPress: () => void;
+  destructive?: boolean;
+}) => {
+  const { tokens, ink } = useTheme();
+  return (
+    <Pressable accessibilityRole="button" hitSlop={10} onPress={onPress}>
+      {({ pressed }) => (
+        <Text
+          style={{
+            color: destructive ? ink.destructive : tokens.foreground,
+            fontSize: 15,
+            fontWeight: "600",
+            opacity: pressed ? 0.6 : 1,
+          }}
+        >
+          {label}
+        </Text>
+      )}
+    </Pressable>
   );
 };
 
 export default function SongsManagementScreen() {
   const t = useT();
   const { tokens, ink } = useTheme();
+  const gutter = useGutter();
   const bottomPadding = useContentBottomPadding();
   const topPadding = useContentTopPadding();
   const errorMessage = useApiErrorMessage();
@@ -280,15 +297,28 @@ export default function SongsManagementScreen() {
   const [editing, setEditing] = useState<Song | null>(null);
   const [toolOpen, setToolOpen] = useState(false);
 
-  const { lookups, isSearching, hasServerAnswer } = useSongLibrarySearch(
-    filters.title,
-    filters.album,
-  );
+  const query = filters.query ?? "";
+  const { lookups, isSearching } = useSongLibrarySearch(query);
 
   const pages = useMemo(() => songsQuery.data?.pages.flat() ?? [], [songsQuery.data]);
   const loadedSongs = useMemo(() => mergeLookups(pages, lookups), [pages, lookups]);
   const filtered = useMemo(() => filterSongs(loadedSongs, filters), [loadedSongs, filters]);
   const codecs = useMemo(() => codecOptions(loadedSongs), [loadedSongs]);
+  const filtering = hasTextFilter(filters) || activeSheetFilters(filters) > 0;
+
+  const { hasNextPage, isFetchingNextPage, fetchNextPage } = songsQuery;
+  const loadMore = useCallback(() => {
+    if (hasNextPage && !isFetchingNextPage) void fetchNextPage();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  // The rest of the library loads on by itself (500 per page; the owner has
+  // ~1500, so two more requests): the count is the real one and a filter
+  // sees every song instead of "scroll to find it". Past AUTO_PAGES only a
+  // filter or the end of the list asks for more.
+  const pageCount = songsQuery.data?.pages.length ?? 0;
+  useEffect(() => {
+    if (filtering || pageCount < AUTO_PAGES) loadMore();
+  }, [filtering, pageCount, loadMore]);
 
   const selectedSongs = useMemo(
     () => filtered.filter((song) => selection.has(song.id)),
@@ -296,6 +326,7 @@ export default function SongsManagementScreen() {
   );
 
   const toggleSelection = useCallback((id: SongId) => {
+    haptics.select();
     setSelection((previous) => {
       const next = new Set(previous);
       if (next.has(id)) next.delete(id);
@@ -317,14 +348,30 @@ export default function SongsManagementScreen() {
       for (const song of selectedSongs) {
         await deleteSong.mutateAsync(song.id);
       }
+      haptics.success();
       clearSelection();
       setConfirmDelete(false);
     } catch (error) {
+      haptics.error();
+      setConfirmDelete(false);
       setDeleteError(errorMessage(error));
     } finally {
       setDeleting(false);
     }
   };
+
+  const onRowPress = useCallback(
+    (song: Song) => (selecting ? toggleSelection(song.id) : setEditing(song)),
+    [selecting, toggleSelection],
+  );
+  const onRowLongPress = useCallback(
+    (song: Song) => {
+      haptics.press();
+      setSelecting(true);
+      toggleSelection(song.id);
+    },
+    [toggleSelection],
+  );
 
   const renderRow = useCallback(
     ({ item }: { item: Song }) => (
@@ -332,35 +379,38 @@ export default function SongsManagementScreen() {
         song={item}
         selected={selection.has(item.id)}
         selecting={selecting}
-        onPress={() => (selecting ? toggleSelection(item.id) : setEditing(item))}
-        onLongPress={() => {
-          setSelecting(true);
-          toggleSelection(item.id);
-        }}
+        gutter={gutter}
+        onPress={onRowPress}
+        onLongPress={onRowLongPress}
       />
     ),
-    [selecting, selection, toggleSelection],
+    [selecting, selection, gutter, onRowPress, onRowLongPress],
   );
 
-  if (songsQuery.isLoading) {
+  const title = (
+    <PageTitle style={{ paddingHorizontal: gutter }}>
+      {t("components.music.Settings.SongsPage.title")}
+    </PageTitle>
+  );
+
+  if (songsQuery.isLoading || songsQuery.error) {
     return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: 12 }}>
-        <ActivityIndicator color={tokens.mutedForeground} />
-        <Text style={{ color: tokens.mutedForeground }}>{t(`${TABLE_KEY}.loading`)}</Text>
+      <View style={{ flex: 1, backgroundColor: tokens.background, paddingTop: topPadding, gap: 20 }}>
+        {title}
+        <PageState
+          loading={songsQuery.isLoading}
+          error={songsQuery.error}
+          onRetry={() => void songsQuery.refetch()}
+          skeleton={<ListSkeleton rows={10} />}
+        />
       </View>
     );
   }
 
-  if (songsQuery.error) {
-    return (
-      <ErrorState
-        text={t(`${TABLE_KEY}.errorLoadingSongs`)}
-        onRetry={() => void songsQuery.refetch()}
-      />
-    );
-  }
-
-  const loadedPageCount = pages.length;
+  const countLabel = t("native.downloads.songCount", {
+    count: filtering ? filtered.length : pages.length,
+  });
+  const sheetCount = activeSheetFilters(filters);
 
   return (
     <View style={{ flex: 1, backgroundColor: tokens.background }}>
@@ -368,130 +418,102 @@ export default function SongsManagementScreen() {
         data={filtered}
         keyExtractor={(song) => String(song.id)}
         renderItem={renderRow}
-        initialNumToRender={20}
+        getItemLayout={(_, index) => ({ length: ROW_HEIGHT, offset: ROW_HEIGHT * index, index })}
+        initialNumToRender={16}
         windowSize={11}
         removeClippedSubviews
+        onEndReached={loadMore}
+        onEndReachedThreshold={1.5}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         contentContainerStyle={{ paddingTop: topPadding, paddingBottom: bottomPadding }}
         ListHeaderComponent={
-          <View style={{ padding: 16, gap: 12 }}>
-            <Text style={{ color: tokens.foreground, fontSize: 26, fontWeight: "800" }}>
-              {t("components.music.Settings.SongsPage.title")}
-            </Text>
-
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-              <Text style={{ color: tokens.mutedForeground, fontSize: 13, flex: 1 }}>
-                {t(`${TABLE_KEY}.totalSongs`)}{" "}
-                <Text style={{ color: tokens.foreground, fontWeight: "700" }}>
-                  {loadedPageCount}
-                  {songsQuery.hasNextPage ? "+" : ""}
-                </Text>
-              </Text>
-              {songsQuery.hasNextPage ? (
-                <GhostButton
-                  label={t(`${TABLE_KEY}.loadMore`)}
-                  compact
-                  disabled={songsQuery.isFetchingNextPage}
-                  onPress={() => void songsQuery.fetchNextPage()}
-                />
+          <View style={{ gap: 16, paddingBottom: 12 }}>
+            {title}
+            <View style={{ paddingHorizontal: gutter, gap: 14 }}>
+              <SearchField
+                value={query}
+                onChangeText={(value) => setFilters({ ...filters, query: value })}
+                placeholder={t("native.settings.songs.search")}
+              />
+              {/* Uma linha: a contagem à esquerda, as duas acções à direita.
+                  Com algo seleccionado, a linha passa a ser a da selecção. */}
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 20, minHeight: 24 }}>
+                {selectedSongs.length > 0 ? (
+                  <>
+                    <Text style={{ flex: 1, color: tokens.foreground, fontSize: 15, fontWeight: "600" }}>
+                      {t(`${TABLE_KEY}.songsSelected`, { count: selectedSongs.length })}
+                    </Text>
+                    <TextAction label={t("native.settings.songs.selectionCancel")} onPress={clearSelection} />
+                    <TextAction
+                      destructive
+                      label={t(`${TABLE_KEY}.deleteSelected`)}
+                      onPress={() => setConfirmDelete(true)}
+                    />
+                  </>
+                ) : (
+                  <>
+                    <Text
+                      style={{
+                        flex: 1,
+                        color: tokens.mutedForeground,
+                        fontSize: 14,
+                        fontVariant: ["tabular-nums"],
+                      }}
+                    >
+                      {countLabel}
+                      {isSearching || hasNextPage ? " …" : ""}
+                    </Text>
+                    <TextAction
+                      label={
+                        sheetCount > 0
+                          ? `${t("native.settings.songs.filtersTitle")} (${sheetCount})`
+                          : t("native.settings.songs.filtersTitle")
+                      }
+                      onPress={() => setFiltersOpen(true)}
+                    />
+                    <TextAction
+                      label={
+                        selecting
+                          ? t("native.settings.songs.selectionCancel")
+                          : t("native.settings.songs.selectionStart")
+                      }
+                      onPress={() => (selecting ? clearSelection() : setSelecting(true))}
+                    />
+                  </>
+                )}
+              </View>
+              {deleteError ? (
+                <Text style={{ color: ink.destructive, fontSize: 14 }}>{deleteError}</Text>
               ) : null}
             </View>
-
-            {hasTextFilter(filters) ? (
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                <Text style={{ color: tokens.mutedForeground, fontSize: 13 }}>
-                  {t(`${TABLE_KEY}.filteredSongs`)}{" "}
-                  <Text style={{ color: tokens.foreground, fontWeight: "700" }}>
-                    {filtered.length}
-                  </Text>
-                </Text>
-                {isSearching ? <ActivityIndicator size="small" color={tokens.mutedForeground} /> : null}
-                {!isSearching && hasServerAnswer && filtered.length === 0 ? (
-                  <Text style={{ color: tokens.mutedForeground, fontSize: 12 }}>
-                    {t(`${TABLE_KEY}.noMatchesInLibrary`)}
-                  </Text>
-                ) : null}
-              </View>
-            ) : null}
-
-            <SearchField
-              value={filters.title}
-              onChangeText={(value) => setFilters({ ...filters, title: value })}
-              placeholder={t(`${TABLE_KEY}.filterByTitle`)}
-            />
-            <View style={{ flexDirection: "row", gap: 8 }}>
-              <SearchField
-                value={filters.artist}
-                onChangeText={(value) => setFilters({ ...filters, artist: value })}
-                placeholder={t(`${TABLE_KEY}.filterByArtist`)}
-                style={{ flex: 1 }}
-              />
-              <SearchField
-                value={filters.album}
-                onChangeText={(value) => setFilters({ ...filters, album: value })}
-                placeholder={t(`${TABLE_KEY}.filterByAlbum`)}
-                style={{ flex: 1 }}
-              />
-            </View>
-
-            <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
-              <GhostButton
-                label={t("native.settings.songs.filtersTitle")}
-                compact
-                onPress={() => setFiltersOpen(true)}
-              />
-              <GhostButton
-                label={
-                  selecting
-                    ? t("native.settings.songs.selectionCancel")
-                    : t("native.settings.songs.selectionStart")
-                }
-                compact
-                onPress={() => (selecting ? clearSelection() : setSelecting(true))}
-              />
-            </View>
-
-            {selectedSongs.length > 0 ? (
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 12,
-                  borderRadius: RADIUS,
-                  borderWidth: 1,
-                  borderColor: tokens.border,
-                  backgroundColor: tokens.card,
-                  padding: 12,
-                }}
-              >
-                <Text style={{ color: tokens.foreground, fontSize: 13, flex: 1 }}>
-                  {t(`${TABLE_KEY}.songsSelected`, { count: selectedSongs.length })}
-                </Text>
-                <PrimaryButton
-                  label={t(`${TABLE_KEY}.deleteSelected`)}
-                  destructive
-                  compact
-                  onPress={() => setConfirmDelete(true)}
-                />
-              </View>
-            ) : null}
-
-            {deleteError ? (
-              <Text style={{ color: ink.destructive, fontSize: 13 }}>{deleteError}</Text>
-            ) : null}
-
-            <SettingsSection title={t("native.settings.songs.toolsSection")}>
+          </View>
+        }
+        ListEmptyComponent={
+          <PageState
+            loading={false}
+            empty
+            emptyIcon="music"
+            emptyText={t(`${TABLE_KEY}.noMatchesInLibrary`)}
+          />
+        }
+        ListFooterComponent={
+          <View style={{ gap: 28, paddingTop: 8 }}>
+            {isFetchingNextPage ? <ListSkeleton rows={3} /> : null}
+            {/* A ferramenta das etiquetas não mexe na biblioteca: em baixo,
+                em "Avançado", fora do caminho. */}
+            <SettingsSection
+              title={t("native.settings.advanced")}
+              style={{ marginHorizontal: gutter, marginTop: 20 }}
+            >
               <SettingsRow
                 first
-                icon="audio-waveform"
                 label={t("native.settings.songs.metadataToolTitle")}
                 detail={t("native.settings.songs.metadataToolDescription")}
                 onPress={() => setToolOpen(true)}
               />
             </SettingsSection>
           </View>
-        }
-        ListEmptyComponent={
-          <EmptyState icon="music" text={t(`${TABLE_KEY}.noMatchesInLibrary`)} />
         }
       />
 
@@ -518,7 +540,7 @@ export default function SongsManagementScreen() {
         }
         message={
           selectedSongs.length === 1
-            ? t(`${DELETE_KEY}.areYouSureDescription`)
+            ? t(`${DELETE_KEY}.areYouSureDescription`, { title: selectedSongs[0]?.title ?? "" })
             : t(`${DELETE_KEY}.areYouSureDescriptionMultiple`, { count: selectedSongs.length })
         }
         confirmLabel={t(`${DELETE_KEY}.delete`)}

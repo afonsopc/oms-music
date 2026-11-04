@@ -6,19 +6,16 @@
  * still land on the right album page.
  */
 import React from "react";
-import { View } from "react-native";
+import { ScrollView, useWindowDimensions, View } from "react-native";
 import { useRouter } from "expo-router";
 import type { AlbumSummary } from "@/domain/album";
 import { artistDisplayName } from "@/domain/album";
 import { useT } from "@/i18n";
 import { albumRoute } from "@/lib/routes";
-import { collectionGridColumns, Tile, useContainerWidth } from "@/ui";
+import { collectionGridColumns, Tile, useContainerWidth, useDesktopShell } from "@/ui";
+import { useGutter } from "@/ui/page";
 
-const GUTTER = 8;
-/** Both edges together; half lands on each side. 48 = the page's 24 (see
- *  features/artist/index.tsx SECTION_PADDING), so the grid's first tile
- *  starts on the same line as every section title above it. */
-const HORIZONTAL_PADDING = 48;
+const GAP = 8;
 
 export interface AlbumGridProps {
   albums: AlbumSummary[];
@@ -38,20 +35,20 @@ export const AlbumGrid = ({
   // Container width (breakpoints.ts): the desktop shell's main pane is what
   // this grid actually fills; on mobile it is the window, as before.
   const width = useContainerWidth();
+  const { width: windowWidth } = useWindowDimensions();
+  const desktop = useDesktopShell();
+  const gutter = useGutter();
+  // Os cartões (Tile) têm 12 de padding próprio: o conteúdo começa na margem.
+  const edge = Math.max(0, gutter - 12);
 
   const columns = collectionGridColumns(width);
-  const tileWidth = Math.floor((width - HORIZONTAL_PADDING - (columns - 1) * GUTTER) / columns);
+  const tileWidth = desktop
+    ? Math.floor((width - edge * 2 - (columns - 1) * GAP) / columns)
+    : // Telemóvel: uma fila que corre de lado, capas grandes (cabem duas e
+      // um pedaço da terceira, que diz "há mais para o lado").
+      Math.round(Math.min(220, (windowWidth - gutter) / 2.15));
 
-  return (
-    <View
-      style={{
-        flexDirection: "row",
-        flexWrap: "wrap",
-        gap: GUTTER,
-        paddingHorizontal: HORIZONTAL_PADDING / 2,
-      }}
-    >
-      {albums.map((album, index) => {
+  const tiles = albums.map((album, index) => {
         const albumArtist = artistDisplayName(album.artist);
         const segment = album.artist_slug || fallbackArtistSegment || albumArtist || null;
         return (
@@ -72,7 +69,30 @@ export const AlbumGrid = ({
             onPress={() => router.push(albumRoute(segment, album.name))}
           />
         );
-      })}
+      });
+
+  if (!desktop) {
+    return (
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: edge }}
+      >
+        {tiles}
+      </ScrollView>
+    );
+  }
+
+  return (
+    <View
+      style={{
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: GAP,
+        paddingHorizontal: edge,
+      }}
+    >
+      {tiles}
     </View>
   );
 };

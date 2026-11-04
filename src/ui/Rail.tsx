@@ -26,9 +26,9 @@ import { viewHoverProps } from "./a11y";
 import { GhostIconButton } from "./buttons";
 import { useDesktopShell } from "./shellLayout";
 import { heavyShadow } from "./uiTheme";
+import { pageType, useGutter } from "./page";
 import { useT } from "@/i18n";
 import { useTheme } from "@/theme/provider";
-import { typeScale } from "@/theme/typography";
 
 export interface RailProps {
   title: string;
@@ -46,6 +46,7 @@ export const Rail = ({ title, showAllLabel, onShowAll, children, style }: RailPr
   const { tokens } = useTheme();
   const t = useT();
   const desktopShell = useDesktopShell();
+  const gutter = useGutter();
   const scrollRef = useRef<ScrollView>(null);
   const [hovered, setHovered] = useState(false);
   const [scrollX, setScrollX] = useState(0);
@@ -120,22 +121,16 @@ export const Rail = ({ title, showAllLabel, onShowAll, children, style }: RailPr
           flexDirection: "row",
           alignItems: "baseline",
           justifyContent: "space-between",
-          paddingHorizontal: 24,
+          paddingHorizontal: gutter,
         }}
       >
-        <Text style={[typeScale.sectionHeader, { color: tokens.foreground, flex: 1 }]}>
+        <Text style={[pageType.section, { color: tokens.foreground, flex: 1 }]} numberOfLines={1}>
           {title}
         </Text>
         {onShowAll && showAllLabel ? (
           <Pressable onPress={onShowAll} accessibilityRole="link" hitSlop={8}>
             <Text
-              style={{
-                color: tokens.mutedForeground,
-                fontSize: 12,
-                fontWeight: "600",
-                textTransform: "uppercase",
-                letterSpacing: 0.6,
-              }}
+              style={[pageType.label, { color: tokens.mutedForeground }]}
             >
               {showAllLabel}
             </Text>
@@ -147,7 +142,9 @@ export const Rail = ({ title, showAllLabel, onShowAll, children, style }: RailPr
           ref={scrollRef}
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 12, gap: 4 }}
+          // Os cartões têm 12 de padding próprio: a capa do primeiro cai na
+          // margem da página.
+          contentContainerStyle={{ paddingHorizontal: Math.max(0, gutter - 12), gap: 0 }}
           onScroll={
             desktopShell
               ? (event) => setScrollX(event.nativeEvent.contentOffset.x)

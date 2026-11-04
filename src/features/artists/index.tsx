@@ -1,14 +1,14 @@
 /**
  * Artists hub (FR-36): the editorial overview from `GET /artists/overview` -
- * spotlight banner, four stat tiles whose window label follows
- * `heavy_rotation_window`, and the recommendation shelves. Shelves with zero
- * entries render nothing.
+ * one big spotlight photo, the "All artists" row carrying the numbers as a
+ * grey meta line (the minutes label follows `heavy_rotation_window`), and
+ * the recommendation shelves. Shelves with zero entries render nothing.
  *
  * The A-Z roster lives on its own screen on native (DESIGN 2, screen 12), so
  * the "All artists" row here links into it instead of embedding the grid.
  */
 import React, { useCallback, useMemo } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { ScrollView, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useArtistOverview } from "@/api/queries/artists";
 import { useArtistSongs } from "@/api/queries/songs";
@@ -17,48 +17,18 @@ import type { Artist } from "@/domain/artist";
 import { useLocale, useT } from "@/i18n";
 import { artistRadioRoute, artistRoute } from "@/lib/routes";
 import { useTheme } from "@/theme/provider";
-import { RADIUS } from "@/theme/tokens";
-import { ErrorState, Icon, Skeleton, foregroundWash } from "@/ui";
+import { CircleSkeleton, ErrorState } from "@/ui";
+import { Reveal } from "@/ui/motion";
+import { ListRow, ListSkeleton, PageHeader, useGutter, WaitHint } from "@/ui/page";
 import { useContentBottomPadding, useContentTopPadding } from "@/features/shell/metrics";
 import { ArtistShelf, type ArtistShelfEntry } from "./ArtistShelf";
-import { ArtistSpotlight } from "./ArtistSpotlight";
-
-const StatTile = ({ value, label }: { value: string; label: string }) => {
-  const { tokens, scheme } = useTheme();
-  return (
-    <View
-      style={{
-        flexBasis: "47%",
-        flexGrow: 1,
-        gap: 2,
-        borderRadius: RADIUS,
-        paddingHorizontal: 14,
-        paddingVertical: 12,
-        backgroundColor: foregroundWash(scheme, 0.05),
-      }}
-    >
-      <Text
-        style={{
-          color: tokens.foreground,
-          fontSize: 22,
-          fontWeight: "700",
-          fontVariant: ["tabular-nums"],
-        }}
-        numberOfLines={1}
-      >
-        {value}
-      </Text>
-      <Text style={{ color: tokens.mutedForeground, fontSize: 12 }} numberOfLines={1}>
-        {label}
-      </Text>
-    </View>
-  );
-};
+import { ArtistSpotlight, ArtistSpotlightSkeleton } from "./ArtistSpotlight";
 
 export default function ArtistsHubScreen() {
   const t = useT();
   const locale = useLocale();
   const { tokens } = useTheme();
+  const gutter = useGutter();
   const router = useRouter();
   const bottomPadding = useContentBottomPadding();
   const topPadding = useContentTopPadding(20);
@@ -111,125 +81,116 @@ export default function ArtistsHubScreen() {
     [overview?.neglected, t],
   );
 
-  if (overviewQuery.isError) {
-    return (
-      <ErrorState
-        text={t("components.music.Artists.errorLoadingArtists")}
-        onRetry={() => void overviewQuery.refetch()}
-      />
-    );
-  }
-
   const spotlight = overview?.spotlight ?? null;
   const minutes = Math.round((overview?.stats.seconds_played ?? 0) / 60);
   const windowLabel =
     overview?.heavy_rotation_window === "30d"
       ? t("components.music.Artists.windowMonth")
       : t("components.music.Artists.windowAllTime");
+  // The numbers are one quiet grey line on the roster row, not boxes.
+  const statsLine = overview
+    ? [
+        t("components.music.Artists.count", { count: overview.stats.artists }),
+        `${overview.stats.songs.toLocaleString(locale)} ${t("components.music.Artists.statSongs")}`,
+        overview.stats.new_artists > 0
+          ? `${overview.stats.new_artists.toLocaleString(locale)} ${t("components.music.Artists.statNewArtists")}`
+          : null,
+        minutes > 0
+          ? `${t("components.music.Artists.statMinutesValue", { minutes })} ${windowLabel}`
+          : null,
+      ]
+        .filter(Boolean)
+        .join(" · ")
+    : null;
+
+  const header = (
+    <PageHeader title={t("components.music.Artists.title")} style={{ paddingBottom: 16 }} />
+  );
+
+  if (overviewQuery.isError) {
+    return (
+      <View style={{ flex: 1, backgroundColor: tokens.background, paddingTop: topPadding }}>
+        {header}
+        <ErrorState onRetry={() => void overviewQuery.refetch()} />
+      </View>
+    );
+  }
 
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: tokens.background }}
-      contentContainerStyle={{ gap: 24, paddingTop: topPadding, paddingBottom: bottomPadding }}
+      contentContainerStyle={{ paddingTop: topPadding, paddingBottom: bottomPadding + 16 }}
     >
+      {header}
       {overviewQuery.isLoading ? (
-        <View style={{ paddingHorizontal: 20 }}>
-          <Skeleton width="100%" height={240} borderRadius={RADIUS * 1.5} />
+        <View>
+          <ArtistSpotlightSkeleton />
+          <View style={{ height: 16 }} />
+          <ListSkeleton rows={1} artwork={false} />
+          <View style={{ paddingHorizontal: gutter, paddingTop: 28, flexDirection: "row", gap: 16 }}>
+            {[0, 1, 2].map((i) => (
+              <CircleSkeleton key={i} size={120} />
+            ))}
+          </View>
+          <WaitHint active onRetry={() => void overviewQuery.refetch()} />
         </View>
-      ) : spotlight ? (
-        <View style={{ paddingHorizontal: 20 }}>
-          <ArtistSpotlight
-            spotlight={spotlight}
-            isLoading={spotlightSongsQuery.isLoading}
-            onPlay={() => playSpotlight(false)}
-            onShuffle={() => playSpotlight(true)}
-            onOpenArtist={() => openArtist(spotlight.artist)}
-            onStartRadio={() =>
-              router.push(artistRadioRoute(spotlight.artist.slug || spotlight.artist.name))
-            }
-          />
-        </View>
-      ) : null}
-
-      {overview ? (
-        <View
-          style={{ flexDirection: "row", flexWrap: "wrap", gap: 10, paddingHorizontal: 20 }}
-        >
-          <StatTile
-            value={overview.stats.artists.toLocaleString(locale)}
-            label={t("components.music.Artists.statArtists")}
-          />
-          <StatTile
-            value={overview.stats.songs.toLocaleString(locale)}
-            label={t("components.music.Artists.statSongs")}
-          />
-          <StatTile
-            value={overview.stats.new_artists.toLocaleString(locale)}
-            label={t("components.music.Artists.statNewArtists")}
-          />
-          <StatTile
-            value={t("components.music.Artists.statMinutesValue", { minutes })}
-            label={windowLabel}
-          />
-        </View>
-      ) : null}
-
-      {overview ? (
+      ) : (
         <>
-          <ArtistShelf
-            title={
-              overview.heavy_rotation_window === "30d"
-                ? t("components.music.Artists.shelfHeavyRotation")
-                : t("components.music.Artists.shelfMostPlayed")
-            }
-            entries={heavyEntries}
-            onSelect={openArtist}
-          />
-          {overview.similar ? (
-            <ArtistShelf
-              title={t("components.music.Artists.shelfSimilar", {
-                artist: overview.similar.seed.name,
-              })}
-              entries={similarEntries}
-              onSelect={openArtist}
-            />
+          {spotlight ? (
+            <Reveal>
+              <ArtistSpotlight
+                spotlight={spotlight}
+                isLoading={spotlightSongsQuery.isLoading}
+                onPlay={() => playSpotlight(false)}
+                onShuffle={() => playSpotlight(true)}
+                onOpenArtist={() => openArtist(spotlight.artist)}
+                onStartRadio={() =>
+                  router.push(artistRadioRoute(spotlight.artist.slug || spotlight.artist.name))
+                }
+              />
+            </Reveal>
           ) : null}
-          <ArtistShelf
-            title={t("components.music.Artists.shelfNeglected")}
-            entries={neglectedEntries}
-            onSelect={openArtist}
-          />
-        </>
-      ) : null}
 
-      <Pressable
-        onPress={() => router.push("/artists-roster")}
-        accessibilityRole="button"
-        style={({ pressed }) => ({
-          flexDirection: "row",
-          alignItems: "center",
-          gap: 12,
-          marginHorizontal: 20,
-          paddingHorizontal: 16,
-          paddingVertical: 16,
-          borderRadius: RADIUS,
-          borderWidth: 1,
-          borderColor: tokens.border,
-          opacity: pressed ? 0.7 : 1,
-        })}
-      >
-        <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
-          <Text style={{ color: tokens.foreground, fontSize: 17, fontWeight: "700" }}>
-            {t("components.music.Artists.allArtists")}
-          </Text>
+          <View style={{ paddingTop: spotlight ? 8 : 0 }}>
+            <ListRow
+              order={1}
+              title={t("components.music.Artists.allArtists")}
+              meta={statsLine}
+              chevron
+              last
+              onPress={() => router.push("/artists-roster")}
+            />
+          </View>
+
           {overview ? (
-            <Text style={{ color: tokens.mutedForeground, fontSize: 13 }}>
-              {t("components.music.Artists.count", { count: overview.stats.artists })}
-            </Text>
+            <Reveal order={2} style={{ gap: 8, paddingTop: 8 }}>
+              <ArtistShelf
+                title={
+                  overview.heavy_rotation_window === "30d"
+                    ? t("components.music.Artists.shelfHeavyRotation")
+                    : t("components.music.Artists.shelfMostPlayed")
+                }
+                entries={heavyEntries}
+                onSelect={openArtist}
+              />
+              {overview.similar ? (
+                <ArtistShelf
+                  title={t("components.music.Artists.shelfSimilar", {
+                    artist: overview.similar.seed.name,
+                  })}
+                  entries={similarEntries}
+                  onSelect={openArtist}
+                />
+              ) : null}
+              <ArtistShelf
+                title={t("components.music.Artists.shelfNeglected")}
+                entries={neglectedEntries}
+                onSelect={openArtist}
+              />
+            </Reveal>
           ) : null}
-        </View>
-        <Icon name="chevron-right" size={18} color={tokens.mutedForeground} />
-      </Pressable>
+        </>
+      )}
     </ScrollView>
   );
 }

@@ -12,6 +12,7 @@ import React, { useState } from "react";
 import { Modal, ScrollView, Text, View } from "react-native";
 import { oms, toFileInput } from "@/api/oms";
 import { useT } from "@/i18n";
+import { haptics } from "@/lib/haptics";
 import { useTheme } from "@/theme/provider";
 import {
   blobToBase64,
@@ -102,6 +103,7 @@ export const MetadataModifierDialog = ({
       });
       const base64 = await blobToBase64(output.data);
       const uri = await saveBase64ToDocuments(base64, outputName(file.name));
+      haptics.success();
       setNotice({ kind: "success", text: t("native.settings.songs.metadataToolSaved", { uri }) });
     } catch (error) {
       setNotice({ kind: "error", text: errorMessage(error) });

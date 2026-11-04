@@ -57,6 +57,8 @@ export const artistParamsFromChips = (chips: readonly ArtistChip[]): ArtistParam
 };
 
 export interface SongFilterState {
+  /** One box for everything: matches the title, the artists OR the album. */
+  query?: string;
   title: string;
   artist: string;
   album: string;
@@ -73,13 +75,26 @@ export const EMPTY_SONG_FILTERS: SongFilterState = {
 };
 
 export const hasTextFilter = (f: SongFilterState): boolean =>
-  !!(f.title.trim() || f.artist.trim() || f.album.trim());
+  !!((f.query ?? "").trim() || f.title.trim() || f.artist.trim() || f.album.trim());
+
+/** How many of the sheet filters (quality, format) are on. */
+export const activeSheetFilters = (f: SongFilterState): number =>
+  f.qualities.length + f.codecs.length;
 
 export const filterSongs = (songs: readonly Song[], f: SongFilterState): Song[] => {
   const title = f.title.trim().toLowerCase();
   const artist = f.artist.trim().toLowerCase();
   const album = f.album.trim().toLowerCase();
+  const query = (f.query ?? "").trim().toLowerCase();
   return songs.filter((song) => {
+    if (
+      query &&
+      !song.title.toLowerCase().includes(query) &&
+      !formatArtists(song).toLowerCase().includes(query) &&
+      !(song.album ?? "").toLowerCase().includes(query)
+    ) {
+      return false;
+    }
     if (title && !song.title.toLowerCase().includes(title)) return false;
     if (artist && !formatArtists(song).toLowerCase().includes(artist)) return false;
     if (album && !(song.album ?? "").toLowerCase().includes(album)) return false;

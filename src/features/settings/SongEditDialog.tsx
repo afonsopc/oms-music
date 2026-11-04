@@ -11,7 +11,6 @@
  */
 import React, { useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   Modal,
   Pressable,
   ScrollView,
@@ -24,9 +23,9 @@ import { songArtworkSource } from "@/domain/artwork";
 import { formatDuration } from "@/domain/format";
 import type { Song } from "@/domain/song";
 import { useT } from "@/i18n";
+import { haptics } from "@/lib/haptics";
 import { defaultModelId, useSeparationModels } from "@/separation/models";
 import { useTheme } from "@/theme/provider";
-import { RADIUS } from "@/theme/tokens";
 import { ArtworkImage, BottomSheet, ConfirmDialog, Icon } from "@/ui";
 import { IMAGE_PICKER_AVAILABLE, pickImage, type PickedImage } from "./pickers";
 import {
@@ -34,11 +33,14 @@ import {
   chipsFromSong,
   type ArtistChip,
 } from "./songsFilters";
+import { WaitHint } from "@/ui/page";
 import {
   GhostButton,
+  InlineSpinnerRow,
   LabeledField,
   NoticeBanner,
   PrimaryButton,
+  ProgressBar,
   useApiErrorMessage,
 } from "./ui";
 
@@ -198,29 +200,24 @@ const StemsSection = ({ song }: { song: Song }) => {
       {notice ? <NoticeBanner kind={notice.kind} message={notice.text} /> : null}
 
       {running ? (
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 10,
-            borderWidth: 1,
-            borderColor: tokens.border,
-            borderRadius: RADIUS,
-            padding: 12,
-          }}
-        >
-          <ActivityIndicator size="small" color={tokens.primary} />
-          <Text style={{ color: tokens.foreground, fontSize: 13, flex: 1 }}>
-            {t(`${DIALOG_KEY}.separating`)}
-          </Text>
-          <Text
-            style={{ color: tokens.mutedForeground, fontSize: 13, fontVariant: ["tabular-nums"] }}
-          >
-            {formatDuration(status.elapsedSeconds ?? 0)}
-            {status.progressPercent != null && status.progressPercent > 0
-              ? `  ${Math.min(100, Math.round(status.progressPercent))}%`
-              : ""}
-          </Text>
+        <View style={{ gap: 8 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+            <Text style={{ color: tokens.foreground, fontSize: 14, flex: 1 }}>
+              {t(`${DIALOG_KEY}.separating`)}
+            </Text>
+            <Text
+              style={{ color: tokens.mutedForeground, fontSize: 13, fontVariant: ["tabular-nums"] }}
+            >
+              {formatDuration(status.elapsedSeconds ?? 0)}
+              {status.progressPercent != null && status.progressPercent > 0
+                ? `  ${Math.min(100, Math.round(status.progressPercent))}%`
+                : ""}
+            </Text>
+          </View>
+          {/* A barra anda com a percentagem quando o servidor a dá; sem ela,
+              fica a frase que muda (nunca um spinner solto). */}
+          <ProgressBar value={Math.min(100, status.progressPercent ?? 0) / 100} />
+          <WaitHint active style={{ alignItems: "flex-start", paddingVertical: 0 }} />
         </View>
       ) : null}
 
@@ -273,29 +270,37 @@ const StemsSection = ({ song }: { song: Song }) => {
             return (
               <Pressable
                 key={model.id}
-                onPress={() => setPickedModelId(model.id)}
-                accessibilityRole="button"
-                accessibilityState={{ selected: active }}
-                style={{
-                  borderWidth: 1,
-                  borderColor: active ? tokens.primary : tokens.border,
-                  borderRadius: RADIUS,
-                  padding: 12,
-                  gap: 2,
+                onPress={() => {
+                  haptics.select();
+                  setPickedModelId(model.id);
                 }}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: active }}
+                style={({ pressed }) => ({
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 12,
+                  paddingVertical: 10,
+                  borderTopWidth: 1,
+                  borderTopColor: tokens.border,
+                  opacity: pressed ? 0.6 : 1,
+                })}
               >
-                <Text style={{ color: tokens.foreground, fontWeight: "600", fontSize: 14 }}>
-                  {t(`${DIALOG_KEY}.models.${model.translation_key}.name`)}
-                </Text>
-                <Text style={{ color: tokens.mutedForeground, fontSize: 12 }}>
-                  {t(`${DIALOG_KEY}.models.${model.translation_key}.description`)}
-                </Text>
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Text style={{ color: tokens.foreground, fontWeight: active ? "600" : "400", fontSize: 15 }}>
+                    {t(`${DIALOG_KEY}.models.${model.translation_key}.name`)}
+                  </Text>
+                  <Text style={{ color: tokens.mutedForeground, fontSize: 13 }}>
+                    {t(`${DIALOG_KEY}.models.${model.translation_key}.description`)}
+                  </Text>
+                </View>
+                <View style={{ width: 20 }}>
+                  {active ? <Icon name="check" size={20} color={tokens.foreground} /> : null}
+                </View>
               </Pressable>
             );
           })}
-          {models.length === 0 ? (
-            <ActivityIndicator color={tokens.mutedForeground} />
-          ) : null}
+          {models.length === 0 ? <InlineSpinnerRow label={t("native.common.loading")} /> : null}
           <PrimaryButton
             label={
               stemsReady ? t(`${DIALOG_KEY}.regenerateStems`) : t(`${DIALOG_KEY}.generateStems`)
@@ -374,6 +379,7 @@ export const SongEditDialog = ({
       if (artwork) {
         await updateSong.mutateAsync({ id: song.id, patch: {}, artwork });
       }
+      haptics.success();
       setNotice({ kind: "success", text: t(`${DIALOG_KEY}.songUpdatedSuccessfully`) });
       onClose();
     } catch (e) {

@@ -6,9 +6,9 @@
  * Nao ha imagem nenhuma para carregar - o quadrado e desenhado, como o
  * coracao das Gostadas (ui/LikedArtwork). Tem duas camadas:
  *
- *  - a LUZ: um gradiente maior do que o quadrado, a girar por tras, com as
- *    cores do estilo que esta a dar (./palette.ts). Roda devagar enquanto a
- *    musica toca e acelera enquanto ele fala.
+ *  - a LUZ: um brilho cinzento maior do que o quadrado, a girar por tras do
+ *    carvao (./palette.ts; desde o redesenho de 2026-11-04 sem cores). Roda
+ *    devagar enquanto a musica toca e acelera enquanto ele fala.
  *  - a VOZ: cinco barras. Enquanto ele fala andam com uma envolvente
  *    irregular, ao ritmo da fala (5-9 Hz, alturas sorteadas); quando ele
  *    cala-se descem e ficam quietas. Uma capa que continua a dancar em
@@ -20,13 +20,13 @@
  * analise por cima do motor. O que se ve e fala com ritmo de fala, e para
  * distinguir "esta a falar" de "esta calado" - que e para o que serve - dá.
  */
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect } from "react";
 import { Animated, Easing, View } from "react-native";
 import { Icon } from "@/ui";
 import { RADIUS } from "@/theme/tokens";
 import { gradientBackground, linearGradient } from "@/ui/uiTheme";
 import { usePlaybackView } from "@/remote/mirror";
-import { DEFAULT_PALETTE, paletteFor, type DjPalette } from "./palette";
+import { DJ_PALETTE, type DjPalette } from "./palette";
 import { useDjStation } from "./station";
 
 /** Alturas de repouso, em fraccao da altura maxima da barra. */
@@ -93,7 +93,7 @@ const Bar = ({
 export const DjArtwork = ({
   size,
   speaking,
-  palette = DEFAULT_PALETTE,
+  palette = DJ_PALETTE,
 }: {
   size: number;
   speaking: boolean;
@@ -179,15 +179,13 @@ export const DjArtwork = ({
 };
 
 /**
- * A capa do DJ ja ligada a estacao: as cores vem do estilo que esta a dar e
- * as barras andam quando ele esta mesmo a falar (a tocar, nao em pausa). E
+ * A capa do DJ ja ligada a estacao: as barras andam quando ele esta mesmo a
+ * falar (a tocar, nao em pausa). E
  * o que as tres superficies do leitor - ecra, pilula e barra do desktop -
  * montam, para nao repetirem a mesma ligacao tres vezes.
  */
 export const DjNowArtwork = ({ size }: { size: number }) => {
-  const styles = useDjStation((s) => s.styles);
   const speaking = useDjStation((s) => s.speaking);
   const playing = usePlaybackView((v) => v.playing);
-  const palette = useMemo(() => paletteFor(styles), [ styles ]);
-  return <DjArtwork size={size} speaking={speaking && playing} palette={palette} />;
+  return <DjArtwork size={size} speaking={speaking && playing} />;
 };

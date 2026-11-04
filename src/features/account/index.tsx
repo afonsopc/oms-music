@@ -9,128 +9,112 @@
  *
  * O conteudo e o mesmo da gaveta: quem sou eu, e as tres portas que dali
  * saiam.
+ *
+ * Redesenho 2026-11-04: a mesma moldura das definições, linhas sem caixa e,
+ * no fim, "Terminar sessão" (não existia em lado nenhum da app), sempre com
+ * confirmação.
  */
-import React from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import React, { useState } from "react";
+import { Text, View } from "react-native";
 import { useRouter, type Href } from "expo-router";
 import { avatarUrl } from "@/api/mediaUrl";
-import { useSessionStore } from "@/auth/session";
-import { useContentBottomPadding, useContentTopPadding } from "@/features/shell/metrics";
+import { logout, useSessionStore } from "@/auth/session";
+import { SettingsPage, SettingsRow, SettingsSection } from "@/features/settings/ui";
 import { useT } from "@/i18n";
 import { useTheme } from "@/theme/provider";
-import { ArtworkImage, Icon, type IconName } from "@/ui";
-
-const Row = ({
-  icon,
-  label,
-  onPress,
-}: {
-  icon: IconName;
-  label: string;
-  onPress: () => void;
-}) => {
-  const { tokens } = useTheme();
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      onPress={onPress}
-      style={({ pressed }) => ({
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 14,
-        paddingVertical: 16,
-        paddingHorizontal: 20,
-        opacity: pressed ? 0.6 : 1,
-      })}
-    >
-      <Icon name={icon} size={20} color={tokens.mutedForeground} />
-      <Text style={{ flex: 1, color: tokens.foreground, fontSize: 15, fontWeight: "600" }}>
-        {label}
-      </Text>
-      <Icon name="chevron-right" size={18} color={tokens.mutedForeground} />
-    </Pressable>
-  );
-};
+import { ArtworkImage, ConfirmDialog, Skeleton } from "@/ui";
+import { PressableScale } from "@/ui/motion";
 
 export default function AccountScreen() {
   const { tokens } = useTheme();
   const t = useT();
   const router = useRouter();
   const user = useSessionStore((s) => s.user);
-  const topPadding = useContentTopPadding();
-  const bottomPadding = useContentBottomPadding();
+  const [confirmOut, setConfirmOut] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
 
   const go = (route: Href): void => router.push(route);
 
-  return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: tokens.background }}
-      contentContainerStyle={{ paddingTop: topPadding, paddingBottom: bottomPadding }}
-    >
-      <Text
-        style={{
-          color: tokens.foreground,
-          fontSize: 28,
-          fontWeight: "800",
-          paddingHorizontal: 20,
-          paddingBottom: 20,
-        }}
-      >
-        {t("native.shell.tabProfile")}
-      </Text>
+  const signOut = (): void => {
+    setSigningOut(true);
+    // O logout limpa sempre (mesmo sem rede); os guardas da raiz levam ao
+    // ecrã de entrada quando a sessão passa a anónima.
+    void logout().finally(() => {
+      setSigningOut(false);
+      setConfirmOut(false);
+    });
+  };
 
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={t("native.home.viewProfile")}
-        disabled={!user}
-        onPress={() => {
-          if (user) go({ pathname: "/profile/[idOrHandle]", params: { idOrHandle: user.handle } });
-        }}
-        style={({ pressed }) => ({
-          flexDirection: "row",
-          alignItems: "center",
-          gap: 16,
-          paddingHorizontal: 20,
-          paddingBottom: 20,
-          opacity: pressed ? 0.7 : 1,
-        })}
-      >
-        {user ? <ArtworkImage uri={avatarUrl(user.id)} size={72} shape="circle" /> : null}
-        <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
-          <Text
-            numberOfLines={1}
-            style={{ color: tokens.foreground, fontSize: 20, fontWeight: "800" }}
-          >
-            {user?.name ?? ""}
-          </Text>
-          {user?.handle ? (
-            <Text numberOfLines={1} style={{ color: tokens.mutedForeground, fontSize: 13 }}>
-              @{user.handle}
+  return (
+    <>
+      <SettingsPage title={t("native.shell.tabProfile")}>
+        <PressableScale
+          accessibilityRole="button"
+          accessibilityLabel={t("native.home.viewProfile")}
+          disabled={!user}
+          onPress={() => {
+            if (user) go({ pathname: "/profile/[idOrHandle]", params: { idOrHandle: user.handle } });
+          }}
+          style={{ flexDirection: "row", alignItems: "center", gap: 16 }}
+        >
+          {user ? (
+            <ArtworkImage uri={avatarUrl(user.id)} size={64} shape="circle" />
+          ) : (
+            <Skeleton width={64} height={64} circle />
+          )}
+          <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+            <Text
+              numberOfLines={1}
+              style={{ color: tokens.foreground, fontSize: 20, fontWeight: "700" }}
+            >
+              {user?.name ?? ""}
             </Text>
-          ) : null}
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 2, marginTop: 4 }}>
-            <Text style={{ color: tokens.foreground, fontSize: 13, fontWeight: "600" }}>
+            <Text numberOfLines={1} style={{ color: tokens.mutedForeground, fontSize: 14 }}>
+              {user?.handle ? `@${user.handle} · ` : ""}
               {t("native.home.viewProfile")}
             </Text>
-            <Icon name="chevron-right" size={14} color={tokens.mutedForeground} />
           </View>
-        </View>
-      </Pressable>
+        </PressableScale>
 
-      <View style={{ height: 1, backgroundColor: tokens.border, marginBottom: 8 }} />
+        <SettingsSection>
+          <SettingsRow
+            first
+            icon="users"
+            label={t("native.friends.title")}
+            onPress={() => go("/friends")}
+          />
+          <SettingsRow
+            icon="download"
+            label={t("native.shell.tabDownloads")}
+            onPress={() => go("/settings/downloads-overview")}
+          />
+          <SettingsRow
+            icon="settings"
+            label={t("native.library.settings")}
+            onPress={() => go("/settings")}
+          />
+        </SettingsSection>
 
-      <Row icon="users" label={t("native.friends.title")} onPress={() => go("/friends")} />
-      <Row
-        icon="download"
-        label={t("native.shell.tabDownloads")}
-        onPress={() => go("/settings/downloads-overview")}
+        <SettingsSection>
+          <SettingsRow
+            first
+            label={t("native.account.signOut")}
+            onPress={() => setConfirmOut(true)}
+            trailing={<View />}
+          />
+        </SettingsSection>
+      </SettingsPage>
+
+      <ConfirmDialog
+        visible={confirmOut}
+        title={t("native.account.signOutTitle")}
+        message={t("native.account.signOutMessage")}
+        confirmLabel={t("native.account.signOut")}
+        destructive
+        pending={signingOut}
+        onConfirm={signOut}
+        onCancel={() => setConfirmOut(false)}
       />
-      <Row
-        icon="settings"
-        label={t("native.library.settings")}
-        onPress={() => go("/settings")}
-      />
-    </ScrollView>
+    </>
   );
 }

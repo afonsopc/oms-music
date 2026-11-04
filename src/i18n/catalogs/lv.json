@@ -54,7 +54,7 @@
       },
       "ArtistView": {
         "songs": "dziesmas",
-        "listeners": "Last.fm klausītāji",
+        "listeners": "klausītāji",
         "popular": "Populārākās",
         "discography": "Diskogrāfija",
         "participatesIn": "Piedalās",
@@ -1055,14 +1055,18 @@
         "metadataToolRun": "Mainīt un saglabāt",
         "metadataToolSaved": "Saglabāts: {uri}",
         "metadataToolTooLarge": "Šis fails pārsniedz 50 MB.",
-        "metadataToolGenre": "Žanrs"
+        "metadataToolGenre": "Žanrs",
+        "search": "Meklēt dziesmu, mākslinieku vai albumu"
       },
       "artists": {
         "mediaImage": "foto",
         "mediaBanner": "banneris",
         "mediaGallery": "galerija",
-        "emptyFiltered": "Neviens izpildītājs neatbilst šim filtram."
-      }
+        "emptyFiltered": "Neviens izpildītājs neatbilst šim filtram.",
+        "count": "{count, plural, one {# mākslinieks} other {# mākslinieki}}",
+        "noPhoto": "bez foto"
+      },
+      "advanced": "Papildu"
     },
     "jam": {
       "hostBadge": "Saimnieks",
@@ -1103,7 +1107,10 @@
       "goodAfternoon": "Labdien",
       "goodEvening": "Labvakar",
       "recentlyPlayed": "Nesen atskaņotais",
-      "viewProfile": "Skatīt profilu"
+      "viewProfile": "Skatīt profilu",
+      "emptyAll": "Vēl nekas nav atskaņots. Meklē dziesmu, lai sāktu.",
+      "emptyFilter": "Pagaidām šeit nekā nav.",
+      "emptyAction": "Meklēt"
     },
     "playlist": {
       "reorder": "Pārkārtot dziesmas",
@@ -1129,7 +1136,9 @@
       "cacheDetail": "{files} faili, {size} no {budget}",
       "cachePurge": "Notīrīt",
       "cacheWaste": "Iepriekš: {written} ielādēti, {wasted} atmesti neatskaņoti ({percent}%)",
-      "cacheEmpty": "Kešā vēl nekā nav."
+      "cacheEmpty": "Kešā vēl nekā nav.",
+      "inFlight": "{count, plural, one {Lejupielādē # dziesmu} other {Lejupielādē # dziesmas}}",
+      "onDevice": "Šajā ierīcē"
     },
     "exports": {
       "menuSong": "Lejupielādēt dziesmu",
@@ -1140,6 +1149,15 @@
     },
     "dj": {
       "open": "O Melhor DJ"
+    },
+    "account": {
+      "signOut": "Iziet",
+      "signOutTitle": "Iziet?",
+      "signOutMessage": "Vari pierakstīties atkal jebkurā laikā."
+    },
+    "import": {
+      "stepPicked": "Faili izvēlēti",
+      "stepLibrary": "Tavā bibliotēkā"
     }
   }
 }

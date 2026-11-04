@@ -12,6 +12,7 @@ import { useContainerWidth, useDesktopShell } from "./shellLayout";
 import { ArtworkImage } from "./ArtworkImage";
 import { PlayFab } from "./buttons";
 import { foregroundWash } from "./uiTheme";
+import { useGutter } from "./page";
 import type { ArtworkSource } from "@/domain/artwork";
 import { useT } from "@/i18n";
 import { useTheme } from "@/theme/provider";
@@ -42,7 +43,9 @@ const TopTileCard = ({ item, columns }: { item: TopTileItem; columns: number }) 
   const [focusWithin, setFocusWithin] = useState(false);
   // Touch keeps the always-visible FAB (the shipped card); desktop reveals
   // it on hover or focus-within, without unmounting so nothing reflows.
-  const revealFab = !desktopShell || hovered || focusWithin;
+  // Só no computador, ao passar o rato: no telemóvel um play em cada atalho
+  // era botão a mais (tocar abre, e o play está lá dentro).
+  const revealFab = desktopShell && (hovered || focusWithin);
 
   return (
     <Pressable
@@ -61,7 +64,7 @@ const TopTileCard = ({ item, columns }: { item: TopTileItem; columns: number }) 
         // cover it - the second tile wrapped and the grid rendered ONE column.
         flexBasis: `${100 / columns - 2}%`,
         flexGrow: 1,
-        height: 64,
+        height: 56,
         flexDirection: "row",
         alignItems: "center",
         gap: 12,
@@ -72,13 +75,13 @@ const TopTileCard = ({ item, columns }: { item: TopTileItem; columns: number }) 
         ...(Platform.OS === "web" ? { cursor: "pointer" as const } : null),
         backgroundColor: foregroundWash(
           scheme,
-          pressed ? 0.14 : desktopShell && hovered ? 0.12 : 0.08,
+          pressed ? 0.12 : desktopShell && hovered ? 0.1 : 0.06,
         ),
       })}
     >
-      <ArtworkImage source={item.artwork} size={64} shape="square" />
+      <ArtworkImage source={item.artwork} size={56} shape="square" borderRadius={0} />
       <Text
-        style={{ flex: 1, color: tokens.foreground, fontSize: 15, fontWeight: "600" }}
+        style={{ flex: 1, color: tokens.foreground, fontSize: 14, fontWeight: "600" }}
         numberOfLines={2}
       >
         {item.title}
@@ -109,11 +112,12 @@ export const TopTileGrid = ({ items, style }: TopTileGridProps) => {
   // room for the rails underneath. Ladder lives in breakpoints.ts.
   const columns = topTileGridColumns(width);
   const limit = width >= 640 ? MAX_ITEMS : MAX_ITEMS_NARROW;
+  const gutter = useGutter();
 
   return (
     <View
       style={[
-        { flexDirection: "row", flexWrap: "wrap", gap: 8, paddingHorizontal: 24 },
+        { flexDirection: "row", flexWrap: "wrap", gap: 8, paddingHorizontal: gutter },
         style,
       ]}
     >

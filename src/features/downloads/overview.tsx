@@ -8,7 +8,7 @@
  * the offline resolvers regardless of what NetInfo says.
  */
 import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import { Platform, Pressable, ScrollView, Switch, Text, View } from "react-native";
+import { Platform, Pressable, Text, View } from "react-native";
 import { formatBytes } from "./format";
 import { readPredictiveTier } from "./predictiveTier";
 import type { MusicStorageUsage } from "@omelhorsite/sdk";
@@ -25,13 +25,19 @@ import {
   subscribeDownloadProgress,
   subscribeDownloadStatus,
 } from "@/downloads/status";
-import { useContentBottomPadding, useContentTopPadding } from "@/features/shell/metrics";
-import { switchColors } from "@/theme/switchColors";
+import {
+  ProgressBar,
+  SettingsPage,
+  SettingsRow,
+  SettingsSection,
+  SwitchRow,
+} from "@/features/settings/ui";
 import { useT } from "@/i18n";
+import { haptics } from "@/lib/haptics";
 import { useTheme } from "@/theme/provider";
-import { RADIUS } from "@/theme/tokens";
-import { typeScale } from "@/theme/typography";
-import { ArtworkImage, Icon } from "@/ui";
+import type { ArtworkSource } from "@/domain/artwork";
+import { ArtworkImage } from "@/ui";
+import { useCountUp } from "@/ui/motion";
 
 const useDownloadVersion = (): number =>
   useSyncExternalStore(subscribeDownloadStatus, getStatusVersion, getStatusVersion);
@@ -43,27 +49,48 @@ const useDownloadProgressVersion = (): number =>
 const useManualOffline = (): boolean =>
   useSyncExternalStore(subscribeManualOffline, isManualOffline, isManualOffline);
 
-const StatCard = ({ label, value }: { label: string; value: string }) => {
+/** How many in-flight rows are listed by name; the bar covers all of them. */
+const IN_FLIGHT_LISTED = 5;
+
+/**
+ * Um número grande, em texto (sem caixa), com o rótulo por baixo. Conta a
+ * subir na primeira vez que aparece.
+ */
+const BigNumber = ({ value, label }: { value: number | string; label: string }) => {
   const { tokens } = useTheme();
+  const counted = useCountUp(typeof value === "number" ? value : 0);
   return (
-    <View
-      style={{
-        flexGrow: 1,
-        flexBasis: "30%",
-        backgroundColor: tokens.secondary,
-        borderRadius: RADIUS,
-        paddingVertical: 14,
-        paddingHorizontal: 16,
-        gap: 4,
-      }}
-    >
-      <Text style={{ color: tokens.foreground, fontSize: 22, fontWeight: "800" }}>{value}</Text>
-      <Text style={{ color: tokens.mutedForeground, fontSize: 12 }}>{label}</Text>
+    <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+      <Text
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        style={{
+          color: tokens.foreground,
+          fontSize: 34,
+          lineHeight: 38,
+          fontWeight: "800",
+          letterSpacing: -1,
+          fontVariant: ["tabular-nums"],
+        }}
+      >
+        {typeof value === "number" ? counted : value}
+      </Text>
+      <Text style={{ color: tokens.mutedForeground, fontSize: 14 }}>{label}</Text>
     </View>
   );
 };
 
-/** Horizontal proportion bar: downloads vs play cache vs free headroom. */
+const Legend = ({ color, text }: { color: string; text: string }) => {
+  const { tokens } = useTheme();
+  return (
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: color }} />
+      <Text style={{ color: tokens.mutedForeground, fontSize: 13 }}>{text}</Text>
+    </View>
+  );
+};
+
+/** Horizontal proportion bar: downloads vs temporary songs. */
 const StorageBar = ({
   downloadsBytes,
   cacheBytes,
@@ -74,38 +101,68 @@ const StorageBar = ({
   const { tokens } = useTheme();
   const t = useT();
   const total = Math.max(1, downloadsBytes + cacheBytes);
-  const seg = (bytes: number): number => Math.max(2, Math.round((bytes / total) * 100));
+  const seg = (bytes: number): number => (bytes > 0 ? Math.max(2, Math.round((bytes / total) * 100)) : 0);
   return (
-    <View style={{ gap: 8 }}>
+    <View style={{ gap: 10 }}>
       <View
         style={{
           flexDirection: "row",
-          height: 10,
-          borderRadius: 5,
+          height: 6,
+          borderRadius: 3,
           overflow: "hidden",
           backgroundColor: tokens.secondary,
         }}
       >
-        <View style={{ width: `${seg(downloadsBytes)}%`, backgroundColor: tokens.primary }} />
-        <View
-          style={{ width: `${seg(cacheBytes)}%`, backgroundColor: tokens.mutedForeground }}
+        <View style={{ width: `${seg(downloadsBytes)}%`, backgroundColor: tokens.foreground }} />
+        <View style={{ width: `${seg(cacheBytes)}%`, backgroundColor: tokens.mutedForeground }} />
+      </View>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", columnGap: 16, rowGap: 4 }}>
+        <Legend
+          color={tokens.foreground}
+          text={t("native.downloadsOverview.legendDownloads", { size: formatBytes(downloadsBytes) })}
+        />
+        <Legend
+          color={tokens.mutedForeground}
+          text={t("native.downloadsOverview.legendCache", { size: formatBytes(cacheBytes) })}
         />
       </View>
-      <View style={{ flexDirection: "row", gap: 16 }}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-          <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: tokens.primary }} />
-          <Text style={{ color: tokens.mutedForeground, fontSize: 12 }}>
-            {t("native.downloadsOverview.legendDownloads", { size: formatBytes(downloadsBytes) })}
-          </Text>
-        </View>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-          <View
-            style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: tokens.mutedForeground }}
-          />
-          <Text style={{ color: tokens.mutedForeground, fontSize: 12 }}>
-            {t("native.downloadsOverview.legendCache", { size: formatBytes(cacheBytes) })}
-          </Text>
-        </View>
+    </View>
+  );
+};
+
+/** Uma linha de colecção offline (capa pequena, nome, contagem). */
+const OfflineRow = ({
+  artwork,
+  title,
+  meta,
+  first,
+}: {
+  artwork: ArtworkSource;
+  title: string;
+  meta: string;
+  first: boolean;
+}) => {
+  const { tokens } = useTheme();
+  return (
+    <View
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 14,
+        minHeight: 60,
+        paddingVertical: 8,
+        borderTopWidth: first ? 0 : 1,
+        borderTopColor: tokens.border,
+      }}
+    >
+      <ArtworkImage source={artwork} size={44} />
+      <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+        <Text numberOfLines={1} style={{ color: tokens.foreground, fontSize: 16, fontWeight: "500" }}>
+          {title}
+        </Text>
+        <Text numberOfLines={1} style={{ color: tokens.mutedForeground, fontSize: 14 }}>
+          {meta}
+        </Text>
       </View>
     </View>
   );
@@ -114,8 +171,6 @@ const StorageBar = ({
 export default function DownloadsOverviewScreen() {
   const t = useT();
   const { tokens } = useTheme();
-  const topPadding = useContentTopPadding();
-  const bottomPadding = useContentBottomPadding();
   const version = useDownloadVersion();
   const progressVersion = useDownloadProgressVersion();
   const manualOffline = useManualOffline();
@@ -183,7 +238,10 @@ export default function DownloadsOverviewScreen() {
     const run = readPredictiveTier().purge;
     if (!run) return;
     void run()
-      .then((freed) => setFreedBytes(freed))
+      .then((freed) => {
+        haptics.success();
+        setFreedBytes(freed);
+      })
       .catch(() => undefined)
       .finally(() => setPurged((n) => n + 1));
   }, []);
@@ -194,19 +252,68 @@ export default function DownloadsOverviewScreen() {
     files: pinned.files + cache.files,
   };
 
+  const inFlightProgress =
+    inFlight.length === 0
+      ? 0
+      : inFlight.reduce(
+          (sum, entry) => sum + (entry.status === "downloading" ? entry.progress : 0),
+          0,
+        ) / inFlight.length;
+
+  const overCap =
+    serverStorage != null &&
+    !serverStorage.unlimited &&
+    serverStorage.limit_bytes !== null &&
+    serverStorage.limit_bytes > 0 &&
+    usage.bytes >= serverStorage.limit_bytes;
+
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: tokens.background }}
-      contentContainerStyle={{
-        paddingTop: topPadding,
-        paddingBottom: bottomPadding + 24,
-        paddingHorizontal: 24,
-        gap: 20,
-      }}
-    >
-      <Text style={[typeScale.sectionHeader, { color: tokens.foreground }]}>
-        {t("native.shell.tabDownloads")}
-      </Text>
+    <SettingsPage title={t("native.shell.tabDownloads")}>
+      {/* Os números, grandes e em texto: músicas, ficheiros, espaço. */}
+      <View style={{ flexDirection: "row", gap: 16 }}>
+        <BigNumber value={songs.length} label={t("native.downloadsOverview.songs")} />
+        <BigNumber value={usage.files} label={t("native.downloadsOverview.files")} />
+        <BigNumber value={formatBytes(usage.bytes)} label={t("native.downloadsOverview.storage")} />
+      </View>
+
+      <StorageBar downloadsBytes={downloadsBytes} cacheBytes={cache.bytes} />
+
+      {/* What is in flight: ONE bar for the whole batch (queued rows count as
+          0 %), then the first few by name. */}
+      {inFlight.length > 0 ? (
+        <View style={{ gap: 12 }}>
+          <View style={{ flexDirection: "row", alignItems: "baseline", gap: 12 }}>
+            <Text style={{ flex: 1, color: tokens.foreground, fontSize: 16, fontWeight: "600" }}>
+              {t("native.downloadsOverview.inFlight", { count: inFlight.length })}
+            </Text>
+            <Text
+              style={{ color: tokens.mutedForeground, fontSize: 14, fontVariant: ["tabular-nums"] }}
+            >
+              {`${Math.round(inFlightProgress * 100)}%`}
+            </Text>
+          </View>
+          <ProgressBar value={inFlightProgress} />
+          <View style={{ gap: 6 }}>
+            {inFlight.slice(0, IN_FLIGHT_LISTED).map((entry) => (
+              <View key={entry.songKey} style={{ flexDirection: "row", gap: 12 }}>
+                <Text
+                  numberOfLines={1}
+                  style={{ flex: 1, minWidth: 0, color: tokens.mutedForeground, fontSize: 14 }}
+                >
+                  {entry.song?.title ?? entry.songKey}
+                </Text>
+                <Text
+                  style={{ color: tokens.mutedForeground, fontSize: 14, fontVariant: ["tabular-nums"] }}
+                >
+                  {entry.status === "downloading"
+                    ? `${Math.round(entry.progress * 100)}%`
+                    : t("native.downloads.queued")}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      ) : null}
 
       {/* GO OFFLINE: force the offline resolvers even with a live network -
           the reference-app semantics (test your downloads, save data). Never on
@@ -214,296 +321,151 @@ export default function DownloadsOverviewScreen() {
           the library, persist that state across reloads, and give the tab
           nothing it could possibly play (plano "uma so app", F1). */}
       {Platform.OS !== "web" ? (
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 12,
-            backgroundColor: tokens.secondary,
-            borderRadius: RADIUS,
-            paddingHorizontal: 16,
-            paddingVertical: 12,
-          }}
-        >
-          <Icon name="cloud-check" size={20} color={tokens.foreground} />
-          <View style={{ flex: 1 }}>
-            <Text style={{ color: tokens.foreground, fontSize: 15, fontWeight: "600" }}>
-              {t("native.downloadsOverview.goOffline")}
-            </Text>
-            <Text style={{ color: tokens.mutedForeground, fontSize: 12, marginTop: 2 }}>
-              {t("native.downloadsOverview.goOfflineHint")}
-            </Text>
-          </View>
-          <Switch
+        <SettingsSection>
+          <SwitchRow
+            first
+            label={t("native.downloadsOverview.goOffline")}
+            detail={t("native.downloadsOverview.goOfflineHint")}
             value={manualOffline}
             onValueChange={setManualOffline}
-            {...switchColors(tokens, manualOffline)}
           />
-        </View>
+        </SettingsSection>
       ) : null}
 
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-        <StatCard
-          label={t("native.downloadsOverview.songs")}
-          value={String(songs.length)}
-        />
-        <StatCard
-          label={t("native.downloadsOverview.files")}
-          value={String(usage?.files ?? 0)}
-        />
-        <StatCard
-          label={t("native.downloadsOverview.storage")}
-          value={usage ? formatBytes(usage.bytes) : "-"}
-        />
-      </View>
-
-      <StorageBar downloadsBytes={downloadsBytes} cacheBytes={cache.bytes} />
-
-      {/* The evictable tier, stated plainly. It is the one number in this
-          screen the user did not ask for: bytes the app fetched on its own,
-          either because a song played (play cache) or because it guessed the
-          song was next (predictive). Both are deleted oldest-first the moment
-          the budget is exceeded, and pinned downloads are never candidates -
-          so the row can offer a one-tap purge with no confirmation dialog.
-          Absent where there is no local store at all (plain browser tab). */}
-      {surface.available() ? (
-      <View
-        style={{
-          backgroundColor: tokens.secondary,
-          borderRadius: RADIUS,
-          paddingHorizontal: 16,
-          paddingVertical: 12,
-          gap: 8,
-        }}
-      >
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-          <Icon name="cloud-check" size={20} color={tokens.foreground} />
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={{ color: tokens.foreground, fontSize: 15, fontWeight: "600" }}>
-              {t("native.downloadsOverview.cacheTitle")}
-            </Text>
-            {/* A budget this platform cannot compute is simply not drawn:
-                "0 B de 0 B" over a cache that is really holding two gigabytes
-                would be worse than saying nothing at all. */}
-            <Text style={{ color: tokens.mutedForeground, fontSize: 12, marginTop: 2 }}>
-              {cache.files === 0
-                ? t("native.downloadsOverview.cacheEmpty")
-                : t("native.downloadsOverview.cacheDetail", {
-                    files: cache.files,
-                    size: formatBytes(cache.bytes),
-                    budget: tier.budget != null ? formatBytes(tier.budget) : "-",
-                  })}
-            </Text>
-          </View>
-          {tier.purge ? (
-            <Pressable
-              onPress={onPurge}
-              disabled={cache.files === 0}
-              accessibilityRole="button"
-              style={{
-                paddingHorizontal: 12,
-                paddingVertical: 8,
-                borderRadius: RADIUS,
-                backgroundColor: tokens.background,
-                opacity: cache.files === 0 ? 0.4 : 1,
-              }}
-            >
-              <Text style={{ color: tokens.foreground, fontSize: 13, fontWeight: "600" }}>
-                {t("native.downloadsOverview.cachePurge")}
-              </Text>
-            </Pressable>
-          ) : null}
-        </View>
-
-        {/* Waste instrumentation (design section 9): without the ratio there
-            is no way to tell whether the prediction ladder is earning its
-            bytes. Hidden until the tier has actually predicted something. */}
-        {tier.waste && tier.waste.written > 0 ? (
-          <Text style={{ color: tokens.mutedForeground, fontSize: 12 }}>
-            {t("native.downloadsOverview.cacheWaste", {
-              written: formatBytes(tier.waste.written),
-              wasted: formatBytes(tier.waste.evictedUnplayed),
-              percent: Math.round(tier.waste.ratio * 100),
-            })}
-          </Text>
-        ) : null}
-
-        {freedBytes != null ? (
-          <Text style={{ color: tokens.mutedForeground, fontSize: 12 }}>
-            {t("native.downloads.cachePurged", { size: formatBytes(freedBytes) })}
-          </Text>
-        ) : null}
-      </View>
-      ) : null}
-
-      {serverStorage ? (
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 12,
-            backgroundColor: tokens.secondary,
-            borderRadius: RADIUS,
-            paddingHorizontal: 16,
-            paddingVertical: 12,
-          }}
-        >
-          <Icon name="cloud-check" size={20} color={tokens.foreground} />
-          <View style={{ flex: 1 }}>
-            <Text style={{ color: tokens.foreground, fontSize: 15, fontWeight: "600" }}>
-              {t("native.downloadsOverview.serverStorage")}
-            </Text>
-            {/* `limit_bytes` é null numa conta ilimitada: lê-se `unlimited`
-                antes de dividir por ele (music_storage_controller.rb). */}
-            <Text style={{ color: tokens.mutedForeground, fontSize: 12, marginTop: 2 }}>
-              {serverStorage.unlimited || serverStorage.limit_bytes === null
-                ? t("native.downloadsOverview.serverStorageUnlimited", {
-                    used: formatBytes(serverStorage.used_bytes),
-                  })
-                : t("native.downloadsOverview.serverStorageUsed", {
-                    used: formatBytes(serverStorage.used_bytes),
-                    limit: formatBytes(serverStorage.limit_bytes),
-                  })}
-            </Text>
-            {/* Storage cap FR-94: quando o total local já excede a quota, os
-                enfileiramentos novos são recusados (manager) - e este é o
-                sítio onde esse estado se explica em vez de só recusar. */}
-            {!serverStorage.unlimited &&
-            serverStorage.limit_bytes !== null &&
-            serverStorage.limit_bytes > 0 &&
-            usage.bytes >= serverStorage.limit_bytes ? (
-              <Text style={{ color: tokens.destructive, fontSize: 12, marginTop: 2 }}>
-                {t("native.downloadsOverview.storageCapExceeded")}
-              </Text>
-            ) : null}
-          </View>
-        </View>
-      ) : null}
-
-      {inFlight.length > 0 ? (
-        <View style={{ gap: 8 }}>
-          <Text style={{ color: tokens.foreground, fontSize: 15, fontWeight: "700" }}>
-            {t("native.downloads.inFlightTitle")}
-          </Text>
-          {inFlight.map((entry) => (
-            <View
-              key={entry.songKey}
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: 12,
-                backgroundColor: tokens.secondary,
-                borderRadius: RADIUS,
-                paddingHorizontal: 12,
-                paddingVertical: 10,
-              }}
-            >
-              <Text
-                style={{ color: tokens.foreground, fontSize: 13, flex: 1, minWidth: 0 }}
-                numberOfLines={1}
-              >
-                {entry.song?.title ?? entry.songKey}
-              </Text>
-              <Text
-                style={{
-                  color: tokens.mutedForeground,
-                  fontSize: 13,
-                  fontVariant: ["tabular-nums"],
-                }}
-              >
-                {entry.status === "downloading"
-                  ? `${Math.round(entry.progress * 100)}%`
-                  : t("native.downloads.queued")}
-              </Text>
-            </View>
-          ))}
-        </View>
-      ) : null}
-
-      <View style={{ gap: 8 }}>
-        <Text style={{ color: tokens.foreground, fontSize: 15, fontWeight: "700" }}>
-          {t("native.downloadsOverview.offlinePlaylists")}
-        </Text>
+      <SettingsSection title={t("native.downloadsOverview.offlinePlaylists")}>
         {playlists.length === 0 ? (
-          <Text style={{ color: tokens.mutedForeground, fontSize: 13 }}>
+          <Text style={{ color: tokens.mutedForeground, fontSize: 14, paddingVertical: 14 }}>
             {t("native.downloadsOverview.noOfflinePlaylists")}
           </Text>
         ) : (
-          playlists.map((playlist) => (
-            <View
+          playlists.map((playlist, index) => (
+            <OfflineRow
               key={playlist.id}
-              style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 4 }}
-            >
-              <ArtworkImage
-                source={
-                  playlist.sourceExternalId === "liked"
-                    ? { kind: "likedHeart" }
-                    : playlist.artworkMediaId
-                      ? { kind: "node", nodeId: playlist.artworkMediaId }
-                      : { kind: "placeholder" }
-                }
-                size={40}
-              />
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Text
-                  style={{ color: tokens.foreground, fontSize: 14, fontWeight: "500" }}
-                  numberOfLines={1}
-                >
-                  {playlist.name}
-                </Text>
-                <Text style={{ color: tokens.mutedForeground, fontSize: 12 }}>
-                  {t("native.downloads.songCount", { count: playlist.songCount })}
-                </Text>
-              </View>
-              <Icon name="cloud-check" size={18} color={tokens.primary} />
-            </View>
+              first={index === 0}
+              artwork={
+                playlist.sourceExternalId === "liked"
+                  ? { kind: "likedHeart" }
+                  : playlist.artworkMediaId
+                    ? { kind: "node", nodeId: playlist.artworkMediaId }
+                    : { kind: "placeholder" }
+              }
+              title={playlist.name}
+              meta={t("native.downloads.songCount", { count: playlist.songCount })}
+            />
           ))
         )}
-      </View>
+      </SettingsSection>
 
       {/* Álbuns e artistas offline (handoff 2026-08-18). Sem estado vazio
-          próprio: ao contrário das playlists (que têm o seu toggle em todo o
-          lado), esta secção só existe quando há alguma coisa para listar. */}
+          próprio: esta secção só existe quando há alguma coisa para listar. */}
       {collections.length > 0 ? (
-        <View style={{ gap: 8 }}>
-          <Text style={{ color: tokens.foreground, fontSize: 15, fontWeight: "700" }}>
-            {t("native.downloadsOverview.offlineAlbumsArtists")}
-          </Text>
-          {collections.map((row) => (
-            <View
+        <SettingsSection title={t("native.downloadsOverview.offlineAlbumsArtists")}>
+          {collections.map((row, index) => (
+            <OfflineRow
               key={row.key}
-              style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 4 }}
-            >
-              <ArtworkImage
-                source={
-                  row.artworkMediaId
-                    ? { kind: "node", nodeId: row.artworkMediaId }
-                    : { kind: "placeholder" }
-                }
-                size={40}
-              />
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Text
-                  style={{ color: tokens.foreground, fontSize: 14, fontWeight: "500" }}
-                  numberOfLines={1}
-                >
-                  {row.name}
-                </Text>
-                <Text
-                  style={{ color: tokens.mutedForeground, fontSize: 12 }}
-                  numberOfLines={1}
-                >
-                  {row.kind === "album" && row.subtitle
-                    ? row.subtitle
-                    : t("native.downloads.songCount", { count: row.songCount })}
-                </Text>
-              </View>
-              <Icon name="cloud-check" size={18} color={tokens.primary} />
-            </View>
+              first={index === 0}
+              artwork={
+                row.artworkMediaId
+                  ? { kind: "node", nodeId: row.artworkMediaId }
+                  : { kind: "placeholder" }
+              }
+              title={row.name}
+              meta={
+                row.kind === "album" && row.subtitle
+                  ? row.subtitle
+                  : t("native.downloads.songCount", { count: row.songCount })
+              }
+            />
           ))}
-        </View>
+        </SettingsSection>
       ) : null}
-    </ScrollView>
+
+      {/* The evictable tier and the account quota: rarely needed, so under
+          "Avançado". The temporary tier is the one number here the user did
+          not ask for (bytes fetched because a song played or was guessed
+          next); pinned downloads are never candidates, so the purge is one
+          tap with no confirmation. Absent where there is no local store. */}
+      {surface.available() || serverStorage ? (
+        <SettingsSection title={t("native.settings.advanced")}>
+          {surface.available() ? (
+            <SettingsRow
+              first
+              label={t("native.downloadsOverview.cacheTitle")}
+              detail={[
+                cache.files === 0
+                  ? t("native.downloadsOverview.cacheEmpty")
+                  : t("native.downloadsOverview.cacheDetail", {
+                      files: cache.files,
+                      size: formatBytes(cache.bytes),
+                      budget: tier.budget != null ? formatBytes(tier.budget) : "-",
+                    }),
+                // Waste instrumentation (design section 9), only once the tier
+                // has actually predicted something.
+                tier.waste && tier.waste.written > 0
+                  ? t("native.downloadsOverview.cacheWaste", {
+                      written: formatBytes(tier.waste.written),
+                      wasted: formatBytes(tier.waste.evictedUnplayed),
+                      percent: Math.round(tier.waste.ratio * 100),
+                    })
+                  : null,
+                freedBytes != null
+                  ? t("native.downloads.cachePurged", { size: formatBytes(freedBytes) })
+                  : null,
+              ]
+                .filter(Boolean)
+                .join("\n")}
+              trailing={
+                tier.purge ? (
+                  <Pressable
+                    onPress={onPurge}
+                    disabled={cache.files === 0}
+                    accessibilityRole="button"
+                    hitSlop={10}
+                  >
+                    {({ pressed }) => (
+                      <Text
+                        style={{
+                          color: tokens.foreground,
+                          fontSize: 14,
+                          fontWeight: "600",
+                          opacity: cache.files === 0 ? 0.4 : pressed ? 0.6 : 1,
+                        }}
+                      >
+                        {t("native.downloadsOverview.cachePurge")}
+                      </Text>
+                    )}
+                  </Pressable>
+                ) : (
+                  <View />
+                )
+              }
+            />
+          ) : null}
+          {serverStorage ? (
+            <SettingsRow
+              first={!surface.available()}
+              label={t("native.downloadsOverview.serverStorage")}
+              // `limit_bytes` é null numa conta ilimitada: lê-se `unlimited`
+              // antes de dividir por ele (music_storage_controller.rb). Storage
+              // cap FR-94: past the quota new enqueues are refused (manager),
+              // and this is where that state is explained.
+              detail={[
+                serverStorage.unlimited || serverStorage.limit_bytes === null
+                  ? t("native.downloadsOverview.serverStorageUnlimited", {
+                      used: formatBytes(serverStorage.used_bytes),
+                    })
+                  : t("native.downloadsOverview.serverStorageUsed", {
+                      used: formatBytes(serverStorage.used_bytes),
+                      limit: formatBytes(serverStorage.limit_bytes),
+                    }),
+                overCap ? t("native.downloadsOverview.storageCapExceeded") : null,
+              ]
+                .filter(Boolean)
+                .join("\n")}
+            />
+          ) : null}
+        </SettingsSection>
+      ) : null}
+    </SettingsPage>
   );
 }

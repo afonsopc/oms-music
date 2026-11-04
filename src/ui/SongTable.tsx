@@ -23,6 +23,7 @@ import {
   type ViewStyle,
 } from "react-native";
 import { songTableColumnGate, songTableDurationWidth, songTablePanelGate } from "./breakpoints";
+import { useGutter } from "./page";
 import { useContainerWidth, useDesktopShell } from "./shellLayout";
 import { Icon } from "./icons";
 import {
@@ -212,6 +213,11 @@ export const SongTable = ({
   const t = useT();
   const desktopShell = useDesktopShell();
   const containerWidth = useContainerWidth();
+  // As linhas têm 12 de padding próprio (o fundo do toque arredonda-se lá
+  // dentro); o resto até à margem da página vem daqui, para o texto das
+  // linhas alinhar com o título do hero.
+  const rowInset = Math.max(0, useGutter() - 12);
+  const rowInsetStyle = useMemo(() => ({ marginHorizontal: rowInset }), [rowInset]);
   const [drag, setDrag] = useState<DragState | null>(null);
   const [dragY] = useState(() => new Animated.Value(0));
   const reorderEnabled = !!onReorder;
@@ -395,7 +401,7 @@ export const SongTable = ({
       // e portanto sem reordenar nada. A forma da árvore fica fixa; muda só o
       // estilo.
       return (
-        <Animated.View style={rowDragStyle(index)}>
+        <Animated.View style={[rowInsetStyle, rowDragStyle(index)]}>
           <TableRow
             song={item}
             index={index}
@@ -440,6 +446,7 @@ export const SongTable = ({
       moveDrag,
       endDrag,
       rowDragStyle,
+      rowInsetStyle,
       compact,
       tokens.mutedForeground,
       t,
@@ -513,13 +520,17 @@ export const SongTable = ({
           }}
         >
           {header}
-          {showHeader && songs.length > 0 ? (
+          {/* O cabeçalho "# Título (relógio)" só no computador: no telemóvel
+              não diz nada que a linha não diga. */}
+          {showHeader && desktopShell && songs.length > 0 ? (
+            <View style={rowInsetStyle}>
             <SongTableHeader
               columns={columns}
               hasPlays={!!playCounts && Object.keys(playCounts).length > 0}
               reorder={reorderEnabled}
               hasLike={likeColumn}
             />
+            </View>
           ) : null}
         </View>
       }

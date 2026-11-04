@@ -7,12 +7,7 @@
  * the alphabet is still found.
  */
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  ActivityIndicator,
-  FlatList,
-  TextInput,
-  View,
-} from "react-native";
+import { FlatList, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useArtistsRoster, useArtistsSearch } from "@/api/queries/artists";
 import type { ArtistsRosterOrder } from "@/api/queries/artists";
@@ -21,7 +16,6 @@ import { artistImageSource } from "@/domain/artwork";
 import { useT } from "@/i18n";
 import { artistRoute } from "@/lib/routes";
 import { useTheme } from "@/theme/provider";
-import { RADIUS } from "@/theme/tokens";
 import {
   ArtistCard,
   CircleSkeleton,
@@ -29,10 +23,11 @@ import {
   EmptyState,
   ErrorState,
   FilterPills,
-  Icon,
   Skeleton,
   useContainerWidth,
 } from "@/ui";
+import { PageHeader, useGutter, WaitHint } from "@/ui/page";
+import { FilterField } from "@/features/library/FilterField";
 import { useContentBottomPadding, useContentTopPadding } from "@/features/shell/metrics";
 
 const SEARCH_DEBOUNCE_MS = 250;
@@ -52,6 +47,7 @@ export default function ArtistsRosterScreen() {
   // Container width (breakpoints.ts): the desktop shell's main pane is the
   // surface this grid fills; on mobile it is the window, unchanged.
   const width = useContainerWidth();
+  const gutter = useGutter();
   const bottomPadding = useContentBottomPadding();
   const topPadding = useContentTopPadding(20);
 
@@ -75,7 +71,7 @@ export default function ArtistsRosterScreen() {
   const visible = isFiltering ? (searchQuery.data ?? []) : roster;
 
   const columns = collectionGridColumns(width);
-  const cardSize = Math.max(72, Math.floor((width - 40 - columns * 8) / columns) - 16);
+  const cardSize = Math.max(72, Math.floor((width - gutter * 2 - columns * 8) / columns) - 16);
 
   const renderItem = useCallback(
     ({ item }: { item: Artist }) => (
@@ -94,25 +90,27 @@ export default function ArtistsRosterScreen() {
   const loading = isFiltering ? searchQuery.isLoading : rosterQuery.isLoading;
   const errored = isFiltering ? searchQuery.isError : rosterQuery.isError;
 
-  const empty = loading ? (
-    <View
-      style={{
-        flexDirection: "row",
-        flexWrap: "wrap",
-        justifyContent: "space-between",
-        rowGap: 16,
-      }}
-    >
-      {Array.from({ length: SKELETON_COUNT }, (_, i) => (
-        <View key={i} style={{ width: `${100 / columns}%`, alignItems: "center", gap: 8 }}>
+  const skeletonGrid = (count: number) => (
+    <View style={{ flexDirection: "row", flexWrap: "wrap", rowGap: 16, paddingHorizontal: gutter }}>
+      {Array.from({ length: count }, (_, i) => (
+        <View key={i} style={{ width: `${100 / columns}%`, alignItems: "center", gap: 8, paddingVertical: 8 }}>
           <CircleSkeleton size={cardSize} />
-          <Skeleton width={Math.round(cardSize * 0.7)} height={12} />
+          <Skeleton width={Math.round(cardSize * (0.5 + ((i * 7) % 4) / 10))} height={12} />
         </View>
       ))}
     </View>
+  );
+
+  const empty = loading ? (
+    <View>
+      {skeletonGrid(SKELETON_COUNT)}
+      <WaitHint
+        active
+        onRetry={() => void (isFiltering ? searchQuery.refetch() : rosterQuery.refetch())}
+      />
+    </View>
   ) : errored ? (
     <ErrorState
-      text={t("components.music.Artists.errorLoadingArtists")}
       onRetry={() =>
         void (isFiltering ? searchQuery.refetch() : rosterQuery.refetch())
       }
@@ -129,32 +127,14 @@ export default function ArtistsRosterScreen() {
   );
 
   const header = (
-    <View style={{ gap: 12, paddingBottom: 12 }}>
-      <View
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          gap: 8,
-          borderWidth: 1,
-          borderColor: tokens.input,
-          borderRadius: RADIUS,
-          paddingHorizontal: 12,
-          backgroundColor: tokens.secondary,
-        }}
-      >
-        <Icon name="search" size={16} color={tokens.mutedForeground} />
-        <TextInput
-          value={filter}
-          onChangeText={setFilter}
-          placeholder={t("components.music.Artists.filterPlaceholder")}
-          placeholderTextColor={tokens.mutedForeground}
-          autoCorrect={false}
-          autoCapitalize="none"
-          returnKeyType="search"
-          accessibilityLabel={t("components.music.Artists.filterPlaceholder")}
-          style={{ flex: 1, paddingVertical: 10, color: tokens.foreground, fontSize: 15 }}
-        />
-      </View>
+    <View style={{ gap: 12, paddingBottom: 8 }}>
+      <PageHeader title={t("components.music.Artists.allArtists")} />
+      <FilterField
+        value={filter}
+        onChangeText={setFilter}
+        placeholder={t("components.music.Artists.filterPlaceholder")}
+        clearLabel={t("components.music.MusicSearchInput.clear")}
+      />
       <FilterPills
         pills={[
           { key: "alphabetical", label: t("components.music.Artists.sortAlphabetical") },
@@ -162,7 +142,7 @@ export default function ArtistsRosterScreen() {
         ]}
         activeKey={sort}
         onChange={(key) => setSort(key as Sort)}
-        scrollable={false}
+        contentPaddingHorizontal={gutter}
       />
     </View>
   );
@@ -176,14 +156,11 @@ export default function ArtistsRosterScreen() {
         renderItem={renderItem}
         keyExtractor={(item) => String(item.id)}
         numColumns={columns}
+        columnWrapperStyle={columns > 1 ? { paddingHorizontal: gutter } : undefined}
         ListHeaderComponent={header}
         ListEmptyComponent={empty}
         ListFooterComponent={
-          !isFiltering && rosterQuery.isFetchingNextPage ? (
-            <View style={{ paddingVertical: 16 }}>
-              <ActivityIndicator />
-            </View>
-          ) : null
+          !isFiltering && rosterQuery.isFetchingNextPage ? skeletonGrid(columns) : null
         }
         onEndReachedThreshold={0.5}
         onEndReached={() => {
@@ -196,8 +173,8 @@ export default function ArtistsRosterScreen() {
         windowSize={9}
         removeClippedSubviews
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         contentContainerStyle={{
-          paddingHorizontal: 20,
           paddingTop: topPadding,
           paddingBottom: bottomPadding,
         }}

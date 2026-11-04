@@ -26,7 +26,7 @@ export interface LibraryRow {
   subtitle: string;
   artwork: ArtworkSource;
   route: Href;
-  /** Synced playlist: draws the emerald badge, never an edit affordance. */
+  /** Synced playlist: said in the meta line only, never an edit affordance. */
   system: boolean;
   circular: boolean;
   /** The pinned Liked Songs entry: bold name, immune to the filter pills. */

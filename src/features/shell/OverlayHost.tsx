@@ -25,6 +25,7 @@ import { useOverlayBottomOffset } from "./metrics";
 import {
   getShellSlots,
   useOverlaySlotActive,
+  useOverlaySlotActiveOrNull,
   useShellSlotsVersion,
   type OverlaySlot,
 } from "./slots";
@@ -36,12 +37,19 @@ const SlotGate = ({ slot }: { slot: OverlaySlot }) => {
   return <Component />;
 };
 
-const PillStack = ({ strip, showPill }: { strip: OverlaySlot | null; showPill: boolean }) => (
-  <>
-    {strip ? <SlotGate slot={strip} /> : null}
-    {showPill ? <MiniPlayer /> : null}
-  </>
-);
+/**
+ * A linha "A tocar em X" cola-se por cima do mini-leitor (os dois leem-se
+ * como uma peça); sem mini-leitor fica sozinha.
+ */
+const PillStack = ({ strip, showPill }: { strip: OverlaySlot | null; showPill: boolean }) => {
+  const stripActive = useOverlaySlotActiveOrNull(strip);
+  return (
+    <>
+      {strip ? <SlotGate slot={strip} /> : null}
+      {showPill ? <MiniPlayer attachedTop={stripActive} /> : null}
+    </>
+  );
+};
 
 /** While the jam slot reports active, the JamBar replaces the pill. */
 const JamSwitch = ({

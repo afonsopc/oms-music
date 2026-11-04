@@ -1,57 +1,51 @@
 /**
- * Editable playlist artwork (FR-51): the hero artwork square for a MANUAL
- * playlist, tappable to replace the cover. Rendered only for manual
- * playlists - system playlists never get an artwork control (FR-53).
+ * Capa editável das playlists MANUAIS (FR-51). As de sistema nunca a têm
+ * (FR-53).
  *
- * The pick is center-cropped to a square and re-encoded to JPEG under ~2 MB
- * before it leaves the device (see artworkPicker / @/lib/artworkTranscode), so
- * the overlay has three states: idle, preparing the file, uploading.
+ * Desde o redesenho de 2026-11-04 a capa é só a capa: o "Mudar a capa" saiu
+ * de cima dela e passou para o menu "⋯" da playlist. Por isso a lógica vive
+ * num hook (`usePlaylistArtworkChange`), que o ecrã partilha entre o item do
+ * menu e a capa; a capa só mostra o que está a acontecer (a preparar, a
+ * enviar, um aviso se falhou).
  *
- * Multipart field is `artwork` (POST /playlists/:id/upload_artwork); the
- * mutation writes the returned playlist back into the cache, so the new
- * cover shows without a refresh. Failures and refusals surface in place -
- * there is no global toast host yet (WP12).
+ * A imagem é recortada num quadrado e reconvertida para JPEG abaixo de ~2 MB
+ * antes de sair do aparelho (artworkPicker / @/lib/artworkTranscode). Campo
+ * multipart `artwork` (POST /playlists/:id/upload_artwork); a mutação escreve
+ * a playlist devolvida na cache, a capa nova aparece sem recarregar.
  */
-import React, { useState } from "react";
-import { ActivityIndicator, Pressable, Text, View } from "react-native";
+import React, { useCallback, useState } from "react";
+import { ActivityIndicator, Text, View } from "react-native";
 import { useUploadPlaylistArtwork } from "@/api/queries/playlists";
 import type { ArtworkSource } from "@/domain/artwork";
 import type { PlaylistId } from "@/domain/ids";
 import { useT } from "@/i18n";
-import { ArtworkImage, Icon, photoScrim } from "@/ui";
+import { ArtworkImage, photoScrim } from "@/ui";
+import { FadeIn } from "@/ui/motion";
 import { ON_DARK, preferredOn } from "@/theme/contrast";
-import { RADIUS } from "@/theme/tokens";
 import { MAX_ARTWORK_MB, pickPlaylistArtwork } from "./artworkPicker";
 
-/**
- * Both overlay bars are scrims over arbitrary artwork, so the ink is resolved
- * against the scrim over its worst case (a white cover) rather than assumed.
- */
 const NOTICE_SCRIM = photoScrim(0.7);
-const CONTROL_SCRIM = photoScrim(0.6);
-const OVERLAY_INK = preferredOn(CONTROL_SCRIM, ON_DARK);
+const OVERLAY_INK = preferredOn(NOTICE_SCRIM, ON_DARK);
+const ART_RADIUS = 8;
 
-export interface ChangePlaylistArtworkProps {
-  playlistId: PlaylistId;
-  source: ArtworkSource | null;
-  /** Hero artwork edge (the Hero's render prop passes it); overlay scales. */
-  size?: number;
+export interface PlaylistArtworkChange {
+  /** Abre o seletor de imagem e envia a escolhida. */
+  pick: () => void;
+  busy: boolean;
+  /** Texto do que está a acontecer (a preparar / a enviar), ou null. */
+  status: string | null;
+  /** Aviso de falha ou recusa, ou null. */
+  notice: string | null;
 }
 
-export const ChangePlaylistArtwork = ({
-  playlistId,
-  source,
-  size = 136,
-}: ChangePlaylistArtworkProps) => {
+export const usePlaylistArtworkChange = (playlistId: PlaylistId): PlaylistArtworkChange => {
   const t = useT();
   const [notice, setNotice] = useState<string | null>(null);
-  // Cropping plus the compress loop is native work on a real file, so the
-  // overlay says what is happening instead of looking frozen.
   const [preparing, setPreparing] = useState(false);
   const upload = useUploadPlaylistArtwork();
   const busy = preparing || upload.isPending;
 
-  const onPress = async () => {
+  const pick = useCallback(async () => {
     if (busy) return;
     setNotice(null);
     let outcome;
@@ -75,81 +69,56 @@ export const ChangePlaylistArtwork = ({
     }
     upload.mutate(
       { id: playlistId, artwork: outcome.artwork },
-      {
-        onError: () =>
-          setNotice(t("components.music.ChangePlaylistArtwork.errorOccurred")),
-      },
+      { onError: () => setNotice(t("components.music.ChangePlaylistArtwork.errorOccurred")) },
     );
-  };
+  }, [busy, playlistId, t, upload]);
 
+  return {
+    pick: () => void pick(),
+    busy,
+    status: preparing
+      ? t("components.music.ChangePlaylistArtwork.loadingFile")
+      : upload.isPending
+        ? t("components.music.ChangePlaylistArtwork.uploadingArtwork")
+        : null,
+    notice,
+  };
+};
+
+export interface ChangePlaylistArtworkProps {
+  source: ArtworkSource | null;
+  /** Lado da capa (o Hero passa-o). */
+  size?: number;
+  change: PlaylistArtworkChange;
+}
+
+/** A capa, com o estado do envio por cima só enquanto há alguma coisa a dizer. */
+export const ChangePlaylistArtwork = ({ source, size = 136, change }: ChangePlaylistArtworkProps) => {
+  const message = change.notice ?? change.status;
   return (
-    // Exactly `size` square: the hero gives the slot a fixed box, so the
-    // refusal notice is overlaid rather than stacked underneath.
-    <Pressable
-      onPress={() => void onPress()}
-      disabled={busy}
-      accessibilityRole="button"
-      accessibilityLabel={t("components.music.ChangePlaylistArtwork.changeArtwork")}
-      // The crop is automatic, so the hint says what happens to the picture.
-      accessibilityHint={t("native.playlistArtwork.squareHint")}
-      style={({ pressed }) => ({
-        width: size,
-        height: size,
-        borderRadius: RADIUS + 4,
-        overflow: "hidden",
-        opacity: pressed ? 0.85 : 1,
-      })}
-    >
-      <ArtworkImage source={source} size={size} borderRadius={RADIUS + 4} />
-      {notice ? (
-        <View
-          pointerEvents="none"
+    <View style={{ width: size, height: size, borderRadius: ART_RADIUS, overflow: "hidden" }}>
+      <ArtworkImage source={source} size={size} borderRadius={ART_RADIUS} />
+      {message ? (
+        <FadeIn
           style={{
             position: "absolute",
             left: 0,
             right: 0,
-            top: 0,
-            paddingHorizontal: 8,
-            paddingVertical: 6,
+            bottom: 0,
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 8,
+            paddingHorizontal: 12,
+            paddingVertical: 10,
             backgroundColor: NOTICE_SCRIM,
           }}
         >
-          <Text style={{ color: OVERLAY_INK, fontSize: 10 }} numberOfLines={3}>
-            {notice}
+          {change.busy ? <ActivityIndicator size="small" color={OVERLAY_INK} /> : null}
+          <Text style={{ color: OVERLAY_INK, fontSize: 13, flex: 1 }} numberOfLines={3}>
+            {message}
           </Text>
-        </View>
+        </FadeIn>
       ) : null}
-      <View
-        pointerEvents="none"
-        style={{
-          position: "absolute",
-          left: 0,
-          right: 0,
-          bottom: 0,
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 6,
-          paddingVertical: 6,
-          backgroundColor: CONTROL_SCRIM,
-        }}
-      >
-        {busy ? (
-          <ActivityIndicator size="small" color={OVERLAY_INK} />
-        ) : (
-          <Icon name="plus" size={13} color={OVERLAY_INK} />
-        )}
-        <Text
-          style={{ color: OVERLAY_INK, fontSize: 11, fontWeight: "600" }}
-          numberOfLines={1}
-        >
-          {preparing
-            ? t("components.music.ChangePlaylistArtwork.loadingFile")
-            : upload.isPending
-              ? t("components.music.ChangePlaylistArtwork.uploadingArtwork")
-              : t("components.music.ChangePlaylistArtwork.changeArtwork")}
-        </Text>
-      </View>
-    </Pressable>
+    </View>
   );
 };

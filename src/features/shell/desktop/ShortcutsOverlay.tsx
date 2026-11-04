@@ -39,7 +39,7 @@ const buildRows = (mac: boolean): ShortcutRow[] => {
     { combo: `${mod}${join}← / ${mod}${join}→`, labelKey: "native.desktop.shortcutPrevNext" },
     { combo: `${mod}${join}↑ / ${mod}${join}↓`, labelKey: "native.desktop.shortcutVolume" },
     { combo: "M", labelKey: "native.desktop.shortcutMute" },
-    { combo: `${mod}${join}K`, labelKey: "native.desktop.shortcutSearch" },
+    { combo: `/  ·  ${mod}${join}K`, labelKey: "native.desktop.shortcutSearch" },
     { combo: `${alt}Q`, labelKey: "native.desktop.tenantQueue" },
     { combo: `${alt}R`, labelKey: "native.desktop.tenantNowPlaying" },
     { combo: `${alt}L`, labelKey: "native.desktop.shortcutSidebar" },

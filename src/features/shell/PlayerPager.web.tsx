@@ -76,7 +76,16 @@ export const NowPlayingScreen = () => {
       style={{ flex: 1, backgroundColor: tokens.background, transform: [{ translateY: dragY }] }}
     >
       <ImmersiveBackdrop song={song} dense={mode !== "artwork"} />
-      <View style={{ flex: 1, paddingBottom: Math.max(insets.bottom, 12) }}>
+      {/* Num ecrã largo o leitor não se estica: coluna de 640 no meio. */}
+      <View
+        style={{
+          flex: 1,
+          width: "100%",
+          maxWidth: 640,
+          alignSelf: "center",
+          paddingBottom: Math.max(insets.bottom, 12),
+        }}
+      >
         <View {...(handlers(true) as object)} style={{ touchAction: "none" } as object}>
           <PlayerHandle />
         </View>

@@ -11,9 +11,15 @@
  *
  * There is NO host handoff: a host ending the jam ends it for everyone, so
  * that button is confirmed, and NO kick affordance exists server-side.
+ *
+ * Redesenho 2026-11-04 (docs/redesenho.md, "O padrao"): o cabecalho comum,
+ * rotulos de seccao, linhas finas (ListRow) para pessoas, jams e musicas,
+ * as regras com as palavras sublinhadas do FilterPills em vez de pilulas,
+ * uma so accao principal ("Comecar uma jam"), sair/terminar como linha
+ * vermelha discreta. Convidar e optimista: muda no toque e volta se falhar.
  */
 import React, { useMemo, useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, ScrollView, Text, View } from "react-native";
 import { useJams } from "@/api/queries/jams";
 import { acceptedFriends, useRelationships } from "@/api/queries/relationships";
 import { avatarUrl } from "@/api/mediaUrl";
@@ -22,14 +28,27 @@ import type { UserId } from "@/domain/ids";
 import type { Jam } from "@/domain/jam";
 import { useContentBottomPadding, useContentTopPadding } from "@/features/shell/metrics";
 import { useT } from "@/i18n";
+import { haptics } from "@/lib/haptics";
 import { jamCreate, jamEnd, jamInvite, jamJoin, jamLeave, jamUpdateRules } from "@/jam/channel";
 import { jamStore, selectIsHost, useJamStore } from "@/jam/store";
 import { artistNamesLine } from "@/social/display";
 import { useTheme } from "@/theme/provider";
-import { RADIUS } from "@/theme/tokens";
-import { ArtworkImage, ConfirmDialog, EmptyState, Icon } from "@/ui";
+import { ArtworkImage, ConfirmDialog, FilterPills, Icon } from "@/ui";
+import { PressableScale } from "@/ui/motion";
+import {
+  ListRow,
+  ListSkeleton,
+  PageHeader,
+  PageState,
+  pageType,
+  SectionLabel,
+  TextButton,
+  useGutter,
+} from "@/ui/page";
 
 const PANEL = "components.music.JamPanel";
+/** A fila da jam vem do servidor; mostrar mais do que isto nao ajuda ninguem. */
+const UPCOMING_SHOWN = 20;
 
 // ---------------------------------------------------------------------------
 // Rules
@@ -49,66 +68,33 @@ const RulePicker = <T extends string>({
   onPick: (value: T) => void;
 }) => {
   const { tokens } = useTheme();
+  const gutter = useGutter();
+  // Quem nao manda ve a regra, nao um seletor desligado.
+  if (!editable) {
+    return (
+      <ListRow title={label} meta={options.find((option) => option.value === value)?.label ?? null} />
+    );
+  }
   return (
-    <View style={{ gap: 6 }}>
-      <Text style={{ color: tokens.mutedForeground, fontSize: 12, fontWeight: "600" }}>
+    <View style={{ gap: 4, paddingTop: 8 }}>
+      <Text style={[pageType.meta, { color: tokens.mutedForeground, paddingHorizontal: gutter }]}>
         {label}
       </Text>
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
-        {options
-          .filter((option) => editable || option.value === value)
-          .map((option) => {
-            const selected = option.value === value;
-            return (
-              <Pressable
-                key={option.value}
-                accessibilityRole="button"
-                accessibilityState={{ selected }}
-                disabled={!editable}
-                onPress={() => onPick(option.value)}
-                style={({ pressed }) => ({
-                  paddingHorizontal: 10,
-                  paddingVertical: 5,
-                  borderRadius: 999,
-                  borderWidth: 1,
-                  borderColor: selected ? tokens.primary : tokens.border,
-                  backgroundColor: selected ? tokens.primary : "transparent",
-                  opacity: pressed ? 0.75 : 1,
-                })}
-              >
-                <Text
-                  style={{
-                    color: selected ? tokens.primaryForeground : tokens.foreground,
-                    fontSize: 12,
-                    fontWeight: "600",
-                  }}
-                >
-                  {option.label}
-                </Text>
-              </Pressable>
-            );
-          })}
-      </View>
+      <FilterPills
+        pills={options.map((option) => ({ key: option.value, label: option.label }))}
+        activeKey={value}
+        contentPaddingHorizontal={gutter}
+        onChange={(key) => onPick(key as T)}
+      />
     </View>
   );
 };
 
 const JamRules = ({ jam, isHost }: { jam: Jam; isHost: boolean }) => {
   const t = useT();
-  const { tokens } = useTheme();
   return (
-    <View
-      style={{
-        gap: 12,
-        padding: 12,
-        borderWidth: 1,
-        borderColor: tokens.border,
-        borderRadius: RADIUS,
-      }}
-    >
-      <Text style={{ color: tokens.foreground, fontSize: 14, fontWeight: "700" }}>
-        {t(`${PANEL}.rules`)}
-      </Text>
+    <View>
+      <SectionLabel title={t(`${PANEL}.rules`)} />
       <RulePicker
         label={t(`${PANEL}.ruleQueue`)}
         value={jam.queue_mode}
@@ -140,98 +126,26 @@ const JamRules = ({ jam, isHost }: { jam: Jam; isHost: boolean }) => {
 
 const JamUpcoming = () => {
   const t = useT();
-  const { tokens } = useTheme();
   const upcoming = useJamStore((s) => s.state?.upcoming ?? null);
   const isHost = useJamStore(selectIsHost);
   if (isHost || !upcoming || upcoming.length === 0) return null;
+  const shown = upcoming.slice(0, UPCOMING_SHOWN);
 
   return (
-    <View style={{ gap: 6 }}>
-      <Text style={{ color: tokens.mutedForeground, fontSize: 13, fontWeight: "600" }}>
-        {t(`${PANEL}.upNext`)}
-      </Text>
-      {upcoming.map((entry, index) => (
-        <View
+    <View>
+      <SectionLabel title={t(`${PANEL}.upNext`)} />
+      {shown.map((entry, index) => (
+        <ListRow
           key={`${entry.id}-${index}`}
-          style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
-        >
-          <ArtworkImage uri={entry.artwork_url} size={28} />
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <Text numberOfLines={1} style={{ color: tokens.foreground, fontSize: 12 }}>
-              {entry.title}
-            </Text>
-            <Text numberOfLines={1} style={{ color: tokens.mutedForeground, fontSize: 11 }}>
-              {artistNamesLine(entry.artist_names)}
-              {entry.proposer
-                ? `  ${t(`${PANEL}.pickedBy`, { handle: entry.proposer.handle })}`
-                : ""}
-            </Text>
-          </View>
-        </View>
+          title={entry.title}
+          meta={`${artistNamesLine(entry.artist_names)}${
+            entry.proposer ? `  ${t(`${PANEL}.pickedBy`, { handle: entry.proposer.handle })}` : ""
+          }`}
+          leading={<ArtworkImage uri={entry.artwork_url} size={44} />}
+          order={index < 10 ? index : undefined}
+          last={index === shown.length - 1}
+        />
       ))}
-    </View>
-  );
-};
-
-// ---------------------------------------------------------------------------
-// Small shared pieces
-// ---------------------------------------------------------------------------
-
-const PrimaryButton = ({
-  label,
-  onPress,
-  destructive = false,
-  disabled = false,
-}: {
-  label: string;
-  onPress: () => void;
-  destructive?: boolean;
-  disabled?: boolean;
-}) => {
-  const { tokens } = useTheme();
-  return (
-    <Pressable
-      accessibilityRole="button"
-      disabled={disabled}
-      onPress={onPress}
-      style={({ pressed }) => ({
-        alignItems: "center",
-        paddingVertical: 12,
-        borderRadius: RADIUS,
-        backgroundColor: destructive ? tokens.destructive : tokens.primary,
-        opacity: disabled ? 0.5 : pressed ? 0.85 : 1,
-      })}
-    >
-      <Text
-        style={{
-          color: destructive ? tokens.destructiveForeground : tokens.primaryForeground,
-          fontSize: 14,
-          fontWeight: "700",
-        }}
-      >
-        {label}
-      </Text>
-    </Pressable>
-  );
-};
-
-const PersonRow = ({
-  userId,
-  name,
-  trailing,
-}: {
-  userId: UserId;
-  name: string;
-  trailing?: React.ReactNode;
-}) => {
-  const { tokens } = useTheme();
-  return (
-    <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-      <ArtworkImage uri={avatarUrl(userId)} size={32} shape="circle" />
-      <Text numberOfLines={1} style={{ flex: 1, color: tokens.foreground, fontSize: 14 }}>
-        {name}
-      </Text>
-      {trailing}
     </View>
   );
 };
@@ -247,6 +161,7 @@ const PersonRow = ({
 export default function JamScreen({ embedded = false }: { embedded?: boolean } = {}) {
   const t = useT();
   const { tokens } = useTheme();
+  const gutter = useGutter();
   const shellBottomPadding = useContentBottomPadding();
   const shellTopPadding = useContentTopPadding();
   const bottomPadding = embedded ? 24 : shellBottomPadding;
@@ -290,58 +205,56 @@ export default function JamScreen({ embedded = false }: { embedded?: boolean } =
    * a paragraph, pressing "Começar jam", and only then meeting the people -
    * two steps for one intention. The jam is created on demand and the invite
    * follows it; an existing jam skips straight to the invite.
+   *
+   * Optimista: "Convidado" aparece no toque e volta atras se falhar.
    */
   const inviteFriend = (friendId: UserId): void => {
+    haptics.success();
+    setInvited((prev) => [...prev, friendId]);
+    const undo = (): void => {
+      haptics.error();
+      setInvited((prev) => prev.filter((id) => id !== friendId));
+    };
     void run(async () => {
-      if (!jamStore.getState().jam && !(await jamCreate())) return;
-      if (await jamInvite(friendId)) setInvited((prev) => [...prev, friendId]);
+      if (!jamStore.getState().jam && !(await jamCreate())) return undo();
+      if (!(await jamInvite(friendId))) undo();
     });
   };
 
   const inviteList = (
-    <View style={{ gap: 10 }}>
-      <Text style={{ color: tokens.mutedForeground, fontSize: 13, fontWeight: "600" }}>
-        {t(`${PANEL}.inviteFriends`)}
-      </Text>
-      {invitable.length === 0 ? (
-        <Text style={{ color: tokens.mutedForeground, fontSize: 12 }}>
+    <View>
+      <SectionLabel title={t(`${PANEL}.inviteFriends`)} />
+      {relationships.isPending ? (
+        <ListSkeleton rows={3} round />
+      ) : invitable.length === 0 ? (
+        <Text style={[pageType.meta, { color: tokens.mutedForeground, paddingHorizontal: gutter }]}>
           {t("native.jam.noFriends")}
         </Text>
       ) : (
-        invitable.map((friend) => {
+        invitable.map((friend, index) => {
           const sent = invited.includes(friend.id);
           return (
-            <PersonRow
+            <ListRow
               key={friend.id}
-              userId={friend.id}
-              name={friend.name || friend.handle}
+              title={friend.name || friend.handle}
+              leading={<ArtworkImage uri={avatarUrl(friend.id)} size={40} shape="circle" />}
+              order={index < 10 ? index : undefined}
+              last={index === invitable.length - 1}
               trailing={
-                <Pressable
-                  accessibilityRole="button"
-                  disabled={sent || busy}
-                  onPress={() => inviteFriend(friend.id)}
-                  style={({ pressed }) => ({
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: 4,
-                    paddingHorizontal: 10,
-                    paddingVertical: 6,
-                    borderRadius: RADIUS,
-                    backgroundColor: tokens.secondary,
-                    opacity: sent ? 0.5 : pressed ? 0.8 : 1,
-                  })}
-                >
-                  <Icon name="plus" size={12} color={tokens.secondaryForeground} />
-                  <Text
-                    style={{
-                      color: tokens.secondaryForeground,
-                      fontSize: 12,
-                      fontWeight: "600",
-                    }}
-                  >
-                    {t(sent ? `${PANEL}.invited` : `${PANEL}.invite`)}
-                  </Text>
-                </Pressable>
+                sent ? (
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                    <Icon name="check" size={16} color={tokens.mutedForeground} />
+                    <Text style={[pageType.meta, { color: tokens.mutedForeground }]}>
+                      {t(`${PANEL}.invited`)}
+                    </Text>
+                  </View>
+                ) : (
+                  <TextButton
+                    label={t(`${PANEL}.invite`)}
+                    icon="plus"
+                    onPress={() => inviteFriend(friend.id)}
+                  />
+                )
               }
             />
           );
@@ -353,86 +266,90 @@ export default function JamScreen({ embedded = false }: { embedded?: boolean } =
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: embedded ? "transparent" : tokens.background }}
-      contentContainerStyle={{ padding: 16, paddingTop: topPadding, paddingBottom: bottomPadding, gap: 16 }}
+      contentContainerStyle={{ paddingTop: topPadding, paddingBottom: bottomPadding }}
     >
-      <Text style={{ color: tokens.foreground, fontSize: 28, fontWeight: "800" }}>
-        {t(`${PANEL}.title`)}
-      </Text>
+      <PageHeader title={t(`${PANEL}.title`)} />
 
       {!jam ? (
         <>
-          <Text style={{ color: tokens.mutedForeground, fontSize: 14, lineHeight: 20 }}>
+          <Text
+            style={[
+              pageType.body,
+              { color: tokens.mutedForeground, paddingHorizontal: gutter, marginTop: 8 },
+            ]}
+          >
             {t(`${PANEL}.description`)}
           </Text>
-          <PrimaryButton
-            label={t(`${PANEL}.startJam`)}
-            disabled={busy}
-            onPress={() => void run(() => jamCreate())}
-          />
+          <View style={{ paddingHorizontal: gutter, marginTop: 20 }}>
+            <PressableScale
+              accessibilityRole="button"
+              accessibilityLabel={t(`${PANEL}.startJam`)}
+              disabled={busy}
+              onPress={() => {
+                haptics.tap();
+                void run(() => jamCreate());
+              }}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 10,
+                height: 52,
+                paddingHorizontal: 28,
+                borderRadius: 26,
+                alignSelf: "flex-start",
+                backgroundColor: tokens.primary,
+                opacity: busy ? 0.6 : 1,
+              }}
+            >
+              {busy ? (
+                <ActivityIndicator color={tokens.primaryForeground} />
+              ) : (
+                <Icon name="users" size={18} color={tokens.primaryForeground} />
+              )}
+              <Text style={{ color: tokens.primaryForeground, fontSize: 16, fontWeight: "700" }}>
+                {t(`${PANEL}.startJam`)}
+              </Text>
+            </PressableScale>
+          </View>
+
           {/* The people, before the jam exists: inviting one starts it. */}
           {inviteList}
+
+          <SectionLabel title={t(`${PANEL}.joinableJams`)} />
           {joinable.length > 0 ? (
-            <View style={{ gap: 8 }}>
-              <Text style={{ color: tokens.mutedForeground, fontSize: 13, fontWeight: "600" }}>
-                {t(`${PANEL}.joinableJams`)}
-              </Text>
-              {joinable.map((entry) => {
-                const host = entry.members.find((member) => member.is_host);
-                return (
-                  <View
-                    key={entry.id}
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: 10,
-                      padding: 10,
-                      borderWidth: 1,
-                      borderColor: tokens.border,
-                      borderRadius: RADIUS,
-                    }}
-                  >
-                    <ArtworkImage uri={avatarUrl(entry.host_id)} size={32} shape="circle" />
-                    <View style={{ flex: 1, minWidth: 0 }}>
-                      <Text
-                        numberOfLines={1}
-                        style={{ color: tokens.foreground, fontSize: 14, fontWeight: "600" }}
-                      >
-                        {t(`${PANEL}.hostsJam`, {
-                          handle: host?.name || host?.handle || "?",
-                        })}
-                      </Text>
-                      <Text style={{ color: tokens.mutedForeground, fontSize: 12 }}>
-                        {t(`${PANEL}.membersCount`, { count: entry.members.length })}
-                      </Text>
-                    </View>
-                    <Pressable
-                      accessibilityRole="button"
-                      disabled={busy}
-                      onPress={() => void run(() => jamJoin(entry.id))}
-                      style={({ pressed }) => ({
-                        paddingHorizontal: 14,
-                        paddingVertical: 7,
-                        borderRadius: RADIUS,
-                        backgroundColor: tokens.primary,
-                        opacity: busy ? 0.5 : pressed ? 0.85 : 1,
-                      })}
-                    >
-                      <Text
-                        style={{
-                          color: tokens.primaryForeground,
-                          fontSize: 12,
-                          fontWeight: "700",
-                        }}
-                      >
-                        {t(`${PANEL}.join`)}
-                      </Text>
-                    </Pressable>
-                  </View>
-                );
-              })}
-            </View>
-          ) : jamsQuery.isLoading ? null : (
-            <EmptyState icon="users" text={t("native.jam.noJoinable")} />
+            joinable.map((entry, index) => {
+              const host = entry.members.find((member) => member.is_host);
+              return (
+                <ListRow
+                  key={entry.id}
+                  title={t(`${PANEL}.hostsJam`, { handle: host?.name || host?.handle || "?" })}
+                  meta={t(`${PANEL}.membersCount`, { count: entry.members.length })}
+                  leading={<ArtworkImage uri={avatarUrl(entry.host_id)} size={40} shape="circle" />}
+                  order={index}
+                  last={index === joinable.length - 1}
+                  trailing={
+                    <TextButton
+                      label={t(`${PANEL}.join`)}
+                      onPress={() => {
+                        haptics.tap();
+                        void run(() => jamJoin(entry.id));
+                      }}
+                    />
+                  }
+                />
+              );
+            })
+          ) : (
+            <PageState
+              loading={jamsQuery.isPending}
+              error={jamsQuery.isError ? jamsQuery.error : undefined}
+              onRetry={() => void jamsQuery.refetch()}
+              skeleton={<ListSkeleton rows={2} round />}
+              empty
+              emptyIcon="users"
+              emptyText={t("native.jam.noJoinable")}
+            />
           )}
         </>
       ) : (
@@ -441,21 +358,13 @@ export default function JamScreen({ embedded = false }: { embedded?: boolean } =
             <View
               style={{
                 flexDirection: "row",
-                gap: 8,
-                padding: 10,
-                borderRadius: RADIUS,
-                backgroundColor: tokens.secondary,
+                gap: 10,
+                paddingHorizontal: gutter,
+                marginTop: 8,
               }}
             >
-              <Icon name="sparkles" size={14} color={tokens.secondaryForeground} />
-              <Text
-                style={{
-                  flex: 1,
-                  color: tokens.secondaryForeground,
-                  fontSize: 12,
-                  lineHeight: 17,
-                }}
-              >
+              <Icon name="play" size={16} color={tokens.mutedForeground} />
+              <Text style={[pageType.meta, { flex: 1, color: tokens.mutedForeground }]}>
                 {t(`${PANEL}.proposeHint`)}
               </Text>
             </View>
@@ -464,54 +373,41 @@ export default function JamScreen({ embedded = false }: { embedded?: boolean } =
           <JamRules jam={jam} isHost={isHost} />
           <JamUpcoming />
 
-          <View style={{ gap: 10 }}>
-            <Text style={{ color: tokens.mutedForeground, fontSize: 13, fontWeight: "600" }}>
-              {t(`${PANEL}.membersCount`, { count: jam.members.length })}
-            </Text>
-            {jam.members.map((member) => (
-              <PersonRow
-                key={member.id}
-                userId={member.id}
-                name={`${member.name || member.handle}${
-                  member.id === myId ? ` ${t(`${PANEL}.you`)}` : ""
-                }`}
-                trailing={
-                  member.is_host ? (
-                    <View
-                      style={{
-                        paddingHorizontal: 8,
-                        paddingVertical: 2,
-                        borderRadius: 999,
-                        backgroundColor: tokens.secondary,
-                      }}
-                    >
-                      <Text
-                        style={{
-                          color: tokens.secondaryForeground,
-                          fontSize: 10,
-                          fontWeight: "700",
-                        }}
-                      >
-                        {t("native.jam.hostBadge")}
-                      </Text>
-                    </View>
-                  ) : null
-                }
-              />
-            ))}
-          </View>
+          <SectionLabel title={t(`${PANEL}.membersCount`, { count: jam.members.length })} />
+          {jam.members.map((member, index) => (
+            <ListRow
+              key={member.id}
+              title={`${member.name || member.handle}${
+                member.id === myId ? ` ${t(`${PANEL}.you`)}` : ""
+              }`}
+              leading={<ArtworkImage uri={avatarUrl(member.id)} size={40} shape="circle" />}
+              last={index === jam.members.length - 1}
+              trailing={
+                member.is_host ? (
+                  <Text style={[pageType.meta, { color: tokens.mutedForeground }]}>
+                    {t("native.jam.hostBadge")}
+                  </Text>
+                ) : null
+              }
+            />
+          ))}
 
           {inviteList}
 
-          <PrimaryButton
-            destructive
-            disabled={busy}
-            label={t(isHost ? `${PANEL}.endJam` : `${PANEL}.leaveJam`)}
-            onPress={() => {
-              if (isHost) setConfirmEnd(true);
-              else void run(() => jamLeave());
-            }}
-          />
+          <View style={{ marginTop: 28 }}>
+            <ListRow
+              destructive
+              icon="x"
+              last
+              disabled={busy}
+              title={t(isHost ? `${PANEL}.endJam` : `${PANEL}.leaveJam`)}
+              onPress={() => {
+                haptics.press();
+                if (isHost) setConfirmEnd(true);
+                else void run(() => jamLeave());
+              }}
+            />
+          </View>
         </>
       )}
 

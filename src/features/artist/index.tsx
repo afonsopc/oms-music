@@ -47,14 +47,15 @@ import {
   GhostIconButton,
   ErrorState,
   Hero,
-  HeroSkeleton,
   PlayFab,
-  Skeleton,
   SongRow,
   SongTable,
   StickyTitle,
   type SongRowColumn,
 } from "@/ui";
+import { HeroPlaceholder } from "@/ui/Hero";
+import { ListSkeleton, pageType, useGutter } from "@/ui/page";
+import { haptics } from "@/lib/haptics";
 import { useContentBottomPadding } from "@/features/shell/metrics";
 import { AlbumGrid } from "./AlbumGrid";
 import { ArtistPreviewStories } from "./PreviewStories";
@@ -72,7 +73,6 @@ import { hasOwnArtistImage, heroAvatarSource, heroBackdropUri } from "./images";
  * is a good part of what the owner called a "hard" page on 2026-08-16
  * (point 15) - nothing on screen is wrong, but no two things share an edge.
  */
-const SECTION_PADDING = 24;
 
 /** Stable column set for every track row on this page: SongTable folds its
  *  renderItem into a memo, so the array identity must not change per render. */
@@ -105,17 +105,21 @@ const Section = ({
   children?: React.ReactNode;
 }) => {
   const { tokens } = useTheme();
+  const gutter = useGutter();
   return (
-    <View style={{ paddingTop: first ? 8 : secondary ? 32 : 40 }}>
+    <View style={{ paddingTop: first ? 8 : secondary ? 28 : 36 }}>
       <Text
-        style={{
-          color: tokens.foreground,
-          fontSize: secondary ? 17 : 24,
-          fontWeight: "700",
-          letterSpacing: secondary ? -0.2 : -0.4,
-          marginBottom: 12,
-          paddingHorizontal: SECTION_PADDING,
-        }}
+        accessibilityRole="header"
+        style={[
+          pageType.section,
+          {
+            color: tokens.foreground,
+            fontSize: secondary ? 18 : 22,
+            lineHeight: secondary ? 22 : 26,
+            marginBottom: 10,
+            paddingHorizontal: gutter,
+          },
+        ]}
       >
         {title}
       </Text>
@@ -131,6 +135,7 @@ export default function ArtistScreen() {
   const locale = useLocale();
   const { tokens } = useTheme();
   const router = useRouter();
+  const gutter = useGutter();
   const bottomPadding = useContentBottomPadding();
   const [stickyVisible, setStickyVisible] = useState(false);
 
@@ -195,6 +200,7 @@ export default function ArtistScreen() {
   const playFromAll = useCallback(
     (index: number) => {
       if (allSongs.length === 0) return;
+      haptics.tap();
       getTransport().setQueue(allSongs, index);
     },
     [allSongs],
@@ -214,6 +220,7 @@ export default function ArtistScreen() {
 
   const playFeatured = useCallback(
     (_song: Song, index: number) => {
+      haptics.tap();
       getTransport().setQueue(featuredSongs, index);
     },
     [featuredSongs],
@@ -256,11 +263,9 @@ export default function ArtistScreen() {
   if ((!!segment && artistQuery.isLoading) || (enabled && albumsQuery.isLoading)) {
     return (
       <View style={{ flex: 1, backgroundColor: tokens.background }}>
-        <HeroSkeleton artist />
-        <View style={{ paddingHorizontal: SECTION_PADDING, gap: 12 }}>
-          <Skeleton width="40%" height={28} />
-          <Skeleton width="70%" height={16} />
-        </View>
+        <HeroPlaceholder kind="artist" />
+        <View style={{ height: 82 }} />
+        <ListSkeleton rows={5} />
       </View>
     );
   }
@@ -329,6 +334,7 @@ export default function ArtistScreen() {
 
       {topSongs.length > 0 ? (
         <Section title={t("components.music.ArtistView.popular")} first>
+          <View style={{ marginHorizontal: Math.max(0, gutter - 12) }}>
           {topSongs.map((song, index) => (
             <SongRow
               key={song.id}
@@ -343,6 +349,7 @@ export default function ArtistScreen() {
               onPlay={() => playFromTop(song)}
             />
           ))}
+          </View>
         </Section>
       ) : null}
 
@@ -375,7 +382,7 @@ export default function ArtistScreen() {
   const listFooter =
     bioParagraphs.length > 0 || galleryUrls.length > 0 ? (
       <Section title={t("components.music.ArtistView.about")} secondary>
-        <View style={{ paddingHorizontal: SECTION_PADDING, gap: 12 }}>
+        <View style={{ paddingHorizontal: gutter, gap: 12 }}>
           {galleryUrls.length > 0 ? <ArtistGallery urls={galleryUrls} /> : null}
           {bioParagraphs.map((paragraph, index) => (
             <Text
@@ -427,9 +434,10 @@ export default function ArtistScreen() {
           allSongs.length > 0 ? (
             <PlayFab
               playing={isPlayingThisArtist}
-              onPress={() =>
-                isPlayingThisArtist ? getTransport().toggle() : playFromAll(0)
-              }
+              onPress={() => {
+                if (isPlayingThisArtist) getTransport().toggle();
+                else playFromAll(0);
+              }}
               size={34}
               accessibilityLabel={
                 isPlayingThisArtist

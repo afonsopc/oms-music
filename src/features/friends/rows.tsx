@@ -20,9 +20,11 @@ import { jamJoin } from "@/jam/channel";
 import { useJamStore } from "@/jam/store";
 import { profileRoute } from "@/lib/routes";
 import { artistNamesLine } from "@/social/display";
+import { haptics } from "@/lib/haptics";
 import { useTheme } from "@/theme/provider";
-import { RADIUS } from "@/theme/tokens";
-import { ArtworkImage, Icon, PlayingBars } from "@/ui";
+import { ArtworkImage, PlayingBars } from "@/ui";
+import { Reveal } from "@/ui/motion";
+import { pageType } from "@/ui/page";
 
 const PANEL = "components.music.FriendActivityPanel";
 
@@ -49,125 +51,117 @@ export const openFriendProfile = (handle: string): void => {
   router.push(profileRoute(handle));
 };
 
-export const FriendActivityRow = ({ activity }: { activity: FriendListening }) => {
+/**
+ * One friend: round avatar, name, a single grey line with the song (or
+ * "Nada de momento") and how long ago, the song cover on the right. Live
+ * rows get the playing bars and a white presence dot; online-but-idle a
+ * grey one. No colour, no pill: a jam is a word in the meta and "Entrar"
+ * is plain text.
+ */
+export const FriendActivityRow = React.memo(function FriendActivityRow({
+  activity,
+  inset = 20,
+  order,
+}: {
+  activity: FriendListening;
+  /** Side padding: the page gutter, or the right panel's narrow frame. */
+  inset?: number;
+  /** Ordem na cascata de entrada (omitir: sem animação). */
+  order?: number;
+}) {
   const t = useT();
-  const { tokens, ink } = useTheme();
+  const { tokens } = useTheme();
   const myJamId = useJamStore((s) => s.jam?.id ?? null);
   const live = isLiveRow(activity);
   const inMyJam = myJamId !== null && activity.jam_id === myJamId;
   const joinable = activity.jam_id !== null && !inMyJam;
   const ago = live ? null : timeAgo(activity.updated_at, t);
+  const name = activity.user.name || activity.user.handle;
 
-  return (
+  const songLine = activity.song
+    ? [activity.song.title, artistNamesLine(activity.song.artist_names)].filter(Boolean).join(" · ")
+    : t(`${PANEL}.nothingShared`);
+  const metaLine = [
+    activity.jam_id !== null ? t(inMyJam ? `${PANEL}.inYourJam` : `${PANEL}.inAJam`) : null,
+    songLine,
+    ago,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  const row = (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={activity.user.name || activity.user.handle}
+      accessibilityLabel={name}
       onPress={() => openFriendProfile(activity.user.handle)}
-      style={({ pressed }) => ({
+      style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => ({
         flexDirection: "row",
-        alignItems: "flex-start",
-        gap: 10,
-        paddingHorizontal: 16,
-        paddingVertical: 10,
-        opacity: pressed ? 0.7 : 1,
+        alignItems: "center",
+        gap: 14,
+        minHeight: 64,
+        paddingVertical: 8,
+        paddingHorizontal: inset,
+        backgroundColor: pressed ? tokens.secondary : hovered ? tokens.accent : "transparent",
       })}
     >
       <View>
-        <ArtworkImage uri={avatarUrl(activity.user.id)} size={36} shape="circle" />
+        <ArtworkImage uri={avatarUrl(activity.user.id)} size={48} shape="circle" />
         {activity.online ? (
           <View
             style={{
               position: "absolute",
-              right: -1,
-              bottom: -1,
-              width: 10,
-              height: 10,
-              borderRadius: 5,
+              right: 0,
+              bottom: 0,
+              width: 12,
+              height: 12,
+              borderRadius: 6,
               borderWidth: 2,
               borderColor: tokens.background,
-              backgroundColor: live ? ink.sync : tokens.mutedForeground,
+              backgroundColor: live ? tokens.foreground : tokens.mutedForeground,
             }}
           />
         ) : null}
       </View>
 
-      <View style={{ flex: 1, minWidth: 0, gap: 1 }}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+      <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
           <Text
             numberOfLines={1}
-            style={{ color: tokens.foreground, fontSize: 14, fontWeight: "600", flexShrink: 1 }}
+            style={[pageType.body, { color: tokens.foreground, fontWeight: "500", flexShrink: 1 }]}
           >
-            {activity.user.name || activity.user.handle}
+            {name}
           </Text>
           {live ? <PlayingBars count={3} /> : null}
         </View>
-
-        {activity.song ? (
-          <>
-            <Text numberOfLines={1} style={{ color: tokens.foreground, fontSize: 12 }}>
-              {activity.song.title}
-            </Text>
-            <Text numberOfLines={1} style={{ color: tokens.mutedForeground, fontSize: 12 }}>
-              {artistNamesLine(activity.song.artist_names)}
-            </Text>
-          </>
-        ) : (
-          <Text numberOfLines={1} style={{ color: tokens.mutedForeground, fontSize: 12 }}>
-            {t(`${PANEL}.nothingShared`)}
-          </Text>
-        )}
-
-        {ago ? (
-          <Text style={{ color: tokens.mutedForeground, fontSize: 10 }}>{ago}</Text>
-        ) : null}
-
-        {activity.jam_id !== null ? (
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 }}>
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 4,
-                paddingHorizontal: 8,
-                paddingVertical: 2,
-                borderRadius: 999,
-                backgroundColor: tokens.secondary,
-              }}
-            >
-              <Icon name="radio" size={11} color={tokens.secondaryForeground} />
-              <Text style={{ color: tokens.secondaryForeground, fontSize: 10, fontWeight: "700" }}>
-                {t(inMyJam ? `${PANEL}.inYourJam` : `${PANEL}.inAJam`)}
-              </Text>
-            </View>
-            {joinable ? (
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => {
-                  if (activity.jam_id === null) return;
-                  void jamJoin(activity.jam_id);
-                }}
-                style={({ pressed }) => ({
-                  paddingHorizontal: 10,
-                  paddingVertical: 3,
-                  borderRadius: RADIUS,
-                  backgroundColor: tokens.primary,
-                  opacity: pressed ? 0.8 : 1,
-                })}
-              >
-                <Text
-                  style={{ color: tokens.primaryForeground, fontSize: 10, fontWeight: "700" }}
-                >
-                  {t(`${PANEL}.join`)}
-                </Text>
-              </Pressable>
-            ) : null}
-          </View>
-        ) : null}
+        <Text numberOfLines={2} style={[pageType.meta, { color: tokens.mutedForeground }]}>
+          {metaLine}
+        </Text>
       </View>
 
+      {joinable ? (
+        <Pressable
+          accessibilityRole="button"
+          hitSlop={10}
+          onPress={() => {
+            if (activity.jam_id === null) return;
+            haptics.tap();
+            void jamJoin(activity.jam_id);
+          }}
+        >
+          {({ pressed }) => (
+            <Text
+              style={[pageType.label, { color: tokens.foreground, fontSize: 14, opacity: pressed ? 0.6 : 1 }]}
+            >
+              {t(`${PANEL}.join`)}
+            </Text>
+          )}
+        </Pressable>
+      ) : null}
+
       {activity.song?.artwork_url ? (
-        <ArtworkImage uri={activity.song.artwork_url} size={40} />
+        <ArtworkImage uri={activity.song.artwork_url} size={48} />
       ) : null}
     </Pressable>
   );
-};
+  return order == null ? row : <Reveal order={order}>{row}</Reveal>;
+});

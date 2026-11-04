@@ -1,17 +1,22 @@
 /**
- * Control row under the hero, arranged like the reference app's (owner point 16,
- * 2026-08-16): the SMALL secondary actions (like, download, add, radio,
- * overflow...) cluster on the LEFT, and playback - shuffle plus the 56px
- * play FAB - sits LARGE on the RIGHT. Each control renders ONLY when its
- * handler is passed. The overflow menu opens a bottom sheet with
- * caller-provided items.
+ * A fila de acções por baixo do hero (redesenho 2026-11-04): UMA linha.
+ *
+ *   (PLAY)  ⤮  ↓  ♡                                   ⋯
+ *
+ * O play redondo é a acção principal e fica encostado à margem, debaixo do
+ * título; baralhar, descarregar e gostar são ícones pequenos ao lado; tudo o
+ * resto (adicionar, rádio, os extras do ecrã) vive no menu "⋯", que abre uma
+ * folha de baixo. Cada controlo só aparece quando o ecrã passa o handler.
  */
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Pressable, Text, View, type StyleProp, type ViewStyle } from "react-native";
 import { GhostIconButton, PlayFab } from "./buttons";
 import { Icon, iconForHint } from "./icons";
+import { Reveal } from "./motion";
+import { useGutter } from "./page";
 import { BottomSheet } from "./sheets/BottomSheet";
 import { useT } from "@/i18n";
+import { haptics } from "@/lib/haptics";
 import { useTheme } from "@/theme/provider";
 
 export interface ActionBarMenuItem {
@@ -65,39 +70,82 @@ export const ActionBar = ({
 }: ActionBarProps) => {
   const { tokens, ink } = useTheme();
   const t = useT();
+  const gutter = useGutter();
   const [menuOpen, setMenuOpen] = useState(false);
 
+  // Adicionar e rádio deixaram de ser ícones soltos: entram no topo do menu.
+  const allItems = useMemo<ActionBarMenuItem[]>(() => {
+    const items: ActionBarMenuItem[] = [];
+    if (onAdd) {
+      items.push({
+        id: "__add",
+        label: addLabel ?? t("components.music.ActionBar.add"),
+        icon: "plus",
+        onPress: onAdd,
+      });
+    }
+    if (onStartRadio) {
+      items.push({
+        id: "__radio",
+        label: t("components.music.ActionBar.startRadio"),
+        icon: "radio",
+        onPress: onStartRadio,
+      });
+    }
+    return [...items, ...(menuItems ?? [])];
+  }, [onAdd, addLabel, onStartRadio, menuItems, t]);
+
   return (
-    <View
-      style={[
-        {
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 12,
-          paddingHorizontal: 24,
-          paddingTop: 16,
-          paddingBottom: 20,
-        },
-        style,
-      ]}
-    >
-      {/* Cluster secundario, pequeno, a ESQUERDA (ordem como as apps de referencia: gosto,
-          download, adicionar, radio, extras, overflow no fim). */}
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 4, flexShrink: 1 }}>
-        {onLike ? (
+    <Reveal order={2}>
+      <View
+        style={[
+          {
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 6,
+            paddingHorizontal: gutter,
+            paddingTop: 14,
+            paddingBottom: 12,
+          },
+          style,
+        ]}
+      >
+        {onPlay ? (
+          <PlayFab
+            playing={isPlayingThisCollection}
+            loading={playLoading}
+            onPress={() => {
+              haptics.tap();
+              onPlay();
+            }}
+            size={56}
+            style={{ marginRight: 8 }}
+            accessibilityLabel={
+              isPlayingThisCollection
+                ? t("components.music.ActionBar.pause")
+                : t("components.music.ActionBar.play")
+            }
+          />
+        ) : null}
+        {onShuffle ? (
           <GhostIconButton
-            icon="heart"
-            onPress={onLike}
-            active={liked}
-            filled={liked}
-            accessibilityLabel={t("components.music.ActionBar.like")}
+            icon="shuffle"
+            size={24}
+            onPress={() => {
+              haptics.tap();
+              onShuffle();
+            }}
+            accessibilityLabel={t("components.music.ActionBar.shuffle")}
           />
         ) : null}
         {onToggleOffline ? (
           <GhostIconButton
             icon={isOffline ? "cloud-check" : "download"}
-            onPress={onToggleOffline}
+            size={22}
+            onPress={() => {
+              haptics.select();
+              onToggleOffline();
+            }}
             active={isOffline}
             accessibilityLabel={
               isOffline
@@ -106,57 +154,37 @@ export const ActionBar = ({
             }
           />
         ) : null}
-        {onAdd ? (
+        {onLike ? (
           <GhostIconButton
-            icon="plus"
-            onPress={onAdd}
-            accessibilityLabel={addLabel ?? t("components.music.ActionBar.add")}
-          />
-        ) : null}
-        {onStartRadio ? (
-          <GhostIconButton
-            icon="radio"
-            onPress={onStartRadio}
-            accessibilityLabel={t("components.music.ActionBar.startRadio")}
+            icon="heart"
+            size={22}
+            onPress={() => {
+              if (!liked) haptics.success();
+              onLike();
+            }}
+            active={liked}
+            filled={liked}
+            accessibilityLabel={t("components.music.ActionBar.like")}
           />
         ) : null}
         {secondarySlot}
-        {menuItems && menuItems.length > 0 ? (
+        <View style={{ flex: 1 }} />
+        {allItems.length > 0 ? (
           <GhostIconButton
             icon="more-horizontal"
-            onPress={() => setMenuOpen(true)}
+            size={24}
+            onPress={() => {
+              haptics.select();
+              setMenuOpen(true);
+            }}
             accessibilityLabel={t("components.music.ActionBar.more")}
           />
         ) : null}
       </View>
-      {/* Reproducao GRANDE a DIREITA: shuffle em ghost maior junto ao FAB. */}
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-        {onShuffle ? (
-          <GhostIconButton
-            icon="shuffle"
-            size={26}
-            onPress={onShuffle}
-            accessibilityLabel={t("components.music.ActionBar.shuffle")}
-          />
-        ) : null}
-        {onPlay ? (
-          <PlayFab
-            playing={isPlayingThisCollection}
-            loading={playLoading}
-            onPress={onPlay}
-            size={56}
-            accessibilityLabel={
-              isPlayingThisCollection
-                ? t("components.music.ActionBar.pause")
-                : t("components.music.ActionBar.play")
-            }
-          />
-        ) : null}
-      </View>
 
-      {menuItems && menuItems.length > 0 ? (
+      {allItems.length > 0 ? (
         <BottomSheet visible={menuOpen} onClose={() => setMenuOpen(false)}>
-          {menuItems.map((item) => {
+          {allItems.map((item) => {
             const icon = iconForHint(item.icon);
             const tint = item.destructive ? ink.destructive : tokens.foreground;
             return (
@@ -171,18 +199,19 @@ export const ActionBar = ({
                 style={({ pressed }) => ({
                   flexDirection: "row",
                   alignItems: "center",
-                  gap: 14,
+                  gap: 16,
+                  minHeight: 52,
                   paddingHorizontal: 20,
-                  paddingVertical: 13,
-                  opacity: item.disabled ? 0.4 : pressed ? 0.6 : 1,
+                  backgroundColor: pressed ? tokens.secondary : "transparent",
+                  opacity: item.disabled ? 0.4 : 1,
                 })}
               >
                 {icon ? (
-                  <Icon name={icon} size={19} color={tint} />
+                  <Icon name={icon} size={20} color={item.destructive ? tint : tokens.mutedForeground} />
                 ) : (
-                  <View style={{ width: 19 }} />
+                  <View style={{ width: 20 }} />
                 )}
-                <Text style={{ color: tint, fontSize: 15 }} numberOfLines={1}>
+                <Text style={{ color: tint, fontSize: 16 }} numberOfLines={1}>
                   {item.label}
                 </Text>
               </Pressable>
@@ -190,6 +219,6 @@ export const ActionBar = ({
           })}
         </BottomSheet>
       ) : null}
-    </View>
+    </Reveal>
   );
 };

@@ -16,6 +16,7 @@ import {
 import { useCreatePlaylist } from "@/api/queries/playlists";
 import type { Playlist } from "@/domain/playlist";
 import { useT } from "@/i18n";
+import { haptics } from "@/lib/haptics";
 import { useTheme } from "@/theme/provider";
 import { modalScrim } from "@/ui/uiTheme";
 import { RADIUS } from "@/theme/tokens";
@@ -49,6 +50,7 @@ export const CreatePlaylistDialog = ({
       { name: trimmed },
       {
         onSuccess: (playlist) => {
+          haptics.success();
           close();
           onCreated?.(playlist);
         },

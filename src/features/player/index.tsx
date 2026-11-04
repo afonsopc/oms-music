@@ -38,6 +38,7 @@ import { formatArtists, formatDuration, primaryArtistSegment } from "@/domain/fo
 import type { Song } from "@/domain/song";
 import { getShellSlots, useShellSlotsVersion } from "@/features/shell/slots";
 import { useT } from "@/i18n";
+import { haptics } from "@/lib/haptics";
 import { songAlbumRoute, songArtistRoute } from "@/lib/routes";
 import { usePlayerStore } from "@/player/store";
 import { usePlaybackView } from "@/remote/mirror";
@@ -275,8 +276,8 @@ export default function NowPlayingBody() {
   // limitado tambem pela altura disponivel para nao empurrar a identidade
   // para fora do ecra num telefone baixo.
   const artworkSize = Math.min(
-    containerWidth - 48,
-    Math.round(height * 0.44),
+    containerWidth - 40,
+    Math.round(height * 0.46),
     desktopShell ? DESKTOP_ARTWORK_MAX : Number.POSITIVE_INFINITY,
   );
 
@@ -298,6 +299,7 @@ export default function NowPlayingBody() {
             gap: 8,
             marginTop: 28,
             paddingHorizontal: 24,
+            paddingRight: 16,
           }}
         >
           <View style={{ flex: 1 }}>
@@ -309,7 +311,13 @@ export default function NowPlayingBody() {
             >
               <Text
                 numberOfLines={2}
-                style={{ color: tokens.foreground, fontSize: 22, fontWeight: "800" }}
+                style={{
+                  color: tokens.foreground,
+                  fontSize: 24,
+                  lineHeight: 29,
+                  fontWeight: "800",
+                  letterSpacing: -0.5,
+                }}
               >
                 {song.title}
               </Text>
@@ -322,7 +330,7 @@ export default function NowPlayingBody() {
             >
               <Text
                 numberOfLines={1}
-                style={{ color: tokens.mutedForeground, fontSize: 14, marginTop: 4 }}
+                style={{ color: tokens.mutedForeground, fontSize: 16, marginTop: 4 }}
               >
                 {artistsLine}
               </Text>
@@ -337,12 +345,20 @@ export default function NowPlayingBody() {
                 active={liked}
                 filled={liked}
                 accessibilityLabel={liked ? t(`${BB}.unlike`) : t(`${BB}.like`)}
-                onPress={() => toggleLike.mutate({ songId: song.id, liked })}
+                size={24}
+                onPress={() => {
+                  if (!liked) haptics.success();
+                  toggleLike.mutate({ songId: song.id, liked });
+                }}
               />
               <GhostIconButton
                 icon="more-horizontal"
+                size={24}
                 accessibilityLabel={t(`${NP}.moreActions`)}
-                onPress={() => setMenuOpen(true)}
+                onPress={() => {
+                  haptics.select();
+                  setMenuOpen(true);
+                }}
               />
             </>
           )}
@@ -407,7 +423,10 @@ export const PlayerChrome = () => {
           icon="skip-back"
           size={34}
           accessibilityLabel={t(`${NP}.previous`)}
-          onPress={() => getTransport().previous()}
+          onPress={() => {
+            haptics.tap();
+            getTransport().previous();
+          }}
         />
         {/* Glifo nu, sem o disco branco por tras: no Apple Music o play e o
             proprio simbolo (screenshots do dono 2026-08-15), e era o disco
@@ -436,14 +455,20 @@ export const PlayerChrome = () => {
             filled
             style={{ width: 64, height: 64 }}
             accessibilityLabel={playing ? t(`${NP}.pause`) : t(`${NP}.play`)}
-            onPress={() => getTransport().toggle()}
+            onPress={() => {
+              haptics.tap();
+              getTransport().toggle();
+            }}
           />
         )}
         <GhostIconButton
           icon="skip-forward"
           size={34}
           accessibilityLabel={t(`${NP}.next`)}
-          onPress={() => getTransport().next()}
+          onPress={() => {
+            haptics.tap();
+            getTransport().next();
+          }}
         />
       </View>
 
@@ -468,14 +493,20 @@ export const PlayerChrome = () => {
           active={mode === "lyrics"}
           style={modePill(scheme, mode === "lyrics")}
           accessibilityLabel={t(`${NP}.lyrics`)}
-          onPress={() => togglePlayerMode("lyrics")}
+          onPress={() => {
+            haptics.select();
+            togglePlayerMode("lyrics");
+          }}
         />
         <GhostIconButton
           icon="list-music"
           active={mode === "queue"}
           style={modePill(scheme, mode === "queue")}
           accessibilityLabel={t(`${NP}.queue`)}
-          onPress={() => togglePlayerMode("queue")}
+          onPress={() => {
+            haptics.select();
+            togglePlayerMode("queue");
+          }}
         />
         <GhostIconButton
           icon="mic"
@@ -486,21 +517,30 @@ export const PlayerChrome = () => {
           disabled={!karaokeReady && mode !== "karaoke"}
           style={modePill(scheme, mode === "karaoke")}
           accessibilityLabel={t(`${K}.karaoke`)}
-          onPress={() => togglePlayerMode("karaoke")}
+          onPress={() => {
+            haptics.select();
+            togglePlayerMode("karaoke");
+          }}
         />
         <GhostIconButton
           icon="users"
           active={mode === "jam"}
           style={modePill(scheme, mode === "jam")}
           accessibilityLabel={t(`${BB}.jam`)}
-          onPress={() => togglePlayerMode("jam")}
+          onPress={() => {
+            haptics.select();
+            togglePlayerMode("jam");
+          }}
         />
         <GhostIconButton
           icon="audio-waveform"
           active={mode === "settings"}
           style={modePill(scheme, mode === "settings")}
           accessibilityLabel={t(`${K}.audioSettings`)}
-          onPress={() => togglePlayerMode("settings")}
+          onPress={() => {
+            haptics.select();
+            togglePlayerMode("settings");
+          }}
         />
       </View>
     </View>

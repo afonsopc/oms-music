@@ -133,7 +133,7 @@ export const DesktopTransportBar = ({
   onToggleTenant,
   onTogglePanel,
 }: DesktopTransportBarProps) => {
-  const { tokens, ink } = useTheme();
+  const { tokens } = useTheme();
   const t = useT();
   const router = useRouter();
   useShellSlotsVersion();
@@ -175,7 +175,7 @@ export const DesktopTransportBar = ({
       ? tokens.mutedForeground
       : remoteRole === "active"
         ? tokens.primary
-        : ink.sync;
+        : tokens.foreground;
 
   const tenantActive = (tenant: RightPanelTenant): boolean =>
     panelOpen && activeTenant === tenant;
@@ -187,7 +187,7 @@ export const DesktopTransportBar = ({
         flexDirection: "row",
         alignItems: "center",
         gap: 16,
-        paddingHorizontal: 12,
+        paddingHorizontal: 16,
       }}
     >
       {/* Left: what is playing. Empty surface (never a collapsed bar) when

@@ -1,7 +1,7 @@
 /**
  * DevicePicker surfaces (FR-111 UI half): the cast button that lives in the
- * MiniPlayer pill and Now Playing, the emerald "playing on X" controller
- * strip, and the bottom sheet listing devices.
+ * MiniPlayer pill and Now Playing, the quiet "A tocar em X" line, and the
+ * bottom sheet listing devices.
  *
  * Sheet contents, in the web's order:
  *  - "Play here" = transfer to OUR device id (disabled while already active);
@@ -19,8 +19,6 @@
 import React, { useEffect, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { useT } from "@/i18n";
-import { AA_LARGE, ON_DARK, preferredOn } from "@/theme/contrast";
-import { EMERALD, RADIUS } from "@/theme/tokens";
 import { useTheme } from "@/theme/provider";
 import { GhostIconButton, Icon, BottomSheet, type IconName } from "@/ui";
 import { remoteRequestSnapshot, remoteTransferTo } from "@/remote/channel";
@@ -44,15 +42,6 @@ import type { OverlaySlot } from "@/features/shell/slots";
  * still reads in the label the server composes.
  */
 const DEVICE_ICON: IconName = "cast";
-
-/**
- * The strip keeps its emerald identity in both schemes (web parity:
- * `bg-emerald-600 text-white`), so the ink is resolved against EMERALD rather
- * than taken from the token palette. Bold 12px on emerald-600 lands at ~3.8:1
- * - above the non-text bar, below AA for body copy; deepening the emerald
- * would be an identity change, so the brand ink stands.
- */
-const STRIP_INK = preferredOn(EMERALD, ON_DARK, AA_LARGE);
 
 const useFallbackLabel = (): string => useT()("components.music.DevicePicker.deviceFallback");
 
@@ -83,7 +72,7 @@ const DeviceRow = ({
   hintMuted?: boolean;
   first?: boolean;
 }) => {
-  const { tokens, ink } = useTheme();
+  const { tokens } = useTheme();
   return (
     <Pressable
       accessibilityRole="button"
@@ -108,7 +97,7 @@ const DeviceRow = ({
           {label}
         </Text>
         {hint ? (
-          <Text style={{ color: hintMuted ? tokens.mutedForeground : ink.sync, fontSize: 11 }}>
+          <Text style={{ color: hintMuted ? tokens.mutedForeground : tokens.foreground, fontSize: 12 }}>
             {hint}
           </Text>
         ) : null}
@@ -117,7 +106,7 @@ const DeviceRow = ({
         <Icon name="check" size={18} color={tokens.primary} />
       ) : online ? (
         <View
-          style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: ink.sync }}
+          style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: tokens.foreground }}
         />
       ) : null}
     </Pressable>
@@ -272,7 +261,7 @@ export const DevicePickerSheet = ({ visible, onClose }: DevicePickerSheetProps) 
  * are the active device, emerald when another device plays.
  */
 export const CastButton = () => {
-  const { tokens, ink } = useTheme();
+  const { tokens } = useTheme();
   const t = useT();
   const fallback = useFallbackLabel();
   const role = useRemoteStore((s) => s.role);
@@ -285,9 +274,7 @@ export const CastButton = () => {
   const tint =
     activeDeviceId === null
       ? tokens.mutedForeground
-      : role === "active"
-        ? tokens.primary
-        : ink.sync;
+      : tokens.foreground;
 
   return (
     <>
@@ -321,48 +308,52 @@ export const CastButton = () => {
 export const CONTROLLER_STRIP_HEIGHT = 28;
 
 /**
- * Emerald "Playing on X" bar; tapping it opens the picker.
+ * "A tocar em X": uma linha calma, cinzenta, com o ícone pequeno de
+ * aparelhos (redesenho 2026-11-04; era uma faixa verde-esmeralda). Tocar
+ * abre a lista de aparelhos.
  *
- * Two forms of the same thing. FLOATING is the mobile one: a rounded pill
- * that sits above the MiniPlayer with a 6px gap, over whatever the screen is
- * showing. ATTACHED is for a shell with a transport bar of its own to sit on
- * - square, full width, no margin - because on desktop the floating form was
- * anchored to the MAIN pane and ended up stranded with a stack of gaps under
- * it: its own 6px margin, the overlay's 8px inset, the grid's 8px gutter, and
- * the bottom edge of a different card (owner report 2026-08-16, point 17).
+ * FLUTUANTE (telemóvel): colada por cima do mini-leitor, com o mesmo fundo e
+ * os cantos de cima redondos; o mini-leitor endireita os dele
+ * (`attachedTop`), e os dois leem-se como uma peça só.
+ * ATTACHED (computador): rente ao cartão do transporte, largura toda.
  */
 const ControllerStripBody = ({ attached = false }: { attached?: boolean }) => {
   const t = useT();
+  const { tokens } = useTheme();
   const fallback = useFallbackLabel();
   const activeDevice = useRemoteStore(selectActiveDevice);
   const [open, setOpen] = useState(false);
+  const label = t("components.music.BottomBar.playingOn", {
+    device: deviceDisplayLabel(activeDevice, fallback),
+  });
 
   return (
     <>
       <Pressable
         accessibilityRole="button"
+        accessibilityLabel={label}
         onPress={() => setOpen(true)}
         style={({ pressed }) => ({
-          backgroundColor: EMERALD,
-          borderRadius: attached ? 0 : RADIUS,
-          paddingHorizontal: 12,
-          paddingVertical: 6,
-          marginBottom: attached ? 0 : 6,
-          height: attached ? CONTROLLER_STRIP_HEIGHT : undefined,
+          backgroundColor: pressed ? tokens.secondary : tokens.card,
+          borderColor: tokens.border,
+          borderLeftWidth: attached ? 0 : 1,
+          borderRightWidth: attached ? 0 : 1,
+          borderTopWidth: 1,
+          borderTopLeftRadius: attached ? 0 : 12,
+          borderTopRightRadius: attached ? 0 : 12,
+          paddingHorizontal: 14,
+          height: CONTROLLER_STRIP_HEIGHT,
           flexDirection: "row",
           alignItems: "center",
           gap: 8,
-          opacity: pressed ? 0.85 : 1,
         })}
       >
-        <Icon name="cast" size={14} color={STRIP_INK} />
+        <Icon name="cast" size={13} color={tokens.mutedForeground} />
         <Text
           numberOfLines={1}
-          style={{ color: STRIP_INK, fontSize: 12, fontWeight: "700", flex: 1 }}
+          style={{ color: tokens.mutedForeground, fontSize: 12, fontWeight: "500", flex: 1 }}
         >
-          {t("components.music.DevicePicker.playingOn", {
-            device: deviceDisplayLabel(activeDevice, fallback),
-          })}
+          {label}
         </Text>
       </Pressable>
       <DevicePickerSheet visible={open} onClose={() => setOpen(false)} />

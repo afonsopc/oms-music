@@ -1,76 +1,73 @@
 /**
- * Home (FR-23..29), rewritten mobile-first (owner requests 2026-08-08/11):
+ * Início (FR-23..29). Redesenho de 2026-11-04 (docs/redesenho.md, "O
+ * padrão"): neutro, capas grandes, nada de cartões com gradiente.
  *
- *  - the filter pills ARE the header (the reference app's top-of-home idiom); pills
- *    only show/hide sections, never refetch (FR-23);
- *  - QUICK GRID (2x4): Gostadas first, then what was ACTUALLY played last -
- *    local recently-played collections (lib/recentCollections) merged with
- *    the server's recent albums - playlists padding leftover cells;
- *  - rails, in listening order: mixes made for you, recently played (the
- *    albums beyond the grid), your artists, discovery (random albums), your
- *    playlists;
- *  - the friends strip stays LAST: worth a glance, not worth pushing your
- *    own library off screen;
- *  - every section fades in with a small stagger (entering animations), and
- *    each collapses silently when its query settles empty.
+ *  - o topo é o TabHeader com o avatar e os filtros (Tudo/Playlists/Álbuns/
+ *    Artistas); os filtros só mostram/escondem secções, nunca voltam a pedir
+ *    nada (FR-23);
+ *  - GRELHA RÁPIDA (2x4 no telemóvel): Gostadas primeiro, depois o que foi
+ *    MESMO ouvido por último - as colecções tocadas neste aparelho
+ *    (lib/recentCollections) juntas com os álbuns recentes do servidor - e
+ *    playlists a preencher o que sobra; fundo cinzento neutro, sem cor;
+ *  - "Feito para ti": as mixes numa fila e, por baixo, três linhas simples
+ *    (DJ, Rewind, Assistente) no lugar dos antigos cartões coloridos;
+ *  - filas de capas grandes: ouvido recentemente, os teus artistas, rádios,
+ *    recomendações, as tuas playlists; os amigos ficam no fim;
+ *  - cada secção entra em cascata (Reveal) e desaparece quando o pedido
+ *    chega vazio. Se tudo falhar há "Tentar de novo"; se não houver nada,
+ *    uma frase e o caminho para a Pesquisa.
  */
-import React, { useCallback, useMemo, useState, useSyncExternalStore } from "react";
-import { Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
-import { useRouter } from "expo-router";
+import React, { memo, useCallback, useMemo, useState, useSyncExternalStore } from "react";
+import { RefreshControl, ScrollView, Text, View } from "react-native";
+import { useRouter, type Href } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useMixes } from "@/api/queries/mixes";
-import { Reveal } from "@/ui/motion";
 import { useRecentAlbums, useTopArtists } from "@/api/queries/playEvents";
 import { usePlaylists } from "@/api/queries/playlists";
 import { useRandomAlbums } from "@/api/queries/songs";
 import { artistDisplayName, artistRouteSegment } from "@/domain/album";
-import {
-  artistImageSource,
-  playlistArtworkSource,
-  type ArtworkSource,
-} from "@/domain/artwork";
+import { artistImageSource, playlistArtworkSource, type ArtworkSource } from "@/domain/artwork";
 import { useContentBottomPadding } from "@/features/shell/metrics";
+import { TabHeader } from "@/features/shell/TabHeader";
 import { useT } from "@/i18n";
-import { mixDescription, mixStampText, mixTitle } from "@/i18n/mixLabels";
-import { albumRoute, artistRadioRoute, artistRoute, djRoute, mixRoute, playlistRoute } from "@/lib/routes";
-import { useTheme } from "@/theme/provider";
-import { MIX_KIND_GRADIENTS } from "@/theme/tokens";
-import { gradientBackground, linearGradient } from "@/ui/uiTheme";
-import {
-  artworkSourceUri,
-  FilterPills,
-  MixTile,
-  MixTileArtwork,
-  Rail,
-  Skeleton,
-  Tile,
-  TILE_WIDTH,
-  TileSkeleton,
-  TopTileGrid,
-  type TopTileItem,
-} from "@/ui";
+import { mixStampText, mixTitle } from "@/i18n/mixLabels";
 import { hiddenByCollectionPlay } from "@/lib/albumPlayMarks";
 import { getAlbumPlayMarks, subscribeAlbumPlayMarks } from "@/lib/playContext";
 import { getRecentCollections, subscribeRecentCollections } from "@/lib/recentCollections";
-import { TabHeader } from "@/features/shell/TabHeader";
+import { albumRoute, artistRadioRoute, artistRoute, djRoute, mixRoute, playlistRoute } from "@/lib/routes";
+import { useTheme } from "@/theme/provider";
+import {
+  ArtworkImage,
+  artworkSourceUri,
+  FilterPills,
+  MixTileArtwork,
+  Skeleton,
+  topTileGridColumns,
+  useContainerWidth,
+  type TopTileItem,
+} from "@/ui";
+import { PressableScale, Reveal } from "@/ui/motion";
+import { ListRow, PageState, SectionLabel, useGutter } from "@/ui/page";
+import { ArtCard, ArtRail, useCardWidth } from "./artRail";
 import { useFriendsStripActive, useFriendsStripSlot } from "./friendsSlot";
 
 type HomeFilter = "all" | "playlists" | "albums" | "artists";
 
-/** Grid cells on a phone (2 columns x 4 rows, reference-shaped), Gostadas included. */
+/** Células da grelha (2 colunas x 4 linhas no telemóvel), Gostadas incluídas. */
 const QUICK_GRID_ITEMS = 8;
-/** Recents the grid absorbs; the rest feed the "recently played" rail. */
+/** Recentes que a grelha absorve; o resto vai para a fila "ouvido recentemente". */
 const QUICK_GRID_RECENTS = 7;
-/** One fetch feeds grid + rail. */
+/** Um só pedido alimenta grelha e fila. */
 const RECENT_ALBUMS_LIMIT = 12;
+const GRID_GAP = 8;
+const GRID_ROW = 56;
 
 const nodeArtwork = (nodeId: string | null | undefined): ArtworkSource =>
   nodeId ? { kind: "node", nodeId } : { kind: "placeholder" };
 
 /**
- * The friends listening strip (FR-29 placement): Home owns WHERE it sits,
- * WP10 owns the content. Nothing renders until the slot is registered and
- * reports live rows.
+ * A fila dos amigos a ouvir (FR-29): o Início decide ONDE fica, o WP10 o
+ * que mostra. Nada aparece enquanto o slot não estiver registado e activo.
  */
 const FriendsStrip = () => {
   const slot = useFriendsStripSlot();
@@ -80,24 +77,57 @@ const FriendsStrip = () => {
   return <Content />;
 };
 
-const RailSkeletons = ({ count = 6 }: { count?: number }) => (
-  <>
-    {Array.from({ length: count }, (_, i) => (
-      <TileSkeleton key={i} />
-    ))}
-  </>
+/** Secções em cascata (Reveal à mão: o `entering` ficava invisível na web). */
+const Section = ({ order, children }: { order: number; children: React.ReactNode }) => (
+  <Reveal order={order} step={50}>
+    {children}
+  </Reveal>
 );
 
-/**
- * Sections cascade in: each mounts with a slightly later fade-up. À MÃO com
- * shared values, nunca com entering/FadeInDown: em react-native-web o
- * entering fica pelo estado inicial e as secções eram TODAS invisíveis - a
- * "Home que não renderiza" do desktop (dono, 2026-08-16; só as pills
- * escapavam, por viverem fora das Sections).
- */
-const Section = ({ order, children }: { order: number; children: React.ReactNode }) => (
-  <Reveal order={order} step={50}>{children}</Reveal>
-);
+const QuickTile = memo(function QuickTile({ item, width }: { item: TopTileItem; width: number }) {
+  const { tokens } = useTheme();
+  return (
+    <PressableScale
+      onPress={item.onPress}
+      accessibilityRole="button"
+      accessibilityLabel={item.title}
+      style={{
+        width,
+        height: GRID_ROW,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 10,
+        borderRadius: 6,
+        overflow: "hidden",
+        backgroundColor: tokens.secondary,
+      }}
+    >
+      <ArtworkImage source={item.artwork} size={GRID_ROW} shape="square" />
+      <Text
+        numberOfLines={2}
+        style={{ flex: 1, color: tokens.foreground, fontSize: 14, lineHeight: 18, fontWeight: "600", paddingRight: 8 }}
+      >
+        {item.title}
+      </Text>
+    </PressableScale>
+  );
+});
+
+const QuickGrid = ({ items, loading }: { items: TopTileItem[]; loading: boolean }) => {
+  const gutter = useGutter();
+  const containerWidth = useContainerWidth();
+  const columns = topTileGridColumns(containerWidth);
+  const width = Math.floor((containerWidth - gutter * 2 - GRID_GAP * (columns - 1)) / columns);
+  return (
+    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: GRID_GAP, paddingHorizontal: gutter }}>
+      {loading
+        ? Array.from({ length: QUICK_GRID_ITEMS }, (_, i) => (
+            <Skeleton key={i} width={width} height={GRID_ROW} borderRadius={6} />
+          ))
+        : items.slice(0, QUICK_GRID_ITEMS).map((item) => <QuickTile key={item.key} item={item} width={width} />)}
+    </View>
+  );
+};
 
 export default function HomeScreen() {
   const t = useT();
@@ -105,6 +135,7 @@ export default function HomeScreen() {
   const { tokens } = useTheme();
   const insets = useSafeAreaInsets();
   const bottomPadding = useContentBottomPadding();
+  const cardWidth = useCardWidth();
   const [filter, setFilter] = useState<HomeFilter>("all");
 
   const recentAlbumsQuery = useRecentAlbums(RECENT_ALBUMS_LIMIT);
@@ -113,12 +144,9 @@ export default function HomeScreen() {
   const recommendationsQuery = useRandomAlbums(10);
   const topArtistsQuery = useTopArtists("30d", 10);
 
-  // Puxar para refrescar: a valvula de escape do ecra. As tabs mantem a Home
-  // montada, portanto uma query que ERROU (rede fria no arranque) nunca mais
-  // era refeita por navegacao nenhuma - as seccoes colapsavam em silencio e o
-  // "Tudo" abria vazio ate se matar a app (dono, 2026-08-17). O retry do
-  // queryClient trata do caso comum sozinho; isto da ao utilizador o gesto
-  // universal para o resto.
+  // Puxar para refrescar (e o "Tentar de novo" do erro): as tabs mantêm o
+  // Início montado, portanto um pedido que falhou no arranque nunca mais era
+  // refeito por navegação nenhuma (dono, 2026-08-17).
   const [refreshing, setRefreshing] = useState(false);
   const refetchAll = useCallback(async () => {
     setRefreshing(true);
@@ -133,8 +161,7 @@ export default function HomeScreen() {
     } finally {
       setRefreshing(false);
     }
-    // As queries sao objectos novos por render; os refetch, nao. Depender das
-    // funcoes estaveis evita recriar o callback a cada frame de dados.
+    // Os objectos das queries são novos a cada render; os refetch, não.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     recentAlbumsQuery.refetch,
@@ -145,23 +172,21 @@ export default function HomeScreen() {
   ]);
 
   const recentAlbums = useMemo(() => recentAlbumsQuery.data ?? [], [recentAlbumsQuery.data]);
-  const playlists = playlistsQuery.data ?? [];
+  const playlists = useMemo(() => playlistsQuery.data ?? [], [playlistsQuery.data]);
   const recommendations = recommendationsQuery.data ?? [];
   const topArtists = topArtistsQuery.data ?? [];
   const mixes = mixesQuery.data ?? [];
 
-  // ----- quick grid: Gostadas + what was ACTUALLY played last --------------
-  // Two recency sources merged: the LOCAL record of collections a queue was
-  // started from (playlists, albums, mixes, liked - the server knows nothing
-  // about collection context) and the server's recent ALBUMS (which cover
-  // other devices). Deduped, newest first; playlists pad any leftover cells.
+  // ----- grelha rápida: Gostadas + o que foi MESMO ouvido por último -------
+  // Duas fontes: o registo LOCAL das colecções de onde se começou a tocar
+  // (o servidor não sabe de contexto) e os ÁLBUNS recentes do servidor (que
+  // cobrem os outros aparelhos). Sem repetidos, mais recente primeiro.
   const localRecents = useSyncExternalStore(
     subscribeRecentCollections,
     getRecentCollections,
     getRecentCollections,
   );
-  // O que este aparelho sabe e o servidor não: quais destas escutas vieram
-  // de DENTRO de uma colecção (lib/albumPlayMarks explica a regra).
+  // Quais destas escutas vieram de DENTRO de uma colecção (lib/albumPlayMarks).
   const albumPlayMarks = useSyncExternalStore(
     subscribeAlbumPlayMarks,
     getAlbumPlayMarks,
@@ -199,9 +224,8 @@ export default function HomeScreen() {
       const segment = artistRouteSegment(album.artist) ?? "null";
       const id = `album:${segment}::${album.album ?? "null"}`;
       if (seen.has(id)) continue;
-      // Tocar a playlist "pagman" não é escolher os álbuns das faixas dela:
-      // um álbum cuja última escuta veio de dentro de uma colecção fica de
-      // fora da grelha (a colecção já lá está pela via local).
+      // Tocar uma playlist não é escolher os álbuns das faixas dela: um álbum
+      // cuja última escuta veio de dentro de uma colecção fica de fora.
       if (hiddenByCollectionPlay(albumPlayMarks[id], album.last_played_at)) continue;
       seen.add(id);
       out.push({
@@ -218,32 +242,46 @@ export default function HomeScreen() {
     return out.map((x) => x.item);
   }, [localRecents, albumPlayMarks, recentAlbums, router, t]);
 
-  const quickItems: TopTileItem[] = [
-    {
-      key: "liked",
-      title: t("components.music.Sidebar.liked"),
-      artwork: { kind: "likedHeart" },
-      onPress: () => router.push("/liked"),
-    },
-    ...recentTiles.slice(0, QUICK_GRID_RECENTS),
-  ];
-  for (const playlist of playlists) {
-    if (quickItems.length >= QUICK_GRID_ITEMS) break;
-    if (quickItems.some((item) => item.key === `playlist:${playlist.id}`)) continue;
-    quickItems.push({
-      key: `playlist:${playlist.id}`,
-      title: playlist.name,
-      artwork: playlistArtworkSource(playlist),
-      onPress: () => router.push(playlistRoute(playlist.id)),
-    });
-  }
+  const quickItems = useMemo(() => {
+    const items: TopTileItem[] = [
+      {
+        key: "liked",
+        title: t("components.music.Sidebar.liked"),
+        artwork: { kind: "likedHeart" },
+        onPress: () => router.push("/liked"),
+      },
+      ...recentTiles.slice(0, QUICK_GRID_RECENTS),
+    ];
+    for (const playlist of playlists) {
+      if (items.length >= QUICK_GRID_ITEMS) break;
+      if (items.some((item) => item.key === `playlist:${playlist.id}`)) continue;
+      items.push({
+        key: `playlist:${playlist.id}`,
+        title: playlist.name,
+        artwork: playlistArtworkSource(playlist),
+        onPress: () => router.push(playlistRoute(playlist.id)),
+      });
+    }
+    return items;
+  }, [recentTiles, playlists, router, t]);
 
-  // The rail keeps the full server-side recents (a bit of overlap with the
-  // grid is the reference-app shape too).
-  const railRecents = recentAlbums;
-
-  const showSection = (kind: "playlists" | "albums" | "artists"): boolean =>
+  const shows = (kind: "playlists" | "albums" | "artists"): boolean =>
     filter === "all" || filter === kind;
+
+  const queries = [recentAlbumsQuery, mixesQuery, playlistsQuery, recommendationsQuery, topArtistsQuery];
+  const allFailed = queries.every((q) => q.isError);
+  const anyLoading = queries.some((q) => q.isLoading);
+  // O que cada filtro teria para mostrar; vazio só quando já tudo chegou.
+  const hasContent =
+    filter === "all"
+      ? recentTiles.length + mixes.length + playlists.length + recommendations.length + topArtists.length > 0
+      : filter === "playlists"
+        ? playlists.length > 0
+        : filter === "albums"
+          ? recentAlbums.length + recommendations.length > 0
+          : topArtists.length > 0;
+  const showError = allFailed && localRecents.length === 0;
+  const showEmpty = !anyLoading && !allFailed && !hasContent;
 
   const pills = [
     { key: "all", label: t("components.music.Home.filterAll") },
@@ -252,14 +290,40 @@ export default function HomeScreen() {
     { key: "artists", label: t("components.music.Home.filterArtists") },
   ];
 
+  // As três portas que eram cartões com gradiente (DJ, Rewind, Assistente):
+  // agora linhas simples debaixo das mixes. O assistente é uma tab: a rota
+  // qualificada muda para ela em vez de empurrar uma cópia dentro do Início.
+  const doors: { key: string; icon: "radio" | "history" | "sparkles"; title: string; meta: string; route: Href }[] = [
+    {
+      key: "dj",
+      icon: "radio",
+      title: t("components.music.Dj.homeBanner"),
+      meta: t("components.music.Dj.homeBannerSubtitle"),
+      route: djRoute,
+    },
+    {
+      key: "rewind",
+      icon: "history",
+      title: t("components.music.Rewind.homeBanner"),
+      meta: t("components.music.Rewind.homeBannerSubtitle"),
+      route: "/rewind",
+    },
+    {
+      key: "assistant",
+      icon: "sparkles",
+      title: t("components.music.Assistant.homeBanner"),
+      meta: t("components.music.Assistant.homeBannerSubtitle"),
+      route: "/(main)/(tabs)/(assistant)/assistant",
+    },
+  ];
+
+  const unknownAlbum = t("components.music.Home.unknownAlbum");
+  const unknownArtist = t("components.music.Home.unknownArtist");
+
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: tokens.background }}
-      contentContainerStyle={{
-        paddingTop: insets.top + 12,
-        paddingBottom: bottomPadding + 24,
-        gap: 28,
-      }}
+      contentContainerStyle={{ paddingTop: insets.top + 12, paddingBottom: bottomPadding + 24 }}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
@@ -269,10 +333,6 @@ export default function HomeScreen() {
         />
       }
     >
-      {/* O topo como as apps de referencia (pedido do dono, 2026-08-18): avatar a esquerda,
-          as pills logo ao lado - o TabHeader e o mesmo das outras tabs e so
-          muda o que vai a direita. O wordmark Druk Wide saiu daqui com esta
-          troca; o pedido novo substitui o de 2026-08-16. */}
       <TabHeader>
         <FilterPills
           pills={pills}
@@ -283,298 +343,190 @@ export default function HomeScreen() {
         />
       </TabHeader>
 
-      {filter === "all" ? (
-        recentAlbumsQuery.isLoading && playlistsQuery.isLoading ? (
-          <View style={{ gap: 8, paddingHorizontal: 24 }}>
-            {Array.from({ length: 3 }, (_, i) => (
-              <Skeleton key={i} height={64} />
-            ))}
-          </View>
-        ) : (
-          <Section order={0}>
-            <TopTileGrid items={quickItems} />
-          </Section>
-        )
-      ) : null}
-
-      {/* As portas do Rewind e do assistente (dono, 2026-08-18): dois
-          cartoes-banner acima dos mixes, so no "Tudo". O DJ juntou-se em
-          2026-08-31 e ficou em cima, a largura toda: e o unico dos tres que
-          COMECA a tocar, e a tres numa linha nao cabia o subtitulo. */}
-      {filter === "all" ? (
-        <Section order={1}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t("components.music.Dj.homeBanner")}
-            onPress={() => router.push(djRoute)}
-            style={({ pressed }) => ({
-              marginHorizontal: 24,
-              marginBottom: 12,
-              borderRadius: 14,
-              padding: 16,
-              gap: 4,
-              opacity: pressed ? 0.85 : 1,
-              ...gradientBackground(linearGradient("120deg", "#0f172a", "#4338ca", "#c026d3")),
-            })}
-          >
-            <Text style={{ color: "#ffffff", fontSize: 16, fontWeight: "800" }}>
-              {t("components.music.Dj.homeBanner")}
-            </Text>
-            <Text style={{ color: "rgba(255,255,255,0.85)", fontSize: 12 }}>
-              {t("components.music.Dj.homeBannerSubtitle")}
-            </Text>
-          </Pressable>
-          <View style={{ flexDirection: "row", gap: 12, marginHorizontal: 24 }}>
-            {(
-              [
-                {
-                  key: "rewind",
-                  title: t("components.music.Rewind.homeBanner"),
-                  subtitle: t("components.music.Rewind.homeBannerSubtitle"),
-                  colors: MIX_KIND_GRADIENTS.year_mix.colors,
-                  route: "/rewind" as const,
-                },
-                {
-                  key: "assistant",
-                  title: t("components.music.Assistant.homeBanner"),
-                  subtitle: t("components.music.Assistant.homeBannerSubtitle"),
-                  colors: MIX_KIND_GRADIENTS.this_is.colors,
-                  // Qualificada com o grupo DE PROPOSITO: o assistente e uma
-                  // tab (2026-08-16) e o banner muda para ela em vez de
-                  // empurrar uma copia dentro do Inicio.
-                  route: "/(main)/(tabs)/(assistant)/assistant" as const,
-                },
-              ]
-            ).map((banner) => (
-              <Pressable
-                key={banner.key}
-                accessibilityRole="button"
-                accessibilityLabel={banner.title}
-                onPress={() => router.push(banner.route)}
-                style={({ pressed }) => ({
-                  flex: 1,
-                  borderRadius: 14,
-                  padding: 16,
-                  gap: 4,
-                  opacity: pressed ? 0.85 : 1,
-                  ...gradientBackground(linearGradient("120deg", ...banner.colors)),
-                })}
-              >
-                <Text
-                  style={{ color: "#fff", fontSize: 15, fontWeight: "900", letterSpacing: -0.3 }}
-                  numberOfLines={1}
-                >
-                  {banner.title}
-                </Text>
-                <Text style={{ color: "rgba(255,255,255,0.85)", fontSize: 12 }} numberOfLines={2}>
-                  {banner.subtitle}
-                </Text>
-              </Pressable>
-            ))}
+      {filter === "all" && !showError ? (
+        <Section order={0}>
+          <View style={{ paddingTop: 16 }}>
+            <QuickGrid
+              items={quickItems}
+              loading={recentAlbumsQuery.isLoading && playlistsQuery.isLoading && localRecents.length === 0}
+            />
           </View>
         </Section>
       ) : null}
 
-      {filter === "all" && (mixesQuery.isLoading || mixes.length > 0) ? (
+      {showError ? (
+        <PageState loading={false} error onRetry={() => void refetchAll()} />
+      ) : null}
+
+      {filter === "all" && !showError ? (
         <Section order={1}>
-          <Rail title={t("components.music.Home.madeForYou")}>
-            {mixesQuery.isLoading ? (
-              <RailSkeletons />
-            ) : (
-              mixes.map((mix) => {
+          {mixesQuery.isLoading || mixes.length > 0 ? (
+            <ArtRail title={t("components.music.Home.madeForYou")} loading={mixesQuery.isLoading}>
+              {mixes.map((mix) => {
                 const title = mixTitle(mix, t);
-                const artistSegment = mix.artist ? artistRouteSegment(mix.artist) : null;
                 return (
-                  <MixTile
+                  <ArtCard
                     key={mix.slug}
-                    kind={mix.kind}
                     title={title}
-                    description={mixDescription(mix, t)}
-                    stamp={mixStampText(mix, title)}
-                    artworkUri={
-                      mix.artist ? artworkSourceUri(artistImageSource(mix.artist, "sm")) : null
-                    }
+                    width={cardWidth}
                     onPress={() => router.push(mixRoute(mix.slug))}
-                    artistName={mix.artist?.name ?? null}
-                    onPressArtist={
-                      artistSegment
-                        ? () => router.push(artistRoute(artistSegment))
-                        : undefined
+                    art={
+                      <MixTileArtwork
+                        kind={mix.kind}
+                        stamp={mixStampText(mix, title)}
+                        artworkUri={mix.artist ? artworkSourceUri(artistImageSource(mix.artist, "sm")) : null}
+                        size={cardWidth}
+                      />
                     }
                   />
                 );
-              })
-            )}
-          </Rail>
-        </Section>
-      ) : null}
-
-      {/* Como as outras rails: skeleton enquanto carrega, colapso so quando a
-          resposta CHEGOU vazia. Sem o ramo de loading estas duas seccoes
-          saltavam para dentro do ecra depois do primeiro frame. */}
-      {showSection("albums") && (recentAlbumsQuery.isLoading || railRecents.length > 0) ? (
-        <Section order={2}>
-          <Rail title={t("native.home.recentlyPlayed")}>
-            {recentAlbumsQuery.isLoading ? (
-              <RailSkeletons />
-            ) : (
-            railRecents.map((album, i) => (
-              <Tile
-                key={`recent-rail-${i}-${album.album ?? "null"}`}
-                title={album.album || t("components.music.Home.unknownAlbum")}
-                subtitle={
-                  artistDisplayName(album.artist) ?? t("components.music.Home.unknownArtist")
-                }
-                artwork={nodeArtwork(album.artwork_media_id)}
-                onPress={() =>
-                  router.push(albumRoute(artistRouteSegment(album.artist), album.album))
-                }
+              })}
+            </ArtRail>
+          ) : (
+            <SectionLabel title={t("components.music.Home.madeForYou")} />
+          )}
+          <View style={{ paddingTop: 8 }}>
+            {doors.map((door, i) => (
+              <ListRow
+                key={door.key}
+                icon={door.icon}
+                title={door.title}
+                meta={door.meta}
+                chevron
+                last={i === doors.length - 1}
+                onPress={() => router.push(door.route)}
               />
-            ))
-            )}
-          </Rail>
+            ))}
+          </View>
         </Section>
       ) : null}
 
-      {showSection("artists") && (topArtistsQuery.isLoading || topArtists.length > 0) ? (
+      {/* Esqueleto enquanto carrega, colapso só quando a resposta CHEGOU vazia. */}
+      {shows("albums") && (recentAlbumsQuery.isLoading || recentAlbums.length > 0) ? (
+        <Section order={2}>
+          <ArtRail title={t("native.home.recentlyPlayed")} loading={recentAlbumsQuery.isLoading}>
+            {recentAlbums.map((album, i) => (
+              <ArtCard
+                key={`recent-${i}-${album.album ?? "null"}`}
+                title={album.album || unknownAlbum}
+                subtitle={artistDisplayName(album.artist) ?? unknownArtist}
+                artwork={nodeArtwork(album.artwork_media_id)}
+                width={cardWidth}
+                onPress={() => router.push(albumRoute(artistRouteSegment(album.artist), album.album))}
+              />
+            ))}
+          </ArtRail>
+        </Section>
+      ) : null}
+
+      {shows("artists") && (topArtistsQuery.isLoading || topArtists.length > 0) ? (
         <Section order={3}>
-          <Rail
+          <ArtRail
             title={t("components.music.Home.yourArtists")}
-            showAllLabel={t("components.music.Home.showAll")}
-            onShowAll={() => router.push("/artists")}
+            actionLabel={t("components.music.Home.showAll")}
+            onAction={() => router.push("/artists")}
+            loading={topArtistsQuery.isLoading}
+            circle
           >
-            {topArtistsQuery.isLoading ? (
-              <RailSkeletons />
-            ) : (
-            topArtists.map((row, i) => {
-              const name =
-                artistDisplayName(row.artist) ?? t("components.music.Home.unknownArtist");
+            {topArtists.map((row, i) => {
+              const name = artistDisplayName(row.artist) ?? unknownArtist;
               const segment = artistRouteSegment(row.artist) ?? "null";
               return (
-                <Tile
-                  key={`top-artist-${i}-${name}`}
+                <ArtCard
+                  key={`artist-${i}-${name}`}
                   title={name}
-                  subtitle={t("components.music.Home.artistSubtitle")}
-                  shape="circle"
-                  artwork={
-                    typeof row.artist === "object"
-                      ? artistImageSource(row.artist, "sm")
-                      : { kind: "initials", name }
-                  }
+                  circle
+                  width={cardWidth}
+                  artwork={typeof row.artist === "object" ? artistImageSource(row.artist, "sm") : { kind: "initials", name }}
                   onPress={() => router.push(artistRoute(segment))}
                 />
               );
-            })
-            )}
-          </Rail>
+            })}
+          </ArtRail>
         </Section>
       ) : null}
 
-      {/* Radios para ti (pedido do dono, 2026-08-18): seeds dos artistas que
-          o utilizador realmente ouve. So no "Tudo" - uma radio nao e artista
-          nem album, e um filtro que a mostrasse mentia. */}
+      {/* Rádios dos artistas que ouves: só no "Tudo" (uma rádio não é artista
+          nem álbum, um filtro que a mostrasse mentia). */}
       {filter === "all" && topArtists.length > 0 ? (
         <Section order={4}>
-          <Rail title={t("components.music.Home.radiosForYou")}>
+          <ArtRail title={t("components.music.Home.radiosForYou")}>
             {topArtists.slice(0, 8).map((row, i) => {
-              const name =
-                artistDisplayName(row.artist) ?? t("components.music.Home.unknownArtist");
+              const name = artistDisplayName(row.artist) ?? unknownArtist;
               const segment = artistRouteSegment(row.artist) ?? "null";
-              const uri =
-                typeof row.artist === "object"
-                  ? artworkSourceUri(artistImageSource(row.artist, "sm"))
-                  : null;
+              const uri = typeof row.artist === "object" ? artworkSourceUri(artistImageSource(row.artist, "sm")) : null;
               return (
-                <Pressable
+                <ArtCard
                   key={`radio-${i}-${name}`}
-                  accessibilityRole="button"
-                  accessibilityLabel={`${t("components.music.Hero.radio")}: ${name}`}
+                  title={name}
+                  subtitle={t("components.music.Hero.radio")}
+                  width={cardWidth}
                   onPress={() => router.push(artistRadioRoute(segment))}
-                  style={({ pressed }) => ({
-                    width: TILE_WIDTH,
-                    gap: 8,
-                    opacity: pressed ? 0.7 : 1,
-                  })}
-                >
-                  <MixTileArtwork
-                    kind="top_artist"
-                    stamp={name}
-                    artworkUri={uri}
-                    size={TILE_WIDTH}
-                    icon="radio"
-                  />
-                  <View style={{ minWidth: 0 }}>
-                    <Text
-                      style={{ color: tokens.foreground, fontSize: 14, fontWeight: "600" }}
-                      numberOfLines={1}
-                    >
-                      {name}
-                    </Text>
-                    <Text style={{ color: tokens.mutedForeground, fontSize: 12 }}>
-                      {t("components.music.Hero.radio")}
-                    </Text>
-                  </View>
-                </Pressable>
+                  art={<MixTileArtwork kind="top_artist" stamp={name} artworkUri={uri} size={cardWidth} icon="radio" />}
+                />
               );
             })}
-          </Rail>
+          </ArtRail>
         </Section>
       ) : null}
 
-      {showSection("albums") &&
-      (recommendationsQuery.isLoading || recommendations.length > 0) ? (
-        <Section order={4}>
-          <Rail title={t("components.music.Home.recommendationsToday")}>
-            {recommendationsQuery.isLoading ? (
-              <RailSkeletons />
-            ) : (
-              recommendations.map((album, i) => (
-                <Tile
-                  key={`album-${i}-${album.name ?? "null"}`}
-                  title={album.name || t("components.music.Home.unknownAlbum")}
-                  subtitle={
-                    artistDisplayName(album.artist) ?? t("components.music.Home.unknownArtist")
-                  }
-                  artwork={nodeArtwork(album.artwork_media_id)}
-                  onPress={() =>
-                    router.push(
-                      albumRoute(album.artist_slug ?? artistRouteSegment(album.artist), album.name),
-                    )
-                  }
-                />
-              ))
-            )}
-          </Rail>
-        </Section>
-      ) : null}
-
-      {showSection("playlists") && (playlistsQuery.isLoading || playlists.length > 0) ? (
+      {shows("albums") && (recommendationsQuery.isLoading || recommendations.length > 0) ? (
         <Section order={5}>
-          <Rail
-            title={t("components.music.Home.yourPlaylists")}
-            showAllLabel={t("components.music.Home.showAll")}
-            onShowAll={() => router.push("/playlists")}
-          >
-            {playlistsQuery.isLoading ? (
-              <RailSkeletons />
-            ) : (
-              playlists.map((playlist) => (
-                <Tile
-                  key={playlist.id}
-                  title={playlist.name}
-                  subtitle={t("components.music.Home.playlistSubtitle")}
-                  artwork={playlistArtworkSource(playlist)}
-                  onPress={() => router.push(playlistRoute(playlist.id))}
-                />
-              ))
-            )}
-          </Rail>
+          <ArtRail title={t("components.music.Home.recommendationsToday")} loading={recommendationsQuery.isLoading}>
+            {recommendations.map((album, i) => (
+              <ArtCard
+                key={`album-${i}-${album.name ?? "null"}`}
+                title={album.name || unknownAlbum}
+                subtitle={artistDisplayName(album.artist) ?? unknownArtist}
+                artwork={nodeArtwork(album.artwork_media_id)}
+                width={cardWidth}
+                onPress={() =>
+                  router.push(albumRoute(album.artist_slug ?? artistRouteSegment(album.artist), album.name))
+                }
+              />
+            ))}
+          </ArtRail>
         </Section>
+      ) : null}
+
+      {shows("playlists") && (playlistsQuery.isLoading || playlists.length > 0) ? (
+        <Section order={6}>
+          <ArtRail
+            title={t("components.music.Home.yourPlaylists")}
+            actionLabel={t("components.music.Home.showAll")}
+            onAction={() => router.push("/playlists")}
+            loading={playlistsQuery.isLoading}
+          >
+            {playlists.map((playlist) => (
+              <ArtCard
+                key={playlist.id}
+                title={playlist.name}
+                subtitle={t("components.music.Home.playlistSubtitle")}
+                artwork={playlistArtworkSource(playlist)}
+                width={cardWidth}
+                onPress={() => router.push(playlistRoute(playlist.id))}
+              />
+            ))}
+          </ArtRail>
+        </Section>
+      ) : null}
+
+      {showEmpty ? (
+        <PageState
+          loading={false}
+          empty
+          emptyIcon="music"
+          emptyText={t(filter === "all" ? "native.home.emptyAll" : "native.home.emptyFilter")}
+          emptyActionLabel={t("native.home.emptyAction")}
+          onEmptyAction={() => router.push("/search")}
+        />
       ) : null}
 
       {filter === "all" ? (
-        <Section order={6}>
-          <FriendsStrip />
+        <Section order={7}>
+          <View style={{ paddingTop: 28 }}>
+            <FriendsStrip />
+          </View>
         </Section>
       ) : null}
     </ScrollView>

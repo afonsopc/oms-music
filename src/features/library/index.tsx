@@ -3,10 +3,12 @@
  * not pull the artist and album lists too), everything pages at the 500
  * ceiling, the filter box narrows locally, and the list is WINDOWED: a
  * 500-artist library must not fire 500 artwork requests on mount, so rows
- * render 40 at a time through a FlatList instead of all at once.
+ * render in small batches through a FlatList instead of all at once. Rows
+ * are fixed height (getItemLayout), keyed by id and memoized: 1500 rows
+ * scroll without measuring anything.
  */
-import React, { useCallback, useMemo, useState } from "react";
-import { FlatList, Pressable, Text, TextInput, View } from "react-native";
+import React, { useCallback, useMemo, useRef, useState } from "react";
+import { FlatList, Pressable, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { usePlaylists } from "@/api/queries/playlists";
 import {
@@ -25,11 +27,13 @@ import {
   ErrorState,
   FilterPills,
   GhostIconButton,
-  Icon,
   useContainerWidth,
   useDesktopShell,
   type LibraryViewMode,
 } from "@/ui";
+import { Reveal, PressableScale } from "@/ui/motion";
+import { ListSkeleton, PageState, pageType, useGutter } from "@/ui/page";
+import { FilterField } from "./FilterField";
 import { useLibraryAlbums, useLibraryArtists } from "./queries";
 import {
   buildLibraryRows,
@@ -40,129 +44,109 @@ import {
 } from "./rows";
 
 /** Rows rendered per window batch (web LIBRARY_PAGE_SIZE). */
-const WINDOW_SIZE = 40;
+const WINDOW_SIZE = 24;
+/** Fixed row heights: what lets the list skip measuring (getItemLayout). */
+const ROW_HEIGHT = 64;
+const ROW_HEIGHT_COMPACT = 40;
+const ROW_ARTWORK = 48;
+/** Only the first screenful cascades in; rows further down just appear. */
+const REVEAL_ROWS = 12;
 
-const LibraryRowView = ({
+/**
+ * One library row: artwork, name, grey meta. No badge, no colour: a synced
+ * playlist says so in the meta line only ("Playlist • Sincronizada").
+ * Memoized and fed a stable `onOpen`, so a filter keystroke re-renders only
+ * the rows whose data changed.
+ */
+const LibraryRowView = React.memo(function LibraryRowView({
   row,
+  index,
   compact = false,
-  onPress,
+  onOpen,
 }: {
   row: LibraryRow;
+  index: number;
   /** Desktop compact mode (plan 4.3): no artwork, one line, denser. */
   compact?: boolean;
-  onPress: () => void;
-}) => {
-  const { tokens, ink } = useTheme();
-  return (
+  onOpen: (row: LibraryRow) => void;
+}) {
+  const { tokens } = useTheme();
+  const gutter = useGutter();
+  const body = (
     <Pressable
-      onPress={onPress}
+      onPress={() => onOpen(row)}
       accessibilityRole="button"
       accessibilityLabel={row.name}
-      style={({ pressed }) => ({
+      style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => ({
         flexDirection: "row",
         alignItems: "center",
-        gap: 12,
-        paddingHorizontal: 24,
-        paddingVertical: compact ? 6 : 8,
-        opacity: pressed ? 0.7 : 1,
+        gap: 14,
+        height: compact ? ROW_HEIGHT_COMPACT : ROW_HEIGHT,
+        paddingHorizontal: gutter,
+        backgroundColor: pressed ? tokens.secondary : hovered ? tokens.accent : "transparent",
       })}
     >
       {compact ? null : (
         <ArtworkImage
           source={row.artwork}
-          size={44}
+          size={ROW_ARTWORK}
           shape={row.circular ? "circle" : "rounded"}
           recyclingKey={row.key}
         />
       )}
       {compact ? (
-        <View style={{ flex: 1, minWidth: 0, flexDirection: "row", alignItems: "baseline", gap: 8 }}>
+        <View style={{ flex: 1, minWidth: 0, flexDirection: "row", alignItems: "baseline", gap: 10 }}>
           <Text
-            style={{
-              color: tokens.foreground,
-              fontSize: 14,
-              fontWeight: row.pinned ? "700" : "500",
-              flexShrink: 1,
-            }}
+            style={[pageType.body, { color: tokens.foreground, fontSize: 15, fontWeight: row.pinned ? "700" : "500", flexShrink: 1 }]}
             numberOfLines={1}
           >
             {row.name}
           </Text>
-          {/* sync marker: emerald, per the design language. */}
-          {row.system ? (
-            <View
-              style={{
-                width: 8,
-                height: 8,
-                borderRadius: 4,
-                backgroundColor: ink.sync,
-                alignSelf: "center",
-              }}
-            />
-          ) : null}
-          <Text
-            style={{ color: tokens.mutedForeground, fontSize: 12, flexShrink: 3 }}
-            numberOfLines={1}
-          >
+          <Text style={[pageType.meta, { color: tokens.mutedForeground, flexShrink: 3 }]} numberOfLines={1}>
             {row.subtitle}
           </Text>
         </View>
       ) : (
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-            <Text
-              style={{
-                color: tokens.foreground,
-                fontSize: 14,
-                fontWeight: row.pinned ? "700" : "500",
-                flexShrink: 1,
-              }}
-              numberOfLines={1}
-            >
-              {row.name}
-            </Text>
-            {/* sync marker: emerald, per the design language. */}
-            {row.system ? (
-              <View
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: 4,
-                  backgroundColor: ink.sync,
-                }}
-              />
-            ) : null}
-          </View>
-          <Text style={{ color: tokens.mutedForeground, fontSize: 12 }} numberOfLines={1}>
+        <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+          <Text
+            style={[pageType.body, { color: tokens.foreground, fontWeight: row.pinned ? "700" : "500" }]}
+            numberOfLines={1}
+          >
+            {row.name}
+          </Text>
+          <Text style={[pageType.meta, { color: tokens.mutedForeground }]} numberOfLines={1}>
             {row.subtitle}
           </Text>
         </View>
       )}
     </Pressable>
   );
-};
+  return index < REVEAL_ROWS ? (
+    <Reveal order={index} distance={8}>
+      {body}
+    </Reveal>
+  ) : (
+    body
+  );
+});
 
 /** Grid cell (desktop "grid" mode): artwork-led tile, two text lines. */
-const LibraryGridTile = ({
+const LibraryGridTile = React.memo(function LibraryGridTile({
   row,
   size,
-  onPress,
+  onOpen,
 }: {
   row: LibraryRow;
   size: number;
-  onPress: () => void;
-}) => {
+  onOpen: (row: LibraryRow) => void;
+}) {
   const { tokens } = useTheme();
   return (
-    <Pressable
-      onPress={onPress}
+    <PressableScale
+      onPress={() => onOpen(row)}
       accessibilityRole="button"
       accessibilityLabel={row.name}
-      style={({ pressed }) => ({
-        width: size,
-        gap: 6,
-        opacity: pressed ? 0.7 : 1,
-      })}
+      style={{ width: size, gap: 6 }}
     >
       <ArtworkImage
         source={row.artwork}
@@ -170,23 +154,21 @@ const LibraryGridTile = ({
         shape={row.circular ? "circle" : "rounded"}
         recyclingKey={row.key}
       />
-      <Text
-        style={{ color: tokens.foreground, fontSize: 13, fontWeight: "600" }}
-        numberOfLines={1}
-      >
+      <Text style={[pageType.body, { color: tokens.foreground, fontSize: 15, fontWeight: "600" }]} numberOfLines={1}>
         {row.name}
       </Text>
-      <Text style={{ color: tokens.mutedForeground, fontSize: 12 }} numberOfLines={1}>
+      <Text style={[pageType.meta, { color: tokens.mutedForeground }]} numberOfLines={1}>
         {row.subtitle}
       </Text>
-    </Pressable>
+    </PressableScale>
   );
-};
+});
 
 export default function LibraryScreen() {
   const t = useT();
   const router = useRouter();
   const { tokens } = useTheme();
+  const gutter = useGutter();
   const bottomPadding = useContentBottomPadding();
   const topPadding = useContentTopPadding();
 
@@ -207,10 +189,10 @@ export default function LibraryScreen() {
   }, []);
   const effectiveMode: LibraryViewMode = desktop ? viewMode : "list";
   const gridColumns = collectionGridColumns(containerWidth);
-  // Grid tile size: horizontal padding is 24 a side, the gap 16 per gutter.
+  // Grid tile size: the page gutter a side, the gap 16 between tiles.
   const gridTileSize = Math.max(
     120,
-    Math.floor((containerWidth - 48 - 16 * (gridColumns - 1)) / gridColumns),
+    Math.floor((containerWidth - gutter * 2 - 16 * (gridColumns - 1)) / gridColumns),
   );
 
   const wantsPlaylists = filter === "all" || filter === "playlists";
@@ -278,24 +260,34 @@ export default function LibraryScreen() {
     { key: "albums", label: t("components.music.Sidebar.filterAlbums") },
   ];
 
+  const retry = useCallback(() => {
+    if (wantsPlaylists) void playlistsQuery.refetch();
+    if (wantsArtists) void artistsQuery.refetch();
+    if (wantsAlbums) void albumsQuery.refetch();
+  }, [wantsPlaylists, wantsArtists, wantsAlbums, playlistsQuery, artistsQuery, albumsQuery]);
+
+  const changeFilter = useCallback((key: string) => setFilter(key as LibraryFilter), []);
+
+  const openRow = useCallback((row: LibraryRow) => router.push(row.route), [router]);
+
   const header = (
     // No inset here: the list's contentContainer already carries the safe
     // area, and stacking both is where the huge blank band above the title
     // came from.
-    <View style={{ gap: 16, paddingBottom: 12 }}>
+    <View style={{ gap: 12, paddingBottom: 8 }}>
       {/* Avatar a esquerda, titulo a direita: o TabHeader partilhado
           (pedido do dono 2026-08-18) - antes era o contrario. */}
       <TabHeader title={t("components.music.Sidebar.libraryTitle")} />
 
       {/* Desktop pairs the view-mode cluster WITH the pills - the controls
-          sit on the line of the rows they reshape, not up by the title.
-          Mobile keeps the bare strip, byte-identical to what shipped. */}
+          sit on the line of the rows they reshape, not up by the title. */}
       {desktop ? (
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 4, paddingRight: 24 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 4, paddingRight: gutter }}>
           <FilterPills
             pills={pills}
             activeKey={filter}
-            onChange={(key) => setFilter(key as LibraryFilter)}
+            onChange={changeFilter}
+            contentPaddingHorizontal={gutter}
             style={{ flex: 1, minWidth: 0 }}
           />
           <GhostIconButton
@@ -321,57 +313,32 @@ export default function LibraryScreen() {
         <FilterPills
           pills={pills}
           activeKey={filter}
-          onChange={(key) => setFilter(key as LibraryFilter)}
+          onChange={changeFilter}
+          contentPaddingHorizontal={gutter}
         />
       )}
 
-      <View
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          gap: 8,
-          marginHorizontal: 24,
-          paddingHorizontal: 12,
-          height: 38,
-          borderRadius: 999,
-          backgroundColor: tokens.secondary,
-        }}
-      >
-        <Icon name="search" size={15} color={tokens.mutedForeground} />
-        <TextInput
-          value={search}
-          onChangeText={setSearch}
-          placeholder={t("native.library.filterPlaceholder")}
-          placeholderTextColor={tokens.mutedForeground}
-          autoCorrect={false}
-          accessibilityLabel={t("components.music.Sidebar.searchPlaceholder")}
-          style={{ flex: 1, color: tokens.foreground, fontSize: 14 }}
-        />
-        {search.length > 0 ? (
-          <Pressable
-            onPress={() => setSearch("")}
-            accessibilityRole="button"
-            accessibilityLabel={t("components.music.MusicSearchInput.clear")}
-            hitSlop={8}
-          >
-            <Icon name="x" size={14} color={tokens.mutedForeground} />
-          </Pressable>
-        ) : null}
-      </View>
+      <FilterField
+        value={search}
+        onChangeText={setSearch}
+        placeholder={t("native.library.filterPlaceholder")}
+        clearLabel={t("components.music.MusicSearchInput.clear")}
+        style={{ marginBottom: 4 }}
+      />
     </View>
   );
 
   const empty = isLoading ? (
-    <Text
-      style={{ color: tokens.mutedForeground, fontSize: 13, paddingHorizontal: 24 }}
-    >
-      {t("components.music.Sidebar.loading")}
-    </Text>
+    <PageState
+      loading
+      onRetry={retry}
+      skeleton={<ListSkeleton rows={10} round={filter === "artists"} />}
+    />
   ) : isError ? (
-    <ErrorState text={t("components.music.Artists.errorLoadingArtists")} />
+    <ErrorState onRetry={retry} />
   ) : (
     <EmptyState
-      icon="library"
+      icon={search.trim() ? "search" : "library"}
       text={
         search.trim()
           ? t("native.library.noFilterMatches")
@@ -381,6 +348,30 @@ export default function LibraryScreen() {
   );
 
   const isGrid = effectiveMode === "grid";
+  const compact = effectiveMode === "compact";
+  const rowHeight = compact ? ROW_HEIGHT_COMPACT : ROW_HEIGHT;
+
+  // Rows are fixed height, so the list never has to measure them; the
+  // header is measured once and offsets every row.
+  const headerHeight = useRef(0);
+  const getItemLayout = useCallback(
+    (_data: ArrayLike<LibraryRow> | null | undefined, index: number) => ({
+      length: rowHeight,
+      offset: headerHeight.current + rowHeight * index,
+      index,
+    }),
+    [rowHeight],
+  );
+
+  const renderItem = useCallback(
+    ({ item, index }: { item: LibraryRow; index: number }) =>
+      isGrid ? (
+        <LibraryGridTile row={item} size={gridTileSize} onOpen={openRow} />
+      ) : (
+        <LibraryRowView row={item} index={index} compact={compact} onOpen={openRow} />
+      ),
+    [isGrid, gridTileSize, compact, openRow],
+  );
 
   return (
     <FlatList
@@ -390,38 +381,30 @@ export default function LibraryScreen() {
       key={isGrid ? `grid-${gridColumns}` : effectiveMode}
       style={{ flex: 1, backgroundColor: tokens.background }}
       data={data}
-      keyExtractor={(row) => row.key}
+      keyExtractor={keyExtractor}
       numColumns={isGrid ? gridColumns : 1}
       columnWrapperStyle={
-        isGrid ? { gap: 16, paddingHorizontal: 24, marginBottom: 16 } : undefined
+        isGrid ? { gap: 16, paddingHorizontal: gutter, marginBottom: 20 } : undefined
       }
-      renderItem={({ item }) =>
-        isGrid ? (
-          <LibraryGridTile
-            row={item}
-            size={gridTileSize}
-            onPress={() => router.push(item.route)}
-          />
-        ) : (
-          <LibraryRowView
-            row={item}
-            compact={effectiveMode === "compact"}
-            onPress={() => router.push(item.route)}
-          />
-        )
+      renderItem={renderItem}
+      getItemLayout={isGrid ? undefined : getItemLayout}
+      ListHeaderComponent={
+        <View onLayout={(e) => (headerHeight.current = e.nativeEvent.layout.height)}>{header}</View>
       }
-      ListHeaderComponent={header}
       ListEmptyComponent={empty}
       // The pinned row keeps the list technically non-empty: whenever only
       // Liked Songs rendered, the loading / error / empty message follows it
       // as the footer instead.
       ListFooterComponent={data.length > 0 && rows.length === 0 ? empty : null}
-      initialNumToRender={WINDOW_SIZE}
+      initialNumToRender={16}
       maxToRenderPerBatch={WINDOW_SIZE}
       windowSize={11}
       removeClippedSubviews
       keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
       contentContainerStyle={{ paddingTop: topPadding, paddingBottom: bottomPadding + 24 }}
     />
   );
 }
+
+const keyExtractor = (row: LibraryRow): string => row.key;

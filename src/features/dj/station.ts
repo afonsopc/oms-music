@@ -60,8 +60,8 @@ export interface DjStationState {
   /** A conversa toda, a mais recente no fim. */
   turns: DjTurn[];
   /**
-   * As etiquetas da musica a dar. E daqui que saem as cores da vista do DJ:
-   * um bloco de hyperpop nao pode ter a mesma luz que um de fado.
+   * As etiquetas da musica a dar (antes davam as cores da capa do DJ; desde
+   * o redesenho de 2026-11-04 a capa e neutra e isto fica so como contexto).
    */
   styles: string[];
 }

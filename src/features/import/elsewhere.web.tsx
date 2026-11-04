@@ -47,11 +47,11 @@ export default function ImportElsewhere() {
   const copy = COPY[useLocale()] ?? COPY.pt;
 
   return (
-    <View style={{ gap: 4, paddingHorizontal: 4, paddingTop: 8 }}>
-      <Text style={{ color: tokens.foreground, fontSize: 15, fontWeight: "700" }}>
+    <View style={{ gap: 4 }}>
+      <Text style={{ color: tokens.foreground, fontSize: 16, fontWeight: "600" }}>
         {copy.title}
       </Text>
-      <Text style={{ color: tokens.mutedForeground, fontSize: 13 }}>
+      <Text style={{ color: tokens.mutedForeground, fontSize: 14, lineHeight: 19 }}>
         {copy.line}
         <Text
           onPress={openImportPage}

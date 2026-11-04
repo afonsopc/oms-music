@@ -1,12 +1,27 @@
 /**
- * Collection/artist hero header (web Hero parity). Non-artist heroes:
- * min-height 36% of the window with a square artwork and a top-down accent
- * gradient. Artist heroes with a backdrop photo: 42% full-bleed with a
- * bottom-up scrim in the accent. Accent: caller-provided `accentColor`
- * wins (mixes, liked, radios); otherwise the hero accent variant is
- * extracted from the backdrop/image (theme/accent.ts, dual-variant cache).
+ * O cabeçalho das colecções (playlist, álbum, mix, rádio) e do artista.
+ * Redesenho de 2026-11-04: neutro, sem gradientes de cor, a capa grande.
+ *
+ * Telemóvel (90 % do uso):
+ *
+ *   ┌──────────────────────────┐
+ *   │                          │   capa quase da largura do ecrã
+ *   │          capa            │   (margem da página dos dois lados)
+ *   │                          │
+ *   └──────────────────────────┘
+ *   Título grande                  encostado à esquerda, 2 linhas no máximo
+ *   (o) Dono / artista             cinzento
+ *   Playlist · 5 músicas · 14 min  cinzento
+ *
+ * Artista com foto: a foto de ponta a ponta, a desvanecer para o fundo da
+ * página, com o nome grande por cima, em baixo à esquerda.
+ *
+ * Computador: capa à esquerda e o texto ao lado, alinhado por baixo.
+ *
+ * `accentColor` e `accentKey` continuam aceites (os ecrãs passam-nos) mas já
+ * não pintam nada: a cor vem só das próprias capas.
  */
-import React, { useEffect, useState } from "react";
+import React from "react";
 import {
   Pressable,
   Text,
@@ -17,26 +32,22 @@ import {
 } from "react-native";
 import { Image } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { ArtworkImage, artworkSourceUri } from "./ArtworkImage";
-import { heroArtSizeMobile, heroMinHeight, heroTitleType, heroTitleTypeMobile } from "./breakpoints";
+import { ArtworkImage } from "./ArtworkImage";
+import { heroMinHeight, heroTitleType } from "./breakpoints";
 import { InitialsAvatar } from "./InitialsAvatar";
+import { FadeIn, Reveal } from "./motion";
+import { useGutter } from "./page";
 import { useContainerWidth, useDesktopShell } from "./shellLayout";
+import { Skeleton } from "./skeletons";
 import { gradientBackground, linearGradient } from "./uiTheme";
 import type { ArtworkSource } from "@/domain/artwork";
 import { useT } from "@/i18n";
-import { getCachedAccent, resolveAccent } from "@/theme/accent";
-import { onColor, withAlpha } from "@/theme/contrast";
+import { withAlpha } from "@/theme/contrast";
 import { useTheme } from "@/theme/provider";
-import { HERO_FALLBACK, RADIUS } from "@/theme/tokens";
-import { typeScale } from "@/theme/typography";
 
 export type HeroKind = "playlist" | "album" | "artist" | "mix" | "radio";
 
-/**
- * Linha do dono como as apps de referencia (ponto 16): avatar pequeno redondo + nome, entre o
- * titulo e a linha de meta. Sem `avatarUri` desenha o disco de iniciais
- * (album: o artista principal, que nao tem foto garantida).
- */
+/** Linha do dono: avatar pequeno redondo + nome, por baixo do título. */
 export interface HeroOwner {
   name: string;
   avatarUri?: string | null;
@@ -46,195 +57,96 @@ export interface HeroOwner {
 export interface HeroProps {
   kind: HeroKind;
   title: string;
-  /** Uppercase kind line; defaults to the localized kind label. */
+  /** Palavra do tipo ("Playlist", "Sincronizada"); por omissão a do `kind`. */
   subtitle?: string;
-  /** Dot-separated meta row (counts, links...) as text or nodes. */
+  /** Linha de meta (contagens...) em texto ou nós. */
   meta?: React.ReactNode;
-  /** Owner row under the title (playlist owner, album primary artist). */
+  /** Dono da playlist / artista do álbum. */
   owner?: HeroOwner;
-  /** Square artwork (or circular avatar for artist without backdrop). */
+  /** Capa quadrada (ou o disco do artista sem foto). */
   image?: ArtworkSource | null;
-  /** Full-bleed backdrop photo URI (artist hero). */
+  /** Foto de ponta a ponta (artista). */
   backdropUri?: string | null;
-  /**
-   * Custom artwork slot (editable playlist artwork, mix stamp tile...). A
-   * RENDER PROP: the hero decides the edge (centered ~60% of the window on
-   * mobile, 18% of the pane on desktop) and hands it to the slot, so the
-   * consumers stopped hard-coding 136.
-   */
+  /** Capa feita pelo ecrã (capa editável, carimbo da mix...): recebe o lado. */
   artworkSlot?: (size: number) => React.ReactNode;
-  /** Fixed accent (mixes, liked songs, radios without a photo). */
+  /** Mantido por compatibilidade; já não pinta nada. */
   accentColor?: string;
-  /** Stable cache key for accent extraction (album key, artist id...). */
+  /** Mantido por compatibilidade; já não pinta nada. */
   accentKey?: string;
   style?: StyleProp<ViewStyle>;
 }
 
-interface HeroContentProps {
-  desktopRow: boolean;
-  insetsTop: number;
-  containerWidth: number;
-  windowWidth: number;
-  artSize: number;
-  artistAvatarFallback: boolean;
-  isArtistBackdrop: boolean;
-  image: ArtworkSource | null;
-  artworkSlot?: (size: number) => React.ReactNode;
-  title: string;
-  kindLine: string;
-  meta?: React.ReactNode;
-  owner?: HeroOwner;
-  titleType: { fontSize: number; lineHeight: number };
-  ink: string;
-  kindInk: string;
-  metaInk: string;
-  metaSize: number;
-}
+/** Cantos da capa grande: discretos, como uma capa de disco. */
+export const HERO_ART_RADIUS = 8;
+
+/** Espaço que a seta de voltar (BackAffordance) ocupa por cima do hero. */
+const BACK_ROOM = 48;
 
 /**
- * The hero's content in its two arrangements, both after the reference app's playlist
- * header (owner screenshots 2026-08-14 + 2026-08-16 point 16). MOBILE: the
- * cover sits CENTERED and large (~60% of the window) above a left-aligned
- * text column - title, owner row, meta. DESKTOP shell: artwork on the LEFT,
- * and to its right a bottom-aligned column of kind line, display title,
- * owner row and meta - the title beside the artwork, never under it, so a
- * 96px display face reads as a header instead of a wall.
+ * Lado da capa no telemóvel: a largura da página menos as margens, sem
+ * passar de metade da altura do ecrã (um telefone baixo continua a mostrar
+ * as primeiras músicas) nem de 460 (um tablet não a faz cartaz).
  */
-const HeroContent = ({
-  desktopRow,
-  insetsTop,
-  containerWidth,
-  windowWidth,
-  artSize,
-  artistAvatarFallback,
-  isArtistBackdrop,
-  image,
-  artworkSlot,
-  title,
+export const heroArtSizePhone = (width: number, height: number, gutter: number): number =>
+  Math.round(Math.max(180, Math.min(width - gutter * 2, height * 0.5, 460)));
+
+/**
+ * Título no telemóvel: 34 quando cabe numa linha; senão o maior degrau que
+ * cabe em duas.
+ */
+export const phoneTitleSize = (textWidth: number, length: number): number => {
+  const glyphs = 0.56 * Math.max(length, 1);
+  const oneLine = textWidth / glyphs;
+  if (oneLine >= 34) return 34;
+  const twoLines = (textWidth * 2) / glyphs;
+  const steps = [34, 32, 30, 28, 26, 24] as const;
+  return steps.find((s) => s <= twoLines) ?? 22;
+};
+
+const OwnerRow = ({ owner, color }: { owner: HeroOwner; color: string }) => (
+  <Pressable
+    onPress={owner.onPress}
+    disabled={!owner.onPress}
+    accessibilityRole={owner.onPress ? "link" : undefined}
+    hitSlop={8}
+    style={({ pressed }) => ({
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      alignSelf: "flex-start",
+      opacity: pressed ? 0.6 : 1,
+    })}
+  >
+    {owner.avatarUri ? (
+      <ArtworkImage uri={owner.avatarUri} size={22} shape="circle" />
+    ) : (
+      <InitialsAvatar name={owner.name} size={22} />
+    )}
+    <Text style={{ color, fontSize: 15, fontWeight: "600" }} numberOfLines={1}>
+      {owner.name}
+    </Text>
+  </Pressable>
+);
+
+const MetaLine = ({
   kindLine,
   meta,
-  owner,
-  titleType,
-  ink,
-  kindInk,
-  metaInk,
-  metaSize,
-}: HeroContentProps) => {
-  // the reference app scales the cover with the pane: ~18% of the width on desktop,
-  // ~60% of the window on mobile, both clamped so a narrow surface still
-  // shows a real cover and a wide one does not poster it. The artist
-  // avatar fallback keeps its shipped disc size - the artist page has its
-  // own redesign pending and is not part of the collection-header change.
-  const rowArtSize = Math.round(Math.min(232, Math.max(160, containerWidth * 0.18)));
-  const size = desktopRow
-    ? rowArtSize
-    : artistAvatarFallback
-      ? artSize
-      : heroArtSizeMobile(windowWidth);
-
-  const artwork = artistAvatarFallback ? (
-    image && image.kind !== "initials" ? (
-      <ArtworkImage source={image} size={size} shape="circle" />
-    ) : (
-      <InitialsAvatar name={title} size={size} />
-    )
-  ) : !isArtistBackdrop ? (
-    artworkSlot ? (
-      <View style={{ width: size, height: size }}>{artworkSlot(size)}</View>
-    ) : image ? (
-      <ArtworkImage source={image} size={size} borderRadius={RADIUS + 4} />
-    ) : null
-  ) : null;
-
-  const ownerRow = owner ? (
-    <Pressable
-      onPress={owner.onPress}
-      disabled={!owner.onPress}
-      accessibilityRole={owner.onPress ? "link" : undefined}
-      hitSlop={6}
-      style={{ flexDirection: "row", alignItems: "center", gap: 8, alignSelf: "flex-start" }}
-    >
-      {owner.avatarUri ? (
-        <ArtworkImage uri={owner.avatarUri} size={20} shape="circle" />
-      ) : (
-        <InitialsAvatar name={owner.name} size={20} />
-      )}
-      <Text style={{ color: ink, fontSize: 13, fontWeight: "700" }} numberOfLines={1}>
-        {owner.name}
-      </Text>
-    </Pressable>
-  ) : null;
-
-  const textBlock = (
-    <View style={{ gap: 6, flexShrink: 1, minWidth: 0, flexGrow: desktopRow ? 1 : 0 }}>
-      <Text style={[typeScale.kindLabel, { color: kindInk }]}>{kindLine}</Text>
-      <Text
-        style={{
-          color: ink,
-          fontSize: titleType.fontSize,
-          lineHeight: titleType.lineHeight,
-          fontWeight: "900",
-          letterSpacing: -0.5,
-        }}
-        // Two lines on the phone too (was three): the mobile size is now a
-        // FIT, so a third line only ever happened to titles long enough that
-        // the hero became a wall of type before the first track row.
-        numberOfLines={2}
-      >
-        {title}
-      </Text>
-      {ownerRow}
-      {meta ? (
-        <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
-          {typeof meta === "string" ? (
-            <Text style={{ color: metaInk, fontSize: metaSize }}>{meta}</Text>
-          ) : (
-            meta
-          )}
-        </View>
-      ) : null}
-    </View>
-  );
-
-  if (desktopRow) {
-    return (
-      <View
-        style={{
-          flexDirection: "row",
-          alignItems: "flex-end",
-          gap: 24,
-          paddingHorizontal: 24,
-          paddingTop: insetsTop + 24,
-          paddingBottom: 20,
-        }}
-      >
-        {artwork}
-        {textBlock}
-      </View>
-    );
-  }
-
-  return (
-    <View
-      style={{
-        paddingHorizontal: 24,
-        paddingTop: insetsTop + 24,
-        paddingBottom: 12,
-        gap: 16,
-      }}
-    >
-      {/* A capa centra-se (como nas apps de referencia); o disco de iniciais do artista
-          mantem o alinhamento antigo ate a pagina de artista ter o seu
-          proprio redesenho. O texto fica sempre encostado a esquerda. */}
-      {artwork ? (
-        <View style={{ alignItems: artistAvatarFallback ? "flex-start" : "center" }}>
-          {artwork}
-        </View>
-      ) : null}
-      {textBlock}
-    </View>
-  );
-};
+  color,
+  size,
+}: {
+  kindLine: string;
+  meta?: React.ReactNode;
+  color: string;
+  size: number;
+}) => (
+  <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", columnGap: 6 }}>
+    <Text style={{ color, fontSize: size }}>
+      {kindLine}
+      {typeof meta === "string" && meta ? ` · ${meta.replace(/ • /g, " · ")}` : ""}
+    </Text>
+    {meta && typeof meta !== "string" ? meta : null}
+  </View>
+);
 
 export const Hero = ({
   kind,
@@ -245,108 +157,42 @@ export const Hero = ({
   image,
   backdropUri,
   artworkSlot,
-  accentColor,
-  accentKey,
   style,
 }: HeroProps) => {
-  const { tokens, scheme } = useTheme();
+  const { tokens } = useTheme();
   const t = useT();
   const { height, width } = useWindowDimensions();
-
-  const isArtistBackdrop = kind === "artist" && !!backdropUri;
-  const artistAvatarFallback = kind === "artist" && !backdropUri;
-  const extractionUri = backdropUri ?? artworkSourceUri(image);
-
-  const cached = accentKey ? getCachedAccent("hero", accentKey) : null;
-  const [extracted, setExtracted] = useState<{ light: string; dark: string } | null>(cached);
-
-  useEffect(() => {
-    if (accentColor || !accentKey) return;
-    let cancelled = false;
-    void resolveAccent("hero", accentKey, extractionUri).then((variants) => {
-      if (!cancelled) setExtracted(variants);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [accentColor, accentKey, extractionUri]);
-
-  const accent = accentColor ?? (extracted ? extracted[scheme] : HERO_FALLBACK);
-
-  /**
-   * Where the text actually sits decides its color. On an artist backdrop the
-   * scrim is the accent at full strength behind the whole text block, so the
-   * ink has to be derived from that accent - a mid-tone artwork left
-   * `foreground` at roughly 3:1 and made the meta line unreadable. Every other
-   * hero fades to transparent by the time it reaches the text, so the text is
-   * effectively on `background` and the plain foreground token is correct.
-   *
-   * Alphas are baked into the color rather than applied with `opacity` so the
-   * result is a value the contrast helpers can measure - and they are only
-   * spent where there is headroom to spend. There is very little: the text
-   * block sits low in the fade but the accent is still under it, and the
-   * worst case in the sweep (the deep purple section accent at 60% over the
-   * light page) leaves the kind label at 4.65:1 and the meta line at 4.86:1.
-   * A further 5% off either one drops it under AA, so the hierarchy here
-   * leans on size, weight and case rather than on more alpha.
-   */
-  const ink = isArtistBackdrop ? onColor(accent) : tokens.foreground;
-  const kindInk = isArtistBackdrop ? ink : withAlpha(ink, 0.88);
-  const metaInk = isArtistBackdrop ? ink : withAlpha(ink, 0.92);
-
   const insets = useSafeAreaInsets();
   const desktopShell = useDesktopShell();
   const containerWidth = useContainerWidth();
-  /**
-   * Two geometry regimes (plan 4.3, collection row). Mobile keeps the
-   * shipped height fractions untouched - the sacred below-900px freeze. The
-   * desktop shell swaps to a WIDTH-dependent cap (breakpoints.heroMinHeight)
-   * because a fraction of a 1440p monitor is a ~500px band of nothing, and
-   * to the 96/72/32 type ramp keyed on the main pane's bucket instead of
-   * the mobile 28/34 title-length pair.
-   */
-  const minHeight = desktopShell
-    ? heroMinHeight(containerWidth, isArtistBackdrop) + insets.top
-    : Math.round(height * (isArtistBackdrop ? 0.42 : 0.36)) + insets.top;
-  const titleType = desktopShell
-    ? heroTitleType(containerWidth, title.length)
-    : heroTitleTypeMobile(width, title.length);
-  const artSize = 136;
+  const gutter = useGutter();
 
-  return (
-    <View style={[{ minHeight, justifyContent: "flex-end", overflow: "hidden" }, style]}>
-      {isArtistBackdrop && backdropUri ? (
-        <Image
-          source={{ uri: backdropUri }}
-          contentFit="cover"
-          style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
-          accessible={false}
-        />
-      ) : null}
-      <View
-        pointerEvents="none"
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          ...gradientBackground(
-            isArtistBackdrop
-              ? linearGradient("to top", `${accent} 0%`, `${accent}cc 25%`, "transparent 90%")
-              : linearGradient("to bottom", accent, "transparent"),
-          ),
-        }}
-      />
-      {/* Desktop contrast guarantee (owner report 2026-08-14): the desktop
-          hero is width-capped and SHORTER than the mobile fraction, so the
-          accent has not fully faded by the time it reaches the text block -
-          a bright accent left the meta line swimming on it. This scrim
-          settles the bottom of the gradient back onto `background`, which is
-          the surface the foreground tokens are measured against. The artist
-          backdrop keeps its own accent scrim + onColor ink; mobile keeps the
-          shipped fade untouched. */}
-      {desktopShell && !isArtistBackdrop ? (
+  const kindLine = subtitle ?? t(`components.music.Hero.${kind}`);
+  const isArtistBackdrop = kind === "artist" && !!backdropUri;
+  const artistAvatar = kind === "artist" && !backdropUri;
+  const muted = tokens.mutedForeground;
+
+  // -------------------------------------------------------------------------
+  // Artista com foto: a foto de ponta a ponta e o nome por cima.
+  // -------------------------------------------------------------------------
+  if (isArtistBackdrop && backdropUri) {
+    const photoHeight = desktopShell
+      ? heroMinHeight(containerWidth, true)
+      : Math.round(Math.min(width * 1.05, height * 0.58)) + insets.top;
+    const titleSize = desktopShell
+      ? heroTitleType(containerWidth, title.length).fontSize
+      : Math.min(44, phoneTitleSize(width - gutter * 2, title.length) + 8);
+    return (
+      <View style={[{ height: photoHeight, justifyContent: "flex-end", overflow: "hidden" }, style]}>
+        <FadeIn duration={320} style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}>
+          <Image
+            source={{ uri: backdropUri }}
+            contentFit="cover"
+            transition={180}
+            style={{ width: "100%", height: "100%" }}
+            accessible={false}
+          />
+        </FadeIn>
         <View
           pointerEvents="none"
           style={{
@@ -358,38 +204,184 @@ export const Hero = ({
             ...gradientBackground(
               linearGradient(
                 "to top",
-                `${withAlpha(tokens.background, 0.92)} 0%`,
-                "transparent 65%",
+                `${tokens.background} 0%`,
+                `${withAlpha(tokens.background, 0.75)} 22%`,
+                "transparent 60%",
               ),
             ),
           }}
         />
+        <Reveal style={{ paddingHorizontal: gutter, paddingBottom: 8, gap: 6 }}>
+          <Text
+            accessibilityRole="header"
+            numberOfLines={2}
+            adjustsFontSizeToFit
+            minimumFontScale={0.7}
+            style={{
+              color: tokens.foreground,
+              fontSize: titleSize,
+              lineHeight: Math.round(titleSize * 1.06),
+              fontWeight: "800",
+              letterSpacing: -1,
+            }}
+          >
+            {title}
+          </Text>
+          {meta ? <MetaLine kindLine={kindLine} meta={meta} color={muted} size={14} /> : null}
+        </Reveal>
+      </View>
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // Computador: capa à esquerda, texto ao lado.
+  // -------------------------------------------------------------------------
+  if (desktopShell) {
+    const size = Math.round(Math.min(232, Math.max(168, containerWidth * 0.18)));
+    const titleType = heroTitleType(containerWidth, title.length);
+    const art = artistAvatar ? (
+      image && image.kind !== "initials" ? (
+        <ArtworkImage source={image} size={size} shape="circle" />
+      ) : (
+        <InitialsAvatar name={title} size={size} />
+      )
+    ) : artworkSlot ? (
+      <View style={{ width: size, height: size }}>{artworkSlot(size)}</View>
+    ) : image ? (
+      <ArtworkImage source={image} size={size} borderRadius={HERO_ART_RADIUS} />
+    ) : null;
+    return (
+      <View
+        style={[
+          {
+            flexDirection: "row",
+            alignItems: "flex-end",
+            gap: 28,
+            paddingHorizontal: gutter,
+            paddingTop: 40,
+            paddingBottom: 8,
+          },
+          style,
+        ]}
+      >
+        {art ? <FadeIn duration={260}>{art}</FadeIn> : null}
+        <Reveal style={{ flex: 1, minWidth: 0, gap: 10 }}>
+          <Text
+            accessibilityRole="header"
+            numberOfLines={2}
+            style={{
+              color: tokens.foreground,
+              fontSize: titleType.fontSize,
+              lineHeight: titleType.lineHeight,
+              fontWeight: "800",
+              letterSpacing: titleType.fontSize >= 56 ? -2 : -1,
+            }}
+          >
+            {title}
+          </Text>
+          {owner ? <OwnerRow owner={owner} color={tokens.foreground} /> : null}
+          <MetaLine kindLine={kindLine} meta={meta} color={muted} size={14} />
+        </Reveal>
+      </View>
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // Telemóvel: capa grande em cima, texto por baixo encostado à esquerda.
+  // -------------------------------------------------------------------------
+  const size = artistAvatar
+    ? Math.round(Math.min(200, width * 0.48))
+    : heroArtSizePhone(width, height, gutter);
+  const titleSize = phoneTitleSize(width - gutter * 2, title.length);
+  const art = artistAvatar ? (
+    image && image.kind !== "initials" ? (
+      <ArtworkImage source={image} size={size} shape="circle" />
+    ) : (
+      <InitialsAvatar name={title} size={size} />
+    )
+  ) : artworkSlot ? (
+    <View style={{ width: size, height: size }}>{artworkSlot(size)}</View>
+  ) : image ? (
+    <ArtworkImage source={image} size={size} borderRadius={HERO_ART_RADIUS} />
+  ) : null;
+
+  return (
+    <View
+      style={[
+        { paddingHorizontal: gutter, paddingTop: insets.top + BACK_ROOM, paddingBottom: 4, gap: 18 },
+        style,
+      ]}
+    >
+      {art ? (
+        <FadeIn duration={260} style={{ alignItems: artistAvatar ? "flex-start" : "center" }}>
+          {art}
+        </FadeIn>
       ) : null}
-      {/* The gradient and any backdrop bleed to the very top on purpose, but
-          the CONTENT must clear the status bar and the dynamic island: this
-          hero is the shared header of every collection screen, so without the
-          inset the artwork of playlists, albums, mixes and radios all sat
-          under the island. */}
-      <HeroContent
-        desktopRow={desktopShell && !isArtistBackdrop}
-        insetsTop={insets.top}
-        containerWidth={containerWidth}
-        windowWidth={width}
-        artSize={artSize}
-        artistAvatarFallback={artistAvatarFallback}
-        isArtistBackdrop={isArtistBackdrop}
-        image={image ?? null}
-        artworkSlot={artworkSlot}
-        title={title}
-        kindLine={subtitle ?? t(`components.music.Hero.${kind}`)}
-        meta={meta}
-        owner={owner}
-        titleType={titleType}
-        ink={ink}
-        kindInk={kindInk}
-        metaInk={metaInk}
-        metaSize={desktopShell ? 14 : 13}
-      />
+      <Reveal order={1} style={{ gap: 8 }}>
+        <Text
+          accessibilityRole="header"
+          numberOfLines={2}
+          style={{
+            color: tokens.foreground,
+            fontSize: titleSize,
+            lineHeight: Math.round(titleSize * 1.1),
+            fontWeight: "800",
+            letterSpacing: -0.8,
+          }}
+        >
+          {title}
+        </Text>
+        {owner ? <OwnerRow owner={owner} color={muted} /> : null}
+        <MetaLine kindLine={kindLine} meta={meta} color={muted} size={14} />
+      </Reveal>
+    </View>
+  );
+};
+
+/**
+ * O esqueleto do Hero com a MESMA geometria (capa grande, título, meta):
+ * quando o hero verdadeiro monta, nada salta.
+ */
+export const HeroPlaceholder = ({ kind = "playlist" }: { kind?: HeroKind }) => {
+  const { height, width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const desktopShell = useDesktopShell();
+  const containerWidth = useContainerWidth();
+  const gutter = useGutter();
+  if (kind === "artist") {
+    const photoHeight = desktopShell
+      ? heroMinHeight(containerWidth, true)
+      : Math.round(Math.min(width * 1.05, height * 0.58)) + insets.top;
+    return (
+      <View style={{ height: photoHeight, justifyContent: "flex-end", paddingHorizontal: gutter, gap: 10, paddingBottom: 8 }}>
+        <Skeleton width="60%" height={36} />
+        <Skeleton width="40%" height={14} />
+      </View>
+    );
+  }
+  if (desktopShell) {
+    const size = Math.round(Math.min(232, Math.max(168, containerWidth * 0.18)));
+    return (
+      <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 28, paddingHorizontal: gutter, paddingTop: 40, paddingBottom: 8 }}>
+        <Skeleton width={size} height={size} borderRadius={HERO_ART_RADIUS} />
+        <View style={{ flex: 1, gap: 12 }}>
+          <Skeleton width="55%" height={56} />
+          <Skeleton width="30%" height={14} />
+        </View>
+      </View>
+    );
+  }
+  const size = heroArtSizePhone(width, height, gutter);
+  return (
+    <View style={{ paddingHorizontal: gutter, paddingTop: insets.top + BACK_ROOM, paddingBottom: 4, gap: 18 }}>
+      <View style={{ alignItems: "center" }}>
+        <Skeleton width={size} height={size} borderRadius={HERO_ART_RADIUS} />
+      </View>
+      <View style={{ gap: 10 }}>
+        <Skeleton width="65%" height={30} />
+        <Skeleton width="35%" height={14} />
+        <Skeleton width="50%" height={14} />
+      </View>
     </View>
   );
 };

@@ -180,45 +180,58 @@ export const ListRow = ({
   const { tokens, ink } = useTheme();
   const gutter = useGutter();
   const color = destructive ? ink.destructive : tokens.foreground;
+  // A acção da direita (`trailing`) fica FORA do Pressable da linha: na web
+  // um botão dentro de outro botão é HTML inválido e o toque ia para os dois.
   const row = (
-    <Pressable
-      onPress={onPress}
-      onLongPress={onLongPress}
-      disabled={disabled || (!onPress && !onLongPress)}
-      accessibilityRole={onPress ? "button" : undefined}
-      accessibilityLabel={accessibilityLabel ?? title}
-      style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => ({
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 14,
-        minHeight: 56,
-        paddingVertical: 10,
-        paddingHorizontal: gutter,
-        backgroundColor: pressed ? tokens.secondary : hovered ? tokens.accent : "transparent",
-        opacity: disabled ? 0.45 : 1,
-      })}
-    >
-      {leading ?? (icon ? <Icon name={icon} size={20} color={destructive ? color : tokens.mutedForeground} /> : null)}
-      <View
-        style={{
+    <View style={{ flexDirection: "row", alignItems: "center" }}>
+      <Pressable
+        onPress={onPress}
+        onLongPress={onLongPress}
+        disabled={disabled || (!onPress && !onLongPress)}
+        accessibilityRole={onPress ? "button" : undefined}
+        accessibilityLabel={accessibilityLabel ?? title}
+        style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => ({
           flex: 1,
           minWidth: 0,
-          alignSelf: "stretch",
-          justifyContent: "center",
-        }}
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 14,
+          minHeight: 56,
+          paddingVertical: 10,
+          paddingLeft: gutter,
+          paddingRight: trailing ? 8 : gutter,
+          backgroundColor: pressed ? tokens.secondary : hovered ? tokens.accent : "transparent",
+          opacity: disabled ? 0.45 : 1,
+        })}
       >
-        <Text numberOfLines={1} style={[pageType.body, { color, fontWeight: "500" }]}>
-          {title}
-        </Text>
-        {meta ? (
-          <Text numberOfLines={2} style={[pageType.meta, { color: tokens.mutedForeground, marginTop: 2 }]}>
-            {meta}
+        {leading ??
+          (icon ? (
+            <Icon name={icon} size={20} color={destructive ? color : tokens.mutedForeground} />
+          ) : null)}
+        <View style={{ flex: 1, minWidth: 0, alignSelf: "stretch", justifyContent: "center" }}>
+          <Text numberOfLines={1} style={[pageType.body, { color, fontWeight: "500" }]}>
+            {title}
           </Text>
+          {meta ? (
+            <Text
+              numberOfLines={2}
+              style={[pageType.meta, { color: tokens.mutedForeground, marginTop: 2 }]}
+            >
+              {meta}
+            </Text>
+          ) : null}
+        </View>
+        {chevron && !trailing ? (
+          <Icon name="chevron-right" size={18} color={tokens.mutedForeground} />
         ) : null}
-      </View>
-      {trailing}
-      {chevron ? <Icon name="chevron-right" size={18} color={tokens.mutedForeground} /> : null}
-    </Pressable>
+      </Pressable>
+      {trailing ? (
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8, paddingRight: gutter }}>
+          {trailing}
+          {chevron ? <Icon name="chevron-right" size={18} color={tokens.mutedForeground} /> : null}
+        </View>
+      ) : null}
+    </View>
   );
   const body = (
     <View>

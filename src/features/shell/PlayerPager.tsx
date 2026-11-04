@@ -75,7 +75,16 @@ export const NowPlayingScreen = () => {
           dela e que garante o contraste das barras, em vez do accent
           extraido que dava fundos imprevisiveis (queixa do dono). */}
       <ImmersiveBackdrop song={song} dense={mode !== "artwork"} />
-      <View style={{ flex: 1, paddingBottom: Math.max(insets.bottom, 12) }}>
+      {/* Num ecrã largo o leitor não se estica: coluna de 640 no meio. */}
+      <View
+        style={{
+          flex: 1,
+          width: "100%",
+          maxWidth: 640,
+          alignSelf: "center",
+          paddingBottom: Math.max(insets.bottom, 12),
+        }}
+      >
         {/* A PEGA. Diz "isto puxa-se para baixo" antes de o utilizador
             tentar, e como vive acima do palco vale em TODAS as vistas -
             letras, fila, definicoes ou capa. Encostada a barra de estado,

@@ -4,20 +4,16 @@
  * multipart PATCH /users/:id. Optimistic flip with rollback + inline error.
  */
 import React, { useState } from "react";
-import { Platform, ScrollView, Share, Text } from "react-native";
+import { Platform, Share } from "react-native";
 import { useUpdateUser } from "@/api/queries/users";
 import { refreshAccount, useSessionStore } from "@/auth/session";
-import { useContentBottomPadding, useContentTopPadding } from "@/features/shell/metrics";
 import { useT } from "@/i18n";
+import { haptics } from "@/lib/haptics";
 import { playbackTraceText } from "@/player/trace";
-import { useTheme } from "@/theme/provider";
-import { NoticeBanner, SettingsRow, SettingsSection, SwitchRow } from "./ui";
+import { NoticeBanner, SettingsPage, SettingsRow, SettingsSection, SwitchRow } from "./ui";
 
 export default function PlaybackSettingsScreen() {
   const t = useT();
-  const { tokens } = useTheme();
-  const bottomPadding = useContentBottomPadding();
-  const topPadding = useContentTopPadding();
   const user = useSessionStore((s) => s.user);
   const updateUser = useUpdateUser();
 
@@ -38,7 +34,10 @@ export default function PlaybackSettingsScreen() {
     if (Platform.OS === "web") {
       void navigator.clipboard
         ?.writeText(text)
-        .then(() => setDiagnosticsNote(t("components.music.Settings.PlaybackPage.diagnosticsCopied")))
+        .then(() => {
+          haptics.success();
+          setDiagnosticsNote(t("components.music.Settings.PlaybackPage.diagnosticsCopied"));
+        })
         .catch(() => setDiagnosticsNote(text.slice(0, 200)));
     } else {
       void Share.share({ message: text }).catch(() => undefined);
@@ -53,6 +52,7 @@ export default function PlaybackSettingsScreen() {
       { shareListening: next },
       {
         onSuccess: () => {
+          haptics.success();
           // Refresh the session-store account so every consumer sees the
           // new flag; keep the optimistic value meanwhile.
           void refreshAccount()
@@ -60,6 +60,7 @@ export default function PlaybackSettingsScreen() {
             .finally(() => setOverride(null));
         },
         onError: () => {
+          haptics.error();
           setOverride(null);
           setError(t("components.music.Settings.PlaybackPage.shareListeningError"));
         },
@@ -68,17 +69,7 @@ export default function PlaybackSettingsScreen() {
   };
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: tokens.background }}
-      contentContainerStyle={{ padding: 16, paddingTop: topPadding, paddingBottom: bottomPadding, gap: 16 }}
-    >
-      <Text style={{ color: tokens.foreground, fontSize: 28, fontWeight: "800" }}>
-        {t("components.music.Settings.PlaybackPage.title")}
-      </Text>
-      <Text style={{ color: tokens.mutedForeground, fontSize: 14, lineHeight: 20 }}>
-        {t("components.music.Settings.PlaybackPage.subtitle")}
-      </Text>
-
+    <SettingsPage title={t("components.music.Settings.PlaybackPage.title")}>
       {error ? <NoticeBanner kind="error" message={error} /> : null}
 
       <SettingsSection>
@@ -88,19 +79,19 @@ export default function PlaybackSettingsScreen() {
           detail={t("components.music.Settings.PlaybackPage.shareListeningDescription")}
           value={value}
           onValueChange={toggle}
-          disabled={!user || updateUser.isPending}
+          disabled={!user}
         />
       </SettingsSection>
 
-      <SettingsSection>
+      {/* Para quando alguma coisa falha: fica em "Avançado", fora do caminho. */}
+      <SettingsSection title={t("native.settings.advanced")}>
         <SettingsRow
           first
-          icon="audio-waveform"
           label={t("components.music.Settings.PlaybackPage.diagnosticsTitle")}
           detail={diagnosticsNote ?? t("components.music.Settings.PlaybackPage.diagnosticsDescription")}
           onPress={exportDiagnostics}
         />
       </SettingsSection>
-    </ScrollView>
+    </SettingsPage>
   );
 }

@@ -5,7 +5,7 @@
  *  - synced (kept up to date from outside): read-only rows, "Synced"
  *    subtitle + last-synced meta, Copy + Delete only - NO edit affordance
  *    ever (the server rejects all of them including rename);
- *  - liked mirror: the purple heart artwork + #7e22ce accent.
+ *  - liked mirror: the charcoal heart artwork.
  *
  * FR-51 (artwork change) ships for manual playlists through
  * ChangePlaylistArtwork: the pick is center-cropped to a square and re-encoded
@@ -43,7 +43,7 @@ import {
   LikedArtwork,
   type ActionBarMenuItem,
 } from "@/ui";
-import { ChangePlaylistArtwork } from "./ChangePlaylistArtwork";
+import { ChangePlaylistArtwork, usePlaylistArtworkChange } from "./ChangePlaylistArtwork";
 import { CollectionScreen } from "./CollectionScreen";
 
 const arrayMove = <T,>(items: readonly T[], from: number, to: number): T[] => {
@@ -73,6 +73,8 @@ const PlaylistBody = ({ playlistId }: { playlistId: PlaylistId }) => {
   const [reorderMode, setReorderMode] = useState(false);
 
   const playlistQuery = usePlaylist(playlistId);
+  // Mudar a capa vive no menu "⋯"; a capa só mostra o estado do envio.
+  const artworkChange = usePlaylistArtworkChange(playlistId);
   const songsQuery = usePlaylistSongsInfinite(playlistId);
   const removeMutation = useRemovePlaylistSong();
   const reorderMutation = useReorderPlaylist();
@@ -221,6 +223,15 @@ const PlaylistBody = ({ playlistId }: { playlistId: PlaylistId }) => {
         onPress: () => setReorderMode((v) => !v),
       });
     }
+    if (!system && !likedMirror) {
+      items.push({
+        id: "artwork",
+        label: t("components.music.ChangePlaylistArtwork.changeArtwork"),
+        icon: "disc",
+        disabled: artworkChange.busy,
+        onPress: artworkChange.pick,
+      });
+    }
     if (system) {
       items.push({
         id: "copy",
@@ -241,7 +252,7 @@ const PlaylistBody = ({ playlistId }: { playlistId: PlaylistId }) => {
       onPress: () => setConfirmDelete(true),
     });
     return items;
-  }, [system, copyMutation, playlistId, router, t, canReorder, reorderMode]);
+  }, [system, likedMirror, artworkChange, copyMutation, playlistId, router, t, canReorder, reorderMode]);
 
   if (playlistQuery.isError) {
     return (
@@ -273,9 +284,9 @@ const PlaylistBody = ({ playlistId }: { playlistId: PlaylistId }) => {
                 // affordance (FR-53) - the server rejects the upload anyway.
                 (size) => (
                   <ChangePlaylistArtwork
-                    playlistId={playlistId}
                     source={playlistArtworkSource(playlist)}
                     size={size}
+                    change={artworkChange}
                   />
                 )
               : undefined

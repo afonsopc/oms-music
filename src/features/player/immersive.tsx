@@ -38,7 +38,9 @@ const washRgb = (scheme: "light" | "dark"): string =>
 const washStops = (rgb: string, dense: boolean): string =>
   dense
     ? `linear-gradient(to bottom, rgba(${rgb}, 0.74) 0%, rgba(${rgb}, 0.82) 45%, rgba(${rgb}, 0.92) 80%, rgba(${rgb}, 0.96) 100%)`
-    : `linear-gradient(to bottom, rgba(${rgb}, 0.34) 0%, rgba(${rgb}, 0.58) 40%, rgba(${rgb}, 0.88) 78%, rgba(${rgb}, 0.95) 100%)`;
+    : // Mais escuro do que era (redesenho 2026-11-04): a capa dá só um
+      // ambiente, o ecrã continua preto e cinzento.
+      `linear-gradient(to bottom, rgba(${rgb}, 0.55) 0%, rgba(${rgb}, 0.74) 40%, rgba(${rgb}, 0.92) 78%, rgba(${rgb}, 0.97) 100%)`;
 
 /**
  * A copia desfocada, esticada a pagina inteira, mais o veu que garante o
@@ -95,7 +97,7 @@ export const ImmersiveArtwork = ({ song, size }: { song: Song; size: number }) =
     style={{
       width: size,
       height: size,
-      borderRadius: 18,
+      borderRadius: 12,
       // A sombra e o que separa a capa do fundo, ja que ambos saem da mesma
       // imagem; sem ela a capa parecia colada ao desfoque.
       shadowColor: "#000",
@@ -109,7 +111,7 @@ export const ImmersiveArtwork = ({ song, size }: { song: Song; size: number }) =
       source={songArtworkSource(song)}
       songId={song.id}
       contentFit="cover"
-      borderRadius={18}
+      borderRadius={12}
       style={{ width: size, height: size }}
     />
   </View>

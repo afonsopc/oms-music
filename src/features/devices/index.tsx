@@ -7,19 +7,33 @@
  * revoke button would be a lie. The note row says so in plain language.
  */
 import React, { useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { Pressable, Text, TextInput, View } from "react-native";
 import { useRenameSession, useSessions } from "@/api/queries/sessions";
 import { useSessionStore } from "@/auth/session";
 import { isApiError } from "@/domain/api";
 import type { Session } from "@/domain/user";
-import { useContentBottomPadding, useContentTopPadding } from "@/features/shell/metrics";
+import { PrimaryButton, SettingsPage, SettingsSection } from "@/features/settings/ui";
 import { useLocale, useT } from "@/i18n";
 import { formatDateTime } from "@/lib/dates";
+import { haptics } from "@/lib/haptics";
 import { useTheme } from "@/theme/provider";
 import { RADIUS } from "@/theme/tokens";
-import { EmptyState, ErrorState, Icon, SongRowSkeleton } from "@/ui";
+import { Skeleton } from "@/ui";
+import { PageState } from "@/ui/page";
 
 const MAX_NAME_LENGTH = 50;
+
+/** Esqueleto das linhas (nome + data), já dentro da margem da página. */
+const SessionsSkeleton = () => (
+  <View style={{ gap: 4 }}>
+    {[0, 1, 2, 3].map((i) => (
+      <View key={i} style={{ height: 60, justifyContent: "center", gap: 8 }}>
+        <Skeleton width={`${55 - i * 7}%`} height={14} />
+        <Skeleton width="40%" height={11} />
+      </View>
+    ))}
+  </View>
+);
 
 const SessionRow = ({
   session,
@@ -36,6 +50,8 @@ const SessionRow = ({
   const rename = useRenameSession();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(session.name);
+  // Optimista: o nome novo aparece logo; volta atrás se o servidor recusar.
+  const [shownName, setShownName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const submit = (): void => {
@@ -45,11 +61,16 @@ const SessionRow = ({
       return;
     }
     setError(null);
+    setShownName(name);
+    setEditing(false);
     rename.mutate(
       { id: session.id, name },
       {
-        onSuccess: () => setEditing(false),
+        onSuccess: () => haptics.success(),
         onError: (e: unknown) => {
+          haptics.error();
+          setShownName(null);
+          setEditing(true);
           // Error bodies are bare JSON strings; render them when short.
           setError(
             isApiError(e) && typeof e.body === "string" && e.body.length > 0 && e.body.length < 200
@@ -57,68 +78,65 @@ const SessionRow = ({
               : t("native.devices.renameError"),
           );
         },
+        onSettled: () => setShownName(null),
       },
     );
   };
 
+  const lastUsed = t("native.devices.lastUsed", {
+    date: formatDateTime(session.last_used_at, locale),
+  });
+
   return (
     <View
       style={{
-        paddingHorizontal: 16,
-        paddingVertical: 14,
-        gap: 6,
+        paddingVertical: 12,
+        gap: 10,
         borderTopWidth: first ? 0 : 1,
         borderTopColor: tokens.border,
       }}
     >
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-        <View style={{ flex: 1, gap: 2 }}>
-          <Text numberOfLines={1} style={{ color: tokens.foreground, fontSize: 15, fontWeight: "600" }}>
-            {session.name}
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 12, minHeight: 36 }}>
+        <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+          <Text numberOfLines={1} style={{ color: tokens.foreground, fontSize: 16, fontWeight: "500" }}>
+            {shownName ?? session.name}
           </Text>
-          <Text numberOfLines={1} style={{ color: tokens.mutedForeground, fontSize: 12 }}>
-            {t("native.devices.lastUsed", { date: formatDateTime(session.last_used_at, locale) })}
-          </Text>
-        </View>
-        {isCurrent ? (
-          <View
-            style={{
-              paddingHorizontal: 8,
-              paddingVertical: 3,
-              borderRadius: RADIUS,
-              backgroundColor: tokens.secondary,
-            }}
-          >
-            <Text style={{ color: tokens.secondaryForeground, fontSize: 11, fontWeight: "700" }}>
+          {isCurrent ? (
+            <Text numberOfLines={1} style={{ color: tokens.foreground, fontSize: 14 }}>
               {t("native.devices.thisDevice")}
             </Text>
-          </View>
+          ) : null}
+          <Text numberOfLines={1} style={{ color: tokens.mutedForeground, fontSize: 14 }}>
+            {lastUsed}
+          </Text>
+        </View>
+        {isCurrent && !editing ? (
+          <Pressable
+            accessibilityRole="button"
+            hitSlop={10}
+            onPress={() => {
+              setDraft(shownName ?? session.name);
+              setEditing(true);
+            }}
+          >
+            {({ pressed }) => (
+              <Text
+                style={{
+                  color: tokens.mutedForeground,
+                  fontSize: 14,
+                  fontWeight: "600",
+                  opacity: pressed ? 0.6 : 1,
+                }}
+              >
+                {t("native.devices.rename")}
+              </Text>
+            )}
+          </Pressable>
         ) : null}
       </View>
 
-      {isCurrent && !editing ? (
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => {
-            setDraft(session.name);
-            setEditing(true);
-          }}
-          style={({ pressed }) => ({
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 6,
-            opacity: pressed ? 0.6 : 1,
-          })}
-        >
-          <Icon name="more-horizontal" size={14} color={tokens.mutedForeground} />
-          <Text style={{ color: tokens.mutedForeground, fontSize: 12, fontWeight: "600" }}>
-            {t("native.devices.rename")}
-          </Text>
-        </Pressable>
-      ) : null}
-
       {isCurrent && editing ? (
-        <View style={{ gap: 8 }}>
+        <View style={{ gap: 10 }}>
           <TextInput
             value={draft}
             onChangeText={setDraft}
@@ -127,57 +145,34 @@ const SessionRow = ({
             placeholder={t("native.devices.namePlaceholder")}
             placeholderTextColor={tokens.mutedForeground}
             onSubmitEditing={submit}
+            returnKeyType="done"
             style={{
               borderWidth: 1,
               borderColor: tokens.input,
               borderRadius: RADIUS,
               paddingHorizontal: 12,
               paddingVertical: 10,
+              fontSize: 16,
               color: tokens.foreground,
               backgroundColor: tokens.background,
             }}
           />
-          <View style={{ flexDirection: "row", gap: 8 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 18 }}>
+            <PrimaryButton compact label={t("native.devices.save")} onPress={submit} />
             <Pressable
               accessibilityRole="button"
-              disabled={rename.isPending}
-              onPress={submit}
-              style={({ pressed }) => ({
-                paddingHorizontal: 14,
-                paddingVertical: 8,
-                borderRadius: RADIUS,
-                backgroundColor: tokens.primary,
-                opacity: rename.isPending ? 0.6 : pressed ? 0.8 : 1,
-              })}
-            >
-              <Text style={{ color: tokens.primaryForeground, fontSize: 13, fontWeight: "700" }}>
-                {t("native.devices.save")}
-              </Text>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
+              hitSlop={10}
               onPress={() => {
                 setEditing(false);
                 setError(null);
               }}
-              style={({ pressed }) => ({
-                paddingHorizontal: 14,
-                paddingVertical: 8,
-                borderRadius: RADIUS,
-                borderWidth: 1,
-                borderColor: tokens.border,
-                opacity: pressed ? 0.7 : 1,
-              })}
             >
-              <Text style={{ color: tokens.foreground, fontSize: 13, fontWeight: "600" }}>
+              <Text style={{ color: tokens.mutedForeground, fontSize: 14, fontWeight: "600" }}>
                 {t("native.common.cancel")}
               </Text>
             </Pressable>
-            {rename.isPending ? <ActivityIndicator color={tokens.foreground} /> : null}
           </View>
-          {error ? (
-            <Text style={{ color: ink.destructive, fontSize: 12 }}>{error}</Text>
-          ) : null}
+          {error ? <Text style={{ color: ink.destructive, fontSize: 14 }}>{error}</Text> : null}
         </View>
       ) : null}
     </View>
@@ -187,46 +182,32 @@ const SessionRow = ({
 export default function DevicesScreen() {
   const t = useT();
   const { tokens } = useTheme();
-  const bottomPadding = useContentBottomPadding();
-  const topPadding = useContentTopPadding();
   const currentSessionId = useSessionStore((s) => s.session?.id ?? null);
   const sessions = useSessions();
+  const list = sessions.data ?? [];
+  // O aparelho actual primeiro; os outros pela ordem do servidor.
+  const ordered = [
+    ...list.filter((s) => s.id === currentSessionId),
+    ...list.filter((s) => s.id !== currentSessionId),
+  ];
+  const settled = !sessions.isLoading && !sessions.isError && list.length > 0;
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: tokens.background }}
-      contentContainerStyle={{ padding: 16, paddingTop: topPadding, paddingBottom: bottomPadding, gap: 16 }}
-    >
-      <View style={{ gap: 6 }}>
-        <Text style={{ color: tokens.foreground, fontSize: 28, fontWeight: "800" }}>
-          {t("native.devices.title")}
-        </Text>
-        <Text style={{ color: tokens.mutedForeground, fontSize: 14, lineHeight: 20 }}>
-          {t("native.devices.subtitle")}
-        </Text>
-      </View>
-
-      {sessions.isLoading ? (
-        <View style={{ gap: 8 }}>
-          <SongRowSkeleton />
-          <SongRowSkeleton />
-          <SongRowSkeleton />
-        </View>
-      ) : sessions.isError ? (
-        <ErrorState onRetry={() => void sessions.refetch()} />
-      ) : (sessions.data ?? []).length === 0 ? (
-        <EmptyState icon="cast" text={t("native.devices.empty")} />
-      ) : (
-        <View
-          style={{
-            borderWidth: 1,
-            borderColor: tokens.border,
-            borderRadius: RADIUS * 2,
-            backgroundColor: tokens.card,
-            overflow: "hidden",
-          }}
-        >
-          {(sessions.data ?? []).map((session, index) => (
+    <SettingsPage title={t("native.devices.title")}>
+      {settled ? null : (
+        <PageState
+        loading={sessions.isLoading}
+        error={sessions.isError ? sessions.error : null}
+        empty={!sessions.isLoading && !sessions.isError && list.length === 0}
+        emptyIcon="cast"
+        emptyText={t("native.devices.empty")}
+        onRetry={() => void sessions.refetch()}
+        skeleton={<SessionsSkeleton />}
+        />
+      )}
+      {settled ? (
+        <SettingsSection>
+          {ordered.map((session, index) => (
             <SessionRow
               key={session.id}
               session={session}
@@ -234,12 +215,13 @@ export default function DevicesScreen() {
               first={index === 0}
             />
           ))}
-        </View>
-      )}
-
-      <Text style={{ color: tokens.mutedForeground, fontSize: 12, lineHeight: 18 }}>
-        {t("native.devices.revokeNote")}
-      </Text>
-    </ScrollView>
+        </SettingsSection>
+      ) : null}
+      {settled ? (
+        <Text style={{ color: tokens.mutedForeground, fontSize: 14, lineHeight: 19 }}>
+          {t("native.devices.revokeNote")}
+        </Text>
+      ) : null}
+    </SettingsPage>
   );
 }

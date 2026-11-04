@@ -17,82 +17,17 @@
  * a flip takes effect on the very next enqueue.
  */
 import React, { useEffect, useState } from "react";
-import { ScrollView, Switch, Text, View } from "react-native";
+import { Text } from "react-native";
 import { getDownloadsSurface } from "@/downloads/surface";
 import { updateDownloadSettings, useDownloadSettings } from "@/downloads/settings";
-import { useContentBottomPadding, useContentTopPadding } from "@/features/shell/metrics";
+import { SettingsPage, SettingsSection, SwitchRow } from "@/features/settings/ui";
 import { useT } from "@/i18n";
-import { switchColors } from "@/theme/switchColors";
 import { useTheme } from "@/theme/provider";
-import { RADIUS } from "@/theme/tokens";
 import { formatBytes } from "./format";
-
-const SettingsCard = ({ children }: { children: React.ReactNode }) => {
-  const { tokens } = useTheme();
-  return (
-    <View
-      style={{
-        borderWidth: 1,
-        borderColor: tokens.border,
-        borderRadius: RADIUS * 2,
-        backgroundColor: tokens.card,
-        overflow: "hidden",
-      }}
-    >
-      {children}
-    </View>
-  );
-};
-
-const ToggleRow = ({
-  label,
-  detail,
-  value,
-  onValueChange,
-  first = false,
-}: {
-  label: string;
-  detail?: string;
-  value: boolean;
-  onValueChange: (value: boolean) => void;
-  first?: boolean;
-}) => {
-  const { tokens } = useTheme();
-  return (
-    <View
-      style={{
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 12,
-        paddingHorizontal: 16,
-        paddingVertical: 14,
-        borderTopWidth: first ? 0 : 1,
-        borderTopColor: tokens.border,
-      }}
-    >
-      {/* minWidth 0 keeps the long detail line inside the card. */}
-      <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
-        <Text style={{ color: tokens.foreground, fontSize: 15 }}>{label}</Text>
-        {detail ? (
-          <Text style={{ color: tokens.mutedForeground, fontSize: 12, lineHeight: 17 }}>
-            {detail}
-          </Text>
-        ) : null}
-      </View>
-      <Switch
-        value={value}
-        onValueChange={onValueChange}
-        {...switchColors(tokens, value)}
-      />
-    </View>
-  );
-};
 
 export default function DownloadSettingsScreen() {
   const t = useT();
   const { tokens } = useTheme();
-  const bottomPadding = useContentBottomPadding();
-  const topPadding = useContentTopPadding();
   const settings = useDownloadSettings();
   const [usage, setUsage] = useState<{ bytes: number; files: number } | null>(null);
 
@@ -111,73 +46,67 @@ export default function DownloadSettingsScreen() {
     };
   }, []);
 
-  // The cache row (size, budget and "Limpar cache") used to live here TOO,
-  // which is the duplication the owner reported on 2026-08-16, point 10:
-  // both download screens carried it. It belongs to the overview, next to
-  // the storage bar and the waste ratio that give the number its meaning;
-  // this screen is switches. One concept, one place.
+  // The cache row (size, budget and "Limpar") used to live here TOO, which
+  // is the duplication the owner reported on 2026-08-16, point 10: both
+  // download screens carried it. It belongs to the overview, next to the
+  // storage bar; this screen is switches. One concept, one place.
+  //
+  // Redesenho 2026-11-04: as linhas são as SwitchRow comuns (a cópia em
+  // caixa que vivia aqui saiu) e o adiantar fica em "Avançado".
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: tokens.background }}
-      contentContainerStyle={{ padding: 16, paddingTop: topPadding, paddingBottom: bottomPadding, gap: 16 }}
-    >
-      <Text style={{ color: tokens.foreground, fontSize: 28, fontWeight: "800" }}>
-        {t("native.downloads.settingsTitle")}
-      </Text>
-
-      <SettingsCard>
-        <ToggleRow
+    <SettingsPage title={t("native.downloads.settingsTitle")}>
+      <SettingsSection>
+        <SwitchRow
           first
           label={t("native.downloads.wifiOnlyTitle")}
           detail={t("native.downloads.wifiOnlyDetail")}
           value={settings.wifiOnly}
           onValueChange={(value) => updateDownloadSettings({ wifiOnly: value })}
         />
-        <ToggleRow
-          label={t("native.downloads.includeStemsTitle")}
-          detail={t("native.downloads.includeStemsDetail")}
-          value={settings.includeStems}
-          onValueChange={(value) => updateDownloadSettings({ includeStems: value })}
-        />
-        <ToggleRow
+        <SwitchRow
           label={t("native.downloads.onlyDownloadedTitle")}
           detail={t("native.downloads.onlyDownloadedDetail")}
           value={settings.showOnlyDownloaded}
           onValueChange={(value) => updateDownloadSettings({ showOnlyDownloaded: value })}
         />
-      </SettingsCard>
+      </SettingsSection>
 
-      {/* The predictive tier. Its own card because it is a different promise:
-          nothing here ever joins the offline library, and everything here is
-          deleted the moment the cache budget says so. The WiFi row is nested
-          under the master switch by relevance, not by disabling it: a user who
-          turns prediction off later should find their WiFi choice remembered.
-          Hidden entirely where there is no local store to predict INTO: a
-          plain browser tab streams, so the switches would promise nothing. */}
-      {getDownloadsSurface().available() ? (
-      <SettingsCard>
-        <ToggleRow
+      {/* The predictive tier and the stems: a different promise (nothing
+          predicted ever joins the offline library) and rarely touched, so
+          they sit under "Avançado". The predictive rows are hidden where
+          there is no local store to predict INTO (a plain browser tab). */}
+      <SettingsSection title={t("native.settings.advanced")}>
+        <SwitchRow
           first
-          label={t("native.downloads.predictiveTitle")}
-          detail={t("native.downloads.predictiveDetail")}
-          value={settings.predictiveEnabled}
-          onValueChange={(value) => updateDownloadSettings({ predictiveEnabled: value })}
+          label={t("native.downloads.includeStemsTitle")}
+          detail={t("native.downloads.includeStemsDetail")}
+          value={settings.includeStems}
+          onValueChange={(value) => updateDownloadSettings({ includeStems: value })}
         />
-        <ToggleRow
-          label={t("native.downloads.predictiveWifiTitle")}
-          detail={t("native.downloads.predictiveWifiDetail")}
-          value={settings.predictiveWifiOnly}
-          onValueChange={(value) => updateDownloadSettings({ predictiveWifiOnly: value })}
-        />
-      </SettingsCard>
-      ) : null}
+        {getDownloadsSurface().available() ? (
+          <>
+            <SwitchRow
+              label={t("native.downloads.predictiveTitle")}
+              detail={t("native.downloads.predictiveDetail")}
+              value={settings.predictiveEnabled}
+              onValueChange={(value) => updateDownloadSettings({ predictiveEnabled: value })}
+            />
+            <SwitchRow
+              label={t("native.downloads.predictiveWifiTitle")}
+              detail={t("native.downloads.predictiveWifiDetail")}
+              value={settings.predictiveWifiOnly}
+              onValueChange={(value) => updateDownloadSettings({ predictiveWifiOnly: value })}
+            />
+          </>
+        ) : null}
+      </SettingsSection>
 
-      <Text style={{ color: tokens.mutedForeground, fontSize: 13 }}>
+      <Text style={{ color: tokens.mutedForeground, fontSize: 14 }}>
         {usage
           ? t("native.downloads.storageUsed", { size: formatBytes(usage.bytes) })
           : t("native.common.loading")}
       </Text>
-    </ScrollView>
+    </SettingsPage>
   );
 }

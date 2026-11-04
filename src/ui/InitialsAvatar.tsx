@@ -1,7 +1,7 @@
 /**
  * Deterministic initials avatar (FR-21 exception): legal ONLY for
  * pictureless artists in card grids. Same name always renders the same
- * hue disc, so pictureless artists stay distinguishable.
+ * grey disc (shade per name), so pictureless artists stay distinguishable.
  */
 import React from "react";
 import { Text, View, type StyleProp, type ViewStyle } from "react-native";
@@ -30,10 +30,10 @@ export interface InitialsAvatarProps {
 }
 
 export const InitialsAvatar = ({ name, size, style }: InitialsAvatarProps) => {
-  // The hue disc is deterministic per name, so its on-color is too: yellows
-  // and greens at 45%/42% still land dark enough for white, but the check is
-  // cheap and it is the same rule every other identity surface follows.
-  const disc = `hsl(${hueOf(name)}, 45%, 42%)`;
+  // Neutro (redesenho 2026-11-04): um cinzento por nome, entre 20 % e 34 %
+  // de luz, em vez de um matiz - os discos coloridos eram cor solta na
+  // interface. Continua a distinguir nomes diferentes lado a lado.
+  const disc = `hsl(0, 0%, ${20 + (hueOf(name) % 15)}%)`;
   return (
     <View
       accessible={false}

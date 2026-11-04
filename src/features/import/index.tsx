@@ -7,10 +7,8 @@
  * docs/app-store.md.
  */
 import React from "react";
-import { ScrollView, Text, View } from "react-native";
-import { useContentBottomPadding, useContentTopPadding } from "@/features/shell/metrics";
+import { SettingsPage } from "@/features/settings/ui";
 import { useT } from "@/i18n";
-import { useTheme } from "@/theme/provider";
 import ImportElsewhere from "./elsewhere";
 import FilesImportTab from "./files";
 
@@ -18,34 +16,12 @@ const PAGE_KEY = "components.music.Settings.ImportPage";
 
 export default function ImportScreen() {
   const t = useT();
-  const { tokens } = useTheme();
-  const bottomPadding = useContentBottomPadding();
-  const topPadding = useContentTopPadding();
-
+  // Redesenho 2026-11-04: a moldura comum das definições (título, margem),
+  // sem subtítulo; o título rola com o resto.
   return (
-    <View style={{ flex: 1, backgroundColor: tokens.background }}>
-      {/* The heading is FIXED, outside the scroll view, so the safe-area inset
-          belongs here: applying it to the scrolling content left the title
-          itself under the dynamic island. */}
-      <View style={{ paddingTop: topPadding, gap: 8 }}>
-        <View style={{ paddingHorizontal: 16, gap: 4 }}>
-          <Text style={{ color: tokens.foreground, fontSize: 26, fontWeight: "800" }}>
-            {t(`${PAGE_KEY}.title`)}
-          </Text>
-          <Text style={{ color: tokens.mutedForeground, fontSize: 13 }}>
-            {t(`${PAGE_KEY}.description`)}
-          </Text>
-        </View>
-      </View>
-
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={{ padding: 16, paddingBottom: bottomPadding, gap: 16 }}
-        keyboardShouldPersistTaps="handled"
-      >
-        <FilesImportTab />
-        <ImportElsewhere />
-      </ScrollView>
-    </View>
+    <SettingsPage title={t(`${PAGE_KEY}.title`)}>
+      <FilesImportTab />
+      <ImportElsewhere />
+    </SettingsPage>
   );
 }

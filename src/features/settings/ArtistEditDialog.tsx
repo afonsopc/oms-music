@@ -21,6 +21,7 @@ import {
 import { artistImageSource } from "@/domain/artwork";
 import type { Artist } from "@/domain/artist";
 import { useT } from "@/i18n";
+import { haptics } from "@/lib/haptics";
 import { useTheme } from "@/theme/provider";
 import { RADIUS } from "@/theme/tokens";
 import { ArtworkImage, Icon } from "@/ui";
@@ -102,6 +103,7 @@ export const ArtistEditDialog = ({
           ...(galleryChanged ? { gallery_image_urls: gallery } : {}),
         },
       });
+      haptics.success();
       setNotice({ kind: "success", text: t(`${DIALOG_KEY}.renamed`) });
       onClose();
     } catch (error) {
@@ -126,6 +128,7 @@ export const ArtistEditDialog = ({
         // Multipart field `banner` (NOT `image`) - the web bug.
         await uploadBanner.mutateAsync({ id: artist.id, banner: picked });
       }
+      haptics.success();
       setNotice({ kind: "success", text: t(`${DIALOG_KEY}.uploaded`) });
     } catch (error) {
       setNotice({ kind: "error", text: errorMessage(error) });

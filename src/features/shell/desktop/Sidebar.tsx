@@ -130,7 +130,7 @@ const NavRow = ({
 
 /** Compact library row: 36px artwork, one-line name + kind subtitle. */
 const SidebarRow = ({ row, onPress }: { row: LibraryRow; onPress: () => void }) => {
-  const { tokens, ink } = useTheme();
+  const { tokens } = useTheme();
   return (
     <Pressable
       onPress={onPress}
@@ -166,7 +166,7 @@ const SidebarRow = ({ row, onPress }: { row: LibraryRow; onPress: () => void }) 
             {row.name}
           </Text>
           {row.system ? (
-            <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: ink.sync }} />
+            <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: tokens.mutedForeground }} />
           ) : null}
         </View>
         <Text style={{ color: tokens.mutedForeground, fontSize: 11 }} numberOfLines={1}>

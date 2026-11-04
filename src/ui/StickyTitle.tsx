@@ -9,7 +9,8 @@ import React, { useEffect, useState } from "react";
 import { Animated, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "@/theme/provider";
-import { backgroundVeil, softShadow } from "./uiTheme";
+import { useGutter } from "./page";
+import { useDesktopShell } from "./shellLayout";
 
 export interface StickyTitleProps {
   visible: boolean;
@@ -33,8 +34,10 @@ export const StickyTitle = ({
   topOffset = 0,
   barHeight,
 }: StickyTitleProps) => {
-  const { tokens, scheme } = useTheme();
+  const { tokens } = useTheme();
   const insets = useSafeAreaInsets();
+  const desktop = useDesktopShell();
+  const gutter = useGutter();
   const [opacity] = useState(() => new Animated.Value(visible ? 1 : 0));
 
   useEffect(() => {
@@ -56,10 +59,12 @@ export const StickyTitle = ({
           right: 0,
           zIndex: 30,
           opacity,
-          backgroundColor: backgroundVeil(scheme, 0.92),
+          // Opaco e com um traço fino por baixo: nada de vidro.
+          backgroundColor: tokens.background,
+          borderBottomWidth: 1,
+          borderBottomColor: tokens.border,
           paddingTop: insets.top,
         },
-        softShadow,
       ]}
     >
       <View
@@ -67,17 +72,21 @@ export const StickyTitle = ({
           flexDirection: "row",
           alignItems: "center",
           gap: 12,
-          paddingHorizontal: 24,
-          ...(barHeight != null ? { height: barHeight } : { paddingVertical: 10 }),
+          // No telemóvel a seta de voltar flutua no canto esquerdo: o título
+          // começa depois dela e o play vai para a direita.
+          paddingLeft: desktop ? gutter : 56,
+          paddingRight: gutter,
+          ...(barHeight != null ? { height: barHeight } : { height: 44 }),
         }}
       >
-        {leading}
+        {desktop ? leading : null}
         <Text
-          style={{ color: tokens.foreground, fontSize: 18, fontWeight: "700", flex: 1 }}
+          style={{ color: tokens.foreground, fontSize: 17, fontWeight: "700", flex: 1 }}
           numberOfLines={1}
         >
           {title}
         </Text>
+        {desktop ? null : leading}
       </View>
     </Animated.View>
   );

@@ -98,9 +98,10 @@ const SyncedLineText = ({
         style,
         {
           color,
-          fontSize: 19,
-          lineHeight: 26,
-          fontWeight: "700",
+          fontSize: 22,
+          lineHeight: 30,
+          fontWeight: "800",
+          letterSpacing: -0.3,
           transformOrigin: "left center",
         },
       ]}
@@ -555,7 +556,7 @@ export default function LyricsBody() {
               return (
                 <View key={i} style={{ paddingVertical: 4 }}>
                   <Text
-                    style={{ color: withAlpha(tokens.foreground, 0.85), fontSize: 16, lineHeight: 23 }}
+                    style={{ color: withAlpha(tokens.foreground, 0.85), fontSize: 18, lineHeight: 27, fontWeight: "600" }}
                   >
                     {translated ?? (line || PLACEHOLDER_DOT)}
                   </Text>

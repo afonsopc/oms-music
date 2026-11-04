@@ -31,7 +31,11 @@ import {
 import { adoptOAuthTicket } from "@/auth/session";
 import { desktopBrowserSession, isDesktopShell } from "@/desktop/tauri";
 import { useT } from "@/i18n";
+import { haptics } from "@/lib/haptics";
 import { AuthButton, AuthError, AuthInfo, AuthScreen, AuthTitle } from "./ui";
+
+/** Nome próprio, igual em todas as línguas. */
+const APP_NAME = "OMS Music";
 
 export default function LoginScreen() {
   const t = useT();
@@ -40,6 +44,7 @@ export default function LoginScreen() {
 
   const start = async (): Promise<void> => {
     if (busy) return;
+    haptics.tap();
     setBusy(true);
     setError(null);
     try {
@@ -76,16 +81,21 @@ export default function LoginScreen() {
     }
   };
 
+  // Um título grande (o nome da app), uma linha a dizer onde se entra, e um
+  // botão. O resto (passkey, palavra-passe, conta nova) vive no id.
   return (
-    <AuthScreen>
-      <AuthTitle text={t("native.auth.login.title")} />
+    <AuthScreen
+      footer={
+        <AuthButton
+          label={t("native.auth.login.submit")}
+          onPress={() => void start()}
+          busy={busy}
+        />
+      }
+    >
+      <AuthTitle text={APP_NAME} />
       <AuthInfo text={t("native.auth.login.hint")} />
       <AuthError message={error} />
-      <AuthButton
-        label={t("native.auth.login.submit")}
-        onPress={() => void start()}
-        busy={busy}
-      />
     </AuthScreen>
   );
 }

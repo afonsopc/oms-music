@@ -19,13 +19,21 @@
  *   exiting do Reanimated), a artwork desfocada por baixo do gradiente como
  *   o player imersivo faz, e um cartão novo ("o tempo que deste") calculado
  *   só com o que o endpoint já devolve: contagens x durações.
+ *
+ * Redesenho 2026-11-04 (docs/redesenho.md): sem gradientes de cor. Cada
+ * cartão tem por fundo a capa (ou a foto do artista) de que fala, em ecrã
+ * inteiro e desfocada, com um véu escuro por cima e letra branca grande;
+ * a cor vem só das capas. Enquanto os números não chegam aparece logo um
+ * cartão-esqueleto com as barras, nunca um spinner num ecrã preto.
  */
 import React, { useCallback, useEffect, useMemo, useRef } from "react";
-import { ActivityIndicator, Text, View } from "react-native";
+import { Text, useWindowDimensions, View } from "react-native";
 import { Reveal as MotionReveal, useCountUp } from "@/ui/motion";
 import { useRouter } from "expo-router";
 import { useTopArtists, useTopSongs, useTopSongsOverall } from "@/api/queries/playEvents";
 import { getTransport } from "@/contracts/transport";
+import { remoteStore } from "@/remote/store";
+import { mayPlaySoundtrack } from "./soundtrackPolicy";
 import { artistDisplayName } from "@/domain/album";
 import type { SongId } from "@/domain/ids";
 import { artistImageSource, songArtworkSource } from "@/domain/artwork";
@@ -34,20 +42,27 @@ import type { Song } from "@/domain/song";
 import { previewSeekSeconds } from "@/features/artist/previewMath";
 import { useT } from "@/i18n";
 import { playerStore } from "@/player/store";
-import { useTheme } from "@/theme/provider";
-import { MIX_KIND_GRADIENTS } from "@/theme/tokens";
 import { FONT_OMS_WIDE } from "@/theme/typography";
 import {
   ArtworkImage,
   artworkSourceUri,
+  Skeleton,
   StoryPager,
+  useContainerWidth,
   type StoryCard,
 } from "@/ui";
+import { TextButton, WaitHint } from "@/ui/page";
 import { gradientBackground, linearGradient } from "@/ui/uiTheme";
 import { Image } from "expo-image";
 import { loyaltyPercent, totalListenMinutes } from "./rewindMath";
 
 const R = "components.music.Rewind";
+
+/** O fundo de todos os cartões (e do esqueleto): quase preto. */
+const INK = "#0a0a0a";
+const WHITE = "#ffffff";
+const SOFT = "rgba(255,255,255,0.72)";
+const FAINT = "rgba(255,255,255,0.5)";
 
 /**
  * O que tocava antes do Rewind tomar conta do motor. `startIndex` é o índice
@@ -62,11 +77,7 @@ interface PlayerSnapshot {
   playing: boolean;
 }
 
-/**
- * Entrada escalonada à mão (opacidade + translate): a web não corre os
- * entering/exiting do Reanimated, mas useSharedValue + withTiming correm em
- * todo o lado - é o padrão do cinema e das letras.
- */
+/** Entrada escalonada (ui/motion), um pouco mais lenta do que nas listas. */
 const Reveal = ({ order = 0, children }: { order?: number; children: React.ReactNode }) => (
   <MotionReveal order={order} step={90} distance={16} duration={420}>
     {children}
@@ -88,35 +99,35 @@ const CountUp = ({
   return <>{children(shown)}</>;
 };
 
+/** O lado da capa grande de um cartão: cabe na largura e em 42 % da altura. */
+const useArtSize = (): number => {
+  const width = useContainerWidth();
+  const { height } = useWindowDimensions();
+  return Math.round(Math.max(140, Math.min(width - 56, 360, height * 0.42)));
+};
+
 /**
- * Fundo de cartão: o gradiente diagonal dos mixes e, quando o cartão tem
- * artwork, a própria imagem desfocada por baixo de um véu escuro - o idioma
- * do player imersivo (immersive.tsx), que dá cor ESPECÍFICA da música sem
- * extracção de accent nem surpresas de contraste.
+ * Fundo de cartão: a capa de que o cartão fala, em ecrã inteiro e muito
+ * desfocada, com um véu preto que escurece para baixo (onde vive o texto).
+ * Sem capa, fica o preto. O texto assenta em baixo, à esquerda, como numa
+ * página de revista.
  */
-const CardShell = ({
-  colors,
-  artUri,
-  children,
-}: {
-  colors: readonly [string, string, string];
-  artUri?: string | null;
-  children: React.ReactNode;
-}) => (
-  <View style={{ flex: 1, ...gradientBackground(linearGradient("160deg", ...colors)) }}>
+const CardShell = ({ artUri, children }: { artUri?: string | null; children: React.ReactNode }) => (
+  <View style={{ flex: 1, backgroundColor: INK, overflow: "hidden" }}>
     {artUri ? (
       <>
         <Image
           source={{ uri: artUri }}
           contentFit="cover"
-          blurRadius={40}
+          blurRadius={50}
+          transition={300}
           style={{
             position: "absolute",
-            top: 0,
-            left: 0,
-            width: "100%",
-            height: "100%",
-            opacity: 0.5,
+            top: -40,
+            left: -40,
+            right: -40,
+            bottom: -40,
+            transform: [{ scale: 1.15 }],
           }}
         />
         <View
@@ -130,9 +141,9 @@ const CardShell = ({
             ...gradientBackground(
               linearGradient(
                 "to bottom",
-                "rgba(0,0,0,0.12) 0%",
-                "rgba(0,0,0,0.4) 55%",
-                "rgba(0,0,0,0.72) 100%",
+                "rgba(0,0,0,0.45) 0%",
+                "rgba(0,0,0,0.55) 45%",
+                "rgba(0,0,0,0.88) 100%",
               ),
             ),
           }}
@@ -142,10 +153,14 @@ const CardShell = ({
     <View
       style={{
         flex: 1,
+        width: "100%",
+        maxWidth: 640,
+        alignSelf: "center",
         paddingHorizontal: 28,
-        paddingVertical: 96,
-        justifyContent: "center",
-        gap: 18,
+        paddingTop: 88,
+        paddingBottom: 64,
+        justifyContent: "flex-end",
+        gap: 16,
       }}
     >
       {children}
@@ -156,11 +171,11 @@ const CardShell = ({
 const Kicker = ({ text }: { text: string }) => (
   <Text
     style={{
-      color: "rgba(255,255,255,0.85)",
+      color: SOFT,
       fontSize: 13,
       fontWeight: "700",
       textTransform: "uppercase",
-      letterSpacing: 1.2,
+      letterSpacing: 1.4,
     }}
   >
     {text}
@@ -168,15 +183,107 @@ const Kicker = ({ text }: { text: string }) => (
 );
 
 const Big = ({ text }: { text: string }) => (
-  <Text style={{ color: "#fff", fontSize: 40, fontWeight: "900", letterSpacing: -0.8 }}>
+  <Text
+    numberOfLines={3}
+    style={{ color: WHITE, fontSize: 44, lineHeight: 46, fontWeight: "800", letterSpacing: -1.2 }}
+  >
     {text}
   </Text>
 );
 
+const Line = ({ text, dim = false }: { text: string; dim?: boolean }) => (
+  <Text style={{ color: dim ? FAINT : SOFT, fontSize: 17, lineHeight: 23 }}>{text}</Text>
+);
+
+/** Uma linha das listas de top 5: número, nome (e artista), contagem. */
+const RankRow = ({
+  rank,
+  title,
+  meta,
+  count,
+}: {
+  rank: number;
+  title: string;
+  meta?: string;
+  count: number;
+}) => (
+  <View
+    style={{
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 16,
+      paddingVertical: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: "rgba(255,255,255,0.12)",
+    }}
+  >
+    <Text style={{ color: FAINT, fontSize: 24, fontWeight: "800", width: 26 }}>{rank}</Text>
+    <View style={{ flex: 1, minWidth: 0 }}>
+      <Text style={{ color: WHITE, fontSize: 20, fontWeight: "700" }} numberOfLines={1}>
+        {title}
+      </Text>
+      {meta ? (
+        <Text style={{ color: FAINT, fontSize: 14 }} numberOfLines={1}>
+          {meta}
+        </Text>
+      ) : null}
+    </View>
+    <Text style={{ color: FAINT, fontSize: 14 }}>{count}</Text>
+  </View>
+);
+
+/**
+ * O cartão que aparece no primeiro frame, antes de os números chegarem: as
+ * barras, o fecho e o sítio do texto a brilhar. Uma espera longa ganha a
+ * frase que muda e, aos 20 s, "Tentar de novo".
+ */
+const SkeletonStory = ({
+  onClose,
+  onRetry,
+  failed,
+}: {
+  onClose: () => void;
+  onRetry: () => void;
+  failed: boolean;
+}) => {
+  const t = useT();
+  const block = { backgroundColor: "rgba(255,255,255,0.14)" };
+  return (
+    <StoryPager
+      cards={[
+        {
+          key: "loading",
+          // Muito longo: o esqueleto não avança sozinho para lado nenhum.
+          durationMs: 3_600_000,
+          render: () => (
+            <CardShell>
+              {failed ? (
+                <View style={{ gap: 16, alignItems: "flex-start" }}>
+                  <Big text={t("native.common.loadFailed")} />
+                  <TextButton label={t("native.common.tryAgain")} onPress={onRetry} />
+                </View>
+              ) : (
+                <>
+                  <Skeleton width={150} height={12} style={block} />
+                  <Skeleton width="80%" height={40} style={block} />
+                  <Skeleton width="55%" height={40} style={block} />
+                  <Skeleton width="68%" height={14} style={block} />
+                  <WaitHint active onRetry={onRetry} style={{ alignItems: "flex-start" }} />
+                </>
+              )}
+            </CardShell>
+          ),
+        },
+      ]}
+      onClose={onClose}
+    />
+  );
+};
+
 export default function RewindScreen() {
   const t = useT();
   const router = useRouter();
-  const { tokens } = useTheme();
+  const artSize = useArtSize();
   const year = new Date().getFullYear();
 
   const artistsQuery = useTopArtists("all", 5);
@@ -186,7 +293,11 @@ export default function RewindScreen() {
   const artists = useMemo(() => artistsQuery.data ?? [], [artistsQuery.data]);
   const songs = useMemo(() => songsQuery.data ?? [], [songsQuery.data]);
   const monthArtist = monthArtistsQuery.data?.[0] ?? null;
-  const loading = artistsQuery.isLoading || songsQuery.isLoading;
+  // isPending, não isLoading: enquanto a sessão não está pronta as queries
+  // ficam paradas (isLoading false) e o Rewind mostrava "Ainda sem
+  // história" a quem tem centenas de reproduções.
+  const loading = artistsQuery.isPending || songsQuery.isPending;
+  const failed = artistsQuery.isError && songsQuery.isError;
 
   // A música mais ouvida DE CADA artista destacado, pelos hooks que a vista
   // de artista já usa. Se ainda não chegou quando o cartão aparece, o cartão
@@ -199,110 +310,109 @@ export default function RewindScreen() {
   const monthArtistSong = monthArtistSongQuery.data?.[0]?.song ?? null;
 
   const built = useMemo(() => {
-    const g = MIX_KIND_GRADIENTS;
     const cards: StoryCard[] = [];
     // Banda sonora por cartão; null = "sem música própria, continua a
     // anterior". Índices alinhados com `cards`.
     const soundtrack: (Song | null)[] = [];
-    const push = (card: StoryCard, song: Song | null = null): void => {
+    // Os fundos de todos os cartões, para os pedir de uma vez à cabeça.
+    const backdrops: string[] = [];
+    const push = (card: StoryCard, song: Song | null = null, backdrop: string | null = null): void => {
       cards.push(card);
       soundtrack.push(song);
+      if (backdrop) backdrops.push(backdrop);
     };
 
+    const songArt = (song: Song | null | undefined): string | null =>
+      song ? artworkSourceUri(songArtworkSource(song)) : null;
+    const artistArt = (artist: (typeof artists)[number]["artist"] | undefined): string | null =>
+      artist && typeof artist === "object" ? artworkSourceUri(artistImageSource(artist, "lg")) : null;
+
     const anthem = songs[0]?.song ?? null;
+    const anthemArt = songArt(anthem);
 
     push(
       {
         key: "intro",
         render: () => (
-          <CardShell key="intro" colors={g.year_mix.colors}>
+          <CardShell key="intro" artUri={anthemArt}>
             <Reveal order={0}>
               <Kicker text={t(`${R}.introKicker`)} />
             </Reveal>
             <Reveal order={1}>
               <Text
-                style={{ color: "#fff", fontSize: 64, fontWeight: "900", letterSpacing: -1.5 }}
+                style={{
+                  color: WHITE,
+                  fontSize: 72,
+                  lineHeight: 70,
+                  fontWeight: "900",
+                  letterSpacing: -2.4,
+                }}
               >
-                {`Rewind ${year}`}
+                {`Rewind\n${year}`}
               </Text>
             </Reveal>
             <Reveal order={2}>
-              <Text style={{ color: "rgba(255,255,255,0.9)", fontSize: 16, lineHeight: 22 }}>
-                {t(`${R}.introBody`)}
-              </Text>
+              <Line text={t(`${R}.introBody`)} />
             </Reveal>
           </CardShell>
         ),
       },
       // O hino do ano abre a retrospectiva: a música mais ouvida de sempre.
       anthem,
+      anthemArt,
     );
 
     const top = artists[0];
     if (top) {
       const name = artistDisplayName(top.artist) ?? "?";
-      const uri =
-        typeof top.artist === "object"
-          ? artworkSourceUri(artistImageSource(top.artist, "lg"))
-          : null;
+      const uri = artistArt(top.artist);
       push(
         {
           key: "top-artist",
           render: () => (
-            <CardShell key="top-artist" colors={g.top_artist.colors} artUri={uri}>
-              <Reveal order={0}>
-                <Kicker text={t(`${R}.topArtistKicker`)} />
-              </Reveal>
+            <CardShell key="top-artist" artUri={uri}>
               {uri ? (
-                <Reveal order={1}>
+                <Reveal order={0}>
                   <Image
                     source={{ uri }}
-                    style={{ width: 180, height: 180, borderRadius: 90 }}
+                    style={{ width: artSize, height: artSize, borderRadius: artSize / 2 }}
                     contentFit="cover"
+                    transition={200}
                   />
                 </Reveal>
               ) : null}
+              <Reveal order={1}>
+                <Kicker text={t(`${R}.topArtistKicker`)} />
+              </Reveal>
               <Reveal order={2}>
                 <Big text={name} />
               </Reveal>
               <Reveal order={3}>
                 <CountUp value={top.play_count}>
-                  {(n) => (
-                    <Text style={{ color: "rgba(255,255,255,0.9)", fontSize: 16 }}>
-                      {t(`${R}.playCount`, { count: n })}
-                    </Text>
-                  )}
+                  {(n) => <Line text={t(`${R}.playCount`, { count: n })} />}
                 </CountUp>
               </Reveal>
             </CardShell>
           ),
         },
         topArtistSong,
+        uri,
       );
       push({
         key: "artists",
         render: () => (
-          <CardShell key="artists" colors={g.this_is.colors}>
+          <CardShell key="artists" artUri={uri}>
             <Reveal order={0}>
               <Kicker text={t(`${R}.artistsKicker`)} />
             </Reveal>
-            <View style={{ gap: 14 }}>
+            <View>
               {artists.map((row, i) => (
                 <Reveal key={`ra-${i}`} order={i + 1}>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 14 }}>
-                    <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 22, fontWeight: "900", width: 30 }}>
-                      {i + 1}
-                    </Text>
-                    <Text
-                      style={{ color: "#fff", fontSize: 22, fontWeight: "700", flexShrink: 1 }}
-                      numberOfLines={1}
-                    >
-                      {artistDisplayName(row.artist) ?? "?"}
-                    </Text>
-                    <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 14, marginLeft: "auto" }}>
-                      {row.play_count}
-                    </Text>
-                  </View>
+                  <RankRow
+                    rank={i + 1}
+                    title={artistDisplayName(row.artist) ?? "?"}
+                    count={row.play_count}
+                  />
                 </Reveal>
               ))}
             </View>
@@ -317,36 +427,26 @@ export default function RewindScreen() {
         {
           key: "top-song",
           render: () => (
-            <CardShell
-              key="top-song"
-              colors={g.monthly_rewind.colors}
-              artUri={artworkSourceUri(songArtworkSource(topSong.song))}
-            >
+            <CardShell key="top-song" artUri={anthemArt}>
               <Reveal order={0}>
-                <Kicker text={t(`${R}.topSongKicker`)} />
-              </Reveal>
-              <Reveal order={1}>
                 <ArtworkImage
                   source={songArtworkSource(topSong.song)}
                   songId={topSong.song.id}
-                  size={200}
+                  size={artSize}
                 />
+              </Reveal>
+              <Reveal order={1}>
+                <Kicker text={t(`${R}.topSongKicker`)} />
               </Reveal>
               <Reveal order={2}>
                 <Big text={topSong.song.title} />
               </Reveal>
               <Reveal order={3}>
-                <Text style={{ color: "rgba(255,255,255,0.9)", fontSize: 16 }}>
-                  {formatArtists(topSong.song)}
-                </Text>
+                <Line text={formatArtists(topSong.song)} />
               </Reveal>
               <Reveal order={4}>
                 <CountUp value={topSong.play_count}>
-                  {(n) => (
-                    <Text style={{ color: "rgba(255,255,255,0.75)", fontSize: 15 }}>
-                      {t(`${R}.playCount`, { count: n })}
-                    </Text>
-                  )}
+                  {(n) => <Line dim text={t(`${R}.playCount`, { count: n })} />}
                 </CountUp>
               </Reveal>
             </CardShell>
@@ -354,44 +454,33 @@ export default function RewindScreen() {
         },
         topSong.song,
       );
-      push({
-        key: "songs",
-        render: () => (
-          <CardShell key="songs" colors={g.repeat_rewind.colors}>
-            <Reveal order={0}>
-              <Kicker text={t(`${R}.songsKicker`)} />
-            </Reveal>
-            <View style={{ gap: 14 }}>
-              {songs.map((row, i) => (
-                <Reveal key={`rs-${i}`} order={i + 1}>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 14 }}>
-                    <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 22, fontWeight: "900", width: 30 }}>
-                      {i + 1}
-                    </Text>
-                    <View style={{ flexShrink: 1, minWidth: 0 }}>
-                      <Text
-                        style={{ color: "#fff", fontSize: 19, fontWeight: "700" }}
-                        numberOfLines={1}
-                      >
-                        {row.song.title}
-                      </Text>
-                      <Text
-                        style={{ color: "rgba(255,255,255,0.7)", fontSize: 13 }}
-                        numberOfLines={1}
-                      >
-                        {formatArtists(row.song)}
-                      </Text>
-                    </View>
-                    <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 14, marginLeft: "auto" }}>
-                      {row.play_count}
-                    </Text>
-                  </View>
-                </Reveal>
-              ))}
-            </View>
-          </CardShell>
-        ),
-      });
+      const listArt = songArt(songs[1]?.song) ?? anthemArt;
+      push(
+        {
+          key: "songs",
+          render: () => (
+            <CardShell key="songs" artUri={listArt}>
+              <Reveal order={0}>
+                <Kicker text={t(`${R}.songsKicker`)} />
+              </Reveal>
+              <View>
+                {songs.map((row, i) => (
+                  <Reveal key={`rs-${i}`} order={i + 1}>
+                    <RankRow
+                      rank={i + 1}
+                      title={row.song.title}
+                      meta={formatArtists(row.song)}
+                      count={row.play_count}
+                    />
+                  </Reveal>
+                ))}
+              </View>
+            </CardShell>
+          ),
+        },
+        null,
+        listArt,
+      );
 
       // Cartão novo, só com o que o endpoint já dá: contagens x durações das
       // top 5, mais a fatia da número um. Sem durações não há número para
@@ -404,7 +493,7 @@ export default function RewindScreen() {
         push({
           key: "time",
           render: () => (
-            <CardShell key="time" colors={g.time_capsule.colors}>
+            <CardShell key="time" artUri={anthemArt}>
               <Reveal order={0}>
                 <Kicker text={t(`${R}.timeKicker`)} />
               </Reveal>
@@ -412,7 +501,13 @@ export default function RewindScreen() {
                 <CountUp value={minutes}>
                   {(n) => (
                     <Text
-                      style={{ color: "#fff", fontSize: 72, fontWeight: "900", letterSpacing: -1.5 }}
+                      style={{
+                        color: WHITE,
+                        fontSize: 96,
+                        lineHeight: 96,
+                        fontWeight: "900",
+                        letterSpacing: -3,
+                      }}
                     >
                       {n}
                     </Text>
@@ -420,14 +515,10 @@ export default function RewindScreen() {
                 </CountUp>
               </Reveal>
               <Reveal order={2}>
-                <Text style={{ color: "rgba(255,255,255,0.9)", fontSize: 16, lineHeight: 22 }}>
-                  {t(`${R}.timeUnit`)}
-                </Text>
+                <Line text={t(`${R}.timeUnit`)} />
               </Reveal>
               <Reveal order={3}>
-                <Text style={{ color: "rgba(255,255,255,0.75)", fontSize: 15, lineHeight: 21 }}>
-                  {t(`${R}.loyaltyLine`, { percent: loyalty })}
-                </Text>
+                <Line dim text={t(`${R}.loyaltyLine`, { percent: loyalty })} />
               </Reveal>
             </CardShell>
           ),
@@ -436,15 +527,12 @@ export default function RewindScreen() {
     }
 
     if (monthArtist) {
-      const uri =
-        typeof monthArtist.artist === "object"
-          ? artworkSourceUri(artistImageSource(monthArtist.artist, "lg"))
-          : null;
+      const uri = artistArt(monthArtist.artist);
       push(
         {
           key: "month",
           render: () => (
-            <CardShell key="month" colors={g.discoveries.colors} artUri={uri}>
+            <CardShell key="month" artUri={uri}>
               <Reveal order={0}>
                 <Kicker text={t(`${R}.monthKicker`)} />
               </Reveal>
@@ -452,33 +540,30 @@ export default function RewindScreen() {
                 <Big text={artistDisplayName(monthArtist.artist) ?? "?"} />
               </Reveal>
               <Reveal order={2}>
-                <Text style={{ color: "rgba(255,255,255,0.9)", fontSize: 16 }}>
-                  {t(`${R}.monthBody`)}
-                </Text>
+                <Line text={t(`${R}.monthBody`)} />
               </Reveal>
             </CardShell>
           ),
         },
         monthArtistSong,
+        uri,
       );
     }
 
     push({
       key: "outro",
       render: () => (
-        <CardShell key="outro" colors={g.year_mix.colors}>
+        <CardShell key="outro" artUri={anthemArt}>
           <Reveal order={0}>
             <Kicker text={t(`${R}.outroKicker`)} />
           </Reveal>
           <Reveal order={1}>
-            <Text style={{ color: "#fff", fontSize: 30, fontWeight: "900", letterSpacing: -0.6 }}>
-              {t(`${R}.outroBody`)}
-            </Text>
+            <Big text={t(`${R}.outroBody`)} />
           </Reveal>
           <Reveal order={2}>
             <Text
               style={{
-                color: "rgba(255,255,255,0.9)",
+                color: SOFT,
                 fontFamily: FONT_OMS_WIDE,
                 fontSize: 15,
                 letterSpacing: 0.5,
@@ -491,8 +576,14 @@ export default function RewindScreen() {
         </CardShell>
       ),
     });
-    return { cards, soundtrack };
-  }, [artists, songs, monthArtist, topArtistSong, monthArtistSong, t, year]);
+    return { cards, soundtrack, backdrops };
+  }, [artists, songs, monthArtist, topArtistSong, monthArtistSong, t, year, artSize]);
+
+  // Os fundos todos de uma vez, assim que se sabem: o cartão seguinte já
+  // tem a capa quando aparece, em vez de entrar preto e acender depois.
+  useEffect(() => {
+    if (built.backdrops.length > 0) void Image.prefetch(built.backdrops).catch(() => false);
+  }, [built.backdrops]);
 
   // ----- banda sonora -------------------------------------------------------
   // Refs em vez de deps: o relógio do StoryPager quer um onIndexChange
@@ -513,6 +604,8 @@ export default function RewindScreen() {
     // null = cartão sem música própria: a anterior continua. A mesma música
     // em cartões seguidos também não recomeça (setQueue reasserta áudio).
     if (!song || song.id === nowPlayingRef.current) return;
+    // A comandar outro aparelho, as histórias ficam caladas (não roubam o som).
+    if (!mayPlaySoundtrack(remoteStore.getState().role)) return;
     if (!startedRef.current) {
       // Fotografa o player ANTES do primeiro takeover: a fila, a música
       // audível, a posição e o pausado saem do espelho zustand (leitura de
@@ -566,19 +659,14 @@ export default function RewindScreen() {
     [],
   );
 
-  if (loading) {
-    return (
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: "#000",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <ActivityIndicator color={tokens.primary} />
-      </View>
-    );
+  const close = useCallback(() => router.back(), [router]);
+  const retry = useCallback(() => {
+    void artistsQuery.refetch();
+    void songsQuery.refetch();
+  }, [artistsQuery, songsQuery]);
+
+  if (loading || failed) {
+    return <SkeletonStory onClose={close} onRetry={retry} failed={failed && !loading} />;
   }
 
   // Sem plays não há retrospectiva: um cartão honesto em vez de zeros.
@@ -589,22 +677,18 @@ export default function RewindScreen() {
           {
             key: "empty",
             render: () => (
-              <CardShell colors={MIX_KIND_GRADIENTS.discoveries.colors}>
+              <CardShell>
                 <Kicker text={`Rewind ${year}`} />
                 <Big text={t(`${R}.emptyTitle`)} />
-                <Text style={{ color: "rgba(255,255,255,0.9)", fontSize: 16 }}>
-                  {t(`${R}.emptyBody`)}
-                </Text>
+                <Line text={t(`${R}.emptyBody`)} />
               </CardShell>
             ),
           },
         ]}
-        onClose={() => router.back()}
+        onClose={close}
       />
     );
   }
 
-  return (
-    <StoryPager cards={built.cards} onClose={() => router.back()} onIndexChange={playCardSong} />
-  );
+  return <StoryPager cards={built.cards} onClose={close} onIndexChange={playCardSong} />;
 }

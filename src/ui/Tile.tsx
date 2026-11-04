@@ -15,7 +15,7 @@ import { cardFocusProps, cardKeyProps, cardPressRole } from "./a11y";
 import { ArtworkImage } from "./ArtworkImage";
 import { PlayFab } from "./buttons";
 import { useDesktopShell } from "./shellLayout";
-import { foregroundWash, heavyShadow } from "./uiTheme";
+import { foregroundWash } from "./uiTheme";
 import type { ArtworkSource } from "@/domain/artwork";
 import { useT } from "@/i18n";
 import { useTheme } from "@/theme/provider";
@@ -53,7 +53,9 @@ export const Tile = ({
   const artSize = width - 24;
   // Below 900px (and on native) this is constant true: the shipped
   // always-visible FAB, untouched.
-  const revealFab = !desktopShell || hovered || focusWithin;
+  // Play só no computador, ao passar o rato. No telemóvel o cartão é a capa
+  // e o nome; tocar abre (botões em cada cartão eram ruído).
+  const revealFab = desktopShell && (hovered || focusWithin);
 
   return (
     <Pressable
@@ -78,6 +80,7 @@ export const Tile = ({
             pressed || (desktopShell && hovered)
               ? foregroundWash(scheme, 0.05)
               : "transparent",
+          transform: [{ scale: pressed ? 0.98 : 1 }],
         },
         style,
       ]}
@@ -87,7 +90,7 @@ export const Tile = ({
           source={artwork}
           size={artSize}
           shape={shape === "circle" ? "circle" : "rounded"}
-          style={heavyShadow}
+          borderRadius={shape === "circle" ? undefined : 6}
         />
         {onPlay ? (
           // Opacity + pointerEvents, never unmount: the reveal must not

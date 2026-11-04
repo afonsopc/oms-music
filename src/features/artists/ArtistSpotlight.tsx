@@ -1,25 +1,40 @@
 /**
- * Artists-hub spotlight banner (FR-36): a full-bleed rounded card for the
- * artist the user plays most, so the page opens on something rather than on
- * the letter A. Backdrop = the artist banner chain; with no photo the fixed
- * fuchsia/violet/indigo gradient stands in. The surface is an identity
- * gradient or a heavy photo scrim, never a themed background, so the ink
- * comes from `onColor` rather than from the token palette.
+ * Artists-hub spotlight (FR-36), editorial since the 2026-11-04 redesign:
+ * ONE big photo of the artist the user plays most, the name big over its
+ * bottom edge on a plain dark scrim, a grey meta line, and the play disc.
+ * No gradient card, no colour: with no photo the surface is the flat
+ * neutral `secondary` and the name sits on it in the normal ink.
+ *
+ * Telemóvel: the photo runs edge to edge (no rounded box). Computador: it
+ * sits on the page gutter, capped in height, with the usual small radius.
  */
 import React from "react";
-import { ActivityIndicator, Pressable, Text, useWindowDimensions, View } from "react-native";
+import { Pressable, Text, useWindowDimensions, View } from "react-native";
 import { Image } from "expo-image";
 import type { ArtistOverview } from "@/domain/artist";
 import { artistBannerSource } from "@/domain/artwork";
 import { useT } from "@/i18n";
-import { AA_LARGE, ON_DARK, onColor, preferredOn, withAlpha } from "@/theme/contrast";
-import { SPOTLIGHT_SCRIM } from "@/theme/gradients";
-import { RADIUS, SPOTLIGHT_GRADIENT } from "@/theme/tokens";
-import { artworkSourceUri, GhostIconButton, gradientBackground, Icon, linearGradient } from "@/ui";
+import { haptics } from "@/lib/haptics";
+import { useTheme } from "@/theme/provider";
+import { RADIUS } from "@/theme/tokens";
+import {
+  artworkSourceUri,
+  GhostIconButton,
+  gradientBackground,
+  linearGradient,
+  Icon,
+  Skeleton,
+  useContainerWidth,
+  useDesktopShell,
+} from "@/ui";
+import { FadeIn, PressableScale } from "@/ui/motion";
+import { pageType, useGutter } from "@/ui/page";
 
-/** Both surfaces are dark; the label and meta lines step down from the ink. */
-const PHOTO_INK = preferredOn(SPOTLIGHT_SCRIM[0], ON_DARK, AA_LARGE);
-const GRADIENT_INK = preferredOn(SPOTLIGHT_GRADIENT[1], ON_DARK, AA_LARGE);
+/** Photo ink: always white over the black scrim, whatever the theme. */
+const PHOTO_INK = "#ffffff";
+const PHOTO_META = "rgba(255,255,255,0.78)";
+/** Black from the bottom: the name reads over any photo. */
+const SCRIM = linearGradient("to top", "rgba(0,0,0,0.88)", "rgba(0,0,0,0.45) 45%", "rgba(0,0,0,0) 75%");
 
 export interface ArtistSpotlightProps {
   spotlight: NonNullable<ArtistOverview["spotlight"]>;
@@ -31,6 +46,28 @@ export interface ArtistSpotlightProps {
   onStartRadio: () => void;
 }
 
+/** Photo height: about square on a phone, capped on bigger screens. */
+const useSpotlightSize = () => {
+  const desktop = useDesktopShell();
+  const width = useContainerWidth();
+  const { height } = useWindowDimensions();
+  const gutter = useGutter();
+  const photoWidth = desktop ? width - gutter * 2 : width;
+  const photoHeight = Math.round(
+    Math.min(photoWidth * (desktop ? 0.42 : 1.05), height * (desktop ? 0.5 : 0.62)),
+  );
+  return { desktop, gutter, photoHeight };
+};
+
+export const ArtistSpotlightSkeleton = () => {
+  const { desktop, gutter, photoHeight } = useSpotlightSize();
+  return (
+    <View style={{ paddingHorizontal: desktop ? gutter : 0 }}>
+      <Skeleton width="100%" height={photoHeight} borderRadius={desktop ? RADIUS : 0} />
+    </View>
+  );
+};
+
 export const ArtistSpotlight = ({
   spotlight,
   isLoading = false,
@@ -40,130 +77,123 @@ export const ArtistSpotlight = ({
   onStartRadio,
 }: ArtistSpotlightProps) => {
   const t = useT();
-  const { height } = useWindowDimensions();
+  const { tokens } = useTheme();
+  const { desktop, gutter, photoHeight } = useSpotlightSize();
   const { artist } = spotlight;
   const backdrop = artworkSourceUri(artistBannerSource(artist));
-  const minHeight = Math.round(height * 0.34);
-  const nameSize = artist.name.length > 18 ? 34 : 44;
+  const nameSize = artist.name.length > 22 ? 36 : artist.name.length > 12 ? 44 : 56;
 
-  const ink = backdrop ? PHOTO_INK : GRADIENT_INK;
-  const labelInk = withAlpha(ink, 0.75);
-  const metaInk = withAlpha(ink, 0.85);
-  const separatorInk = withAlpha(ink, 0.6);
-  // The play FAB inverts: the ink becomes the disc, the disc's on-color the glyph.
-  const fabGlyph = onColor(ink);
+  const ink = backdrop ? PHOTO_INK : tokens.foreground;
+  const meta = backdrop ? PHOTO_META : tokens.mutedForeground;
+  const metaLine = [
+    t("components.music.Artists.songsCount", { count: spotlight.songs_count }),
+    t("components.music.Artists.albumsCount", { count: spotlight.albums_count }),
+    spotlight.play_count > 0
+      ? t("components.music.Artists.playsCount", { count: spotlight.play_count })
+      : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
-    <View
-      style={{
-        minHeight,
-        borderRadius: RADIUS * 1.5,
-        overflow: "hidden",
-        justifyContent: "flex-end",
-      }}
-    >
-      {backdrop ? (
-        <Image
-          source={{ uri: backdrop }}
-          contentFit="cover"
-          style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
-          accessible={false}
-        />
-      ) : null}
+    <View style={{ paddingHorizontal: desktop ? gutter : 0 }}>
       <View
-        pointerEvents="none"
         style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          ...gradientBackground(
-            backdrop
-              ? // Dark enough at the bottom for the ink to read over any photo.
-                linearGradient("to top", ...SPOTLIGHT_SCRIM)
-              : linearGradient("135deg", ...SPOTLIGHT_GRADIENT),
-          ),
+          height: photoHeight,
+          borderRadius: desktop ? RADIUS : 0,
+          overflow: "hidden",
+          justifyContent: "flex-end",
+          backgroundColor: tokens.secondary,
         }}
-      />
-      <View style={{ padding: 20, gap: 10 }}>
-        <Text
-          style={{
-            color: labelInk,
-            fontSize: 12,
-            fontWeight: "600",
-            textTransform: "uppercase",
-            letterSpacing: 0.6,
-          }}
-        >
-          {t("components.music.Artists.spotlightLabel")}
-        </Text>
-        <Pressable onPress={onOpenArtist} accessibilityRole="link" hitSlop={4}>
-          <Text
-            style={{
-              color: ink,
-              fontSize: nameSize,
-              lineHeight: nameSize * 1.05,
-              fontWeight: "900",
-              letterSpacing: -0.8,
-            }}
-            numberOfLines={2}
-          >
-            {artist.name}
+      >
+        {backdrop ? (
+          <FadeIn duration={320} style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}>
+            <Image
+              source={{ uri: backdrop }}
+              contentFit="cover"
+              transition={0}
+              style={{ width: "100%", height: "100%" }}
+              accessible={false}
+            />
+            <View
+              pointerEvents="none"
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                ...gradientBackground(SCRIM),
+              }}
+            />
+          </FadeIn>
+        ) : null}
+        <View style={{ paddingHorizontal: gutter, paddingBottom: 20, gap: 6 }}>
+          <Text style={[pageType.label, { color: meta }]}>
+            {t("components.music.Artists.spotlightLabel")}
           </Text>
-        </Pressable>
-        <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
-          <Text style={{ color: metaInk, fontSize: 13 }}>
-            {t("components.music.Artists.songsCount", { count: spotlight.songs_count })}
-          </Text>
-          <Text style={{ color: separatorInk, fontSize: 13 }}>•</Text>
-          <Text style={{ color: metaInk, fontSize: 13 }}>
-            {t("components.music.Artists.albumsCount", { count: spotlight.albums_count })}
-          </Text>
-          {spotlight.play_count > 0 ? (
-            <>
-              <Text style={{ color: separatorInk, fontSize: 13 }}>•</Text>
-              <Text style={{ color: metaInk, fontSize: 13 }}>
-                {t("components.music.Artists.playsCount", { count: spotlight.play_count })}
+          <Pressable onPress={onOpenArtist} accessibilityRole="link" hitSlop={4}>
+            {({ pressed }) => (
+              <Text
+                style={{
+                  color: ink,
+                  fontSize: nameSize,
+                  lineHeight: Math.round(nameSize * 1.02),
+                  fontWeight: "800",
+                  letterSpacing: -1.2,
+                  opacity: pressed ? 0.7 : 1,
+                }}
+                numberOfLines={2}
+              >
+                {artist.name}
               </Text>
-            </>
-          ) : null}
-        </View>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 }}>
-          <Pressable
-            onPress={onPlay}
-            disabled={isLoading}
-            accessibilityRole="button"
-            accessibilityLabel={t("components.music.Artists.playSpotlight")}
-            style={({ pressed }) => ({
-              width: 48,
-              height: 48,
-              borderRadius: 24,
-              backgroundColor: ink,
-              alignItems: "center",
-              justifyContent: "center",
-              transform: [{ scale: pressed ? 0.96 : 1 }],
-            })}
-          >
-            {isLoading ? (
-              <ActivityIndicator color={fabGlyph} />
-            ) : (
-              <Icon name="play" size={20} color={fabGlyph} filled />
             )}
           </Pressable>
-          <GhostIconButton
-            icon="shuffle"
-            color={ink}
-            disabled={isLoading}
-            onPress={onShuffle}
-            accessibilityLabel={t("components.music.Artists.shuffleSpotlight")}
-          />
-          <GhostIconButton
-            icon="radio"
-            color={ink}
-            onPress={onStartRadio}
-            accessibilityLabel={t("components.music.Artists.radioSpotlight")}
-          />
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginTop: 6 }}>
+            <Text style={[pageType.meta, { color: meta, flex: 1, minWidth: 0 }]} numberOfLines={2}>
+              {metaLine}
+            </Text>
+            <GhostIconButton
+              icon="radio"
+              color={ink}
+              onPress={() => {
+                haptics.select();
+                onStartRadio();
+              }}
+              accessibilityLabel={t("components.music.Artists.radioSpotlight")}
+            />
+            <GhostIconButton
+              icon="shuffle"
+              color={ink}
+              disabled={isLoading}
+              onPress={() => {
+                haptics.tap();
+                onShuffle();
+              }}
+              accessibilityLabel={t("components.music.Artists.shuffleSpotlight")}
+            />
+            <PressableScale
+              onPress={() => {
+                if (isLoading) return;
+                haptics.tap();
+                onPlay();
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={t("components.music.Artists.playSpotlight")}
+              hitSlop={4}
+              style={{
+                width: 52,
+                height: 52,
+                borderRadius: 26,
+                backgroundColor: backdrop ? PHOTO_INK : tokens.primary,
+                alignItems: "center",
+                justifyContent: "center",
+                opacity: isLoading ? 0.6 : 1,
+              }}
+            >
+              <Icon name="play" size={22} color={backdrop ? "#000000" : tokens.primaryForeground} filled />
+            </PressableScale>
+          </View>
         </View>
       </View>
     </View>

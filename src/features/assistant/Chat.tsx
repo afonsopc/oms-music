@@ -20,16 +20,14 @@
  * cada resposta o cache do detalhe é actualizado à mão (setQueryData) para
  * que voltar atrás e reabrir dentro do staleTime não mostre a conversa sem
  * a troca mais recente.
+ *
+ * Redesenho 2026-11-04 (docs/redesenho.md): o cabeçalho comum (PageHeader,
+ * uma acção só: o histórico), as sugestões em linhas de lista em vez de
+ * pílulas, o que ele responde em texto corrido e o que tu escreves num
+ * balão cinzento; a espera é um esqueleto, nunca um spinner solto.
  */
 import React, { useCallback, useRef, useState } from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -46,10 +44,12 @@ import { formatArtists } from "@/domain/format";
 import type { Song } from "@/domain/song";
 import { useContentBottomPadding, useContentTopPadding } from "@/features/shell/metrics";
 import { useT } from "@/i18n";
+import { haptics } from "@/lib/haptics";
 import { assistantChatRoute, playlistRoute } from "@/lib/routes";
 import { useTheme } from "@/theme/provider";
-import { RADIUS } from "@/theme/tokens";
-import { ArtworkImage, ErrorState, Icon } from "@/ui";
+import { ArtworkImage, Icon, Skeleton } from "@/ui";
+import { Reveal } from "@/ui/motion";
+import { ListRow, PageHeader, PageState, pageType, TextButton, useGutter, WaitHint } from "@/ui/page";
 
 const A = "components.music.Assistant";
 /** Quantas musicas o cartao mostra antes de contar as que faltam. */
@@ -91,17 +91,21 @@ const songsOf = (answer: Pick<AssistantAnswer, "actions" | "songs">): Song[] => 
 export const ChatBody = ({
   chat,
   openedId,
-  headerActions,
+  headerAction,
+  onNewChat,
 }: {
   chat: AssistantChatDetail | null;
   openedId: number | null;
-  /** Botões do ecrã raiz (nova conversa, histórico), à direita do título. */
-  headerActions?: React.ReactNode;
+  /** A acção do ecrã raiz (o histórico), à direita do título. */
+  headerAction?: React.ReactNode;
+  /** "Nova conversa" no fim de uma conversa; por omissão abre uma nova rota. */
+  onNewChat?: () => void;
 }) => {
   const t = useT();
   const router = useRouter();
   const { tokens } = useTheme();
   const queryClient = useQueryClient();
+  const gutter = useGutter();
   const topPadding = useContentTopPadding(12);
   const bottomPadding = useContentBottomPadding();
 
@@ -121,12 +125,14 @@ export const ChatBody = ({
     (raw: string): void => {
       const content = raw.trim();
       if (!content || pending || readOnly) return;
+      haptics.select();
       setInput("");
       setPending(true);
       setBubbles((prev) => [...prev, { role: "user", content }]);
       sendAssistantMessage(content, serverChatId ?? undefined, collectPlayerContext())
         .then((answer) => {
           setServerChatId(answer.chat_id);
+          haptics.success();
           setBubbles((prev) => [
             ...prev,
             {
@@ -162,6 +168,7 @@ export const ChatBody = ({
         })
         .catch((error: unknown) => {
           const locked = isApiError(error) && error.status === 423;
+          haptics.error();
           if (locked && openedId != null) {
             // A janela fechou entre o GET e o envio: o refetch traz
             // read_only=true e o composer dá lugar à barra.
@@ -192,230 +199,173 @@ export const ChatBody = ({
     t(`${A}.suggestionHabits`),
     t(`${A}.suggestionForgotten`),
   ];
+  const newChat = onNewChat ?? (() => router.push(assistantChatRoute("new")));
+  const canSend = !pending && input.trim().length > 0;
 
   return (
     <View style={{ flex: 1, backgroundColor: tokens.background }}>
       <ScrollView
         ref={scrollRef}
         style={{ flex: 1 }}
-        contentContainerStyle={{
-          paddingTop: topPadding,
-          paddingBottom: 16,
-          paddingHorizontal: 16,
-          gap: 10,
-        }}
+        contentContainerStyle={{ paddingTop: topPadding, paddingBottom: 16 }}
         onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
       >
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 12,
-          }}
-        >
-          <Text
-            style={{
-              color: tokens.foreground,
-              fontSize: 28,
-              fontWeight: "900",
-              letterSpacing: -0.5,
-              flex: 1,
-              minWidth: 0,
-            }}
-            numberOfLines={2}
-          >
-            {chat?.title ?? t(`${A}.title`)}
-          </Text>
-          {headerActions ? (
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-              {headerActions}
-            </View>
-          ) : null}
-        </View>
-        {chat === null ? (
-          <Text style={{ color: tokens.mutedForeground, fontSize: 14, lineHeight: 20 }}>
-            {t(`${A}.subtitle`)}
-          </Text>
-        ) : null}
+        <PageHeader title={chat?.title ?? t(`${A}.title`)} trailing={headerAction} />
 
         {bubbles.length === 0 && !readOnly ? (
-          <View style={{ gap: 8, marginTop: 12 }}>
-            {suggestions.map((suggestion) => (
-              <Pressable
+          // As sugestões são linhas da lista, não pílulas: tocar envia.
+          <View style={{ marginTop: 16 }}>
+            {suggestions.map((suggestion, i) => (
+              <ListRow
                 key={suggestion}
-                accessibilityRole="button"
+                title={suggestion}
+                chevron
+                order={i}
+                last={i === suggestions.length - 1}
                 onPress={() => send(suggestion)}
-                style={({ pressed }) => ({
-                  alignSelf: "flex-start",
-                  paddingHorizontal: 14,
-                  paddingVertical: 9,
-                  borderRadius: 999,
-                  backgroundColor: tokens.secondary,
-                  opacity: pressed ? 0.7 : 1,
-                })}
-              >
-                <Text style={{ color: tokens.secondaryForeground, fontSize: 13 }}>
-                  {suggestion}
-                </Text>
-              </Pressable>
+              />
             ))}
           </View>
         ) : null}
 
-        {bubbles.map((bubble, i) => (
-          <View
-            key={`b-${i}`}
-            style={{
-              alignSelf: bubble.role === "user" ? "flex-end" : "flex-start",
-              maxWidth: "85%",
-              gap: 6,
-            }}
-          >
-            <View
-              style={{
-                paddingHorizontal: 14,
-                paddingVertical: 10,
-                borderRadius: 16,
-                backgroundColor:
-                  bubble.role === "user"
-                    ? tokens.primary
-                    : bubble.error
-                      ? tokens.destructive
-                      : tokens.secondary,
-              }}
-            >
-              <Text
-                style={{
-                  color:
-                    bubble.role === "user"
-                      ? tokens.primaryForeground
-                      : bubble.error
-                        ? tokens.destructiveForeground
-                        : tokens.foreground,
-                  fontSize: 14,
-                  lineHeight: 20,
-                }}
-              >
-                {bubble.content}
-              </Text>
-            </View>
-            {bubble.songs && bubble.songs.length > 0 ? (
-              <View style={{ gap: 8, paddingTop: 2 }}>
-                {bubble.songs.slice(0, SONGS_SHOWN).map((song) => (
-                  <View
-                    key={song.id}
-                    style={{ flexDirection: "row", alignItems: "center", gap: 10 }}
-                  >
-                    <ArtworkImage source={songArtworkSource(song)} songId={song.id} size={36} />
-                    <View style={{ flexShrink: 1, minWidth: 0 }}>
-                      <Text
-                        numberOfLines={1}
-                        style={{ color: tokens.foreground, fontSize: 13, fontWeight: "600" }}
-                      >
-                        {song.title}
-                      </Text>
-                      <Text
-                        numberOfLines={1}
-                        style={{ color: tokens.mutedForeground, fontSize: 12 }}
-                      >
-                        {formatArtists(song)}
+        <View style={{ paddingHorizontal: gutter, gap: 18, marginTop: bubbles.length > 0 ? 20 : 0 }}>
+          {bubbles.map((bubble, i) =>
+            bubble.role === "user" ? (
+              <Reveal key={`b-${i}`} distance={8} duration={220}>
+                <View
+                  style={{
+                    alignSelf: "flex-end",
+                    maxWidth: "85%",
+                    paddingHorizontal: 14,
+                    paddingVertical: 10,
+                    borderRadius: 18,
+                    backgroundColor: tokens.secondary,
+                  }}
+                >
+                  <Text style={[pageType.body, { color: tokens.foreground }]}>{bubble.content}</Text>
+                </View>
+              </Reveal>
+            ) : (
+              <Reveal key={`b-${i}`} distance={8} duration={260}>
+                <View style={{ gap: 12 }}>
+                  {bubble.error ? (
+                    <View style={{ flexDirection: "row", gap: 10, alignItems: "flex-start" }}>
+                      <Icon name="alert-circle" size={18} color={tokens.mutedForeground} />
+                      <Text style={[pageType.body, { color: tokens.mutedForeground, flex: 1 }]}>
+                        {bubble.content}
                       </Text>
                     </View>
-                  </View>
-                ))}
-                {bubble.songs.length > SONGS_SHOWN ? (
-                  <Text style={{ color: tokens.mutedForeground, fontSize: 12 }}>
-                    {t(`${A}.moreSongs`, { count: bubble.songs.length - SONGS_SHOWN })}
-                  </Text>
-                ) : null}
-              </View>
-            ) : null}
-            {bubble.playlist ? (
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => router.push(playlistRoute(bubble.playlist!.id))}
-                style={({ pressed }) => ({
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 10,
-                  padding: 12,
-                  borderRadius: RADIUS,
-                  borderWidth: 1,
-                  borderColor: tokens.border,
-                  opacity: pressed ? 0.7 : 1,
-                })}
-              >
-                <Icon name="list-music" size={18} color={tokens.primary} />
-                <View style={{ flexShrink: 1, minWidth: 0 }}>
-                  <Text
-                    style={{ color: tokens.foreground, fontSize: 14, fontWeight: "700" }}
-                    numberOfLines={1}
-                  >
-                    {bubble.playlist.name}
-                  </Text>
-                  <Text style={{ color: tokens.mutedForeground, fontSize: 12 }}>
-                    {t(`${A}.openPlaylist`, { count: bubble.playlist.song_count })}
-                  </Text>
+                  ) : (
+                    <Text style={[pageType.body, { color: tokens.foreground, lineHeight: 23 }]}>
+                      {bubble.content}
+                    </Text>
+                  )}
+                  {bubble.songs && bubble.songs.length > 0 ? (
+                    <View style={{ gap: 10 }}>
+                      {bubble.songs.slice(0, SONGS_SHOWN).map((song) => (
+                        <View
+                          key={song.id}
+                          style={{ flexDirection: "row", alignItems: "center", gap: 12 }}
+                        >
+                          <ArtworkImage source={songArtworkSource(song)} songId={song.id} size={44} />
+                          <View style={{ flexShrink: 1, minWidth: 0 }}>
+                            <Text
+                              numberOfLines={1}
+                              style={[pageType.body, { color: tokens.foreground, fontWeight: "500" }]}
+                            >
+                              {song.title}
+                            </Text>
+                            <Text
+                              numberOfLines={1}
+                              style={[pageType.meta, { color: tokens.mutedForeground }]}
+                            >
+                              {formatArtists(song)}
+                            </Text>
+                          </View>
+                        </View>
+                      ))}
+                      {bubble.songs.length > SONGS_SHOWN ? (
+                        <Text style={[pageType.meta, { color: tokens.mutedForeground }]}>
+                          {t(`${A}.moreSongs`, { count: bubble.songs.length - SONGS_SHOWN })}
+                        </Text>
+                      ) : null}
+                    </View>
+                  ) : null}
+                  {bubble.playlist ? (
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() => {
+                        haptics.select();
+                        router.push(playlistRoute(bubble.playlist!.id));
+                      }}
+                      style={({ pressed }) => ({
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 12,
+                        minHeight: 56,
+                        borderTopWidth: 1,
+                        borderBottomWidth: 1,
+                        borderColor: tokens.border,
+                        backgroundColor: pressed ? tokens.secondary : "transparent",
+                      })}
+                    >
+                      <Icon name="list-music" size={20} color={tokens.mutedForeground} />
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <Text
+                          style={[pageType.body, { color: tokens.foreground, fontWeight: "600" }]}
+                          numberOfLines={1}
+                        >
+                          {bubble.playlist.name}
+                        </Text>
+                        <Text style={[pageType.meta, { color: tokens.mutedForeground }]}>
+                          {t(`${A}.openPlaylist`, { count: bubble.playlist.song_count })}
+                        </Text>
+                      </View>
+                      <Icon name="chevron-right" size={18} color={tokens.mutedForeground} />
+                    </Pressable>
+                  ) : null}
                 </View>
-                <Icon name="chevron-right" size={16} color={tokens.mutedForeground} />
-              </Pressable>
-            ) : null}
-          </View>
-        ))}
-        {pending ? (
-          <View style={{ alignSelf: "flex-start", padding: 10 }}>
-            <ActivityIndicator color={tokens.mutedForeground} />
-          </View>
-        ) : null}
+              </Reveal>
+            ),
+          )}
+
+          {pending ? (
+            // A resposta a caminho: linhas a brilhar onde o texto vai cair.
+            <View style={{ gap: 8 }}>
+              <Skeleton width="82%" height={13} />
+              <Skeleton width="68%" height={13} />
+              <Skeleton width="44%" height={13} />
+              <WaitHint active style={{ alignItems: "flex-start", paddingVertical: 4 }} />
+            </View>
+          ) : null}
+
+          {bubbles.length > 0 && !pending && !readOnly ? (
+            <View style={{ flexDirection: "row" }}>
+              <TextButton label={t(`${A}.newChat`)} icon="plus" onPress={newChat} />
+            </View>
+          ) : null}
+        </View>
       </ScrollView>
 
       {readOnly ? (
-        // Sessão antiga: sem composer, só a barra discreta com o atalho.
+        // Sessão antiga: sem composer, só uma linha com o atalho.
         <View
           style={{
             flexDirection: "row",
             alignItems: "center",
-            gap: 10,
-            marginHorizontal: 16,
-            marginTop: 8,
-            marginBottom: bottomPadding + 8,
-            paddingHorizontal: 14,
-            paddingVertical: 10,
-            borderRadius: RADIUS,
-            borderWidth: 1,
-            borderColor: tokens.border,
+            gap: 12,
+            paddingHorizontal: gutter,
+            paddingTop: 12,
+            paddingBottom: bottomPadding + 8,
+            borderTopWidth: 1,
+            borderTopColor: tokens.border,
           }}
         >
-          <Icon name="clock" size={14} color={tokens.mutedForeground} />
-          <Text
-            style={{
-              flex: 1,
-              minWidth: 0,
-              color: tokens.mutedForeground,
-              fontSize: 12,
-              lineHeight: 16,
-            }}
-          >
+          <Icon name="clock" size={16} color={tokens.mutedForeground} />
+          <Text style={[pageType.meta, { flex: 1, minWidth: 0, color: tokens.mutedForeground }]}>
             {t(`${A}.readOnlyBar`)}
           </Text>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => router.push(assistantChatRoute("new"))}
-            style={({ pressed }) => ({
-              paddingHorizontal: 12,
-              paddingVertical: 6,
-              borderRadius: 999,
-              backgroundColor: tokens.secondary,
-              opacity: pressed ? 0.7 : 1,
-            })}
-          >
-            <Text
-              style={{ color: tokens.secondaryForeground, fontSize: 12, fontWeight: "700" }}
-            >
-              {t(`${A}.newChat`)}
-            </Text>
-          </Pressable>
+          <TextButton label={t(`${A}.newChat`)} onPress={newChat} />
         </View>
       ) : (
         <View
@@ -423,7 +373,7 @@ export const ChatBody = ({
             flexDirection: "row",
             alignItems: "center",
             gap: 8,
-            paddingHorizontal: 16,
+            paddingHorizontal: gutter,
             paddingTop: 8,
             paddingBottom: bottomPadding + 8,
           }}
@@ -437,30 +387,35 @@ export const ChatBody = ({
             editable={!pending}
             style={{
               flex: 1,
+              minWidth: 0,
+              height: 44,
               color: tokens.foreground,
               backgroundColor: tokens.secondary,
-              borderRadius: 999,
+              borderRadius: 22,
               paddingHorizontal: 16,
-              paddingVertical: 10,
-              fontSize: 14,
+              fontSize: 16,
             }}
           />
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t(`${A}.send`)}
             onPress={() => send(input)}
-            disabled={pending || input.trim().length === 0}
+            disabled={!canSend}
             style={({ pressed }) => ({
-              width: 40,
-              height: 40,
-              borderRadius: 20,
+              width: 44,
+              height: 44,
+              borderRadius: 22,
               alignItems: "center",
               justifyContent: "center",
-              backgroundColor: tokens.primary,
-              opacity: pending || input.trim().length === 0 ? 0.4 : pressed ? 0.7 : 1,
+              backgroundColor: canSend ? tokens.primary : tokens.secondary,
+              transform: [{ scale: pressed ? 0.94 : 1 }],
             })}
           >
-            <Icon name="chevron-right" size={18} color={tokens.primaryForeground} />
+            <Icon
+              name="chevron-right"
+              size={18}
+              color={canSend ? tokens.primaryForeground : tokens.mutedForeground}
+            />
           </Pressable>
         </View>
       )}
@@ -468,32 +423,45 @@ export const ChatBody = ({
   );
 };
 
+/** O esqueleto de uma conversa a abrir: título, um balão, uma resposta. */
+const ChatSkeleton = () => {
+  const gutter = useGutter();
+  return (
+    <View style={{ paddingHorizontal: gutter, gap: 22 }}>
+      <Skeleton width="55%" height={28} />
+      <Skeleton width="48%" height={40} borderRadius={18} style={{ alignSelf: "flex-end" }} />
+      <View style={{ gap: 8 }}>
+        <Skeleton width="86%" height={13} />
+        <Skeleton width="72%" height={13} />
+        <Skeleton width="40%" height={13} />
+      </View>
+      <Skeleton width="36%" height={40} borderRadius={18} style={{ alignSelf: "flex-end" }} />
+      <View style={{ gap: 8 }}>
+        <Skeleton width="80%" height={13} />
+        <Skeleton width="58%" height={13} />
+      </View>
+    </View>
+  );
+};
+
 export default function AssistantChatScreen() {
-  const t = useT();
   const { tokens } = useTheme();
   const { chatId: chatIdParam } = useLocalSearchParams<{ chatId: string }>();
   const openedId = chatIdParam === "new" ? null : Number(chatIdParam);
 
   const chatQuery = useAssistantChat(openedId);
 
+  const topPadding = useContentTopPadding(12);
+
   if (openedId != null && chatQuery.data === undefined) {
     return (
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: tokens.background,
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        {chatQuery.isError ? (
-          <ErrorState
-            text={t(`${A}.chatLoadError`)}
-            onRetry={() => void chatQuery.refetch()}
-          />
-        ) : (
-          <ActivityIndicator color={tokens.mutedForeground} />
-        )}
+      <View style={{ flex: 1, backgroundColor: tokens.background, paddingTop: topPadding }}>
+        <PageState
+          loading={!chatQuery.isError}
+          error={chatQuery.isError ? chatQuery.error : undefined}
+          onRetry={() => void chatQuery.refetch()}
+          skeleton={<ChatSkeleton />}
+        />
       </View>
     );
   }

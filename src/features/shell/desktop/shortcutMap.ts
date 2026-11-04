@@ -77,6 +77,10 @@ export const matchShortcut = (stroke: ShortcutStroke): ShortcutAction | null => 
 
   if (primary || stroke.altKey || stroke.onEditable) return null;
 
+  // "/" nu salta para a pesquisa (como no resto da web). Com ou sem Shift:
+  // no teclado PT o "/" e Shift+7.
+  if (stroke.key === "/") return "focusSearch";
+
   if (stroke.key === " ") {
     // Space on a focused button clicks the button (the browser's own
     // binding); a second toggle from here would undo it.

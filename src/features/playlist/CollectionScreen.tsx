@@ -12,7 +12,7 @@
  * FR-93 via WP8's settings).
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, FlatList, useWindowDimensions, View } from "react-native";
+import { FlatList, useWindowDimensions, View } from "react-native";
 import { useLikedIds, useToggleLike } from "@/api/queries/likedSongs";
 import { getTransport } from "@/contracts/transport";
 import type { QueueContext } from "@/domain/playback";
@@ -21,6 +21,7 @@ import type { SongMenuItem } from "@/contracts/songMenu";
 import type { ArtworkSource } from "@/domain/artwork";
 import type { Song } from "@/domain/song";
 import { useT } from "@/i18n";
+import { haptics } from "@/lib/haptics";
 import { usePlaybackView } from "@/remote/mirror";
 import { useTheme } from "@/theme/provider";
 import {
@@ -31,11 +32,9 @@ import {
   GhostIconButton,
   Hero,
   heroMinHeight,
-  HeroSkeleton,
   songRowHeight,
   SongTable,
   SongTableHeader,
-  SongTableSkeleton,
   StickyTitle,
   PlayFab,
   useContainerWidth,
@@ -48,6 +47,8 @@ import {
   type IconName,
   type SongRowColumn,
 } from "@/ui";
+import { HeroPlaceholder } from "@/ui/Hero";
+import { ListSkeleton } from "@/ui/page";
 import { useContentBottomPadding } from "@/features/shell/metrics";
 import { reportListGeometry, setPrefetchCollection } from "@/prefetch/driver";
 import { toPrefetchSong } from "@/prefetch/types";
@@ -61,7 +62,7 @@ import {
   useOfflineCollectionsVersion,
 } from "./offlineCollections";
 
-const ACTION_BAR_APPROX_HEIGHT = 92;
+const ACTION_BAR_APPROX_HEIGHT = 82;
 /**
  * Desktop sticky geometry (plan 4.3, collection row): the title bar is a
  * fixed 64px so the opaque column header can pin EXACTLY under it - the
@@ -210,7 +211,10 @@ export const CollectionScreen = ({
   // other heart already uses. SongTable only grows the button >= 900px.
   const toggleLike = useToggleLike();
   const handleToggleLike = useCallback(
-    (song: Song, liked: boolean) => toggleLike.mutate({ songId: song.id, liked }),
+    (song: Song, liked: boolean) => {
+      if (!liked) haptics.success();
+      toggleLike.mutate({ songId: song.id, liked });
+    },
     [toggleLike],
   );
 
@@ -262,6 +266,7 @@ export const CollectionScreen = ({
 
   const handleRowPlay = useCallback(
     (_song: Song, index: number) => {
+      haptics.tap();
       markRecent();
       getTransport().setQueue(visibleSongs, index, { context: queueContext });
     },
@@ -424,7 +429,7 @@ export const CollectionScreen = ({
   );
 
   const emptyComponent = isLoading ? (
-    <SongTableSkeleton rows={8} />
+    <ListSkeleton rows={8} />
   ) : isError ? (
     <ErrorState text={errorText} onRetry={onRetry} />
   ) : showOnlyDownloaded && songs.length > 0 ? (
@@ -437,8 +442,9 @@ export const CollectionScreen = ({
     // First mount with nothing at all resolved yet: full-page skeleton.
     return (
       <View style={{ flex: 1 }}>
-        <HeroSkeleton artist={kind === "artist"} />
-        <SongTableSkeleton rows={8} />
+        <HeroPlaceholder kind={kind} />
+        <View style={{ height: 82 }} />
+        <ListSkeleton rows={8} />
       </View>
     );
   }
@@ -464,11 +470,9 @@ export const CollectionScreen = ({
         compact={compact}
         header={header}
         footer={
-          isLoadingMore ? (
-            <View style={{ paddingVertical: 16 }}>
-              <ActivityIndicator />
-            </View>
-          ) : null
+          // A página seguinte chega por baixo: linhas a brilhar, não um
+          // spinner solto.
+          isLoadingMore ? <ListSkeleton rows={3} /> : null
         }
         emptyComponent={emptyComponent}
         onEndReached={hasMore && !isLoadingMore ? onLoadMore : undefined}
@@ -483,7 +487,10 @@ export const CollectionScreen = ({
           visibleSongs.length > 0 ? (
             <PlayFab
               playing={isPlayingThisCollection}
-              onPress={handlePlay}
+              onPress={() => {
+                haptics.tap();
+                handlePlay();
+              }}
               size={34}
               accessibilityLabel={
                 isPlayingThisCollection

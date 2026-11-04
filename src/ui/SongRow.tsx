@@ -26,7 +26,8 @@ import { useLocale, useT } from "@/i18n";
 import { formatDate, formatElapsed } from "@/lib/dates";
 import { useTheme } from "@/theme/provider";
 import { RADIUS } from "@/theme/tokens";
-import { foregroundWash } from "./uiTheme";
+import { foregroundWash, photoScrim } from "./uiTheme";
+import { haptics } from "@/lib/haptics";
 
 export const SONG_ROW_HEIGHT = 56;
 /** Compact view mode (plan 4.3): denser rows, no artwork, one text line. */
@@ -182,8 +183,15 @@ const SongRowInner = ({
     durationWidth == null
       ? ({ flex: 0.5, minWidth: 44 } as const)
       : ({ width: durationWidth } as const);
+  // No telemóvel o número só fica onde diz alguma coisa (álbum, populares
+  // do artista); nas outras listas a capa já identifica a linha. Num álbum a
+  // capa é a mesma em todas, por isso sai e fica o número.
+  const phone = !desktopShell;
+  const numbered = surface === "album" || surface === "artist";
+  const showArtwork = !compact && !(phone && surface === "album");
   const has = (c: SongRowColumn) =>
     columns.includes(c) &&
+    !(c === "index" && phone && !numbered) &&
     !(c === "album" && !gate.album) &&
     !(c === "addedAt" && !gate.addedAt) &&
     !(c === "index" && panelGate.panel) &&
@@ -199,7 +207,11 @@ const SongRowInner = ({
         onPress={onPlay}
         // O áudio começa a ser pedido no toque, não no levantar do dedo.
         onPressIn={() => getTransport().warm?.(song)}
-        onLongPress={openMenuSheet}
+        onLongPress={() => {
+          haptics.press();
+          openMenuSheet();
+        }}
+        delayLongPress={380}
         onHoverIn={() => setHovered(true)}
         onHoverOut={() => setHovered(false)}
         accessibilityRole={cardPressRole}
@@ -228,9 +240,9 @@ const SongRowInner = ({
           borderRadius: RADIUS,
           ...(Platform.OS === "web" ? { cursor: "pointer" as const } : null),
           backgroundColor: highlighted
-            ? foregroundWash(scheme, 0.12)
+            ? foregroundWash(scheme, 0.1)
             : pressed
-              ? foregroundWash(scheme, 0.05)
+              ? foregroundWash(scheme, 0.07)
               : revealed && !menuOpen
                 ? foregroundWash(scheme, 0.04)
                 : "transparent",
@@ -239,7 +251,7 @@ const SongRowInner = ({
         })}
       >
         {has("index") ? (
-          <View style={{ width: 28, alignItems: "center" }}>
+          <View style={{ width: phone ? 22 : 28, alignItems: "center" }}>
             {isCurrent ? (
               <PlayingBars animate={isPlaying} />
             ) : revealed ? (
@@ -253,7 +265,7 @@ const SongRowInner = ({
               <Text
                 style={{
                   color: tokens.mutedForeground,
-                  fontSize: 13,
+                  fontSize: 14,
                   fontVariant: ["tabular-nums"],
                 }}
               >
@@ -264,15 +276,38 @@ const SongRowInner = ({
         ) : null}
 
         {has("title") ? (
-          <View style={{ flex: 1.5, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 10 }}>
-            {compact ? null : (
-              <ArtworkImage
-                source={songArtworkSource(song)}
-                songId={song.id}
-                size={40}
-                recyclingKey={String(song.id)}
-              />
-            )}
+          <View style={{ flex: 1.5, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 12 }}>
+            {showArtwork ? (
+              <View style={{ width: 44, height: 44 }}>
+                <ArtworkImage
+                  source={songArtworkSource(song)}
+                  songId={song.id}
+                  size={44}
+                  borderRadius={6}
+                  recyclingKey={String(song.id)}
+                />
+                {/* Sem coluna do número, as barras da música actual vão por
+                    cima da capa (branco sobre um véu escuro). */}
+                {isCurrent && !has("index") ? (
+                  <View
+                    pointerEvents="none"
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      borderRadius: 6,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      backgroundColor: photoScrim(0.5),
+                    }}
+                  >
+                    <PlayingBars animate={isPlaying} color="#ffffff" />
+                  </View>
+                ) : null}
+              </View>
+            ) : null}
             {/*
               Emphasis order is load bearing: the TITLE carries `foreground`
               (or `primary` on the current row, which is the same monochrome
@@ -293,9 +328,9 @@ const SongRowInner = ({
               >
                 <Text
                   style={{
-                    color: isCurrent ? tokens.primary : tokens.foreground,
+                    color: tokens.foreground,
                     fontSize: 14,
-                    fontWeight: "600",
+                    fontWeight: isCurrent ? "700" : "500",
                     flexShrink: 1,
                   }}
                   numberOfLines={1}
@@ -314,16 +349,17 @@ const SongRowInner = ({
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text
                   style={{
-                    color: isCurrent ? tokens.primary : tokens.foreground,
-                    fontSize: 14,
-                    fontWeight: "600",
+                    color: tokens.foreground,
+                    fontSize: 15,
+                    lineHeight: 20,
+                    fontWeight: isCurrent ? "700" : "500",
                   }}
                   numberOfLines={1}
                 >
                   {song.title}
                 </Text>
                 <Text
-                  style={{ color: tokens.mutedForeground, fontSize: 12 }}
+                  style={{ color: tokens.mutedForeground, fontSize: 13, lineHeight: 17, marginTop: 1 }}
                   numberOfLines={1}
                 >
                   {artistsLine}
@@ -343,10 +379,10 @@ const SongRowInner = ({
                   backgroundColor: foregroundWash(scheme, 0.08),
                 }}
               >
-                <Icon name="audio-waveform" size={12} color={tokens.primary} />
+                <Icon name="audio-waveform" size={12} color={tokens.mutedForeground} />
                 <Text
                   style={{
-                    color: tokens.primary,
+                    color: tokens.mutedForeground,
                     fontSize: 11,
                     fontVariant: ["tabular-nums"],
                   }}
@@ -360,7 +396,7 @@ const SongRowInner = ({
                 row, and in panel form every non-title glyph is width the
                 title needs more; everywhere else it renders as shipped. */}
             {liked && !(desktopShell && onToggleLike) && !panelGate.panel ? (
-              <Icon name="heart" size={13} color={tokens.primary} filled />
+              <Icon name="heart" size={14} color={tokens.foreground} filled />
             ) : null}
             <DownloadBadge songId={song.id} />
           </View>
@@ -384,7 +420,8 @@ const SongRowInner = ({
           </Text>
         ) : null}
 
-        {playCount !== undefined ? (
+        {/* As reproduções só no computador: no telemóvel roubavam o título. */}
+        {playCount !== undefined && !phone ? (
           <Text
             style={{
               width: 48,
@@ -438,7 +475,7 @@ const SongRowInner = ({
               <Icon
                 name="heart"
                 size={16}
-                color={liked ? tokens.primary : tokens.mutedForeground}
+                color={liked ? tokens.foreground : tokens.mutedForeground}
                 filled={liked}
               />
             </Pressable>

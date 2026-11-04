@@ -125,3 +125,11 @@ describe("isEditableTagName", () => {
     expect(isEditableTagName("BUTTON")).toBe(false);
   });
 });
+
+describe("bare slash", () => {
+  test("/ focuses the search, also as Shift+7 on the PT layout", () => {
+    expect(matchShortcut(stroke({ key: "/" }))).toBe("focusSearch");
+    expect(matchShortcut(stroke({ key: "/", shiftKey: true }))).toBe("focusSearch");
+    expect(matchShortcut(stroke({ key: "/", onEditable: true }))).toBeNull();
+  });
+});

@@ -6,184 +6,139 @@
  * lista mudou-se para este ecrã empurrado, atrás do botão de histórico.
  * Cada linha abre o chat da sessão; uma sessão cuja última mensagem tem
  * mais de 2 dias vem `read_only` do servidor e ganha o selo "Só de leitura".
+ *
+ * Redesenho 2026-11-04: o cabeçalho comum com uma acção (nova conversa),
+ * linhas finas (ListRow), esqueleto enquanto carrega, e apagar é optimista:
+ * a linha sai no toque e volta se o servidor recusar.
  */
-import React, { useCallback, useState } from "react";
-import { ActivityIndicator, FlatList, Pressable, Text, View } from "react-native";
+import React, { useCallback, useMemo, useState } from "react";
+import { FlatList, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useAssistantChats, useDeleteAssistantChat } from "@/api/queries/assistantChats";
 import type { AssistantChatSummary } from "@/api/queries/assistantChats";
 import { timeAgo } from "@/features/friends/rows";
 import { useContentBottomPadding, useContentTopPadding } from "@/features/shell/metrics";
 import { useT } from "@/i18n";
+import { haptics } from "@/lib/haptics";
 import { assistantChatRoute } from "@/lib/routes";
 import { useTheme } from "@/theme/provider";
-import { RADIUS } from "@/theme/tokens";
-import { ConfirmDialog, EmptyState, ErrorState, GhostIconButton, Icon } from "@/ui";
+import { ConfirmDialog, GhostIconButton } from "@/ui";
+import { Reveal } from "@/ui/motion";
+import { ListRow, ListSkeleton, PageHeader, PageState, useGutter } from "@/ui/page";
 
 const A = "components.music.Assistant";
 
-const ChatRow = ({
+const ChatRow = React.memo(function ChatRow({
   chat,
-  onPress,
+  order,
+  onOpen,
   onDelete,
 }: {
   chat: AssistantChatSummary;
-  onPress: () => void;
-  onDelete: () => void;
-}) => {
+  order: number;
+  onOpen: (chat: AssistantChatSummary) => void;
+  onDelete: (chat: AssistantChatSummary) => void;
+}) {
   const { tokens } = useTheme();
   const t = useT();
+  const gutter = useGutter();
   const ago = timeAgo(chat.last_message_at, t);
+  const meta = [ago, chat.read_only ? t(`${A}.readOnlyBadge`) : null].filter(Boolean).join(" · ");
+  // A linha e o caixote sao irmaos, nao um dentro do outro (um botao
+  // dentro de outro e HTML invalido na web).
   return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={chat.title}
-      style={({ pressed }) => ({
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 12,
-        padding: 12,
-        borderWidth: 1,
-        borderColor: tokens.border,
-        borderRadius: RADIUS,
-        opacity: pressed ? 0.7 : 1,
-      })}
-    >
-      <View
-        style={{
-          width: 44,
-          height: 44,
-          borderRadius: 22,
-          alignItems: "center",
-          justifyContent: "center",
-          backgroundColor: tokens.secondary,
-        }}
-      >
-        <Icon name="sparkles" size={20} color={tokens.primary} />
-      </View>
-      {/* minWidth 0 lets a long title truncate instead of stretching the row. */}
-      <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
-        <Text
-          style={{ color: tokens.foreground, fontSize: 15, fontWeight: "700" }}
-          numberOfLines={2}
-        >
-          {chat.title}
-        </Text>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-          {ago ? (
-            <Text style={{ color: tokens.mutedForeground, fontSize: 12 }} numberOfLines={1}>
-              {ago}
-            </Text>
-          ) : null}
-          {chat.read_only ? (
-            <View
-              style={{
-                paddingHorizontal: 8,
-                paddingVertical: 2,
-                borderRadius: 999,
-                backgroundColor: tokens.secondary,
-              }}
-            >
-              <Text
-                style={{ color: tokens.secondaryForeground, fontSize: 10, fontWeight: "700" }}
-              >
-                {t(`${A}.readOnlyBadge`)}
-              </Text>
-            </View>
-          ) : null}
+    <Reveal order={order < 12 ? order : 0} duration={order < 12 ? 300 : 1}>
+      <View style={{ flexDirection: "row", alignItems: "center", paddingRight: gutter - 8 }}>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <ListRow
+            title={chat.title}
+            meta={meta || null}
+            icon="sparkles"
+            last
+            onPress={() => onOpen(chat)}
+            onLongPress={() => {
+              haptics.press();
+              onDelete(chat);
+            }}
+          />
         </View>
+        <GhostIconButton
+          icon="trash"
+          size={18}
+          color={tokens.mutedForeground}
+          accessibilityLabel={t(`${A}.deleteChat`)}
+          onPress={() => onDelete(chat)}
+        />
       </View>
-      <GhostIconButton
-        icon="trash"
-        size={16}
-        color={tokens.mutedForeground}
-        accessibilityLabel={t(`${A}.deleteChat`)}
-        onPress={onDelete}
-      />
-      <Icon name="chevron-right" size={16} color={tokens.mutedForeground} />
-    </Pressable>
+      <View style={{ height: 1, marginLeft: gutter, backgroundColor: tokens.border }} />
+    </Reveal>
   );
-};
+});
 
 export default function AssistantHistoryScreen() {
   const t = useT();
   const { tokens } = useTheme();
   const router = useRouter();
   const bottomPadding = useContentBottomPadding();
-  const topPadding = useContentTopPadding(20);
+  const topPadding = useContentTopPadding(12);
   const [toDelete, setToDelete] = useState<AssistantChatSummary | null>(null);
+  // Apagadas no toque, antes da resposta do servidor (voltam se falhar).
+  const [hidden, setHidden] = useState<ReadonlySet<number>>(() => new Set());
 
   const chatsQuery = useAssistantChats();
   const deleteMutation = useDeleteAssistantChat();
-  const chats = chatsQuery.data ?? [];
+  const chats = useMemo(
+    () => (chatsQuery.data ?? []).filter((chat) => !hidden.has(chat.id)),
+    [chatsQuery.data, hidden],
+  );
 
-  const startNew = useCallback(
-    () => router.push(assistantChatRoute("new")),
+  const startNew = useCallback(() => {
+    haptics.select();
+    router.push(assistantChatRoute("new"));
+  }, [router]);
+
+  const onOpen = useCallback(
+    (chat: AssistantChatSummary) => {
+      haptics.select();
+      router.push(assistantChatRoute(chat.id));
+    },
     [router],
   );
 
   const renderItem = useCallback(
-    ({ item }: { item: AssistantChatSummary }) => (
-      <ChatRow
-        chat={item}
-        onPress={() => router.push(assistantChatRoute(item.id))}
-        onDelete={() => setToDelete(item)}
-      />
+    ({ item, index }: { item: AssistantChatSummary; index: number }) => (
+      <ChatRow chat={item} order={index} onOpen={onOpen} onDelete={setToDelete} />
     ),
-    [router],
+    [onOpen],
   );
 
   const header = (
-    <View
-      style={{
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: 12,
-        paddingBottom: 16,
-      }}
-    >
-      <Text
-        style={{ color: tokens.foreground, fontSize: 24, fontWeight: "800", flex: 1 }}
-        numberOfLines={1}
-      >
-        {t(`${A}.historyTitle`)}
-      </Text>
-      <Pressable
-        onPress={startNew}
-        accessibilityRole="button"
-        style={({ pressed }) => ({
-          flexDirection: "row",
-          alignItems: "center",
-          gap: 8,
-          paddingHorizontal: 16,
-          paddingVertical: 10,
-          borderRadius: 999,
-          backgroundColor: tokens.primary,
-          opacity: pressed ? 0.8 : 1,
-        })}
-      >
-        <Icon name="plus" size={16} color={tokens.primaryForeground} />
-        <Text style={{ color: tokens.primaryForeground, fontWeight: "700", fontSize: 14 }}>
-          {t(`${A}.newChat`)}
-        </Text>
-      </Pressable>
-    </View>
+    <PageHeader
+      title={t(`${A}.historyTitle`)}
+      style={{ paddingBottom: 12 }}
+      trailing={
+        <GhostIconButton
+          icon="plus"
+          size={22}
+          color={tokens.foreground}
+          accessibilityLabel={t(`${A}.newChat`)}
+          onPress={startNew}
+        />
+      }
+    />
   );
 
-  const empty = chatsQuery.isLoading ? (
-    <View style={{ paddingVertical: 40 }}>
-      <ActivityIndicator />
-    </View>
-  ) : chatsQuery.isError ? (
-    <ErrorState text={t(`${A}.listError`)} onRetry={() => void chatsQuery.refetch()} />
-  ) : (
-    <EmptyState
-      icon="sparkles"
-      text={t(`${A}.listEmpty`)}
-      actionLabel={t(`${A}.newChat`)}
-      onAction={startNew}
+  const empty = (
+    <PageState
+      loading={chatsQuery.isPending}
+      error={chatsQuery.isError ? chatsQuery.error : undefined}
+      onRetry={() => void chatsQuery.refetch()}
+      skeleton={<ListSkeleton rows={8} artwork={false} />}
+      empty
+      emptyIcon="sparkles"
+      emptyText={t(`${A}.listEmpty`)}
+      emptyActionLabel={t(`${A}.newChat`)}
+      onEmptyAction={startNew}
     />
   );
 
@@ -195,15 +150,10 @@ export default function AssistantHistoryScreen() {
         keyExtractor={(item) => String(item.id)}
         ListHeaderComponent={header}
         ListEmptyComponent={empty}
-        ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
         initialNumToRender={12}
         windowSize={9}
         removeClippedSubviews
-        contentContainerStyle={{
-          paddingHorizontal: 20,
-          paddingTop: topPadding,
-          paddingBottom: bottomPadding,
-        }}
+        contentContainerStyle={{ paddingTop: topPadding, paddingBottom: bottomPadding }}
       />
       <ConfirmDialog
         visible={toDelete !== null}
@@ -211,12 +161,22 @@ export default function AssistantHistoryScreen() {
         message={t(`${A}.deleteChatConfirm`)}
         confirmLabel={t(`${A}.deleteChat`)}
         destructive
-        pending={deleteMutation.isPending}
         onCancel={() => setToDelete(null)}
         onConfirm={() => {
           if (toDelete === null) return;
-          deleteMutation.mutate(toDelete.id, {
-            onSettled: () => setToDelete(null),
+          const id = toDelete.id;
+          setToDelete(null);
+          setHidden((prev) => new Set(prev).add(id));
+          haptics.success();
+          deleteMutation.mutate(id, {
+            onError: () => {
+              haptics.error();
+              setHidden((prev) => {
+                const next = new Set(prev);
+                next.delete(id);
+                return next;
+              });
+            },
           });
         }}
       />
