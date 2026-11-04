@@ -5,13 +5,19 @@
 import { compile, fullscreenTriangle, hexToVec, target, textureFrom, type Target } from "./gl";
 import { FULL_SCENES, type FromViz, type SceneName, type ToViz, type VizFx, type VizSong } from "./protocol";
 import { decode, sample, Smoother, type Decoded } from "./signal";
-import { mystify, pipes, scope, starfield } from "./scenes/canvas";
+import { matrix, mystify, pipes, pixel8, scope, starfield, vector } from "./scenes/canvas";
+import { familyFor, ScenePicker } from "./selector";
 import { desktop, text3d } from "./scenes/dom";
-import { AURORA, CHROME, KALEIDO, MILK, PLASMA, TUNNEL } from "./scenes/shaders";
+import { AURORA, CHROME, DATAMOSH, FILM, GALAXY, INK, KALEIDO, LIQUID, MILK, PLASMA, SYNTHWAVE, TUNNEL, VHS, VOXEL } from "./scenes/shaders";
 import type { Canvas2DScene, DomScene, SceneEnv } from "./scenes/types";
 
-const GL_SOURCES: Partial<Record<SceneName, string>> = { aurora: AURORA, milk: MILK, kaleido: KALEIDO, tunnel: TUNNEL, plasma: PLASMA, chrome: CHROME };
-const make2d: Partial<Record<SceneName, () => Canvas2DScene>> = { pipes, mystify, starfield, scope };
+const GL_SOURCES: Partial<Record<SceneName, string>> = {
+  aurora: AURORA, milk: MILK, kaleido: KALEIDO, tunnel: TUNNEL, plasma: PLASMA, chrome: CHROME,
+  synthwave: SYNTHWAVE, liquid: LIQUID, voxel: VOXEL, galaxy: GALAXY, vhs: VHS, datamosh: DATAMOSH, ink: INK, film: FILM,
+};
+/** As cenas que lêem o frame anterior (PREV). */
+const FEEDBACK = new Set<SceneName>(["milk", "datamosh"]);
+const make2d: Partial<Record<SceneName, () => Canvas2DScene>> = { pipes, mystify, starfield, scope, matrix, vector, pixel8 };
 const makeDom: Partial<Record<SceneName, () => DomScene>> = { text3d, desktop };
 
 // ---------------------------------------------------------------- estado
@@ -30,6 +36,12 @@ let reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 let lowPower = (navigator.hardwareConcurrency ?? 8) <= 4 || ((navigator as { deviceMemory?: number }).deviceMemory ?? 8) <= 3;
 let paused = false;
 let autoCycleBars = 16;
+let selection: "random" | "style" = "random";
+let favorites: SceneName[] = [];
+let banned: SceneName[] = [];
+let cycleOnTrack = true;
+const picker = new ScenePicker();
+const history: SceneName[] = [];
 let cover: HTMLImageElement | null = null;
 let coverTex: WebGLTexture | null = null;
 let coverForGl = false;
@@ -143,9 +155,20 @@ const setScene = (next: SceneName) => {
   dirty = true;
 };
 const env = (): SceneEnv => ({ colors, title: song?.title ?? "", artist: song?.artist ?? "", cover, lowPower });
+/** Seguinte: o escolhedor (aleatório ou pelo estilo). Anterior: a que passou antes. */
 const step = (dir: 1 | -1) => {
-  const i = FULL_SCENES.indexOf(scene);
-  setScene(FULL_SCENES[(i + dir + FULL_SCENES.length) % FULL_SCENES.length]);
+  if (dir === -1 && history.length > 1) {
+    history.pop();
+    const back = history[history.length - 1];
+    picker.saw(back);
+    setScene(back);
+    return;
+  }
+  const d = song ? analyses.get(song.id) ?? null : null;
+  const next = picker.next(selection, familyFor(song, d), favorites, banned);
+  history.push(next);
+  if (history.length > 30) history.shift();
+  setScene(next);
 };
 
 const applyFx = () => {
@@ -167,7 +190,8 @@ const handle = (msg: ToViz) => {
       baseAt = msg.at;
       if (changed) {
         loadCover(song?.artworkUrl ?? null);
-        if (currentDom) { currentDom.unmount(); currentDom.mount(dom, env()); }
+        if (mode === "full" && cycleOnTrack && song) step(1);
+        else if (currentDom) { currentDom.unmount(); currentDom.mount(dom, env()); }
       }
       dirty = true;
       break;
@@ -189,8 +213,21 @@ const handle = (msg: ToViz) => {
       if (msg.lowPower !== undefined) lowPower = msg.lowPower;
       if (msg.paused !== undefined) paused = msg.paused;
       if (msg.autoCycleBars !== undefined) autoCycleBars = msg.autoCycleBars;
-      const wanted = mode === "background" ? "aurora" : msg.scene ?? (scene === "aurora" ? FULL_SCENES[0] : scene);
-      if (wanted !== scene || prevMode !== mode) { resize(); setScene(wanted); }
+      if (msg.selection) selection = msg.selection;
+      if (msg.favorites) favorites = msg.favorites;
+      if (msg.banned) banned = msg.banned;
+      if (msg.cycleOnTrack !== undefined) cycleOnTrack = msg.cycleOnTrack;
+      if (mode === "background") {
+        if (scene !== "aurora" || prevMode !== mode) { resize(); setScene("aurora"); }
+      } else if (msg.scene && msg.scene !== scene) {
+        resize();
+        picker.saw(msg.scene);
+        history.push(msg.scene);
+        setScene(msg.scene);
+      } else if (prevMode !== "full" || scene === "aurora" || banned.includes(scene)) {
+        resize();
+        step(1);
+      }
       applyFx();
       break;
     }
@@ -224,7 +261,7 @@ const drawGl = (s: ReturnType<typeof sample>, t: number) => {
   if (!gl || !tri) return;
   const prog = programs.get(scene);
   if (!prog) return;
-  const target3 = (k: SceneName) => k === "milk";
+  const target3 = (k: SceneName) => FEEDBACK.has(k);
   if (target3(scene) && !feedback) {
     const fw = Math.max(1, Math.round(W * 0.6)), fh = Math.max(1, Math.round(H * 0.6));
     feedback = [target(gl, fw, fh), target(gl, fw, fh)];

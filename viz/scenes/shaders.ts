@@ -138,3 +138,172 @@ void main(){
   }
   o = vec4(post(c, gl_FragCoord.xy), 1.);
 }`;
+
+/** Synthwave: o sol às riscas e a grelha néon a correr para nós, nos graves. */
+export const SYNTHWAVE = HEAD + `
+void main(){
+  vec2 p = (pixuv(uv)-.5)*vec2(R.x/R.y,1.);
+  vec3 sky = mix(vec3(.05,.0,.12), mix(C2,vec3(1.,.3,.6),.5)*.55, smoothstep(-.1,.5,p.y));
+  vec3 c = sky;
+  // sol
+  vec2 sp = p - vec2(0.,.12);
+  float r = length(sp), sun = smoothstep(.3+.03*BEAT,.29+.03*BEAT, r);
+  float stripes = step(.5, fract((sp.y+T*.03)*18.)) + step(.05, sp.y);
+  c = mix(c, mix(vec3(1.,.85,.3), vec3(1.,.2,.55), clamp(.5-sp.y*2.,0.,1.)), sun*clamp(stripes,0.,1.));
+  c += vec3(1.,.3,.6)*.4*exp(-r*4.)*(.6+E);
+  // montanhas
+  float m = .02 + .07*abs(sin(p.x*3.+1.)) + .04*abs(sin(p.x*7.3));
+  if(p.y < m - .02) c = mix(vec3(.08,.0,.15), C1*.4, .3);
+  // grelha
+  if(p.y < -.02){
+    float z = .35/(-p.y+.001);
+    vec2 g = vec2(p.x*z, z + T*(1.5+4.*B));
+    // perto de um inteiro = em cima de uma linha da grelha
+    float wx = fwidth(g.x)*1.5 + .02, wy = fwidth(g.y)*1.5 + .02;
+    float line = max(smoothstep(.5-wx,.5,abs(fract(g.x)-.5)), smoothstep(.5-wy,.5,abs(fract(g.y)-.5)));
+    vec3 neon = mix(vec3(1.,.2,.8), C3+vec3(.2), .4);
+    c = mix(vec3(.02,0.,.05), neon*(1.2+1.5*BEAT), line*exp(-z*.08));
+  }
+  o = vec4(post(c, gl_FragCoord.xy), 1.);
+}`;
+
+/** Metal líquido: bolhas de mercúrio que se juntam e se separam ao ritmo. */
+export const LIQUID = HEAD + `
+float field(vec2 p){
+  float v = 0.;
+  for(int i=0;i<6;i++){
+    float fi = float(i);
+    vec2 c = .38*vec2(sin(T*(.31+.07*fi)+fi*2.1), cos(T*(.27+.05*fi)+fi*1.3)) * (1.+.5*B);
+    v += (.035 + .02*BEAT + .015*(fi==0.?E:M)) / dot(p-c,p-c);
+  }
+  return v;
+}
+void main(){
+  vec2 p = (pixuv(uv)-.5)*vec2(R.x/R.y,1.);
+  float f = field(p);
+  vec2 e = vec2(.002,0.);
+  vec3 n = normalize(vec3(field(p+e.xy)-field(p-e.xy), field(p+e.yx)-field(p-e.yx), .06));
+  float inside = smoothstep(.9,1.1,f);
+  vec3 env = mix(C1*.3, vec3(1.), .5+.5*n.y) ; env = mix(env, C3, .3*(.5+.5*n.x));
+  float spec = pow(max(dot(n, normalize(vec3(.4,.6,1.))),0.), 30.);
+  vec3 c = mix(vec3(.02), env*.9 + spec*(1.2+BEAT), inside);
+  c += C2*.15*smoothstep(.5,.9,f)*(1.-inside);
+  o = vec4(post(c, gl_FragCoord.xy), 1.);
+}`;
+
+/** Cidade de voxels: um voo rasante sobre prédios que crescem com a música. */
+export const VOXEL = HEAD + `
+float city(vec3 p){
+  vec2 id = floor(p.xz); vec2 f = fract(p.xz)-.5;
+  float h = hash(id)*1.4 + .2 + 1.2*B*hash(id+3.) + .8*BEAT*step(.8,hash(id+7.));
+  float box = max(max(abs(f.x),abs(f.y))-.38, p.y-h);
+  return max(box, -p.y);
+}
+void main(){
+  vec2 p = (pixuv(uv)-.5)*vec2(R.x/R.y,1.);
+  vec3 ro = vec3(sin(T*.2)*2., 2.4, T*(2.+3.*E));
+  vec3 rd = normalize(vec3(p.x, p.y-.35, 1.));
+  rd.xy *= rot(.08*sin(T*.3));
+  float t = 0.; bool hit = false;
+  for(int i=0;i<90;i++){ float d = city(ro+rd*t); if(d<.002){hit=true;break;} t += max(d*.6,.01); if(t>40.) break; }
+  vec3 c = mix(vec3(.02,.01,.06), C1*.3, smoothstep(-.2,.6,rd.y));
+  if(hit){
+    vec3 q = ro+rd*t; vec2 id = floor(q.xz);
+    float win = step(.82, hash(floor(q.xz*5.)+floor(q.y*5.))) * step(.05, q.y);
+    vec3 lit = mix(C2, C3, hash(id));
+    float shade = .1 + .12*hash(id+1.);
+    c = vec3(shade)*mix(vec3(1.), C1, .4) + lit*win*(.55+1.2*BEAT);
+    c = mix(c, vec3(.05,.02,.1), 1.-exp(-t*.05));
+  }
+  o = vec4(post(c, gl_FragCoord.xy), 1.);
+}`;
+
+/** Galáxia de partículas: uma espiral de estrelas que gira mais depressa nos graves. */
+export const GALAXY = HEAD + `
+void main(){
+  vec2 p = (pixuv(uv)-.5)*vec2(R.x/R.y,1.);
+  p *= rot(.3) ; p.y *= 1.6;
+  float r = length(p), a = atan(p.y,p.x);
+  vec3 c = vec3(0.);
+  float spin = T*(.15+.4*B) + BAR*.1;
+  for(int k=0;k<3;k++){
+    float fk = float(k);
+    float arm = sin(a*2. - log(r+.001)*5. + spin + fk*2.09);
+    float dens = smoothstep(.4,1.,arm) * exp(-r*2.2);
+    vec2 g = vec2(a*40.+fk*13., r*120.);
+    float star = step(.985 - .02*E, hash(floor(g))) * dens * 6.;
+    c += mix(C2, C3, fk*.5) * dens * .5 + vec3(star);
+  }
+  c += mix(vec3(1.,.9,.7), C2, .3) * exp(-r*9.)*(1.+2.*BEAT);
+  o = vec4(post(c, gl_FragCoord.xy), 1.);
+}`;
+
+/** VHS: a capa numa cassete gasta: tracking, ruído, cores a escorregar. */
+export const VHS = HEAD + `
+void main(){
+  vec2 u = pixuv(uv);
+  float band = step(.97 - .05*BEAT, hash(vec2(floor(u.y*40.), floor(T*12.))));
+  u.x += band*.04*sin(T*40.) + .003*sin(u.y*300.+T*20.)*(.5+H);
+  float roll = fract(T*.05 + BAR*.02);
+  u.y = fract(u.y + .02*smoothstep(.0,.02, abs(u.y-roll)-.0)*0.);
+  vec2 cu = (u-.5)*vec2(R.x/R.y,1.)*.9+.5;
+  float sh = .006 + .02*ON;
+  vec3 c = vec3(texture(COVER, cu+vec2(sh,0.)).r, texture(COVER, cu).g, texture(COVER, cu-vec2(sh,0.)).b);
+  c = mix(c, vec3(dot(c,vec3(.3,.59,.11))), .25);
+  c += (hash(u*R + T*60.)-.5)*.18;
+  c *= .85 + .15*sin(u.y*R.y*1.5);
+  c += vec3(1.)*smoothstep(.01,.0,abs(u.y-roll))*.25;
+  c *= .7 + .5*E;
+  o = vec4(post(c, gl_FragCoord.xy), 1.);
+}`;
+
+/** Datamosh: o frame anterior escorrega aos blocos, a capa infiltra-se nos ataques. */
+export const DATAMOSH = HEAD + `
+void main(){
+  vec2 u = uv;
+  vec2 blk = floor(u*vec2(24.,14.));
+  vec2 mv = (vec2(hash(blk+floor(T*4.)), hash(blk+7.+floor(T*4.)))-.5) * (.01 + .05*B);
+  vec3 prev = texture(PREV, u - mv).rgb;
+  vec2 cu = (u-.5)*vec2(R.x/R.y,1.)*.95+.5;
+  vec3 cov = texture(COVER, cu + mv*2.).rgb;
+  float inject = step(.92 - .4*ON - .3*BEAT, hash(blk + floor(T*10.)));
+  vec3 c = mix(prev*.995, cov, max(inject, .02));
+  if(hash(vec2(floor(T*8.), 3.)) > .9) c = c.gbr;
+  o = vec4(post(c, gl_FragCoord.xy), 1.);
+}`;
+
+/** Tinta: manchas de tinta a abrir num papel, calmas, para o fado e o acústico. */
+export const INK = HEAD + `
+void main(){
+  vec2 p = (pixuv(uv)-.5)*vec2(R.x/R.y,1.);
+  float t = T*.04;
+  vec2 q = p*1.4;
+  q += .3*vec2(fbm(q+t), fbm(q-t+5.));
+  float n = fbm(q*2. + vec2(t*3., -t));
+  float ink = smoothstep(.55 - .15*E, .62 - .15*E, n);
+  float edge = smoothstep(.0,.04, abs(n - (.58 - .15*E))) ;
+  vec3 paper = vec3(.93,.9,.84) - .06*fbm(p*30.);
+  vec3 tint = mix(vec3(.08,.08,.12), C1*.5, .35);
+  vec3 c = mix(paper, tint, ink);
+  c = mix(c*.85, c, edge);
+  c *= 1. - .25*dot(p,p);
+  o = vec4(post(c, gl_FragCoord.xy), 1.);
+}`;
+
+/** Película: a capa em grão de filme, devagar, com a luz a respirar. */
+export const FILM = HEAD + `
+void main(){
+  vec2 u = pixuv(uv);
+  vec2 cu = (u-.5)*vec2(R.x/R.y,1.);
+  cu *= 1.05 - .05*sin(T*.1);
+  cu *= rot(.02*sin(T*.07));
+  vec3 c = texture(COVER, cu*.8+.5).rgb;
+  float l = dot(c, vec3(.3,.59,.11));
+  c = mix(vec3(l), c, .55) * vec3(1.05,1.,.92);
+  c += (hash(u*R*.5 + floor(T*24.))-.5)*.12;
+  float scratch = step(.996, hash(vec2(floor(u.x*R.x/2.), floor(T*24.))));
+  c += scratch*.25;
+  c *= .75 + .35*E;
+  c *= smoothstep(.95,.3, length(u-.5)*1.25);
+  o = vec4(post(c, gl_FragCoord.xy), 1.);
+}`;

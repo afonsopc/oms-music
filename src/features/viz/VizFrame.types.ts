@@ -1,5 +1,5 @@
 import type { StyleProp, ViewStyle } from "react-native";
-import type { FromViz, SceneName, VizFx } from "../../../viz/protocol";
+import type { FromViz, SceneName, SceneSelection, VizFx } from "../../../viz/protocol";
 
 export interface VizFrameProps {
   mode: "background" | "full";
@@ -8,6 +8,10 @@ export interface VizFrameProps {
   fx?: Partial<VizFx>;
   paused?: boolean;
   autoCycleBars?: number;
+  selection?: SceneSelection;
+  favorites?: SceneName[];
+  banned?: SceneName[];
+  cycleOnTrack?: boolean;
   /** Um pedido de cena seguinte/anterior (muda o número para mandar). */
   stepToken?: { n: number; dir: 1 | -1 };
   onMessage?: (msg: FromViz) => void;

@@ -1205,8 +1205,26 @@
         "starfield": "Stars",
         "scope": "Oscilloscope",
         "plasma": "Plasma",
-        "desktop": "Desktop"
-      }
+        "desktop": "Desktop",
+        "synthwave": "Synthwave",
+        "liquid": "Liquid metal",
+        "voxel": "Voxel city",
+        "galaxy": "Galaxy",
+        "vhs": "VHS",
+        "datamosh": "Datamosh",
+        "ink": "Ink",
+        "film": "Film",
+        "matrix": "Terminal rain",
+        "vector": "Vectors",
+        "pixel8": "8-bit"
+      },
+      "settings": "Visuals",
+      "selRandom": "Random",
+      "selStyle": "By the music's style",
+      "fav": "Favourite",
+      "banned": "Never",
+      "prefsHint": "Tap to mark: favourite, never, normal.",
+      "montage": "Montage"
     }
   }
 }

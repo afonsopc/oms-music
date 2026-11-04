@@ -17,6 +17,8 @@ export const vizSong = (song: Song | null): VizSong | null =>
         title: song.title,
         artist: formatArtists(song),
         artworkUrl: artworkSourceUri(songArtworkSource(song)),
+        tags: song.tags ?? [],
+        bpm: song.bpm ?? null,
       }
     : null;
 

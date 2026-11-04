@@ -1205,8 +1205,26 @@
         "starfield": "Estrelas",
         "scope": "Osciloscópio",
         "plasma": "Plasma",
-        "desktop": "Ambiente de trabalho"
-      }
+        "desktop": "Ambiente de trabalho",
+        "synthwave": "Synthwave",
+        "liquid": "Metal líquido",
+        "voxel": "Cidade de voxels",
+        "galaxy": "Galáxia",
+        "vhs": "VHS",
+        "datamosh": "Datamosh",
+        "ink": "Tinta",
+        "film": "Película",
+        "matrix": "Chuva de terminal",
+        "vector": "Vectores",
+        "pixel8": "8 bits"
+      },
+      "settings": "Visuais",
+      "selRandom": "Aleatório",
+      "selStyle": "Pelo estilo da música",
+      "fav": "Favorita",
+      "banned": "Nunca",
+      "prefsHint": "Toca para marcar: favorita, nunca, normal.",
+      "montage": "Montagem"
     }
   }
 }

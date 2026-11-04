@@ -47,12 +47,27 @@ export const useVizDriver = (send: (msg: ToViz) => void, props: VizFrameProps) =
     sendRef.current({ type: "analysis", songId, data });
   }, [ready, songId, analysis.data]);
 
-  const { mode, scene, chaos, fx, paused, autoCycleBars } = props;
+  const { mode, scene, chaos, fx, paused, autoCycleBars, selection, cycleOnTrack } = props;
   const fxKey = JSON.stringify(fx ?? {});
+  const favKey = JSON.stringify(props.favorites ?? []);
+  const banKey = JSON.stringify(props.banned ?? []);
   useEffect(() => {
     if (!ready) return;
-    sendRef.current({ type: "config", mode, scene, chaos, fx: JSON.parse(fxKey), paused, reduceMotion, autoCycleBars });
-  }, [ready, mode, scene, chaos, fxKey, paused, reduceMotion, autoCycleBars]);
+    sendRef.current({
+      type: "config",
+      mode,
+      scene,
+      chaos,
+      fx: JSON.parse(fxKey),
+      paused,
+      reduceMotion,
+      autoCycleBars,
+      selection,
+      favorites: JSON.parse(favKey),
+      banned: JSON.parse(banKey),
+      cycleOnTrack,
+    });
+  }, [ready, mode, scene, chaos, fxKey, paused, reduceMotion, autoCycleBars, selection, favKey, banKey, cycleOnTrack]);
 
   const step = props.stepToken;
   useEffect(() => {

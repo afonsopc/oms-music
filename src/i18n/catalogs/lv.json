@@ -1205,8 +1205,26 @@
         "starfield": "Zvaigznes",
         "scope": "Osciloskops",
         "plasma": "Plazma",
-        "desktop": "Darbvirsma"
-      }
+        "desktop": "Darbvirsma",
+        "synthwave": "Synthwave",
+        "liquid": "Šķidrais metāls",
+        "voxel": "Vokseļu pilsēta",
+        "galaxy": "Galaktika",
+        "vhs": "VHS",
+        "datamosh": "Datamosh",
+        "ink": "Tinte",
+        "film": "Filma",
+        "matrix": "Termināļa lietus",
+        "vector": "Vektori",
+        "pixel8": "8 biti"
+      },
+      "settings": "Vizuāļi",
+      "selRandom": "Nejauši",
+      "selStyle": "Pēc mūzikas stila",
+      "fav": "Iecienīts",
+      "banned": "Nekad",
+      "prefsHint": "Pieskaries: iecienīts, nekad, parasti.",
+      "montage": "Montāža"
     }
   }
 }

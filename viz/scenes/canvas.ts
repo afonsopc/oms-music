@@ -173,3 +173,125 @@ export const scope = (): Canvas2DScene => ({
     for (let gy = 0; gy < h; gy += h / 8) { ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(w, gy); ctx.stroke(); }
   },
 });
+
+/** Chuva ASCII de terminal: colunas de caracteres que caem mais depressa com a energia. */
+export const matrix = (): Canvas2DScene => {
+  let drops: number[] = [];
+  let cols = 0;
+  const glyphs = "ｱｲｳｴｵｶｷｸｹｺ0123456789ABCDEF<>/\\|=+*#%@♪♫OMS".split("");
+  return {
+    kind: "2d",
+    reset: () => { drops = []; },
+    frame(ctx, w, h, dt, _t, s, env) {
+      const size = Math.max(12, Math.round(w / 70));
+      if (cols !== Math.ceil(w / size) || drops.length === 0) {
+        cols = Math.ceil(w / size);
+        drops = Array.from({ length: cols }, () => Math.random() * -h / size);
+      }
+      ctx.fillStyle = `rgba(0,0,0,${0.08 + 0.1 * (1 - s.energy)})`;
+      ctx.fillRect(0, 0, w, h);
+      ctx.font = `${size}px ui-monospace,Menlo,monospace`;
+      const speed = (8 + 40 * s.energy + 30 * s.beat) * dt;
+      for (let i = 0; i < cols; i++) {
+        const y = drops[i] * size;
+        ctx.fillStyle = Math.random() < 0.06 ? "#fff" : i % 7 === 0 ? env.colors[1] : "#3dff8a";
+        ctx.fillText(glyphs[(Math.random() * glyphs.length) | 0], i * size, y);
+        drops[i] += speed * (0.6 + ((i * 7919) % 10) / 20);
+        if (y > h && Math.random() > 0.97) drops[i] = Math.random() * -20;
+      }
+      if (s.beat > 0.9 && env.title) {
+        ctx.fillStyle = "#fff";
+        ctx.font = `bold ${size * 2}px ui-monospace,Menlo,monospace`;
+        ctx.fillText(`> ${env.title}_`, size, h / 2);
+      }
+    },
+  };
+};
+
+/** Vectores retro: um ecrã de fósforo com sólidos em arame a rodar e a pulsar. */
+export const vector = (): Canvas2DScene => {
+  const cube = [[-1, -1, -1], [1, -1, -1], [1, 1, -1], [-1, 1, -1], [-1, -1, 1], [1, -1, 1], [1, 1, 1], [-1, 1, 1]];
+  const cubeE = [[0, 1], [1, 2], [2, 3], [3, 0], [4, 5], [5, 6], [6, 7], [7, 4], [0, 4], [1, 5], [2, 6], [3, 7]];
+  const t1 = (Math.sqrt(5) + 1) / 2;
+  const ico = [[-1, t1, 0], [1, t1, 0], [-1, -t1, 0], [1, -t1, 0], [0, -1, t1], [0, 1, t1], [0, -1, -t1], [0, 1, -t1], [t1, 0, -1], [t1, 0, 1], [-t1, 0, -1], [-t1, 0, 1]];
+  const icoE: number[][] = [];
+  for (let i = 0; i < 12; i++) for (let j = i + 1; j < 12; j++) {
+    const d = Math.hypot(ico[i][0] - ico[j][0], ico[i][1] - ico[j][1], ico[i][2] - ico[j][2]);
+    if (Math.abs(d - 2) < 0.01) icoE.push([i, j]);
+  }
+  return {
+    kind: "2d",
+    frame(ctx, w, h, _dt, t, s, env) {
+      ctx.fillStyle = "rgba(0,0,0,0.35)";
+      ctx.fillRect(0, 0, w, h);
+      const shapes = [{ v: cube, e: cubeE, x: 0.3, k: 1 }, { v: ico, e: icoE, x: 0.7, k: 0.6 }];
+      ctx.lineWidth = 2;
+      ctx.shadowBlur = 12 + 20 * s.beat;
+      for (const sh of shapes) {
+        const ay = t * 0.7 + s.bar * 0.3, ax = t * 0.4;
+        const sc = Math.min(w, h) * 0.18 * sh.k * (1 + 0.25 * s.beat + 0.15 * s.bass);
+        const pts = sh.v.map(([x, y, z]) => {
+          let X = x * Math.cos(ay) - z * Math.sin(ay); let Z = x * Math.sin(ay) + z * Math.cos(ay);
+          const Y = y * Math.cos(ax) - Z * Math.sin(ax); Z = y * Math.sin(ax) + Z * Math.cos(ax);
+          const f = 3.5 / (3.5 + Z);
+          X *= f;
+          return [w * sh.x + X * sc, h / 2 + Y * f * sc];
+        });
+        ctx.strokeStyle = sh.k === 1 ? "#7dffb0" : env.colors[1];
+        ctx.shadowColor = ctx.strokeStyle;
+        ctx.beginPath();
+        for (const [a, b] of sh.e) { ctx.moveTo(pts[a][0], pts[a][1]); ctx.lineTo(pts[b][0], pts[b][1]); }
+        ctx.stroke();
+      }
+      // horizonte de montanhas vectoriais, como os jogos de arcada
+      ctx.strokeStyle = "#7dffb0";
+      ctx.beginPath();
+      for (let x = 0; x <= w; x += w / 40) {
+        const y = h * 0.85 - Math.abs(Math.sin(x * 0.01 + t * 0.5)) * h * 0.08 * (0.5 + s.mid);
+        x ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+      }
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+    },
+  };
+};
+
+/** 8-bit: um equalizador de blocos, um sprite que salta na batida, paleta de consola. */
+export const pixel8 = (): Canvas2DScene => {
+  let jump = 0;
+  return {
+    kind: "2d",
+    frame(ctx, w, h, dt, t, s, env) {
+      const px = Math.max(6, Math.round(Math.min(w, h) / 60));
+      const cols = Math.floor(w / px), rows = Math.floor(h / px);
+      ctx.imageSmoothingEnabled = false;
+      ctx.fillStyle = "#0f0f23";
+      ctx.fillRect(0, 0, w, h);
+      // estrelas de píxel
+      for (let i = 0; i < 40; i++) {
+        const x = ((i * 97 + Math.floor(t * 8) * (i % 3)) % cols) * px, y = ((i * 53) % Math.floor(rows * 0.5)) * px;
+        ctx.fillStyle = i % 2 ? "#5a5a8a" : "#fff";
+        ctx.fillRect(x, y, px, px);
+      }
+      // equalizador
+      const bands = [s.bass, s.lowmid, s.mid, s.high];
+      const bars = 16, bw = Math.floor(cols / bars);
+      for (let b = 0; b < bars; b++) {
+        const level = bands[b % 4] * (0.6 + 0.4 * Math.sin(b * 1.7 + t * 3)) + s.beat * 0.2;
+        const hgt = Math.round(level * rows * 0.45);
+        for (let y = 0; y < hgt; y++) {
+          ctx.fillStyle = y > rows * 0.35 ? "#ff3b6b" : y > rows * 0.2 ? "#ffd23b" : env.colors[2];
+          ctx.fillRect(b * bw * px + px, (rows - 2 - y) * px, (bw - 1) * px, px - 1);
+        }
+      }
+      // o sprite: uma nota musical que salta
+      if (s.beat > 0.95) jump = 1;
+      jump = Math.max(0, jump - dt * 2.5);
+      const sy = rows * 0.4 - Math.sin(jump * Math.PI) * rows * 0.15;
+      const sprite = ["..XXXX", "..X..X", "..X..X", "XXX.XXX", "XXX.XXX"];
+      sprite.forEach((row, ry) => row.split("").forEach((c, rx) => {
+        if (c === "X") { ctx.fillStyle = "#fff"; ctx.fillRect((cols / 2 - 3 + rx) * px, (sy + ry) * px, px, px); }
+      }));
+    },
+  };
+};
