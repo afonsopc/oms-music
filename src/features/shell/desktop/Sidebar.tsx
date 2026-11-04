@@ -41,6 +41,8 @@ import { TabIcon, type TabIconName } from "@/features/shell/TabIcon";
 import { useT } from "@/i18n";
 import { useTheme } from "@/theme/provider";
 import { RADIUS } from "@/theme/tokens";
+import { FONT_OMS_WIDE } from "@/theme/typography";
+import { useReducedMotion } from "@/ui/motion";
 import {
   ArtworkImage,
   EmptyState,
@@ -131,6 +133,45 @@ const NavRow = ({
         </Text>
       )}
     </Pressable>
+  );
+};
+
+/**
+ * A marca a girar (ronda 2, pedido do dono): o truque do antigo nome do
+ * omelhorsite na barra (WebsiteNameLabel com `rotate`, retirado do site a
+ * 2026-11-02): a mesma palavra em 22 camadas da OMS Wide empilhadas em
+ * translateZ, a rodar em 20 s com uma inclinação a meio. Só CSS (GPU), e
+ * parada com "reduzir movimento".
+ */
+const SPIN_CSS =
+  "@keyframes omsSpin{0%{transform:rotateX(0) rotateY(0)}50%{transform:rotateX(-20deg) rotateY(180deg)}100%{transform:rotateX(0) rotateY(360deg)}}";
+
+const SpinningWordmark = ({ text, collapsed }: { text: string; collapsed: boolean }) => {
+  const { tokens, scheme } = useTheme();
+  const reduce = useReducedMotion();
+  const layers = reduce ? 1 : 22;
+  const middle = scheme === "dark" ? "#2e2e2e" : "#c8c8c8";
+  const shown = collapsed ? "M" : text;
+  return (
+    <div
+      aria-label={text}
+      role="heading"
+      style={{ fontFamily: FONT_OMS_WIDE, fontSize: collapsed ? 18 : 17, color: tokens.foreground, height: 44, display: "flex", alignItems: "center", justifyContent: collapsed ? "center" : "flex-start", padding: collapsed ? 0 : "0 12px", perspective: "500px", userSelect: "none" }}
+    >
+      <style>{SPIN_CSS}</style>
+      <span style={{ position: "relative", display: "inline-block", transformStyle: "preserve-3d", animation: reduce ? "none" : "omsSpin 20s linear infinite" }}>
+        <span style={{ opacity: 0 }}>{shown}</span>
+        {Array.from({ length: layers }, (_, i) => (
+          <span
+            key={i}
+            aria-hidden
+            style={{ position: "absolute", left: 0, top: 0, whiteSpace: "nowrap", transform: `translateZ(${i * 0.8}px)`, color: i === 0 || i === layers - 1 ? tokens.foreground : middle }}
+          >
+            {shown}
+          </span>
+        ))}
+      </span>
+    </div>
   );
 };
 
@@ -293,6 +334,7 @@ export const DesktopSidebar = ({ collapsed, onToggleCollapsed, tauri = false }: 
           style={{ position: "absolute", top: 0, left: 0, right: 0, height: TAURI_TOP_INSET }}
         />
       ) : null}
+      <SpinningWordmark text={t("native.desktop.brand")} collapsed={collapsed} />
       <View style={{ gap: 2 }}>
         {NAV_ITEMS.map((item) => (
           <NavRow

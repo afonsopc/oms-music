@@ -926,7 +926,7 @@
       "viewQueue": "Skatīt rindu",
       "moreThanSongs": "vairāk nekā {count} dziesmas",
       "syncedOn": "sinhronizēta {date}",
-      "brand": "Mūzika",
+      "brand": "OMS Mūzika",
       "navExplore": "Izpētīt",
       "navRadio": "Radio",
       "sectionLibrary": "Bibliotēka",
@@ -1183,6 +1183,30 @@
     },
     "collection": {
       "shuffleShort": "Jaukt"
+    },
+    "viz": {
+      "title": "Vizualizētājs",
+      "chaos": "Haosa režīms",
+      "close": "Aizvērt",
+      "next": "Nākamais",
+      "prev": "Iepriekšējais",
+      "fxCrt": "CRT",
+      "fxChroma": "Krāsu nobīde",
+      "fxPixel": "Pikseļi",
+      "fxDither": "Punktējums",
+      "scene": {
+        "milk": "Atgriezeniskā saite",
+        "text3d": "3D nosaukums",
+        "chrome": "Hroms",
+        "tunnel": "Tunelis",
+        "kaleido": "Kaleidoskops",
+        "pipes": "Caurules",
+        "mystify": "Mystify",
+        "starfield": "Zvaigznes",
+        "scope": "Osciloskops",
+        "plasma": "Plazma",
+        "desktop": "Darbvirsma"
+      }
     }
   }
 }

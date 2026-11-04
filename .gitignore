@@ -45,3 +45,6 @@ example
 # gradle output from building the local native module
 modules/*/android/build/
 modules/*/android/.cxx/
+
+# Construído pelo scripts/build-web.sh a partir de viz/
+/public/viz/

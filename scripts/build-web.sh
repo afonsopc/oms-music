@@ -42,6 +42,14 @@ fail() {
 
 rm -rf "$DIST"
 
+# 0. O motor visual (/viz/, viz/README.md): TypeScript simples num ficheiro,
+#    para public/viz/, que o export copia para o dist como o resto do public/.
+echo "==> motor visual: viz/ -> public/viz/"
+mkdir -p public/viz
+bun build viz/main.ts --outfile public/viz/viz.js --minify --target browser >/dev/null
+cp viz/index.html public/viz/index.html
+cp assets/fonts/OMSWide-Regular.ttf public/viz/omswide.ttf
+
 echo "==> bunx expo export -p web (tecto: ${TIMEOUT_S}s)"
 CI=1 bunx expo export -p web "$@" &
 export_pid=$!

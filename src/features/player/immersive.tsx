@@ -16,6 +16,8 @@
 import React, { useEffect, useState } from "react";
 import { Animated, Platform, StyleSheet, View } from "react-native";
 import { useArtworkTint } from "@/theme/useArtworkTint";
+import { VizFrame } from "@/features/viz/VizFrame";
+import { usePlayerSurfaceLive } from "./sheet/liveSurface";
 import type { Song } from "@/domain/song";
 import { songArtworkSource } from "@/domain/artwork";
 import { useTheme } from "@/theme/provider";
@@ -62,6 +64,13 @@ export const ImmersiveBackdrop = ({
   const rgb = washRgb(scheme);
   const artworkUri = song ? artworkSourceUri(songArtworkSource(song)) : null;
   const tint = useArtworkTint(song ? String(song.id) : null, artworkUri);
+  // O fundo vivo (aurora do motor /viz/): só monta depois de o leitor
+  // aparecer a primeira vez, fica em pausa enquanto está escondido, e nunca
+  // com "reduzir movimento" (aí fica a capa desfocada, parada).
+  const live = usePlayerSurfaceLive();
+  const reduceMotion = useReducedMotion();
+  const [everLive, setEverLive] = useState(live);
+  if (live && !everLive) setEverLive(true);
   return (
     <View
       pointerEvents="none"
@@ -95,6 +104,9 @@ export const ImmersiveBackdrop = ({
             opacity: 0.85,
           }}
         />
+      ) : null}
+      {everLive && !reduceMotion && song ? (
+        <VizFrame mode="background" paused={!live} style={[StyleSheet.absoluteFill, { opacity: 0.85 }]} />
       ) : null}
       <View style={[StyleSheet.absoluteFill, gradientBackground(washStops(rgb, dense))]} />
     </View>

@@ -41,6 +41,7 @@ import { useTheme } from "@/theme/provider";
 import { ArtworkImage, GhostIconButton, PlayFab, type PopoverAnchor } from "@/ui";
 import { CinemaOverlay, toggleCinema } from "@/features/player/cinema";
 import { DjButton } from "./DjButton";
+import { Waveform } from "@/features/viz/Waveform";
 import { PlayerSettingsPopover } from "@/features/player/settingsSheet";
 import { Slider } from "@/features/player/Slider";
 import type { RightPanelTenant } from "./rightPanelModel";
@@ -61,6 +62,7 @@ const TransportScrub = () => {
   const { tokens } = useTheme();
   const position = usePlaybackView((v) => v.position);
   const duration = usePlaybackView((v) => v.duration);
+  const songId = usePlaybackView((v) => (v.song ? String(v.song.id) : null));
   const [dragSeconds, setDragSeconds] = useState<number | null>(null);
 
   const shownSeconds = dragSeconds ?? position;
@@ -76,6 +78,9 @@ const TransportScrub = () => {
     <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
       <Text style={[timeStyle, { textAlign: "right" }]}>{formatDuration(shownSeconds)}</Text>
       <View style={{ flex: 1 }}>
+        <View style={{ position: "absolute", left: 0, right: 0, top: 2 }}>
+          <Waveform songId={songId} fraction={fraction} height={14} bars={110} />
+        </View>
         <Slider
           value={fraction}
           accessibilityLabel={t("native.player.progress")}
@@ -390,6 +395,13 @@ export const DesktopTransportBar = ({
             onPress={openPlaybackSettings}
           />
         </View>
+        <GhostIconButton
+          icon="sparkles"
+          size={18}
+          disabled={!song}
+          accessibilityLabel={t("native.viz.title")}
+          onPress={() => router.push("/(player)/visualizer")}
+        />
         <GhostIconButton
           icon="maximize"
           size={18}

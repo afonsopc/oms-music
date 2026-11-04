@@ -41,6 +41,7 @@ const EXACT: Record<string, string> = {
   "/queue": "Fila",
   "/lyrics": "Letras",
   "/now-playing": "A tocar",
+  "/visualizer": "Visualizador",
 };
 
 /** First-segment prefixes: dynamic patterns and whole sections. */

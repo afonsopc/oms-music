@@ -926,7 +926,7 @@
       "viewQueue": "Show queue",
       "moreThanSongs": "more than {count} songs",
       "syncedOn": "synced on {date}",
-      "brand": "Music",
+      "brand": "OMS Music",
       "navExplore": "Explore",
       "navRadio": "Radio",
       "sectionLibrary": "Library",
@@ -1183,6 +1183,30 @@
     },
     "collection": {
       "shuffleShort": "Shuffle"
+    },
+    "viz": {
+      "title": "Visualiser",
+      "chaos": "Chaos mode",
+      "close": "Close",
+      "next": "Next visual",
+      "prev": "Previous visual",
+      "fxCrt": "CRT",
+      "fxChroma": "Colour split",
+      "fxPixel": "Pixels",
+      "fxDither": "Dither",
+      "scene": {
+        "milk": "Feedback",
+        "text3d": "3D title",
+        "chrome": "Chrome",
+        "tunnel": "Tunnel",
+        "kaleido": "Kaleidoscope",
+        "pipes": "Pipes",
+        "mystify": "Mystify",
+        "starfield": "Stars",
+        "scope": "Oscilloscope",
+        "plasma": "Plasma",
+        "desktop": "Desktop"
+      }
     }
   }
 }

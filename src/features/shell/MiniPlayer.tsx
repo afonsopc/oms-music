@@ -14,7 +14,10 @@
  * pílula não se redesenhar 4 vezes por segundo.
  */
 import React from "react";
-import { ActivityIndicator, Pressable, Text, View } from "react-native";
+import { ActivityIndicator, Animated, Pressable, Text, View } from "react-native";
+import { useBeatPulse } from "@/features/viz/beatPulse";
+import { useArtworkTint } from "@/theme/useArtworkTint";
+import { artworkSourceUri } from "@/ui";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { getTransport } from "@/contracts/transport";
@@ -47,6 +50,8 @@ export const MiniPlayer = ({ attachedTop = false }: { attachedTop?: boolean }) =
   const { tokens } = useTheme();
   const t = useT();
   const router = useRouter();
+  const pulse = useBeatPulse(true);
+  const glow = useArtworkTint(song ? String(song.id) : null, song ? artworkSourceUri(songArtworkSource(song)) : null);
 
   if (!song) return null;
 
@@ -79,6 +84,25 @@ export const MiniPlayer = ({ attachedTop = false }: { attachedTop?: boolean }) =
 
   return (
     <MiniPlayerSwipe onSwipe={onSwipe}>
+      {/* O brilho nas batidas, na cor da capa (a camada que reage à música). */}
+      <Animated.View
+        pointerEvents="none"
+        style={{
+          position: "absolute",
+          top: -3,
+          left: -3,
+          right: -3,
+          bottom: -3,
+          borderRadius: radius + 3,
+          borderWidth: 2,
+          borderColor: glow.ink,
+          shadowColor: glow.ink,
+          shadowOpacity: 0.8,
+          shadowRadius: 14,
+          shadowOffset: { width: 0, height: 0 },
+          opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0, 0.7] }),
+        }}
+      />
       <Pressable
         accessibilityRole={cardPressRole}
         accessibilityLabel={t("components.music.BottomBar.openPlayer")}

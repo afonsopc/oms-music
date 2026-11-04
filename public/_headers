@@ -16,6 +16,10 @@
 /fonts/*
   Cache-Control: public, max-age=31536000, immutable
 
+# O motor visual (/viz/): nomes fixos, por isso só 5 minutos.
+/viz/*
+  Cache-Control: public, max-age=300
+
 # 2. Prerendered HTML shells: never cache beyond a revalidation, or a deploy
 #    would keep pointing old visitors at bundles that may already be gone.
 /*.html

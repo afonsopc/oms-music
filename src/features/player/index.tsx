@@ -61,6 +61,7 @@ import { togglePlayerMode, usePlayerModeStore } from "./mode";
 import { hasOptimisticPlay, togglePlaybackOptimistic, useShownPlaying } from "./optimisticPlay";
 import { usePlayerSurfaceLive } from "./sheet/liveSurface";
 import { closePlayerSheet } from "./sheet/sheetStore";
+import { Waveform } from "@/features/viz/Waveform";
 import { Slider } from "./Slider";
 
 const NP = "components.music.NowPlayingSheet";
@@ -94,6 +95,7 @@ const ScrubBar = () => {
   // Uma intervencao do DJ nao se arrasta (dono, 2026-08-31: "sem dar pra dar
   // scrub"): a barra sai do ecra em vez de ficar la a dizer que da.
   const djClip = usePlaybackView((v) => isDjClip(v.song));
+  const songId = usePlaybackView((v) => (v.song ? String(v.song.id) : null));
   // Com a folha fechada a barra não ouve os 4 Hz da posição (ronda 2).
   const live = usePlayerSurfaceLive();
   const position = usePlaybackView((v) => (live ? v.position : 0));
@@ -125,6 +127,10 @@ const ScrubBar = () => {
       {/* Capsula sem thumb (idioma Apple Music, pedido do dono 2026-08-14):
           o dedo define a posicao em qualquer ponto da barra; nada de botao
           a arrastar. A direita mostra o RESTANTE com sinal, nao o total. */}
+      {/* A forma de onda da música por cima da barra (a camada que reage). */}
+      <View style={{ marginBottom: -10 }}>
+        <Waveform songId={songId} fraction={fraction} height={22} />
+      </View>
       <View>
         <Slider
           value={fraction}
@@ -397,6 +403,7 @@ export const PlayerChrome = () => {
   const t = useT();
   const { scheme, tokens } = useTheme();
   useShellSlotsVersion();
+  const router = useRouter();
   const playing = useShownPlaying();
   const buffering = usePlaybackView((v) => v.buffering);
   const mode = usePlayerModeStore((s) => s.mode);
@@ -541,6 +548,14 @@ export const PlayerChrome = () => {
           onPress={() => {
             haptics.select();
             togglePlayerMode("jam");
+          }}
+        />
+        <GhostIconButton
+          icon="sparkles"
+          accessibilityLabel={t("native.viz.title")}
+          onPress={() => {
+            haptics.select();
+            router.push("/(player)/visualizer");
           }}
         />
         <GhostIconButton
