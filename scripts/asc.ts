@@ -23,7 +23,7 @@ const env: Record<string, string> = Object.fromEntries(
     }),
 );
 
-const b64u = (b: Uint8Array | string) => Buffer.from(b).toString("base64url");
+const b64u = (b: Uint8Array | string) => (typeof b === "string" ? Buffer.from(b, "utf8") : Buffer.from(b)).toString("base64url");
 let jwt = "";
 let jwtExp = 0;
 async function token() {
@@ -156,18 +156,22 @@ async function testers(identifier: string, groupName = "OMS", email?: string) {
   console.log(`${user.attributes.firstName} ${user.attributes.lastName} adicionado ao grupo "${groupName}"`);
 }
 
-const [cmd, ...args] = process.argv.slice(2);
-try {
-  if (cmd === "profile") await profile(args[0]);
-  else if (cmd === "app") process.exit((await appFor(args[0])) ? 0 : 1);
-  else if (cmd === "builds") await builds(args[0]);
-  else if (cmd === "testers") await testers(args[0], args[1], args[2]);
-  else if (cmd === "req") console.log(JSON.stringify(await api(args[0], args[1], args[2]), null, 2));
-  else {
-    console.error("uso: asc.ts profile|app|builds|testers|req ...");
-    process.exit(2);
+async function main() {
+  const [cmd, ...args] = process.argv.slice(2);
+  try {
+    if (cmd === "profile") await profile(args[0]);
+    else if (cmd === "app") process.exit((await appFor(args[0])) ? 0 : 1);
+    else if (cmd === "builds") await builds(args[0]);
+    else if (cmd === "testers") await testers(args[0], args[1], args[2]);
+    else if (cmd === "req") console.log(JSON.stringify(await api(args[0], args[1], args[2]), null, 2));
+    else {
+      console.error("uso: asc.ts profile|app|builds|testers|req ...");
+      process.exit(2);
+    }
+  } catch (e: any) {
+    console.error(e.message);
+    process.exit(1);
   }
-} catch (e: any) {
-  console.error(e.message);
-  process.exit(1);
 }
+
+void main();

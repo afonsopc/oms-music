@@ -271,4 +271,5 @@ black, and recovering alpha as `a = 1 - (white - black)`.
 
 Bump `version` plus `ios.buildNumber` and `android.versionCode` per store submission.
 `ios/` and `android/` are generated and gitignored, so a release always starts from a clean
-`bunx expo prebuild`.
+`bunx expo prebuild`. iOS TestFlight builds: `bun run ios:testflight` (build number is a
+timestamp, `ios.buildNumber` is ignored there), see `docs/testflight.md`.

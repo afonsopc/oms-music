@@ -68,11 +68,16 @@ LOGS="$WORK/build/logs"; mkdir -p "$LOGS"
 ARCHIVE="$WORK/build/Musica.xcarchive"
 EXPORT="$WORK/build/export"
 echo "» xcodebuild archive (build $BUILD_NUMBER, team $TEAM)"
-xcodebuild -workspace "$WS" -scheme "$SCHEME" -configuration Release \
-  -destination 'generic/platform=iOS' -derivedDataPath "$WORK/build/dd" -archivePath "$ARCHIVE" \
-  "${AUTH[@]}" DEVELOPMENT_TEAM="$TEAM" CODE_SIGN_STYLE=Automatic \
-  CURRENT_PROJECT_VERSION="$BUILD_NUMBER" archive > "$LOGS/archive.log" 2>&1 \
-  || { grep -E "error:" "$LOGS/archive.log" | head -20; echo "o archive falhou ($LOGS/archive.log)" >&2; exit 1; }
+archive() {
+  xcodebuild -workspace "$WS" -scheme "$SCHEME" -configuration Release \
+    -destination 'generic/platform=iOS' -derivedDataPath "$WORK/build/dd" -archivePath "$ARCHIVE" \
+    "${AUTH[@]}" DEVELOPMENT_TEAM="$TEAM" CODE_SIGN_STYLE=Automatic \
+    CURRENT_PROJECT_VERSION="$BUILD_NUMBER" archive > "$LOGS/archive$1.log" 2>&1
+}
+# O xcodebuild aninhado do ExpoModulesJSI às vezes cai sem dizer porquê
+# ("failed with exit code 0 but produced no further output"); à segunda passa.
+archive "" || { echo "  archive falhou, segunda tentativa"; archive 2; } \
+  || { grep -E "error:" "$LOGS/archive2.log" | head -20; echo "o archive falhou ($LOGS/archive2.log)" >&2; exit 1; }
 
 OPTS="$WORK/build/ExportOptions.plist"
 cat > "$OPTS" <<PLIST
