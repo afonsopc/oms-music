@@ -30,8 +30,27 @@ const loadImage = (uri: string): Promise<HTMLImageElement> =>
     image.src = uri;
   });
 
+/**
+ * O /media/:id/data só responde com sessão e redirecciona para o MinIO: um
+ * pedido anónimo (crossOrigin) dá 404 na web com cookie, e a capa nunca
+ * chegava ao canvas (tons sempre neutros). Pede-se o URL assinado
+ * (/media/:id/data_url, com a sessão) e lê-se esse, que tem CORS aberto.
+ */
+const signedUrl = async (uri: string): Promise<string> => {
+  const m = uri.match(/^(.*\/media\/[^/?]+)\/data(\?.*)?$/);
+  if (!m) return uri;
+  try {
+    const res = await fetch(`${m[1]}/data_url${m[2] ?? ""}`, { credentials: "include" });
+    if (!res.ok) return uri;
+    const body = (await res.json()) as { url?: string };
+    return body.url || uri;
+  } catch {
+    return uri;
+  }
+};
+
 export const extractAverageHex = async (imageUri: string): Promise<string> => {
-  const image = await loadImage(imageUri);
+  const image = await loadImage(await signedUrl(imageUri));
   const canvas = document.createElement("canvas");
   canvas.width = SAMPLE_EDGE;
   canvas.height = SAMPLE_EDGE;

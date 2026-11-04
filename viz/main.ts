@@ -112,10 +112,38 @@ const resize = () => {
 addEventListener("resize", resize);
 
 // ---------------------------------------------------------------- capa
-const loadCover = (url: string | null) => {
+/**
+ * A capa para o WebGL precisa de CORS. O /media/:id/data do backend só
+ * responde com sessão e redirecciona para o MinIO, o que um pedido anónimo
+ * (crossOrigin) não consegue seguir; por isso pede-se primeiro o URL assinado
+ * (/media/:id/data_url, com a sessão: o cookie na web, o ?token= no nativo) e
+ * carrega-se esse, que o MinIO serve com CORS aberto.
+ */
+const resolveCoverUrl = async (url: string): Promise<string> => {
+  const m = url.match(/^(.*\/media\/[^/?]+)\/data(\?.*)?$/);
+  if (!m) return url;
+  try {
+    const res = await fetch(`${m[1]}/data_url${m[2] ?? ""}`, { credentials: "include" });
+    if (!res.ok) return url;
+    const body = (await res.json()) as { url?: string };
+    return body.url || url;
+  } catch {
+    return url;
+  }
+};
+
+let coverToken = 0;
+const loadCover = (raw: string | null) => {
   cover = null;
   coverForGl = false;
-  if (!url) return;
+  if (!raw) return;
+  const token = ++coverToken;
+  void resolveCoverUrl(raw).then((url) => {
+    if (token === coverToken) loadCoverImage(url);
+  });
+};
+
+const loadCoverImage = (url: string) => {
   const img = new Image();
   img.crossOrigin = "anonymous";
   img.onload = () => {
