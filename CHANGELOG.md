@@ -6,6 +6,8 @@ O que entra vai para "Por lançar"; o bump dá-lhe o número.
 
 ## Por lançar
 
+## 2.0.1 (2026-11-04)
+
 - Tocar numa tab mostra sempre a raiz dela: no Android, com as Definições (ou um álbum, uma playlist…) abertas, tocar em Início não fazia nada. Tocar outra vez na tab aberta sobe a lista ao topo.
 
 ## 2.0.0 (2026-11-04)

@@ -6,7 +6,7 @@
 # da costura src/player/expoAudioAdapter.
 [package]
 name = "oms-music-desktop"
-version = "2.0.0"
+version = "2.0.1"
 description = "Shell Tauri da app de musica de omelhorsite.pt"
 edition = "2021"
 
