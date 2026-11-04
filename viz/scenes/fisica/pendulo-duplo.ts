@@ -126,7 +126,7 @@ export default gpuScene({
       beatSeen = s.beat;
       const n = st.n(f.dt, g.env);
       P.fill(0);
-      P[8] = 0.42; P[9] = 0.3;
+      P[8] = 0.46; P[9] = 0.02;
       for (let i = 0; i < n; i++) {
         P[0] = a1; P[1] = a2; P[2] = 2e-3; P[3] = launch;
         P[4] = 9.8 * (0.7 + 1.1 * s.bass + 0.4 * s.drop); P[5] = 1 / 240; P[6] = kick; P[7] = 0.9995;
