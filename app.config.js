@@ -1,4 +1,7 @@
 const config = require("./app.json");
+// A versão (SemVer) só vive no package.json: iOS, Android, web e desktop
+// lêem-na de lá (bun run version:bump; docs/DEVELOPMENT.md, "Versões").
+const { version } = require("./package.json");
 
 // Associated Domains is a PAID Apple Developer Program capability. A personal
 // (free) team cannot sign a build that requests it: Xcode refuses with "Personal
@@ -14,7 +17,7 @@ const config = require("./app.json");
 //
 // Android is unaffected: its intent filters carry no such restriction.
 module.exports = () => {
-  const expo = { ...config.expo };
+  const expo = { ...config.expo, version };
   if (process.env.OMS_PAID_TEAM !== "1") {
     const { associatedDomains, ...iosWithoutAssociatedDomains } = expo.ios;
     expo.ios = iosWithoutAssociatedDomains;
@@ -39,6 +42,12 @@ module.exports = () => {
   // a app o lê para saber se há um APK mais novo (features/android).
   if (process.env.OMS_ANDROID_VERSION_CODE) {
     expo.android = { ...expo.android, versionCode: Number(process.env.OMS_ANDROID_VERSION_CODE) };
+  }
+
+  // iOS (scripts/ios-testflight.sh): build = data e hora (AAAAMMDDHHMM), para
+  // o expo-constants o mostrar nas definições.
+  if (process.env.OMS_IOS_BUILD_NUMBER) {
+    expo.ios = { ...expo.ios, buildNumber: process.env.OMS_IOS_BUILD_NUMBER };
   }
 
   return { ...config, expo };

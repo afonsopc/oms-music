@@ -23,6 +23,8 @@ TEAM="${APPLE_TEAM_ID:-6FYT6632J8}"
 AUTH=(-allowProvisioningUpdates -authenticationKeyPath "$ASC_KEY_PATH"
       -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID")
 BUILD_NUMBER="$(date +%Y%m%d%H%M)"
+# app.config.js lê-o (CFBundleVersion e expo-constants); a versão vem do package.json.
+export OMS_IOS_BUILD_NUMBER="$BUILD_NUMBER"
 DEST=upload; [ "${UPLOAD:-1}" = "0" ] && DEST=export
 
 echo "» cópia limpa de $(git -C "$REPO" rev-parse --short HEAD) em $WORK"
@@ -67,12 +69,13 @@ PROFILE="$(bun scripts/asc.ts profile "$BUNDLE_ID")"
 LOGS="$WORK/build/logs"; mkdir -p "$LOGS"
 ARCHIVE="$WORK/build/Musica.xcarchive"
 EXPORT="$WORK/build/export"
-echo "» xcodebuild archive (build $BUILD_NUMBER, team $TEAM)"
+VERSION="$(bun -e 'console.log(require("./package.json").version)')"
+echo "» xcodebuild archive ($VERSION, build $BUILD_NUMBER, team $TEAM)"
 archive() {
   xcodebuild -workspace "$WS" -scheme "$SCHEME" -configuration Release \
     -destination 'generic/platform=iOS' -derivedDataPath "$WORK/build/dd" -archivePath "$ARCHIVE" \
     "${AUTH[@]}" DEVELOPMENT_TEAM="$TEAM" CODE_SIGN_STYLE=Automatic \
-    CURRENT_PROJECT_VERSION="$BUILD_NUMBER" archive > "$LOGS/archive$1.log" 2>&1
+    MARKETING_VERSION="$VERSION" CURRENT_PROJECT_VERSION="$BUILD_NUMBER" archive > "$LOGS/archive$1.log" 2>&1
 }
 # O xcodebuild aninhado do ExpoModulesJSI às vezes cai sem dizer porquê
 # ("failed with exit code 0 but produced no further output"); à segunda passa.

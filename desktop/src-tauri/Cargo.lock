@@ -2655,7 +2655,7 @@ dependencies = [
 
 [[package]]
 name = "oms-music-desktop"
-version = "1.4.1"
+version = "2.0.0"
 dependencies = [
  "futures-util",
  "http-range",

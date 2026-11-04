@@ -80,6 +80,11 @@ nativo nao mexe em layout nenhum.
 
 ## Updater
 
+A versao e a da app toda (`version` do package.json da raiz, `bun run version:bump`;
+docs/DEVELOPMENT.md, "Versões"). O desktop passou da 1.4.1 para a 2.0.0 para ficar
+igual ao telemovel; o updater compara SemVer, por isso a 2.0.0 conta como mais nova.
+
+
 Assinatura OBRIGATORIA e nao desactivavel por decisao (plano 3.6). O build
 falha sem `keys/updater.key` porque `createUpdaterArtifacts` esta ligado - o
 pipeline de assinatura e validado em TODOS os builds, nao no dia do release.

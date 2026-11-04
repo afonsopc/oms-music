@@ -269,7 +269,30 @@ faithfully on macOS, and because Quick Look always flattens onto an opaque plate
 transparent variants come from rendering the mark twice, once over white and once over
 black, and recovering alpha as `a = 1 - (white - black)`.
 
-Bump `version` plus `ios.buildNumber` and `android.versionCode` per store submission.
+### Versões
+
+Uma versão SemVer para a app inteira (iOS, Android, web e desktop), com uma só fonte: o
+`"version"` do `package.json` da raiz (2.0.0 desde 2026-11-04: o redesenho e o
+visualizador; antes o telemóvel dizia 1.1.0 e o desktop ia na 1.4.1).
+
+- `app.config.js` põe-na no `expo.version`, por isso chega ao iOS
+  (CFBundleShortVersionString), ao Android (versionName), à web e ao `expo-constants`.
+- Os builds continuam a ser data e hora e só sobem: iOS `AAAAMMDDHHMM`
+  (`OMS_IOS_BUILD_NUMBER` no `ios-testflight.sh`), Android `AAMMDDHH`
+  (`OMS_ANDROID_VERSION_CODE`, o que o aviso de APK novo compara).
+- Desktop: a mesma versão em `desktop/package.json`, `tauri.conf.json`, `Cargo.toml` e
+  `Cargo.lock` (o Tauri e o Cargo precisam dela escrita lá). O actualizador compara
+  SemVer: a 2.0.0 é mais nova do que a 1.4.1, por isso quem tem a 1.4.1 recebe-a.
+  `release-macos.sh` recusa se o `package.json` da raiz não bater certo.
+- Nas definições, no fim: "Versão 2.0.0 (202611041504)" (`src/features/settings/version.tsx`;
+  no desktop a versão da janela, na web só a versão).
+- Subir: `bun run version:bump patch|minor|major`. Acerta todas as cópias, dá número à
+  secção "Por lançar" do `CHANGELOG.md`, faz o commit só desses ficheiros e a tag
+  `music-vX.Y.Z` (pára se algum deles tiver alterações de outro agente). Depois
+  `git push` da branch e da tag. As tags `vX.Y.Z` continuam a ser as das releases do
+  desktop, feitas por `bun run release` em `desktop/`.
+- O que muda vai para "Por lançar" em `CHANGELOG.md`, curto, em pt-PT.
+
 `ios/` and `android/` are generated and gitignored, so a release always starts from a clean
 `bunx expo prebuild`. iOS TestFlight builds: `bun run ios:testflight` (build number is a
 timestamp, `ios.buildNumber` is ignored there), see `docs/testflight.md`.

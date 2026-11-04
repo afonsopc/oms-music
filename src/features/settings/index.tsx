@@ -15,6 +15,7 @@ import { LOCALES, setLocale, useLocale, useT, type Locale } from "@/i18n";
 import { useTheme, type ThemeMode } from "@/theme/provider";
 import { useDesktopShell } from "@/ui";
 import { AndroidDownload } from "@/features/android/download";
+import { AppVersion } from "./version";
 import { CheckRow, SettingsPage, SettingsRow, SettingsSection } from "./ui";
 
 const THEME_MODES: readonly ThemeMode[] = ["system", "dark", "light"];
@@ -77,6 +78,7 @@ export default function SettingsHubScreen() {
       <SettingsPage title={t("native.desktop.settingsGeneral")}>
         <Preferences />
         <AndroidDownload quiet />
+        <AppVersion />
       </SettingsPage>
     );
   }
@@ -136,6 +138,7 @@ export default function SettingsHubScreen() {
 
       <Preferences />
       <AndroidDownload quiet />
+      <AppVersion />
     </SettingsPage>
   );
 }

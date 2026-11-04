@@ -1066,7 +1066,8 @@
         "languageEn": "English",
         "languagePt": "Português",
         "languageLv": "Latviešu",
-        "rowDownloadSettings": "Opções de transferência"
+        "rowDownloadSettings": "Opções de transferência",
+        "version": "Versão {version}"
       },
       "pickers": {
         "unavailable": "Escolher imagens não está disponível neste dispositivo."

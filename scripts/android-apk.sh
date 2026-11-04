@@ -13,7 +13,7 @@
 # (docs/app-store.md) -> expo prebuild -p android -> gradle assembleRelease
 # (arm64-v8a; ABIS= para mais) -> assinado com a chave de ~/.appstoreconnect/android.
 # versionCode = data e hora (AAMMDDHH, cabe no inteiro do Android); versionName
-# = "version" do app.json. Ver docs/android.md.
+# = "version" do package.json (a mesma do iOS e do desktop). Ver docs/android.md.
 set -euo pipefail
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
@@ -40,7 +40,7 @@ git clone -q --no-checkout "$REPO" "$WORK"
 git -C "$WORK" checkout -q "$REV"
 cd "$WORK"
 bun install --frozen-lockfile >/dev/null
-VERSION_NAME="$(bun -e 'console.log(require("./app.json").expo.version)')"
+VERSION_NAME="$(bun -e 'console.log(require("./package.json").version)')"
 
 if [ "${SKIP_STORE_CHECK:-0}" != "1" ]; then
   echo "» verificação (nada de importar de fora no bundle, docs/app-store.md)"

@@ -40,6 +40,9 @@ echo "==> release desktop ${TAG} (${ARCH})"
 [ "$(bun -e 'console.log(require("./package.json").version)')" = "$VERSION" ] \
   || fail "desktop/package.json nao esta em ${VERSION}"
 grep -q "^version = \"${VERSION}\"" src-tauri/Cargo.toml || fail "Cargo.toml nao esta em ${VERSION}"
+# A fonte da versao e o package.json da raiz (bun run version:bump acerta tudo).
+[ "$(bun -e 'console.log(require("../package.json").version)')" = "$VERSION" ] \
+  || fail "o package.json da raiz nao esta em ${VERSION} (bun run version:bump)"
 security find-identity -v -p codesigning | grep -qF "$IDENTITY" || fail "falta a identidade ${IDENTITY}"
 [ -f keys/updater.key ] || fail "falta keys/updater.key"
 [ -f "$ENV_FILE" ] || fail "falta ${ENV_FILE}"

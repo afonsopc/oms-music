@@ -1066,7 +1066,8 @@
         "languageEn": "English",
         "languagePt": "Português",
         "languageLv": "Latviešu",
-        "rowDownloadSettings": "Download settings"
+        "rowDownloadSettings": "Download settings",
+        "version": "Version {version}"
       },
       "pickers": {
         "unavailable": "Picking images is not available on this device."

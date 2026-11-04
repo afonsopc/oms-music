@@ -1066,7 +1066,8 @@
         "languageEn": "English",
         "languagePt": "Português",
         "languageLv": "Latviešu",
-        "rowDownloadSettings": "Lejupielādes iestatījumi"
+        "rowDownloadSettings": "Lejupielādes iestatījumi",
+        "version": "Versija {version}"
       },
       "pickers": {
         "unavailable": "Attēlu izvēle šajā ierīcē nav pieejama."

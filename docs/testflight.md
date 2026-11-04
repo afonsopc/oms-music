@@ -18,7 +18,7 @@ commitado; `WORK=` muda a pasta, por omissão `$TMPDIR/oms-music-testflight`),
 `-exportArchive` com `method app-store-connect` e `destination upload`.
 
 - Build number = data e hora (`AAAAMMDDHHMM`, posto no Info.plist depois do
-  prebuild); a versão é a do `app.json`. `ITSAppUsesNonExemptEncryption`
+  prebuild); a versão é a do `package.json` (docs/DEVELOPMENT.md, "Versões"). `ITSAppUsesNonExemptEncryption`
   é `false` no `app.json` (só HTTPS normal), por isso as builds não ficam à
   espera da pergunta da exportação.
 - Chave da App Store Connect API em `~/.appstoreconnect/oms-ci.env`

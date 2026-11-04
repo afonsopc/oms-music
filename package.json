@@ -1,7 +1,7 @@
 {
   "name": "oms-music",
   "main": "expo-router/entry",
-  "version": "1.1.0",
+  "version": "2.0.0",
   "dependencies": {
     "@expo/ui": "~57.0.8",
     "@expo/vector-icons": "^15.0.2",
@@ -59,7 +59,8 @@
     "typecheck": "tsc --noEmit",
     "test": "bun test",
     "smoke": "bun scripts/smoke.ts",
-    "deeplinks": "bun e2e/deeplinks.ts"
+    "deeplinks": "bun e2e/deeplinks.ts",
+    "version:bump": "bun scripts/version-bump.ts"
   },
   "private": true,
   "patchedDependencies": {

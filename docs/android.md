@@ -21,7 +21,8 @@ no bundle; as duas `youtube` são nomes de ícones do Material e ficam de fora),
 - **versionCode** = data e hora `AAMMDDHH` (o Android quer um inteiro que só
   sobe; o `2` do `app.json` fica para quem compilar à mão). Passa pelo
   `app.config.js` (`OMS_ANDROID_VERSION_CODE`), por isso também chega ao
-  `expo-constants`, que é onde a app o lê. **versionName** = `version` do `app.json`.
+  `expo-constants`, que é onde a app o lê. **versionName** = `version` do
+  `package.json`, a mesma do iOS e do desktop (docs/DEVELOPMENT.md, "Versões").
 - **ABI**: só `arm64-v8a` (todos os telemóveis dos últimos anos). Os dois dão
   68 MB contra ~40.
 - Fica em `~/Documents/oms/builds/android/oms-music-<versionCode>.apk` (e
