@@ -62,6 +62,9 @@ module.exports = () => {
       {
         receiverAppId: (process.env.EXPO_PUBLIC_CAST_APP_ID || "").trim() || "CC1AD845",
         iosStartDiscoveryAfterFirstTapOnCastButton: false,
+        // Fixa: a 23.x puxa o mediarouter 1.9, que pede compileSdk 37 (o
+        // Expo 57 compila contra o 36).
+        androidPlayServicesCastFrameworkVersion: "22.3.1",
       },
     ],
   ];
