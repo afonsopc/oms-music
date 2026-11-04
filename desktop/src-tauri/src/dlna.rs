@@ -675,9 +675,15 @@ mod live {
             .await
             .unwrap();
         println!("status {} headers {:?}", res.status(), res.headers());
+        let partial = res.status().as_u16() == 206;
         let body = res.bytes().await.unwrap();
         println!("bytes {}", body.len());
-        assert!(body.len() <= 100 && !body.is_empty());
+        assert!(!body.is_empty());
+        // O favicon por defeito vem do Pages, que ignora o Range (200 inteiro);
+        // com OMS_DLNA_URL num URL do Garage tem de vir 206 com 100 bytes.
+        if partial {
+            assert!(body.len() <= 100);
+        }
         let bad = client.get(format!("http://127.0.0.1:{port}/s/nope")).send().await.unwrap();
         assert_eq!(bad.status().as_u16(), 404);
     }
