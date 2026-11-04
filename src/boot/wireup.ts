@@ -70,6 +70,7 @@ import { registerDesktopBridge } from "@/desktop/register";
 import { isMiniplayerWindow } from "@/desktop/miniplayer";
 import { registerLibraryWarmup } from "@/api/warmup";
 import { registerLyricsQueuePrefetch } from "@/lyrics/queuePrefetch";
+import { registerMontage } from "@/features/montage/register";
 import { getJamManager } from "@/jam/channel";
 import { registerPlayerEngine } from "@/player/register";
 import { getPlaybackChannel } from "@/remote/channel";
@@ -179,6 +180,8 @@ export const wireUp = (): void => {
   registerLibraryWarmup();
   // As letras das próximas da fila, antes de elas tocarem (2026-11-04).
   registerLyricsQueuePrefetch();
+  // A Montagem no visualizador (2026-11-04): o painel e a camada de vídeo.
+  registerMontage();
 
   // 9. Desktop shell bridge (plano "uma so app" F5): media keys, Now
   // Playing/MPRIS and the tray, fed from the player store and routed back

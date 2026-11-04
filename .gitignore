@@ -48,3 +48,4 @@ modules/*/android/.cxx/
 
 # Construído pelo scripts/build-web.sh a partir de viz/
 /public/viz/
+/public/montage/

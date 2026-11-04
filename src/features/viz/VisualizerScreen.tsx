@@ -253,6 +253,9 @@ export default function VisualizerScreen() {
         </View>
       </View>
       {settingsOpen ? <SettingsPanel onClose={() => setSettingsOpen(false)} /> : null}
+      {montage?.Background ? (
+        <montage.Background song={song} getPosition={estimatedPosition} playing={playing} analysis={analysis} setVideoLayer={setVideoLayer} />
+      ) : null}
       {/* A gaveta da Montagem: o painel é de outro trabalho (montageSlot.ts). */}
       {montage && montageOpen ? (
         <View

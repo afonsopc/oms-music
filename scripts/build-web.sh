@@ -49,6 +49,10 @@ mkdir -p public/viz
 bun build viz/main.ts --outfile public/viz/viz.js --minify --target browser >/dev/null
 cp viz/index.html public/viz/index.html
 cp assets/fonts/OMSWide-Regular.ttf public/viz/omswide.ttf
+echo "==> motor da Montagem: montage/ -> public/montage/"
+mkdir -p public/montage
+bun build montage/main.ts --outfile public/montage/montage.js --minify --target browser >/dev/null
+cp montage/index.html public/montage/index.html
 
 echo "==> bunx expo export -p web (tecto: ${TIMEOUT_S}s)"
 CI=1 bunx expo export -p web "$@" &

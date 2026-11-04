@@ -32,10 +32,19 @@ export interface MontagePanelProps {
   onClose: () => void;
 }
 
+/** O que o `Background` recebe: o mesmo que o painel, menos fechar a gaveta. */
+export type MontageBackgroundProps = Omit<MontagePanelProps, "onClose">;
+
 export interface MontagePanelSlot {
   /** O nome no botão da barra de cima (por omissão "Montagem"). */
   label?: string;
   Component: React.ComponentType<MontagePanelProps>;
+  /**
+   * Montado sempre que o visualizador está aberto, com a gaveta fechada ou
+   * aberta (não desenha nada): é por aqui que uma montagem guardada volta a
+   * tocar sozinha, pondo a camada de vídeo.
+   */
+  Background?: React.ComponentType<MontageBackgroundProps>;
 }
 
 let slot: MontagePanelSlot | null = null;
