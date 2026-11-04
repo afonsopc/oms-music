@@ -50,11 +50,13 @@ void main(){
   float pool = exp(-dot(lc,lc)*1.4);
   float uvm = smoothstep(.2,.8,DROP + U0.z);
   vec3 lightc = mix(vec3(1.,.93,.8), vec3(.35,.15,1.), uvm);
-  vec3 col = wall*lightc*(.5 + pool*lamp*.9)*(1.-.75*uvm);
+  vec3 col = wall*lightc*(.5 + pool*lamp*.9)*(1.-.45*uvm);
   // a peça
-  float shadow = tx.b*revS;
-  float outl = tx.g*revO;
-  float fill = max(tx.r*revF, drip);
+  // a pintura da secção anterior fica por baixo, desbotada, até a nova a tapar
+  float old = U0.w > 0. ? .45 : 0.;
+  float shadow = max(tx.b*revS, tx.b*old);
+  float outl = max(tx.g*revO, tx.g*old);
+  float fill = max(max(tx.r*revF, drip), tx.r*old);
   vec3 grad = mix(C1, C3, smoothstep(.2,.8, tu.y*1.4 - .2 + .1*sin(u.x*9.)));
   float shine = smoothstep(.02,.0,abs(fract(tu.y*3.5 - u.x*1.2)-.5)-.47)*.6;
   vec3 paint = grad*1.15 + shine;

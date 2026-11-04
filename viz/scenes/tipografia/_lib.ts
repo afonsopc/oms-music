@@ -227,8 +227,9 @@ export const textShader = (meta: Omit<SceneMeta, "layer">, frag: string, o: Text
     let u: Record<(typeof NAMES)[number], WebGLUniformLocation | null> | null = null;
     let tex: WebGLTexture | null = null;
     let fb: [Target, Target] | null = null;
-    const cv = document.createElement("canvas");
-    const cx = cv.getContext("2d")!;
+    // O canvas só nasce no init: o create corre sem browser (testes, prewarm).
+    let cv: HTMLCanvasElement = null!;
+    let cx: CanvasRenderingContext2D = null!;
     const lyr = new Lyric();
     const free = new Float32Array(16);
     let fg = -1, cw = 0, ch = 0, lastW = 0, lastH = 0, title = "", lastT = 0;
@@ -270,6 +271,7 @@ export const textShader = (meta: Omit<SceneMeta, "layer">, frag: string, o: Text
         host = h;
         gl = h.gl;
         if (!gl) throw new Error("sem WebGL2");
+        if (!cv) { cv = document.createElement("canvas"); cx = cv.getContext("2d")!; }
         prog = cachedProgram(gl, frag);
         u = uniforms(gl, prog, NAMES);
       },
