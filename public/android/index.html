@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="pt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Música para Android - omelhorsite.pt</title>
+<meta name="description" content="Descarregar a app Música para Android.">
+<meta name="theme-color" content="#0a0a0a">
+<link rel="icon" href="/favicon.ico">
+<style>
+  :root { color-scheme: dark light; --bg: #0a0a0a; --fg: #f5f5f5; --mute: #a3a3a3; --line: #262626; }
+  @media (prefers-color-scheme: light) { :root { --bg: #fafafa; --fg: #171717; --mute: #525252; --line: #e5e5e5; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 17px/1.5 -apple-system, "Segoe UI", Roboto, system-ui, sans-serif; }
+  main { max-width: 34rem; margin: 0 auto; padding: calc(env(safe-area-inset-top) + 3rem) 1.25rem calc(env(safe-area-inset-bottom) + 3rem); }
+  .back { color: var(--mute); text-decoration: none; font-size: 15px; }
+  h1 { font: 600 2.4rem/1.1 Georgia, "Times New Roman", serif; letter-spacing: -0.01em; margin: 2.5rem 0 0.75rem; }
+  .lead { color: var(--mute); margin: 0 0 2rem; }
+  .get { display: block; text-align: center; padding: 1rem; background: var(--fg); color: var(--bg); text-decoration: none; font-weight: 600; border-radius: 0.5rem; }
+  .meta { color: var(--mute); font-size: 14px; margin: 0.6rem 0 0; text-align: center; min-height: 1.3em; }
+  h2 { font: 600 1.25rem/1.3 Georgia, "Times New Roman", serif; margin: 3rem 0 0.5rem; padding-top: 1.5rem; border-top: 1px solid var(--line); }
+  ol { padding-left: 1.3rem; margin: 0; }
+  li { margin: 0.7rem 0; }
+  li::marker { color: var(--mute); }
+  .note { color: var(--mute); font-size: 15px; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<main>
+  <a class="back" href="/" data-t="back">← Música</a>
+  <h1 data-t="title">Música para Android</h1>
+  <p class="lead" data-t="lead">A app para o telemóvel. Não está na Play Store: descarrega-se daqui.</p>
+  <a class="get" href="/app/oms-music.apk" data-t="get">Descarregar</a>
+  <p class="meta" id="meta"></p>
+
+  <h2 data-t="howTitle">Como instalar</h2>
+  <ol>
+    <li data-t="s1">Toca em Descarregar. Se o telemóvel avisar que o ficheiro pode ser perigoso, toca em «Descarregar mesmo assim».</li>
+    <li data-t="s2">Abre o ficheiro descarregado (no aviso que aparece em cima, ou em Ficheiros › Transferências).</li>
+    <li data-t="s3">Se disser que não pode instalar apps desta fonte, toca em Definições e liga «Permitir desta fonte». Volta atrás.</li>
+    <li data-t="s4">Toca em Instalar. Se o Play Protect perguntar, escolhe «Instalar mesmo assim».</li>
+  </ol>
+  <p class="note" data-t="note">Só é preciso fazer isto uma vez. Quando houver uma versão nova, a app avisa.</p>
+</main>
+<script>
+(function () {
+  var copy = {
+    en: {
+      back: "← Music", title: "Music for Android", lead: "The phone app. It is not on the Play Store: you download it here.",
+      get: "Download", howTitle: "How to install",
+      s1: "Tap Download. If the phone warns the file may be harmful, tap “Download anyway”.",
+      s2: "Open the downloaded file (from the notice at the top, or in Files › Downloads).",
+      s3: "If it says it can’t install apps from this source, tap Settings and turn on “Allow from this source”. Go back.",
+      s4: "Tap Install. If Play Protect asks, choose “Install anyway”.",
+      note: "You only do this once. When there is a new version, the app tells you.", version: "Version", mb: "MB"
+    },
+    lv: {
+      back: "← Mūzika", title: "Mūzika Android ierīcēm", lead: "Lietotne telefonam. Tās nav Play veikalā: lejupielādē to šeit.",
+      get: "Lejupielādēt", howTitle: "Kā instalēt",
+      s1: "Pieskaries “Lejupielādēt”. Ja telefons brīdina, ka fails var būt kaitīgs, pieskaries “Tik un tā lejupielādēt”.",
+      s2: "Atver lejupielādēto failu (paziņojumā augšā vai Faili › Lejupielādes).",
+      s3: "Ja tas saka, ka nevar instalēt lietotnes no šī avota, pieskaries “Iestatījumi” un ieslēdz “Atļaut no šī avota”. Atgriezies.",
+      s4: "Pieskaries “Instalēt”. Ja Play Protect jautā, izvēlies “Tik un tā instalēt”.",
+      note: "Tas jādara tikai vienreiz. Kad būs jauna versija, lietotne paziņos.", version: "Versija", mb: "MB"
+    },
+    pt: { version: "Versão", mb: "MB" }
+  };
+  var q = new URLSearchParams(location.search).get("lang");
+  var nav = (navigator.language || "pt").slice(0, 2);
+  var lang = copy[q] ? q : copy[nav] ? nav : "pt";
+  var t = copy[lang];
+  document.documentElement.lang = lang;
+  document.querySelectorAll("[data-t]").forEach(function (el) {
+    var v = t[el.getAttribute("data-t")];
+    if (v) el.textContent = v;
+  });
+  if (t.title) document.title = t.title + " - omelhorsite.pt";
+  fetch("/app/android.json", { cache: "no-store" })
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (j) {
+      if (!j) return;
+      document.getElementById("meta").textContent =
+        t.version + " " + j.versionName + " (" + j.versionCode + ") · " + Math.round(j.size / 1048576) + " " + t.mb;
+    })
+    .catch(function () {});
+})();
+</script>
+</body>
+</html>

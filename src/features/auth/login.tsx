@@ -32,6 +32,7 @@ import { adoptOAuthTicket } from "@/auth/session";
 import { desktopBrowserSession, isDesktopShell } from "@/desktop/tauri";
 import { useT } from "@/i18n";
 import { haptics } from "@/lib/haptics";
+import { AndroidDownload } from "@/features/android/download";
 import { AuthButton, AuthError, AuthInfo, AuthScreen, AuthTitle } from "./ui";
 
 /** Nome próprio, igual em todas as línguas. */
@@ -96,6 +97,7 @@ export default function LoginScreen() {
       <AuthTitle text={APP_NAME} />
       <AuthInfo text={t("native.auth.login.hint")} />
       <AuthError message={error} />
+      <AndroidDownload />
     </AuthScreen>
   );
 }

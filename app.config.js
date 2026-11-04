@@ -34,5 +34,12 @@ module.exports = () => {
   // nowhere near the Pages limit of 20.000 files.
   expo.web = { ...expo.web, output: "static" };
 
+  // Android (scripts/android-apk.sh): versionCode = data e hora (AAMMDDHH).
+  // Vai para o build.gradle no prebuild e para o expo-constants, que é onde
+  // a app o lê para saber se há um APK mais novo (features/android).
+  if (process.env.OMS_ANDROID_VERSION_CODE) {
+    expo.android = { ...expo.android, versionCode: Number(process.env.OMS_ANDROID_VERSION_CODE) };
+  }
+
   return { ...config, expo };
 };

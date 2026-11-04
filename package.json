@@ -53,6 +53,7 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "ios:testflight": "bash scripts/ios-testflight.sh",
+    "android:apk": "bash scripts/android-apk.sh",
     "web": "expo start --web",
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",

@@ -20,6 +20,7 @@ import { queryClient, wireQueryClient } from "@/api/queryClient";
 import { useSessionStore } from "@/auth/session";
 import { isMiniplayerWindow } from "@/desktop/miniplayer";
 import { MiniplayerApp } from "@/features/miniplayer/MiniplayerApp";
+import { AndroidUpdateToast } from "@/features/android/updateToast";
 import { hideBootSplash } from "@/features/shell/bootSplash";
 import { SessionGate } from "@/features/shell/SessionGate";
 import { routeTitle } from "@/features/shell/routeTitles";
@@ -134,6 +135,7 @@ export default function RootLayout() {
             <SlotProviders>
               <GestureRoot style={{ flex: 1 }}>
                 <RootNavigator />
+                <AndroidUpdateToast />
               </GestureRoot>
             </SlotProviders>
           </SessionGate>

@@ -106,6 +106,14 @@ done <<'EOF'
 /profile/:idOrHandle|profile/[idOrHandle].html|profile/__dynamic.html
 EOF
 
+# O APK de Android (scripts/android-apk.sh PUBLISH=1 escreve
+# public/app/android.json): /app/oms-music.apk vai para o último, no
+# heavy-asset storage (passa dos 25 MiB do Pages).
+if [ -f "$DIST/app/android.json" ]; then
+  apk_url="$(/usr/bin/python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["url"])' "$DIST/app/android.json")"
+  printf '/app/oms-music.apk %s 302\n' "$apk_url" >> "$REDIRECTS"
+fi
+
 # Leftover bracket shells are route-group ALIASES of the seven above
 # ((main)/artist/[artist].html ...). Nothing links to them and their names
 # are exactly the problem the rename dodges, so they do not ship.
