@@ -21,15 +21,7 @@
  * distinguir "esta a falar" de "esta calado" - que e para o que serve - dá.
  */
 import React, { useEffect, useMemo } from "react";
-import { View } from "react-native";
-import Animated, {
-  Easing,
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withSequence,
-  withTiming,
-} from "react-native-reanimated";
+import { Animated, Easing, View } from "react-native";
 import { Icon } from "@/ui";
 import { RADIUS } from "@/theme/tokens";
 import { gradientBackground, linearGradient } from "@/ui/uiTheme";
@@ -57,34 +49,43 @@ const Bar = ({
   width: number;
   color: string;
 }) => {
-  const level = useSharedValue(RESTING);
+  const [level] = React.useState(() => new Animated.Value(RESTING));
 
   useEffect(() => {
+    const to = (v: number, duration: number, easing: (t: number) => number) =>
+      Animated.timing(level, { toValue: v, duration, easing, useNativeDriver: true });
     if (!speaking) {
-      level.value = withTiming(RESTING, { duration: 260 });
-      return;
+      const rest = to(RESTING, 260, Easing.out(Easing.quad));
+      rest.start();
+      return () => rest.stop();
     }
     const beat = SYLLABLE_MS[index] ?? 170;
     // Duas alturas diferentes por ciclo: com uma so, as cinco barras batiam
     // como um metronomo e aquilo lia-se como uma animacao, nao como voz.
-    level.value = withRepeat(
-      withSequence(
-        withTiming(0.55 + Math.random() * 0.45, { duration: beat, easing: Easing.out(Easing.quad) }),
-        withTiming(0.25 + Math.random() * 0.35, { duration: beat * 1.4, easing: Easing.inOut(Easing.quad) }),
-        withTiming(0.75 + Math.random() * 0.25, { duration: beat * 0.8, easing: Easing.out(Easing.quad) }),
-      ),
-      -1,
-      true,
+    const loop = Animated.loop(
+      Animated.sequence([
+        to(0.55 + Math.random() * 0.45, beat, Easing.out(Easing.quad)),
+        to(0.25 + Math.random() * 0.35, beat * 1.4, Easing.inOut(Easing.quad)),
+        to(0.75 + Math.random() * 0.25, beat * 0.8, Easing.out(Easing.quad)),
+        to(0.35 + Math.random() * 0.3, beat, Easing.inOut(Easing.quad)),
+      ]),
     );
+    loop.start();
+    return () => loop.stop();
   }, [ index, level, speaking ]);
 
-  const style = useAnimatedStyle(() => ({
-    height: height * (BARS[index] ?? 0.6) * level.value + width,
-  }));
+  // Escala em vez de altura: corre no driver nativo, sem re-render.
+  const full = height * (BARS[index] ?? 0.6) + width;
 
   return (
     <Animated.View
-      style={[ { width, borderRadius: width / 2, backgroundColor: color }, style ]}
+      style={{
+        width,
+        height: full,
+        borderRadius: width / 2,
+        backgroundColor: color,
+        transform: [ { scaleY: level } ],
+      }}
     />
   );
 };
@@ -98,22 +99,29 @@ export const DjArtwork = ({
   speaking: boolean;
   palette?: DjPalette;
 }) => {
-  const spin = useSharedValue(0);
+  const [spin] = React.useState(() => new Animated.Value(0));
   const small = size < 80;
   const barHeight = size * (small ? 0.5 : 0.24);
   const barWidth = small ? 3 : 8;
 
   useEffect(() => {
     // Reinicia a volta com a velocidade nova: a falar anda mais depressa.
-    spin.value = 0;
-    spin.value = withRepeat(
-      withTiming(360, { duration: speaking ? 6000 : 16000, easing: Easing.linear }),
-      -1,
-      false,
+    spin.setValue(0);
+    const loop = Animated.loop(
+      Animated.timing(spin, {
+        toValue: 1,
+        duration: speaking ? 6000 : 16000,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      }),
     );
+    loop.start();
+    return () => loop.stop();
   }, [ speaking, spin ]);
 
-  const lights = useAnimatedStyle(() => ({ transform: [ { rotate: `${spin.value}deg` } ] }));
+  const lights = {
+    transform: [ { rotate: spin.interpolate({ inputRange: [ 0, 1 ], outputRange: [ "0deg", "360deg" ] }) } ],
+  };
 
   return (
     <View

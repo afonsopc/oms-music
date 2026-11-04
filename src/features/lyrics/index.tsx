@@ -23,6 +23,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Animated,
   Pressable,
   ScrollView,
   Text,
@@ -30,11 +31,7 @@ import {
   type LayoutChangeEvent,
 } from "react-native";
 import { useIsFocused } from "expo-router";
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-} from "react-native-reanimated";
+import { useTween } from "@/ui/motion";
 import { useLyrics, useLyricsTranslation } from "@/api/queries/lyrics";
 import { queryClient } from "@/api/queryClient";
 import { keys } from "@/api/queryKeys";
@@ -90,14 +87,11 @@ const SyncedLineText = ({
   color: string;
   children: React.ReactNode;
 }) => {
-  const p = useSharedValue(active ? 1 : 0);
-  useEffect(() => {
-    p.value = withTiming(active ? 1 : 0, { duration: 220 });
-  }, [active, p]);
-  const style = useAnimatedStyle(() => ({
-    opacity: 0.55 + 0.45 * p.value,
-    transform: [{ scale: 0.87 + 0.13 * p.value }],
-  }));
+  const p = useTween(active ? 1 : 0, { duration: 220 });
+  const style = {
+    opacity: p.interpolate({ inputRange: [0, 1], outputRange: [0.55, 1] }),
+    transform: [{ scale: p.interpolate({ inputRange: [0, 1], outputRange: [0.87, 1] }) }],
+  };
   return (
     <Animated.Text
       style={[

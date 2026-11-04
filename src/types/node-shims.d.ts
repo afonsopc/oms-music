@@ -21,8 +21,16 @@ declare module "node:fs" {
   export function readdirSync(path: string, options: { withFileTypes: true }): Dirent[];
   export function readFileSync(path: string, encoding: "utf8"): string;
   export function existsSync(path: string): boolean;
-  export function writeFileSync(path: string, data: string): void;
+  export function writeFileSync(path: string, data: string | Uint8Array): void;
+  export function mkdirSync(path: string, options?: { recursive?: boolean; mode?: number }): void;
 }
+
+/** scripts/asc.ts (base64url do JWT e do .p8). */
+declare const Buffer: {
+  from(data: string | Uint8Array, encoding?: "utf8" | "base64"): Uint8Array<ArrayBuffer> & {
+    toString(encoding?: "base64url" | "base64" | "utf8"): string;
+  };
+};
 
 declare module "node:path" {
   export function join(...parts: string[]): string;

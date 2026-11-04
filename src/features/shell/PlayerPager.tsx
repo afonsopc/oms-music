@@ -15,7 +15,7 @@
  * painel direito do desktop.
  */
 import React from "react";
-import { ScrollView, View } from "react-native";
+import { View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   runOnJS,
@@ -25,16 +25,12 @@ import Animated, {
 } from "react-native-reanimated";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import NowPlayingBody, { PlayerChrome } from "@/features/player";
 import { ImmersiveBackdrop } from "@/features/player/immersive";
-import KaraokeBody from "@/features/player/karaoke";
+import { PlayerChrome } from "@/features/player";
 import { usePlayerModeStore } from "@/features/player/mode";
-import QueueBody from "@/features/player/queue";
-import { PlayerSettingsBody } from "@/features/player/settingsSheet";
-import JamScreen from "@/features/jam";
-import LyricsBody from "@/features/lyrics";
+import { dismissDecision } from "./dismissMath";
+import { PlayerHandle, PlayerStage } from "./PlayerStage";
 import { usePlaybackView } from "@/remote/mirror";
-import { withAlpha } from "@/theme/contrast";
 import { useTheme } from "@/theme/provider";
 
 export const NowPlayingScreen = () => {
@@ -68,7 +64,7 @@ export const NowPlayingScreen = () => {
         dragY.value = Math.max(0, event.translationY);
       })
       .onEnd((event) => {
-        if (event.translationY > 140 || event.velocityY > 900) runOnJS(close)();
+        if (dismissDecision(event.translationY, event.velocityY)) runOnJS(close)();
         dragY.value = withSpring(0, { damping: 22, stiffness: 220 });
       });
   const dragStyle = useAnimatedStyle(() => ({ transform: [{ translateY: dragY.value }] }));
@@ -87,16 +83,7 @@ export const NowPlayingScreen = () => {
             porque a area segura ja vinha aplicada pela folha e nos
             somavamos-lhe a nossa (report do dono 2026-08-15). */}
         <GestureDetector gesture={dismissGesture(true)}>
-          <View style={{ paddingTop: insets.top + 6, paddingBottom: 10, alignItems: "center" }}>
-            <View
-              style={{
-                width: 38,
-                height: 5,
-                borderRadius: 3,
-                backgroundColor: withAlpha(tokens.foreground, 0.4),
-              }}
-            />
-          </View>
+          <PlayerHandle />
         </GestureDetector>
         {/* O PALCO. Troca de conteudo, nunca de sitio: o chrome por baixo
             fica onde esta, que e o ponto todo do idioma Apple Music. O gesto
@@ -105,28 +92,7 @@ export const NowPlayingScreen = () => {
             lista, nao para sair. */}
         <GestureDetector gesture={dismissGesture(mode === "artwork")}>
           <View style={{ flex: 1, minHeight: 0 }}>
-            {mode === "lyrics" ? (
-              <LyricsBody />
-            ) : mode === "queue" ? (
-              <QueueBody />
-            ) : mode === "settings" ? (
-              // Definicoes e jam entram pelo palco, nao por folhas: dentro
-              // de um player sem scroll uma folha e uma segunda camada a
-              // disputar o mesmo arrasto (pedido do dono 2026-08-15). Scroll
-              // proprio porque ambas sao mais altas do que o palco.
-              <ScrollView contentContainerStyle={{ paddingBottom: 8 }}>
-                <PlayerSettingsBody song={song} />
-              </ScrollView>
-            ) : mode === "jam" ? (
-              <JamScreen embedded />
-            ) : mode === "karaoke" ? (
-              // Montar/desmontar É entrar/sair do karaoke: o corpo tira a
-              // fotografia do modo de stem + velocidade ao montar e
-              // restaura-os na limpeza (features/player/karaoke.tsx).
-              <KaraokeBody />
-            ) : (
-              <NowPlayingBody />
-            )}
+            <PlayerStage mode={mode} song={song} />
           </View>
         </GestureDetector>
         {/* O chrome NAO leva gesto de fechar. Levou durante meia hora e

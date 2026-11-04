@@ -3,7 +3,6 @@
 | Ficheiro | O que é | Licença |
 | --- | --- | --- |
 | `OMSWide-Regular.ttf` | OMS Wide, a nossa display ultra-larga e ultra-preta (wordmark). **Gerada** por `scripts/generate-oms-wide.py` — não editar o TTF à mão, mexer no gerador e voltar a correr. | SIL OFL 1.1, © 2026 Afonso Coutinho |
-| `Cantarell-VF.otf` | Cantarell variável (GNOME) | SIL OFL 1.1 |
 
 Regenerar a OMS Wide (precisa de `fonttools`, `skia-pathops` e `brotli`):
 

@@ -73,7 +73,15 @@
     },
     "plugins": [
       "./plugins/withUISceneLifecycle",
-      "expo-router",
+      [
+        "expo-router",
+        {
+          "asyncRoutes": {
+            "web": "production",
+            "default": false
+          }
+        }
+      ],
       [
         "expo-splash-screen",
         {

@@ -20,17 +20,9 @@
  *   o player imersivo faz, e um cartão novo ("o tempo que deste") calculado
  *   só com o que o endpoint já devolve: contagens x durações.
  */
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import { ActivityIndicator, Text, View } from "react-native";
-import Animated, {
-  Easing,
-  runOnJS,
-  useAnimatedReaction,
-  useAnimatedStyle,
-  useSharedValue,
-  withDelay,
-  withTiming,
-} from "react-native-reanimated";
+import { Reveal as MotionReveal, useCountUp } from "@/ui/motion";
 import { useRouter } from "expo-router";
 import { useTopArtists, useTopSongs, useTopSongsOverall } from "@/api/queries/playEvents";
 import { getTransport } from "@/contracts/transport";
@@ -75,22 +67,15 @@ interface PlayerSnapshot {
  * entering/exiting do Reanimated, mas useSharedValue + withTiming correm em
  * todo o lado - é o padrão do cinema e das letras.
  */
-const Reveal = ({ order = 0, children }: { order?: number; children: React.ReactNode }) => {
-  const p = useSharedValue(0);
-  useEffect(() => {
-    p.value = withDelay(order * 90, withTiming(1, { duration: 420, easing: Easing.out(Easing.cubic) }));
-  }, [p, order]);
-  const style = useAnimatedStyle(() => ({
-    opacity: p.value,
-    transform: [{ translateY: 16 * (1 - p.value) }],
-  }));
-  return <Animated.View style={style}>{children}</Animated.View>;
-};
+const Reveal = ({ order = 0, children }: { order?: number; children: React.ReactNode }) => (
+  <MotionReveal order={order} step={90} distance={16} duration={420}>
+    {children}
+  </MotionReveal>
+);
 
 /**
- * Conta de 0 até `value` com withTiming; o número atravessa o runOnJS para
- * estado React porque o texto final (plurais ICU) é formatado em JS, não no
- * worklet. Render-prop para o chamador embrulhar o número na string i18n.
+ * Conta de 0 até `value` (ui/motion useCountUp). Render-prop para o
+ * chamador embrulhar o número na string i18n (plurais ICU).
  */
 const CountUp = ({
   value,
@@ -99,18 +84,7 @@ const CountUp = ({
   value: number;
   children: (n: number) => React.ReactNode;
 }) => {
-  const [shown, setShown] = useState(0);
-  const p = useSharedValue(0);
-  useEffect(() => {
-    p.value = withTiming(1, { duration: 1300, easing: Easing.out(Easing.cubic) });
-  }, [p]);
-  useAnimatedReaction(
-    () => p.value,
-    (v) => {
-      runOnJS(setShown)(Math.round(v * value));
-    },
-    [value],
-  );
+  const shown = useCountUp(value, 1300);
   return <>{children(shown)}</>;
 };
 

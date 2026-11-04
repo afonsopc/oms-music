@@ -20,21 +20,9 @@ import React, { useEffect, useRef, useState } from "react";
 import { View, type LayoutChangeEvent } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { useTheme } from "@/theme/provider";
+import { clamp01, SliderTrack, type SliderProps } from "./SliderTrack";
 
-export interface SliderProps {
-  value: number;
-  onSlide?: (value: number) => void;
-  onCommit: (value: number) => void;
-  /** Track thickness; the touch target is padded to 32 regardless. */
-  height?: number;
-  fillColor?: string;
-  trackColor?: string;
-  thumbSize?: number;
-  disabled?: boolean;
-  accessibilityLabel: string;
-}
-
-const clamp01 = (value: number): number => (value < 0 ? 0 : value > 1 ? 1 : value);
+export type { SliderProps } from "./SliderTrack";
 
 /** Horizontal travel before the track steals the gesture from a scroll view. */
 const DRAG_SLOP = 6;
@@ -132,36 +120,13 @@ export const Slider = ({
         }}
         style={{ height: 32, justifyContent: "center", opacity: disabled ? 0.4 : 1 }}
       >
-      <View
-        style={{
-          height,
-          borderRadius: height / 2,
-          backgroundColor: trackColor ?? tokens.muted,
-          overflow: "visible",
-        }}
-      >
-        <View
-          style={{
-            width: `${shown * 100}%`,
-            height,
-            borderRadius: height / 2,
-            backgroundColor: fill,
-          }}
+        <SliderTrack
+          shown={shown}
+          height={height}
+          fill={fill}
+          trackColor={trackColor ?? tokens.muted}
+          thumbSize={thumbSize}
         />
-        <View
-          pointerEvents="none"
-          style={{
-            position: "absolute",
-            left: `${shown * 100}%`,
-            top: height / 2 - thumbSize / 2,
-            width: thumbSize,
-            height: thumbSize,
-            marginLeft: -thumbSize / 2,
-            borderRadius: thumbSize / 2,
-            backgroundColor: fill,
-          }}
-        />
-        </View>
       </View>
     </GestureDetector>
   );

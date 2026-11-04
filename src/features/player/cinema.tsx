@@ -18,6 +18,7 @@
  */
 import React, { useEffect, useMemo } from "react";
 import {
+  Animated,
   Platform,
   Pressable,
   ScrollView,
@@ -27,7 +28,7 @@ import {
   View,
   type ViewStyle,
 } from "react-native";
-import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
+import { useTween } from "@/ui/motion";
 import { create } from "zustand";
 import { useLyrics } from "@/api/queries/lyrics";
 import { getTransport } from "@/contracts/transport";
@@ -76,11 +77,8 @@ const LYRIC_ROW_H = 44;
 
 /** One synced line whose emphasis fades instead of snapping (card idiom). */
 const CinemaLine = ({ text, active, color }: { text: string; active: boolean; color: string }) => {
-  const p = useSharedValue(active ? 1 : 0);
-  useEffect(() => {
-    p.value = withTiming(active ? 1 : 0, { duration: 240 });
-  }, [active, p]);
-  const dim = useAnimatedStyle(() => ({ opacity: 0.4 + 0.6 * p.value }));
+  const p = useTween(active ? 1 : 0, { duration: 240 });
+  const dim = { opacity: p.interpolate({ inputRange: [0, 1], outputRange: [0.4, 1] }) };
   return (
     <Animated.Text
       style={[

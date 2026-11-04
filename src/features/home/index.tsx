@@ -17,14 +17,9 @@
 import React, { useCallback, useMemo, useState, useSyncExternalStore } from "react";
 import { Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 import { useRouter } from "expo-router";
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withDelay,
-  withTiming,
-} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useMixes } from "@/api/queries/mixes";
+import { Reveal } from "@/ui/motion";
 import { useRecentAlbums, useTopArtists } from "@/api/queries/playEvents";
 import { usePlaylists } from "@/api/queries/playlists";
 import { useRandomAlbums } from "@/api/queries/songs";
@@ -100,17 +95,9 @@ const RailSkeletons = ({ count = 6 }: { count?: number }) => (
  * "Home que não renderiza" do desktop (dono, 2026-08-16; só as pills
  * escapavam, por viverem fora das Sections).
  */
-const Section = ({ order, children }: { order: number; children: React.ReactNode }) => {
-  const progress = useSharedValue(0);
-  React.useEffect(() => {
-    progress.value = withDelay(order * 50, withTiming(1, { duration: 300 }));
-  }, [order, progress]);
-  const style = useAnimatedStyle(() => ({
-    opacity: progress.value,
-    transform: [{ translateY: (1 - progress.value) * 12 }],
-  }));
-  return <Animated.View style={style}>{children}</Animated.View>;
-};
+const Section = ({ order, children }: { order: number; children: React.ReactNode }) => (
+  <Reveal order={order} step={50}>{children}</Reveal>
+);
 
 export default function HomeScreen() {
   const t = useT();

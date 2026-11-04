@@ -13,13 +13,14 @@ import Head from "expo-router/head";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { Platform } from "react-native";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { GestureRoot } from "@/ui/GestureRoot";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { hydrateQueryCache, startQueryCachePersistence } from "@/api/persistCache";
 import { queryClient, wireQueryClient } from "@/api/queryClient";
 import { useSessionStore } from "@/auth/session";
 import { isMiniplayerWindow } from "@/desktop/miniplayer";
 import { MiniplayerApp } from "@/features/miniplayer/MiniplayerApp";
+import { hideBootSplash } from "@/features/shell/bootSplash";
 import { SessionGate } from "@/features/shell/SessionGate";
 import { routeTitle } from "@/features/shell/routeTitles";
 import { SlotProviders } from "@/features/shell/slots";
@@ -103,7 +104,12 @@ export default function RootLayout() {
   const miniplayer = isMiniplayerWindow();
 
   useEffect(() => {
-    if (miniplayer) return;
+    if (miniplayer) {
+      // A janela do mini-player não passa pelo SessionGate, que é quem tira
+      // o esqueleto do HTML.
+      hideBootSplash();
+      return;
+    }
     wireQueryClient();
     // Local-first boot: yesterday's library renders in the FIRST frame the
     // authed screens mount; the network only revalidates it afterwards.
@@ -126,9 +132,9 @@ export default function RootLayout() {
         <QueryClientProvider client={queryClient}>
           <SessionGate>
             <SlotProviders>
-              <GestureHandlerRootView style={{ flex: 1 }}>
+              <GestureRoot style={{ flex: 1 }}>
                 <RootNavigator />
-              </GestureHandlerRootView>
+              </GestureRoot>
             </SlotProviders>
           </SessionGate>
         </QueryClientProvider>

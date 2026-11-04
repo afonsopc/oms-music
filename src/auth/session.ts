@@ -22,6 +22,12 @@ import { clearToken, loadToken, setToken } from "./token";
 import { onAuthLoss, setAuthReady } from "./guard";
 import { adoptTicket, exchangeLegacySession } from "./oauth";
 import { isMusicToken, markWebMigrated, webMigrated } from "./musicSession";
+import {
+  canBootOptimistically,
+  clearBootSnapshot,
+  readBootSnapshot,
+  writeBootSnapshot,
+} from "./bootSnapshot";
 
 export type SessionStatus = "booting" | "anon" | "authed";
 
@@ -79,6 +85,7 @@ const runLogoutTasks = (): void => {
 
 const wipeToAnon = async (): Promise<void> => {
   setAuthReady(false);
+  clearBootSnapshot();
   await clearToken();
   runLogoutTasks();
   queryClient.clear();
@@ -124,6 +131,20 @@ export const bootSession = async (): Promise<void> => {
     set({ status: "anon", session: null, user: null, offlineBoot: false });
     return;
   }
+  // Arranque optimista (auth/bootSnapshot.ts): com a conta da última vez a
+  // app entra JÁ e a verificação abaixo corre por trás.
+  const snapshot = canBootOptimistically({
+    cookie: isCookieAuth(),
+    migrated: webMigrated(),
+    token,
+    isMusicToken,
+  })
+    ? readBootSnapshot()
+    : null;
+  if (snapshot) {
+    set({ status: "authed", session: snapshot.session, user: snapshot.user, offlineBoot: false });
+    setAuthReady(true);
+  }
   try {
     await upgradeLegacySession(token);
     const session = await fetchMySession();
@@ -134,6 +155,9 @@ export const bootSession = async (): Promise<void> => {
       return;
     }
     const user = await userOf(session);
+    // Outra conta no mesmo browser: nada do que se mostrou pode ficar.
+    if (snapshot && snapshot.user.id !== user.id) queryClient.clear();
+    writeBootSnapshot(session, user);
     set({ status: "authed", session, user, offlineBoot: false });
     setAuthReady(true);
   } catch (error) {
@@ -143,7 +167,13 @@ export const bootSession = async (): Promise<void> => {
     }
     // Network failure: keep the token, enter authed-offline. The offline
     // library still works; queries stay parked until connectivity returns.
-    set({ status: "authed", session: null, user: null, offlineBoot: true });
+    // Com a conta guardada, os ecrãs continuam a ter nome e foto.
+    set({
+      status: "authed",
+      session: snapshot?.session ?? null,
+      user: snapshot?.user ?? null,
+      offlineBoot: true,
+    });
     setAuthReady(true);
   }
 };
@@ -152,6 +182,7 @@ export const bootSession = async (): Promise<void> => {
 export const refreshAccount = async (): Promise<void> => {
   const session = await fetchMySession();
   const user = await userOf(session);
+  writeBootSnapshot(session, user);
   set({ status: "authed", session, user, offlineBoot: false });
 };
 
@@ -191,11 +222,13 @@ export const establishSession = async (
   queryClient.clear();
   const session = seed ?? (await fetchMySession());
   set({ status: "authed", session, user: session.user ?? null, offlineBoot: false });
+  if (session.user) writeBootSnapshot(session, session.user);
   setAuthReady(true);
   // Refresh the full account for the conditional fields; best-effort, because
   // the embedded user from the session view already renders every screen.
   try {
     const user = await fetchUser(session.user_id);
+    writeBootSnapshot(session, user);
     set({ user });
   } catch {
     // Keep the embedded user; the account refetches on the next reconnect.

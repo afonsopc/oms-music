@@ -9,6 +9,7 @@
 import React, { useEffect } from "react";
 import * as SplashScreen from "expo-splash-screen";
 import { bootSession, useSessionStore } from "@/auth/session";
+import { hideBootSplash } from "./bootSplash";
 
 let bootStarted = false;
 
@@ -25,6 +26,7 @@ export const SessionGate = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     if (status !== "booting") {
       SplashScreen.hideAsync().catch(() => {});
+      hideBootSplash();
     }
   }, [status]);
 
