@@ -306,6 +306,25 @@ capa em caixilho a saltar, a letra enorme sobre fundo quente com grão, cortes
 secos; nada copiado). "Pelo estilo": géneros das etiquetas da música, e sem
 eles o BPM e a energia média.
 
+### Rumo às 100 cenas (fim da tarde do dia 4)
+
+O dono quer "MUITOS visualizadores, tipo 100, para ir mudando sem
+repetir". O motor ficou preparado para vários agentes acrescentarem cenas
+ao mesmo tempo sem conflitos: **um ficheiro por cena**
+(`viz/scenes/<pacote>/<id>.ts`, com o meta: nome, famílias, etiquetas,
+intensidade, custo, sinais, estilo da letra), um índice gerado que não vai
+para o git, ajudantes em `viz/lib/` e cada cena num pedaço de JS carregado
+quando entra (a seguinte do baralho pré-carrega-se). O escolhedor é um
+baralho guardado no aparelho: nenhuma cena volta antes de quase todas terem
+passado, de música para música. A app recebe a lista do motor, por isso as
+cenas novas aparecem sem build novo. Galeria em `/viz/?gallery`; o teste
+(`bun run viz:test`) monta, desenha 120 frames, desmonta e mede cada cena.
+As 23 de antes foram comparadas com o build anterior com o relógio parado:
+17 iguais píxel a píxel; as 6 que mudam a cada frame (grão, faíscas, cortes)
+diferem tanto do build anterior como o build anterior de si próprio. Guia
+para quem faz cenas: `viz/scenes/README.md`. A primeira nova: o
+fogo-de-artifício.
+
 ### Secções: as mudanças seguem a música
 
 Regra do dono: nada de mudar por tempo. A análise v2 (`Music::AudioAnalysis`)

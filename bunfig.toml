@@ -1,0 +1,3 @@
+[test]
+# gera viz/scenes/_registry.ts (não vai para o git) antes dos testes
+preload = ["./viz/tools/preload.ts"]

@@ -46,6 +46,7 @@
     "@types/react": "~19.2.2",
     "eslint": "^9.0.0",
     "eslint-config-expo": "~57.0.1",
+    "playwright-core": "1.64.1",
     "typescript": "~6.0.3"
   },
   "scripts": {
@@ -56,9 +57,13 @@
     "android:apk": "bash scripts/android-apk.sh",
     "web": "expo start --web",
     "lint": "expo lint",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "bun viz/tools/registry.ts && tsc --noEmit",
     "test": "bun test",
     "smoke": "bun scripts/smoke.ts",
+    "viz:build": "bun viz/tools/build.ts",
+    "viz:gallery": "bun viz/tools/serve.ts",
+    "viz:shots": "bun viz/tools/shots.ts",
+    "viz:test": "VIZ_RENDER=1 bun test viz/__tests__/render.test.ts",
     "deeplinks": "bun e2e/deeplinks.ts",
     "version:bump": "bun scripts/version-bump.ts"
   },

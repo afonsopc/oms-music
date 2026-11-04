@@ -49,3 +49,8 @@ modules/*/android/.cxx/
 # Construído pelo scripts/build-web.sh a partir de viz/
 /public/viz/
 /public/montage/
+
+# o índice das cenas do /viz/ (gerado: bun viz/tools/registry.ts)
+viz/scenes/_registry.ts
+# capturas e vídeos da galeria (bun run viz:shots)
+viz/.shots/

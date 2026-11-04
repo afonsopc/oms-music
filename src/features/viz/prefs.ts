@@ -4,9 +4,10 @@
  */
 import { create } from "zustand";
 import { kvGetJson, kvSetJson } from "@/db/kv";
-import type { SceneName, SceneSelection } from "../../../viz/protocol";
+import type { SceneName, SceneSelection, VizSceneInfo } from "../../../viz/protocol";
 
 const KEY = "oms-music.viz.prefs";
+const CATALOG_KEY = "oms-music.viz.catalog";
 
 export type LyricsMode = "always" | "sometimes" | "never";
 
@@ -49,4 +50,28 @@ export const cycleScenePref = (scene: SceneName) => {
   if (favorites.includes(scene)) save({ favorites: favorites.filter((s) => s !== scene), banned: [...banned, scene] });
   else if (banned.includes(scene)) save({ banned: banned.filter((s) => s !== scene) });
   else save({ favorites: [...favorites, scene] });
+};
+
+/**
+ * A lista das cenas vem do motor (mensagem "catalog", viz/scenes/): as
+ * cenas novas aparecem sem build novo da app. Guarda-se a última para a
+ * folha das definições não abrir vazia.
+ */
+export const useVizCatalog = create<{ scenes: VizSceneInfo[] }>(() => {
+  const stored = kvGetJson<VizSceneInfo[]>(CATALOG_KEY);
+  return { scenes: Array.isArray(stored) ? stored : [] };
+});
+
+export const setVizCatalog = (scenes: VizSceneInfo[]) => {
+  if (!Array.isArray(scenes) || scenes.length === 0) return;
+  useVizCatalog.setState({ scenes });
+  kvSetJson(CATALOG_KEY, scenes);
+};
+
+/** O nome de uma cena na língua da app (o pt-PT do meta quando não há tradução). */
+export const sceneDisplayName = (info: VizSceneInfo | undefined, locale: string, fallback: string): string => {
+  if (!info) return fallback;
+  if (locale === "en" && info.names?.en) return info.names.en;
+  if (locale === "lv" && info.names?.lv) return info.names.lv;
+  return info.name;
 };

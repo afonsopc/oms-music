@@ -1,50 +1,29 @@
 /** As mensagens entre a app e o motor (/viz/). Partilhado pelos dois lados. */
 
-export type SceneName =
-  | "aurora"
-  | "milk"
-  | "kaleido"
-  | "tunnel"
-  | "chrome"
-  | "plasma"
-  | "pipes"
-  | "text3d"
-  | "mystify"
-  | "starfield"
-  | "scope"
-  | "desktop"
-  | "synthwave"
-  | "liquid"
-  | "voxel"
-  | "galaxy"
-  | "vhs"
-  | "datamosh"
-  | "ink"
-  | "film"
-  | "matrix"
-  | "vector"
-  | "pixel8"
-  | "collage";
-
-/** As cenas do ecrã inteiro, pela ordem em que se percorrem. */
-export const FULL_SCENES: SceneName[] = [
-  "milk", "text3d", "chrome", "tunnel", "kaleido", "pipes", "mystify", "starfield", "scope", "plasma", "desktop",
-  "synthwave", "liquid", "voxel", "galaxy", "vhs", "datamosh", "ink", "film", "matrix", "vector", "pixel8",
-  "collage",
-];
+/**
+ * Uma cena é um id (o nome do ficheiro em viz/scenes/<pacote>/<id>.ts),
+ * validado contra o índice gerado; a lista vem do motor (mensagem
+ * "catalog"), não está escrita aqui.
+ */
+export type SceneName = string;
 
 /**
  * As famílias, para escolher "pelo estilo da música": calmo (fado,
  * acústico), electrónico, caos (hardstyle, hyperpop, glitch) e o computador
- * retro. Uma cena pode estar em mais de uma.
+ * retro. Cada cena diz as suas no `meta`.
  */
 export type SceneFamily = "calm" | "electronic" | "chaos" | "retro";
-export const SCENE_FAMILIES: Record<SceneFamily, SceneName[]> = {
-  calm: ["ink", "film", "kaleido", "plasma", "liquid", "galaxy", "milk"],
-  electronic: ["synthwave", "tunnel", "voxel", "galaxy", "milk", "chrome", "liquid", "kaleido"],
-  chaos: ["datamosh", "vhs", "desktop", "pixel8", "matrix", "text3d", "chrome", "tunnel", "milk", "collage"],
-  retro: ["pipes", "mystify", "starfield", "scope", "vector", "pixel8", "matrix", "text3d", "desktop"],
-};
+
+/** O que a app precisa de saber de cada cena para a lista de favoritas/banidas. */
+export interface VizSceneInfo {
+  id: SceneName;
+  name: string;
+  names?: { en?: string; lv?: string };
+  pack: string;
+  families: SceneFamily[];
+  intensity: number;
+  cost: number;
+}
 
 export type SceneSelection = "random" | "style";
 
@@ -121,5 +100,6 @@ export type ToViz =
 
 export type FromViz =
   | { type: "ready" }
-  | { type: "scene"; name: SceneName }
+  | { type: "scene"; name: SceneName; label?: string }
+  | { type: "catalog"; scenes: VizSceneInfo[] }
   | { type: "frames"; avgMs: number; p95Ms: number; fps: number; dropped: number; scene: SceneName };

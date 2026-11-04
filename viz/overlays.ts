@@ -7,22 +7,13 @@
  * A letra segue as secções: com "às vezes" aparece nos refrões, nas quedas e
  * nos 10 s depois de um momento grande, e de 4 em 4 linhas no resto; com
  * "sempre", sempre. Cada palavra salta no seu tempo; as longas (> 0,6 s)
- * ficam maiores e a brilhar. O estilo vem da cena: 3D extrudido nas de
+ * ficam maiores e a brilhar. O estilo vem do `meta.lyrics` da cena: 3D extrudido nas de
  * protector de ecrã, falhada nas de glitch, ASCII nas de terminal, néon nas
  * de synthwave, tinta nas calmas.
  */
-import type { LyricsMode, SceneName, VizLyricLine, VizSection, VizSong } from "./protocol";
+import type { LyricsMode, VizLyricLine, VizSection, VizSong } from "./protocol";
 
 export type LyricStyle = "extrude" | "glitch" | "ascii" | "neon" | "ink" | "none";
-
-export const lyricStyleFor = (scene: SceneName): LyricStyle => {
-  if (["text3d", "pipes", "mystify", "starfield", "chrome"].includes(scene)) return "extrude";
-  if (["datamosh", "vhs", "desktop", "pixel8"].includes(scene)) return "glitch";
-  if (["matrix", "scope", "vector"].includes(scene)) return "ascii";
-  if (["synthwave", "tunnel", "voxel", "galaxy"].includes(scene)) return "neon";
-  if (scene === "collage") return "none"; // a Colagem desenha a letra ela própria
-  return "ink";
-};
 
 const CSS = `
 .vz-lyr{position:fixed;left:6vw;right:6vw;top:50%;transform:translateY(-50%);text-align:center;pointer-events:none;z-index:5;display:flex;flex-wrap:wrap;justify-content:center;gap:.25em .4em;transition:opacity .45s ease}

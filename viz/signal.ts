@@ -23,6 +23,19 @@ export interface Signal {
   bpm: number;
   /** Há análise verdadeira por trás. */
   real: boolean;
+  /** Posição na música, em segundos. */
+  time: number;
+  /** A secção em que se está ("none" sem secções). */
+  section: VizSection["type"] | "none";
+  /** Índice da secção (-1 sem secções) e o grupo (o refrão que volta tem o mesmo grupo). */
+  sectionIndex: number;
+  sectionGroup: number;
+  /** Intensidade da secção, 0..1 (sem secções: 0,5). */
+  sectionIntensity: number;
+  /** Segundos desde o início da secção. */
+  sectionAge: number;
+  /** 1 no início de uma secção grande (queda, refrão), a cair para 0 em ~1,5 s. */
+  drop: number;
 }
 
 export interface Decoded {
@@ -63,6 +76,8 @@ export const sectionAt = (d: Decoded | null, t: number): number => {
   return i;
 };
 
+const NO_SECTION = { section: "none" as const, sectionIndex: -1, sectionGroup: -1, sectionIntensity: 0.5, drop: 0 };
+
 /** Índice do último elemento <= t (pesquisa binária). */
 const lastAtOrBefore = (arr: Float64Array, t: number): number => {
   let lo = 0;
@@ -89,7 +104,7 @@ export const sample = (d: Decoded | null, t: number, playing: boolean): Signal =
     const breathe = 0.35 + 0.15 * Math.sin(t * 0.8);
     const beatPos = t * 2;
     const beat = playing ? Math.exp(-(beatPos % 1) * 6) * 0.4 : 0;
-    return { energy: breathe, bass: breathe, lowmid: breathe * 0.9, mid: breathe * 0.8, high: breathe * 0.6, beat, beatPos, bar: beatPos / 4, onset: 0, bpm: 120, real: false };
+    return { energy: breathe, bass: breathe, lowmid: breathe * 0.9, mid: breathe * 0.8, high: breathe * 0.6, beat, beatPos, bar: beatPos / 4, onset: 0, bpm: 120, real: false, ...NO_SECTION, time: t, sectionAge: t };
   }
   const f = t * d.fps;
   const bi = lastAtOrBefore(d.beats, t);
@@ -99,6 +114,9 @@ export const sample = (d: Decoded | null, t: number, playing: boolean): Signal =
   const oi = lastAtOrBefore(d.onsets, t);
   const sinceOnset = oi >= 0 ? t - d.onsets[oi] : 9;
   const quiet = playing ? 1 : 0.25;
+  const si = sectionAt(d, t);
+  const sec = si >= 0 ? d.sections[si] : null;
+  const age = sec ? t - sec.t : t;
   return {
     energy: at(d.env, f) * quiet,
     bass: at(d.bands[0], f) * quiet,
@@ -111,6 +129,13 @@ export const sample = (d: Decoded | null, t: number, playing: boolean): Signal =
     onset: playing ? Math.exp(-sinceOnset / 0.08) : 0,
     bpm: d.bpm,
     real: true,
+    time: t,
+    section: sec ? sec.type : "none",
+    sectionIndex: si,
+    sectionGroup: sec ? sec.group : -1,
+    sectionIntensity: sec ? sec.intensity : 0.5,
+    sectionAge: age,
+    drop: sec?.big && playing ? Math.exp(-age / 0.5) : 0,
   };
 };
 

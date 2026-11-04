@@ -11,14 +11,14 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { formatArtists, formatDuration } from "@/domain/format";
 import { togglePlaybackOptimistic, useShownPlaying } from "@/features/player/optimisticPlay";
 import { getTransport } from "@/contracts/transport";
-import { useT } from "@/i18n";
+import { useLocale, useT } from "@/i18n";
 import { haptics } from "@/lib/haptics";
 import { usePlaybackView } from "@/remote/mirror";
 import { GhostIconButton, PlayFab } from "@/ui";
-import { FULL_SCENES, type SceneName, type VizFx } from "../../../viz/protocol";
+import type { SceneName, VizFx } from "../../../viz/protocol";
 import { useSongAnalysis } from "./analysis";
 import { useMontagePanel, type VideoLayerMode } from "./montageSlot";
-import { cycleLyricsMode, cycleScenePref, setVizSelection, useVizPrefs } from "./prefs";
+import { cycleLyricsMode, cycleScenePref, sceneDisplayName, setVizCatalog, setVizSelection, useVizCatalog, useVizPrefs } from "./prefs";
 import { exitFullscreen } from "./openVisualizer";
 import { Waveform } from "./Waveform";
 import { Slider } from "@/features/player/Slider";
@@ -123,6 +123,9 @@ const VizVolume = () => {
 const SettingsPanel = ({ onClose }: { onClose: () => void }) => {
   const t = useT();
   const prefs = useVizPrefs();
+  const locale = useLocale();
+  const catalog = useVizCatalog((c) => c.scenes);
+  const scenes = [...catalog].sort((a, b) => sceneDisplayName(a, locale, a.id).localeCompare(sceneDisplayName(b, locale, b.id), locale));
   const { width } = useWindowDimensions();
   const wide = width >= 720;
   return (
@@ -144,7 +147,8 @@ const SettingsPanel = ({ onClose }: { onClose: () => void }) => {
       </View>
       <Text style={{ color: "#a3a3a3", fontSize: 13, paddingHorizontal: 16, paddingBottom: 6 }}>{t("native.viz.prefsHint")}</Text>
       <ScrollView contentContainerStyle={{ paddingHorizontal: 8, paddingBottom: 24 }}>
-        {FULL_SCENES.map((scene) => {
+        {scenes.map((info) => {
+          const scene = info.id;
           const fav = prefs.favorites.includes(scene);
           const ban = prefs.banned.includes(scene);
           return (
@@ -158,7 +162,7 @@ const SettingsPanel = ({ onClose }: { onClose: () => void }) => {
               style={({ pressed }) => ({ flexDirection: "row", alignItems: "center", minHeight: 44, paddingHorizontal: 8, borderRadius: 8, backgroundColor: pressed ? "#1c1c1c" : "transparent" })}
             >
               <Text style={{ flex: 1, color: ban ? "#6b6b6b" : "#ebebeb", fontSize: 15, textDecorationLine: ban ? "line-through" : "none" }}>
-                {t(`native.viz.scene.${scene}`)}
+                {sceneDisplayName(info, locale, scene)}
               </Text>
               <Text style={{ color: fav ? "#fff" : "#a3a3a3", fontSize: 13, fontWeight: fav ? "600" : "400" }}>
                 {fav ? `♥ ${t("native.viz.fav")}` : ban ? t("native.viz.banned") : ""}
@@ -177,7 +181,9 @@ export default function VisualizerScreen() {
   const insets = useSafeAreaInsets();
   const song = usePlaybackView((v) => v.song);
   const playing = useShownPlaying();
-  const [scene, setScene] = useState<SceneName | null>(null);
+  const [scene, setScene] = useState<{ id: SceneName; label?: string } | null>(null);
+  const locale = useLocale();
+  const catalog = useVizCatalog((c) => c.scenes);
   const [chaos, setChaos] = useState(false);
   const [fx, setFx] = useState<VizFx>({ crt: false, chroma: false, pixel: false, dither: false });
   const [step, setStep] = useState({ n: 0, dir: 1 as 1 | -1 });
@@ -268,7 +274,7 @@ export default function VisualizerScreen() {
     else poke();
   };
 
-  const sceneLabel = scene ? t(`native.viz.scene.${scene}`) : "";
+  const sceneLabel = scene ? sceneDisplayName(catalog.find((c) => c.id === scene.id), locale, scene.label ?? scene.id) : "";
   const fade = { opacity: chrome ? 1 : 0, ...(Platform.OS === "web" ? ({ transition: "opacity .35s ease" } as object) : null) };
 
   return (
@@ -287,7 +293,8 @@ export default function VisualizerScreen() {
         cycleOnTrack
         paused={videoLayer?.mode === "instead"}
         onMessage={(m) => {
-          if (m.type === "scene") setScene(m.name);
+          if (m.type === "scene") setScene({ id: m.name, label: m.label });
+          else if (m.type === "catalog") setVizCatalog(m.scenes);
         }}
         style={[
           { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 },
