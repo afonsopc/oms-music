@@ -17,6 +17,7 @@ import {
   type StyleProp,
   type ViewStyle,
 } from "react-native";
+import { staggerDelay } from "./motionMath";
 
 export const EASE_OUT = Easing.out(Easing.cubic);
 
@@ -52,9 +53,7 @@ export const useReducedMotion = (): boolean => {
   return v;
 };
 
-/** Atraso da entrada em cascata: rápido ao início, nunca mais de ~0,4 s. */
-export const staggerDelay = (order: number, step = 40, cap = 400): number =>
-  Math.min(Math.max(0, order) * step, cap);
+export { staggerDelay } from "./motionMath";
 
 /**
  * Um valor que anda até `target` (0..1) com uma curva suave. Mudar o alvo

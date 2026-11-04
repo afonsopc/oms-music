@@ -842,7 +842,12 @@
       "loading": "Notiek ielāde...",
       "rateLimited": "Pārāk daudz pieprasījumu - mēģiniet vēlreiz pēc {seconds} s",
       "offlineBanner": "Tu esi bezsaistē. Rāda tavus lejupielādētos failus.",
-      "close": "Aizvērt"
+      "close": "Aizvērt",
+      "waitSlow": "Vēl ielādē…",
+      "waitSlower": "Tas aizņem ilgāk nekā parasti…",
+      "waitStuck": "Tas nevirzās uz priekšu.",
+      "loadFailed": "Neizdevās ielādēt.",
+      "tryAgain": "Mēģināt vēlreiz"
     },
     "auth": {
       "errors": {

@@ -164,12 +164,8 @@ describe("token text pairs on their real backgrounds", () => {
   });
 
   it("resolves a second set for the muted track", () => {
-    // The progress bar draws its fill on `muted`, where the page ink for
-    // `destructive` reaches only ~2.85:1 in dark. The muted set fixes that
-    // WITHOUT dragging every other surface darker.
-    expect(
-      contrastRatio(statusInkFor("dark").destructive, darkTokens.muted),
-    ).toBeLessThan(AA_LARGE);
+    // The progress bar draws its fill on `muted`; its own set clears the
+    // non-text bar there WITHOUT dragging every other surface darker.
     for (const scheme of SCHEMES) {
       const t = tokensFor(scheme);
       for (const color of Object.values(statusInkFor(scheme, "muted"))) {

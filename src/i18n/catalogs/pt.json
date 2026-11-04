@@ -842,7 +842,12 @@
       "loading": "A carregar...",
       "rateLimited": "Demasiados pedidos - tente novamente dentro de {seconds} s",
       "offlineBanner": "Estás offline. A mostrar as tuas transferências.",
-      "close": "Fechar"
+      "close": "Fechar",
+      "waitSlow": "Ainda a carregar…",
+      "waitSlower": "Está a demorar mais do que o costume…",
+      "waitStuck": "Isto não está a andar.",
+      "loadFailed": "Não foi possível carregar.",
+      "tryAgain": "Tentar de novo"
     },
     "auth": {
       "errors": {

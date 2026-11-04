@@ -58,7 +58,7 @@ UI/UX:
 
 ## Passos
 
-### Passo 1 — velocidade sem mudar o aspecto
+### Passo 1 - velocidade sem mudar o aspecto
 
 - Divisão por rotas na web (`asyncRoutes` do expo-router só em produção na
   web; o export estático põe no HTML de cada rota só os seus pedaços).
@@ -87,7 +87,7 @@ Medido no mesmo Mac, export servido com gzip, Lighthouse 12 telemóvel:
 | Speed Index | – | 2,1 s |
 | TBT | 380-400 ms | 190-200 ms |
 
-### Passo 1b — listas e toque
+### Passo 1b - listas e toque
 
 - `SongTable`: cada linha é um `TableRow` com memo que recebe as funções da
   tabela (estáveis) em vez de fechos novos por linha, e só a linha actual
@@ -106,3 +106,43 @@ Medido no mesmo Mac, export servido com gzip, Lighthouse 12 telemóvel:
   falha se algum `<script>` de um HTML não existir.
 - Backend: o cookie da sessão da música passa a contar como credencial no
   tecto de pedidos (a web inteira estava no tecto anónimo de 120/min por IP).
+
+## O padrão (passo 2)
+
+Uma só forma de página em todos os ecrãs. Peças em `src/ui/page.tsx`,
+`src/ui/motion.tsx`, `src/lib/haptics.ts`:
+
+- **Cores**: só neutros (`theme/tokens.ts`): fundo `#0a0a0a`, superfícies
+  `#111`/`#161616`/`#1a1a1a`, traços `#1f1f1f`, texto `#f5f5f5`, secundário
+  `#a1a1a1` (claro: o inverso). Nada de laranja, roxo, verde ou gradientes
+  coloridos na interface; as mixes e as Gostadas são carvão. A cor vem das
+  capas.
+- **Margem**: `useGutter()` (20 no telemóvel, 32 no computador). Nunca 16/24
+  soltos.
+- **Título**: `PageHeader` / `TabHeader` / `PageTitle` (30, 800, -0.8), uma
+  linha, encolhe em vez de partir. Sem subtítulos a explicar a página.
+- **Secções**: `SectionLabel` (20/700) com acção de texto opcional; nas
+  definições o rótulo pequeno cinzento do `SettingsSection`.
+- **Listas**: `ListRow` (56 px, sem caixa, traço fino, acende ao toque) ou
+  `SettingsRow`. Nada de cartões dentro de cartões nem caixas com borda à
+  volta de listas.
+- **Filtros/secções**: `FilterPills` (agora palavras com um traço por baixo,
+  acendem no toque). Nada de pílulas soltas, chips ou botões a mais.
+- **Botões**: uma acção principal por ecrã (o `PlayFab` redondo nas
+  coleções, `PrimaryButton` nos formulários); o resto `TextButton` (contorno
+  fino) ou texto.
+- **Estados**: `PageState` (esqueleto + `WaitHint` que muda de frase aos 2,
+  6 e 20 s com "Tentar de novo"; erro "Não foi possível carregar." + "Tentar
+  de novo"; vazio = ícone + uma frase + uma acção). Nunca um
+  `ActivityIndicator` sozinho num ecrã; dentro de um botão a carregar, sim.
+- **Movimento**: `Reveal order={i}` para entradas em cascata (rápidas,
+  ≤ 0,4 s no total), `PressableScale` para o que se toca e não é uma linha,
+  `useTween` para realces; tudo respeita "reduzir movimento".
+- **Hápticos**: `haptics.select()` ao escolher, `haptics.tap()` ao tocar
+  play, `haptics.press()` ao abrir um menu por pressão longa,
+  `haptics.success()` ao gostar/guardar.
+- **Optimista**: gostar, seguir, adicionar à playlist, apagar mudam no toque
+  e desfazem se o servidor recusar.
+- **Texto**: pt-PT pré-AO90 (acção, selecção, actualizar, óptimo, direcção),
+  "tu" sempre, curto, sem jargão (nada de cache, stem, mixer, feed, bug,
+  sync); chaves novas nos três catálogos.

@@ -237,7 +237,7 @@ export default function DownloadsOverviewScreen() {
           <Switch
             value={manualOffline}
             onValueChange={setManualOffline}
-            {...switchColors(tokens)}
+            {...switchColors(tokens, manualOffline)}
           />
         </View>
       ) : null}

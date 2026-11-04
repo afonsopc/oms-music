@@ -1,19 +1,17 @@
-import { BRAND, type ThemeTokens } from "./tokens";
+import type { ThemeTokens } from "./tokens";
 
 /**
- * Colors for a platform <Switch/>.
+ * Colors for a platform <Switch/>, em neutros (redesenho 2026-11-04).
  *
- * `tokens.primary` is deliberately MONOCHROME (near-black in light, near-white
- * in dark), which makes it the one token a switch must not use: the platform
- * draws a white thumb, so an "on" switch rendered white-on-white is invisible
- * in dark mode. That shipped, and the toggles read as blank pills on device.
- *
- * The brand orange is used instead: it separates from the white thumb in both
- * schemes and marks the control as ours. The thumb is left to the platform on
- * purpose, so the control keeps its native look and its pressed and disabled
- * states.
+ * Ligado: o trilho é a cor do texto (quase branco no escuro, quase preto no
+ * claro) e o botão a cor do fundo, por isso o "ligado" lê-se como uma peça
+ * invertida e nunca como branco sobre branco (o que já aconteceu com o
+ * `primary` e o botão branco do sistema). Desligado: trilho `muted` e botão
+ * branco do sistema. Precisa do valor para escolher o botão.
  */
-export const switchColors = (tokens: ThemeTokens) => ({
-  trackColor: { false: tokens.muted, true: BRAND },
+export const switchColors = (tokens: ThemeTokens, value: boolean) => ({
+  trackColor: { false: tokens.muted, true: tokens.foreground },
   ios_backgroundColor: tokens.muted,
+  thumbColor: value ? tokens.background : "#ffffff",
+  activeThumbColor: tokens.background,
 });

@@ -41,6 +41,11 @@ export const useApiErrorMessage = (): ((error: unknown) => string) => {
   };
 };
 
+/**
+ * Uma secção das definições: um rótulo pequeno e cinzento e as linhas por
+ * baixo, separadas por traços finos. Sem caixa (redesenho 2026-11-04): a
+ * margem do ecrã é a única moldura.
+ */
 export const SettingsSection = ({
   title,
   children,
@@ -52,30 +57,20 @@ export const SettingsSection = ({
 }) => {
   const { tokens } = useTheme();
   return (
-    <View style={[{ gap: 8 }, style]}>
+    <View style={[{ gap: 2 }, style]}>
       {title ? (
         <Text
           style={{
             color: tokens.mutedForeground,
-            fontSize: 12,
-            fontWeight: "700",
-            textTransform: "uppercase",
-            letterSpacing: 1,
-            paddingHorizontal: 4,
+            fontSize: 13,
+            fontWeight: "600",
+            paddingBottom: 4,
           }}
         >
           {title}
         </Text>
       ) : null}
-      <View
-        style={{
-          borderWidth: 1,
-          borderColor: tokens.border,
-          borderRadius: RADIUS * 2,
-          backgroundColor: tokens.card,
-          overflow: "hidden",
-        }}
-      >
+      <View style={{ borderTopWidth: 1, borderBottomWidth: 1, borderColor: tokens.border }}>
         {children}
       </View>
     </View>
@@ -111,19 +106,19 @@ export const SettingsRow = ({
       style={({ pressed }) => ({
         flexDirection: "row",
         alignItems: "center",
-        gap: 12,
-        paddingHorizontal: 16,
-        paddingVertical: 14,
+        gap: 14,
+        minHeight: 56,
+        paddingVertical: 12,
         borderTopWidth: first ? 0 : 1,
         borderTopColor: tokens.border,
-        opacity: disabled ? 0.5 : pressed ? 0.7 : 1,
+        opacity: disabled ? 0.45 : pressed ? 0.6 : 1,
       })}
     >
       {icon ? <Icon name={icon} size={20} color={destructive ? ink.destructive : tokens.mutedForeground} /> : null}
       <View style={{ flex: 1, gap: 2 }}>
-        <Text style={{ color, fontSize: 15, fontWeight: "600" }}>{label}</Text>
+        <Text style={{ color, fontSize: 16, fontWeight: "500" }}>{label}</Text>
         {detail ? (
-          <Text style={{ color: tokens.mutedForeground, fontSize: 12, lineHeight: 17 }}>
+          <Text style={{ color: tokens.mutedForeground, fontSize: 14, lineHeight: 18 }}>
             {detail}
           </Text>
         ) : null}
@@ -159,7 +154,7 @@ export const SwitchRow = ({
           value={value}
           onValueChange={onValueChange}
           disabled={disabled}
-          {...switchColors(tokens)}
+          {...switchColors(tokens, value)}
         />
       }
     />

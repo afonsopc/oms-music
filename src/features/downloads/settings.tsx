@@ -82,7 +82,7 @@ const ToggleRow = ({
       <Switch
         value={value}
         onValueChange={onValueChange}
-        {...switchColors(tokens)}
+        {...switchColors(tokens, value)}
       />
     </View>
   );

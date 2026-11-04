@@ -13,9 +13,8 @@
  * especial aqui.
  */
 import React from "react";
-import { Text, View, type StyleProp, type ViewStyle } from "react-native";
-import { useTheme } from "@/theme/provider";
-import { typeScale } from "@/theme/typography";
+import { View, type StyleProp, type ViewStyle } from "react-native";
+import { PageTitle, useGutter } from "@/ui/page";
 import { HeaderAvatar } from "./HeaderAvatar";
 
 export const TabHeader = ({
@@ -28,11 +27,11 @@ export const TabHeader = ({
   children?: React.ReactNode;
   style?: StyleProp<ViewStyle>;
 }) => {
-  const { tokens } = useTheme();
+  const gutter = useGutter();
   return (
     <View
       style={[
-        { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 24 },
+        { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: gutter, minHeight: 44 },
         style,
       ]}
     >
@@ -40,12 +39,9 @@ export const TabHeader = ({
       {children ? (
         <View style={{ flex: 1, minWidth: 0 }}>{children}</View>
       ) : title ? (
-        <Text
-          style={[typeScale.sectionHeader, { color: tokens.foreground, flexShrink: 1 }]}
-          numberOfLines={1}
-        >
-          {title}
-        </Text>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <PageTitle>{title}</PageTitle>
+        </View>
       ) : null}
     </View>
   );

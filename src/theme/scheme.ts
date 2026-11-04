@@ -83,23 +83,29 @@ export interface StatusInk {
 
 /**
  * The surfaces status ink is drawn on. `page` covers background, card and
- * popover - one value each in both palettes - while `muted` is the fill
+ * popover (degraus de cinzento no escuro), while `muted` is the fill
  * behind progress tracks and chips, where the page ink can fall under the
  * non-text bar (dark `destructive` reaches only 2.85:1 there).
  */
 export type InkSurface = "page" | "muted";
 
-const statusInkFrom = (tokens: ThemeTokens, surface: string): StatusInk => ({
-  success: ensureContrast(tokens.success, surface, AA_NORMAL),
-  destructive: ensureContrast(tokens.destructive, surface, AA_NORMAL),
-  sync: ensureContrast(EMERALD_BADGE, surface, AA_NORMAL),
+/** Ink that clears AA on EVERY given surface (page = background, card, popover). */
+const inkOn = (color: string, surfaces: string[]): string =>
+  surfaces.reduce((ink, surface) => ensureContrast(ink, surface, AA_NORMAL), color);
+
+const statusInkFrom = (tokens: ThemeTokens, surfaces: string[]): StatusInk => ({
+  success: inkOn(tokens.success, surfaces),
+  destructive: inkOn(tokens.destructive, surfaces),
+  sync: inkOn(EMERALD_BADGE, surfaces),
 });
 
 const inkSetFor = (scheme: ResolvedScheme): Record<InkSurface, StatusInk> => {
   const tokens = tokensFor(scheme);
   return {
-    page: statusInkFrom(tokens, tokens.background),
-    muted: statusInkFrom(tokens, tokens.muted),
+    // Desde os neutros de 2026-11-04 o card e o popover já não são o mesmo
+    // valor do fundo: a tinta tem de passar nos três.
+    page: statusInkFrom(tokens, [tokens.background, tokens.card, tokens.popover]),
+    muted: statusInkFrom(tokens, [tokens.muted]),
   };
 };
 
