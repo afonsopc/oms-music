@@ -69,6 +69,7 @@ import { registerRadioSongMenuSlots } from "@/features/radios/register";
 import { registerDesktopBridge } from "@/desktop/register";
 import { isMiniplayerWindow } from "@/desktop/miniplayer";
 import { registerLibraryWarmup } from "@/api/warmup";
+import { registerLyricsQueuePrefetch } from "@/lyrics/queuePrefetch";
 import { getJamManager } from "@/jam/channel";
 import { registerPlayerEngine } from "@/player/register";
 import { getPlaybackChannel } from "@/remote/channel";
@@ -176,6 +177,8 @@ export const wireUp = (): void => {
   // 8. Local-first warm-up: after sign-in, sweep the library into the query
   // cache (and its disk snapshot) so taps land on local data.
   registerLibraryWarmup();
+  // As letras das próximas da fila, antes de elas tocarem (2026-11-04).
+  registerLyricsQueuePrefetch();
 
   // 9. Desktop shell bridge (plano "uma so app" F5): media keys, Now
   // Playing/MPRIS and the tray, fed from the player store and routed back

@@ -32,16 +32,23 @@ import {
 } from "react-native";
 import { useIsFocused } from "expo-router";
 import { useTween } from "@/ui/motion";
-import { useLyrics, useLyricsTranslation } from "@/api/queries/lyrics";
+import {
+  nudgeLyricsOffset,
+  refineLyrics,
+  retranslateLyrics,
+  useLyrics,
+  useLyricsTranslation,
+} from "@/api/queries/lyrics";
 import { queryClient } from "@/api/queryClient";
 import { keys } from "@/api/queryKeys";
 import { getTransport } from "@/contracts/transport";
 import { isApiError } from "@/domain/api";
 import type { SongId } from "@/domain/ids";
-import type { LrcLine, LyricsTranslationTarget } from "@/domain/lyrics";
+import type { Lyrics, LrcLine, LyricsTranslationTarget, LyricsWordLine } from "@/domain/lyrics";
 import { useT } from "@/i18n";
 import { activeLineIndex, parseLrc } from "@/lyrics/lrc";
-import { generateLyricsSync } from "@/lyrics/syncJob";
+import { awaitJob, generateLyricsSync } from "@/lyrics/syncJob";
+import { LINE_LEAD_S, wordsForLines, wordsSung } from "@/lyrics/words";
 import {
   TRANSLATION_TARGET_OPTIONS,
   buildSyncedTranslationMap,
@@ -58,7 +65,12 @@ import {
 import { withAlpha } from "@/theme/contrast";
 import { useTheme } from "@/theme/provider";
 import { BottomSheet, EmptyState, ErrorState, GhostIconButton, Icon, Skeleton } from "@/ui";
-import { initialTranslationTarget, storeTranslationTarget } from "./targetStore";
+import {
+  initialTranslationTarget,
+  storeTranslationOn,
+  storeTranslationTarget,
+  translationWasOn,
+} from "./targetStore";
 
 const K = "components.music.LyricsView";
 
@@ -111,6 +123,53 @@ const SyncedLineText = ({
   );
 };
 
+/** O passo do acerto do dono, em milissegundos. */
+const OFFSET_STEP_MS = 250;
+
+/**
+ * A linha activa palavra a palavra (2026-11-04): as palavras já cantadas
+ * acendem, as que faltam ficam meio apagadas. Só ESTA linha re-renderiza, e
+ * só quando mais uma palavra começa (umas poucas vezes por segundo).
+ */
+const ActiveWords = ({
+  words,
+  position,
+  playing,
+}: {
+  words: LyricsWordLine["w"];
+  position: () => number;
+  playing: boolean;
+}) => {
+  const [sung, setSung] = useState(() => wordsSung(words, position()));
+  useEffect(() => {
+    let last = -1;
+    const apply = (): void => {
+      const next = wordsSung(words, position());
+      if (next !== last) {
+        last = next;
+        setSung(next);
+      }
+    };
+    apply();
+    if (!playing) return;
+    let frame = requestAnimationFrame(function tick(): void {
+      apply();
+      frame = requestAnimationFrame(tick);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [words, position, playing]);
+  return (
+    <>
+      {words.map((word, k) => (
+        <Text key={k} style={{ opacity: k < sung ? 1 : 0.45 }}>
+          {k > 0 ? " " : ""}
+          {word[2]}
+        </Text>
+      ))}
+    </>
+  );
+};
+
 export default function LyricsBody() {
   const t = useT();
   const { tokens } = useTheme();
@@ -122,10 +181,14 @@ export default function LyricsBody() {
   const plain = lyricsQuery.data?.plain ?? null;
   const hasContent = !!(synced || plain);
   const lines = useMemo(() => (synced ? parseLrc(synced) : []), [synced]);
+  const serverWords = lyricsQuery.data?.words ?? null;
+  const lineWords = useMemo(() => wordsForLines(lines, serverWords), [lines, serverWords]);
+  const canAdjust = lyricsQuery.data?.can_adjust === true;
+  const offsetMs = lyricsQuery.data?.offset_ms ?? 0;
   const plainLines = useMemo(() => (plain ? splitPlainLines(plain) : []), [plain]);
 
   // ----- translation (FR-79) ------------------------------------------------
-  const [showTranslation, setShowTranslation] = useState(false);
+  const [showTranslation, setShowTranslation] = useState(translationWasOn);
   const [target, setTarget] = useState<LyricsTranslationTarget>(initialTranslationTarget);
   const [targetSheetOpen, setTargetSheetOpen] = useState(false);
   const translationQuery = useLyricsTranslation(songId, target, showTranslation && hasContent);
@@ -145,7 +208,69 @@ export default function LyricsBody() {
     setTarget(code);
     setShowTranslation(true);
     storeTranslationTarget(code);
+    storeTranslationOn(true);
     setTargetSheetOpen(false);
+  };
+
+  // ----- "Traduzir de novo" e os acertos do dono (2026-11-04) ----------------
+  const [notice, setNotice] = useState<string | null>(null);
+  const [busy, setBusy] = useState<"retranslate" | "refine" | null>(null);
+  useEffect(() => {
+    if (!notice) return;
+    const timer = setTimeout(() => setNotice(null), 5000);
+    return () => clearTimeout(timer);
+  }, [notice]);
+  useEffect(() => {
+    setNotice(null);
+  }, [songId]);
+
+  const retranslate = (): void => {
+    if (songId == null || busy) return;
+    const forSong = songId;
+    setTargetSheetOpen(false);
+    setBusy("retranslate");
+    retranslateLyrics(forSong, target)
+      .then((fresh) => queryClient.setQueryData(keys.lyricsTranslation(forSong, target), fresh))
+      .catch((error: unknown) =>
+        setNotice(
+          isApiError(error) && error.status === 429
+            ? t(`${K}.translationLimit`)
+            : t(`${K}.translationUnavailable`),
+        ),
+      )
+      .finally(() => setBusy(null));
+  };
+
+  const nudge = (deltaMs: number): void => {
+    if (songId == null) return;
+    const forSong = songId;
+    // O servidor devolve a letra já acertada (as marcas e as palavras).
+    const previous = queryClient.getQueryData<Lyrics>(keys.lyrics(forSong));
+    nudgeLyricsOffset(forSong, deltaMs)
+      .then((fresh) => {
+        queryClient.setQueryData(keys.lyrics(forSong), fresh);
+        void queryClient.invalidateQueries({ queryKey: keys.lyricsTranslation(forSong, target) });
+      })
+      .catch(() => {
+        if (previous) queryClient.setQueryData(keys.lyrics(forSong), previous);
+        setNotice(t(`${K}.adjustFailed`));
+      });
+  };
+
+  const refineByVoice = (): void => {
+    if (songId == null || busy) return;
+    const forSong = songId;
+    setTargetSheetOpen(false);
+    setBusy("refine");
+    setNotice(t(`${K}.refineRunning`));
+    refineLyrics(forSong)
+      .then(({ job_id }) => awaitJob(job_id))
+      .then(async (job) => {
+        await queryClient.invalidateQueries({ queryKey: keys.lyrics(forSong) });
+        setNotice(t(job.status === "complete" ? `${K}.refineDone` : `${K}.refineFailed`));
+      })
+      .catch(() => setNotice(t(`${K}.refineFailed`)))
+      .finally(() => setBusy(null));
   };
 
   // ----- sync generation (FR-80) --------------------------------------------
@@ -251,7 +376,7 @@ export default function LyricsBody() {
   useEffect(() => {
     if (!focused || lines.length === 0) return;
     const apply = (): void => {
-      const next = activeLineIndex(lines, estimatedPosition());
+      const next = activeLineIndex(lines, estimatedPosition() + LINE_LEAD_S);
       if (next !== activeIndexRef.current) {
         activeIndexRef.current = next;
         setActiveIndex(next);
@@ -421,7 +546,7 @@ export default function LyricsBody() {
     syncRun?.phase === "done" && syncRun.songId === songId
       ? t(syncRun.ok ? `${K}.syncGenerated` : `${K}.syncFailed`)
       : null;
-  const inlineMessage = translationError ?? syncMessage;
+  const inlineMessage = notice ?? translationError ?? syncMessage;
 
   return (
     <View style={{ flex: 1 }}>
@@ -470,7 +595,7 @@ export default function LyricsBody() {
             opacity: pressed ? 0.6 : 1,
           })}
         >
-          {showTranslation && translationQuery.isFetching ? (
+          {(showTranslation && translationQuery.isFetching) || busy === "retranslate" ? (
             <ActivityIndicator size="small" color={tokens.primary} />
           ) : (
             <View
@@ -531,7 +656,15 @@ export default function LyricsBody() {
                   style={{ paddingVertical: 5 }}
                 >
                   <SyncedLineText active={active} color={tokens.foreground}>
-                    {primary || PLACEHOLDER_DOT}
+                    {active && !translated && lineWords[i] ? (
+                      <ActiveWords
+                        words={lineWords[i] as LyricsWordLine["w"]}
+                        position={estimatedPosition}
+                        playing={playing}
+                      />
+                    ) : (
+                      primary || PLACEHOLDER_DOT
+                    )}
                   </SyncedLineText>
                   {secondary ? (
                     <Text
@@ -632,6 +765,7 @@ export default function LyricsBody() {
             <Pressable
               onPress={() => {
                 setShowTranslation(false);
+                storeTranslationOn(false);
                 setTargetSheetOpen(false);
               }}
               accessibilityRole="button"
@@ -644,6 +778,62 @@ export default function LyricsBody() {
               <Text style={{ color: tokens.foreground, fontSize: 15 }}>
                 {t(`${K}.translationOff`)}
               </Text>
+            </Pressable>
+            <Pressable
+              onPress={retranslate}
+              accessibilityRole="button"
+              style={({ pressed }) => ({
+                paddingHorizontal: 20,
+                paddingVertical: 14,
+                opacity: pressed ? 0.6 : 1,
+              })}
+            >
+              <Text style={{ color: tokens.foreground, fontSize: 15 }}>{t(`${K}.retranslate`)}</Text>
+            </Pressable>
+          </>
+        ) : null}
+        {canAdjust && synced ? (
+          <>
+            <View style={{ height: 1, backgroundColor: tokens.border, marginVertical: 4 }} />
+            <Text
+              style={{
+                color: tokens.mutedForeground,
+                fontSize: 12,
+                paddingHorizontal: 20,
+                paddingTop: 10,
+              }}
+            >
+              {t(`${K}.timingTitle`)}
+              {offsetMs !== 0 ? ` · ${(offsetMs / 1000).toFixed(2).replace(".", ",")} s` : ""}
+            </Text>
+            {[
+              { label: t(`${K}.lyricsEarly`), delta: OFFSET_STEP_MS },
+              { label: t(`${K}.lyricsLate`), delta: -OFFSET_STEP_MS },
+            ].map((row) => (
+              <Pressable
+                key={row.delta}
+                onPress={() => nudge(row.delta)}
+                accessibilityRole="button"
+                style={({ pressed }) => ({
+                  paddingHorizontal: 20,
+                  paddingVertical: 14,
+                  opacity: pressed ? 0.6 : 1,
+                })}
+              >
+                <Text style={{ color: tokens.foreground, fontSize: 15 }}>{row.label}</Text>
+              </Pressable>
+            ))}
+            <Pressable
+              onPress={refineByVoice}
+              disabled={busy === "refine"}
+              accessibilityRole="button"
+              style={({ pressed }) => ({
+                paddingHorizontal: 20,
+                paddingVertical: 14,
+                opacity: pressed || busy === "refine" ? 0.6 : 1,
+              })}
+            >
+              <Text style={{ color: tokens.foreground, fontSize: 15 }}>{t(`${K}.refineByVoice`)}</Text>
             </Pressable>
           </>
         ) : null}

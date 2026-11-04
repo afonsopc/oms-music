@@ -293,7 +293,16 @@
         "syncFailed": "Neizdevās sinhronizēt vārdus",
         "generateFromAudio": "Ģenerēt vārdus no audio",
         "generateRunning": "Klausās dziesmu un raksta vārdus… tas var aizņemt dažas minūtes.",
-        "generateFailed": "Neizdevās ģenerēt šīs dziesmas vārdus"
+        "generateFailed": "Neizdevās ģenerēt šīs dziesmas vārdus",
+        "retranslate": "Tulkot vēlreiz",
+        "timingTitle": "Dziesmas vārdu laiks",
+        "lyricsEarly": "Vārdi ir pirms balss",
+        "lyricsLate": "Vārdi ir pēc balss",
+        "refineByVoice": "Sinhronizēt ar balsi",
+        "refineRunning": "Sinhronizē vārdus ar balsi…",
+        "refineDone": "Vārdi sinhronizēti ar balsi",
+        "refineFailed": "Neizdevās sinhronizēt šos vārdus",
+        "adjustFailed": "Neizdevās saglabāt pielāgojumu"
       },
       "Home": {
         "filterAll": "Visi",

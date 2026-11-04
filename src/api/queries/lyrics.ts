@@ -60,3 +60,34 @@ export const useLyricsTranslation = (
     retry: false,
   });
 };
+
+// ----- 2026-11-04: pré-carregar, traduzir de novo, acertos do dono ----------
+
+/** "Traduzir de novo": uma versão nova, que passa a ser a guardada (10/h). */
+export const retranslateLyrics = (
+  songId: SongId,
+  target: LyricsTranslationTarget,
+): Promise<LyricsTranslation> =>
+  oms().http.get<LyricsTranslation>("/lyrics/translation", {
+    timeoutMs: 60000,
+    retry: false,
+    query: { song_id: songId, target, again: 1 },
+  });
+
+/** O acerto do dono: a letra toda mais cedo (negativo) ou mais tarde. */
+export const nudgeLyricsOffset = (songId: SongId, deltaMs: number): Promise<Lyrics> =>
+  oms().http.patch<Lyrics>("/lyrics/offset", { song_id: songId, delta_ms: deltaMs }, { retry: false });
+
+/** "Acertar pela voz": 201 { job_id }, como a sync (o dono, 10/h). */
+export const refineLyrics = (songId: SongId): Promise<{ job_id: string }> =>
+  oms().http.post<{ job_id: string }>("/lyrics/refine", { song_id: songId }, { retry: false });
+
+/**
+ * As próximas da fila: o servidor devolve já as letras que tem e vai buscar
+ * as outras (e a tradução, com `target`) para quando a música começar.
+ */
+export const prefetchLyrics = (
+  songIds: readonly SongId[],
+  target: LyricsTranslationTarget | null,
+): Promise<{ lyrics: Record<string, Lyrics>; pending: number[] }> =>
+  oms().http.post("/lyrics/prefetch", { song_ids: songIds, target: target ?? undefined }, { retry: false });

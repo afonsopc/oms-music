@@ -25,3 +25,15 @@ export const storeTranslationTarget = (target: LyricsTranslationTarget): void =>
  */
 export const initialTranslationTarget = (): LyricsTranslationTarget =>
   getStoredTranslationTarget() ?? getLocale();
+
+const TRANSLATE_ON_KV_KEY = "music-lyrics-translate-on";
+
+/**
+ * Se a tradução ficou ligada da última vez (2026-11-04): o pré-carregamento
+ * da fila só traduz de antemão para quem lê as letras traduzidas.
+ */
+export const translationWasOn = (): boolean => kvGet(TRANSLATE_ON_KV_KEY) === "1";
+
+export const storeTranslationOn = (on: boolean): void => {
+  kvSet(TRANSLATE_ON_KV_KEY, on ? "1" : "0");
+};

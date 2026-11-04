@@ -293,7 +293,16 @@
         "syncFailed": "Não foi possível sincronizar a letra",
         "generateFromAudio": "Gerar a letra a partir do áudio",
         "generateRunning": "A ouvir a música e a escrever a letra… pode demorar uns minutos.",
-        "generateFailed": "Não foi possível gerar a letra desta música"
+        "generateFailed": "Não foi possível gerar a letra desta música",
+        "retranslate": "Traduzir de novo",
+        "timingTitle": "Tempos da letra",
+        "lyricsEarly": "A letra vem antes da voz",
+        "lyricsLate": "A letra vem depois da voz",
+        "refineByVoice": "Acertar pela voz",
+        "refineRunning": "A acertar a letra pela voz…",
+        "refineDone": "Letra acertada pela voz",
+        "refineFailed": "Não deu para acertar esta letra",
+        "adjustFailed": "Não deu para guardar o acerto"
       },
       "Home": {
         "filterAll": "Tudo",

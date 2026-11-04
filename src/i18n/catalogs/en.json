@@ -293,7 +293,16 @@
         "syncFailed": "Could not synchronize the lyrics",
         "generateFromAudio": "Generate lyrics from the audio",
         "generateRunning": "Listening to the song and writing the lyrics… this can take a few minutes.",
-        "generateFailed": "Could not generate lyrics for this track"
+        "generateFailed": "Could not generate lyrics for this track",
+        "retranslate": "Translate again",
+        "timingTitle": "Lyrics timing",
+        "lyricsEarly": "Lyrics come before the voice",
+        "lyricsLate": "Lyrics come after the voice",
+        "refineByVoice": "Sync to the voice",
+        "refineRunning": "Syncing the lyrics to the voice…",
+        "refineDone": "Lyrics synced to the voice",
+        "refineFailed": "Could not sync these lyrics",
+        "adjustFailed": "Could not save the adjustment"
       },
       "Home": {
         "filterAll": "All",
