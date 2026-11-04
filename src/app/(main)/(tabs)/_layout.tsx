@@ -22,6 +22,7 @@
 import React from "react";
 import { Platform } from "react-native";
 import { NativeTabs } from "expo-router/unstable-native-tabs";
+import { tabPressPopTarget } from "@/features/shell/tabPress";
 import { useT } from "@/i18n";
 import { useTheme } from "@/theme/provider";
 import { ACCENT } from "@/theme/tokens";
@@ -35,6 +36,22 @@ export const unstable_settings = { anchor: "(home)" };
 // SafeAreaView que recorta o conteudo acima da barra, e esse queremos.
 const OWN_INSETS = Platform.OS === "ios";
 
+// Tocar numa tab mostra a raiz dela (src/features/shell/tabPress.ts diz
+// porque e que o Android precisava disto). O tipo publico so declara
+// `route`, mas o useNavigationBuilder passa tambem a `navigation` da tab.
+type TabNavigation = {
+  getState: () => Parameters<typeof tabPressPopTarget>[0];
+  dispatch: (action: { type: string; target: string }) => void;
+};
+const tabPressListeners = ({ route, navigation }: { route: { key: string }; navigation?: unknown }) => ({
+  tabPress: () => {
+    const tabs = navigation as TabNavigation | undefined;
+    if (!tabs) return;
+    const target = tabPressPopTarget(tabs.getState(), route.key, Platform.OS);
+    if (target) tabs.dispatch({ type: "POP_TO_TOP", target });
+  },
+});
+
 export default function TabsLayout() {
   const t = useT();
   const { scheme } = useTheme();
@@ -45,7 +62,11 @@ export default function TabsLayout() {
     // "automatic" do iOS 26) a pill andava aos saltos. Deixar a barra
     // minimizar exige mudar a pill para NativeTabs.BottomAccessory, que e
     // outro trabalho.
-    <NativeTabs tintColor={ACCENT[scheme].ink} minimizeBehavior="never">
+    <NativeTabs
+      tintColor={ACCENT[scheme].ink}
+      minimizeBehavior="never"
+      screenListeners={tabPressListeners}
+    >
       <NativeTabs.Trigger name="(home)" disableAutomaticContentInsets={OWN_INSETS}>
         <NativeTabs.Trigger.Label>{t("native.shell.tabHome")}</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf={{ default: "house", selected: "house.fill" }} md="home" />

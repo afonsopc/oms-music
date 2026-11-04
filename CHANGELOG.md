@@ -6,6 +6,8 @@ O que entra vai para "Por lançar"; o bump dá-lhe o número.
 
 ## Por lançar
 
+- Tocar numa tab mostra sempre a raiz dela: no Android, com as Definições (ou um álbum, uma playlist…) abertas, tocar em Início não fazia nada. Tocar outra vez na tab aberta sobe a lista ao topo.
+
 ## 2.0.0 (2026-11-04)
 
 O redesenho e o visualizador. O desktop salta da 1.4.1 para a 2.0.0, para ficar igual às outras.

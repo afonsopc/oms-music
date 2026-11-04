@@ -16,6 +16,7 @@ import {
   writeLibraryViewMode,
 } from "@/features/shell/desktop/layoutPrefs";
 import { TabHeader } from "@/features/shell/TabHeader";
+import { useTabScrollToTop } from "@/features/shell/useTabScrollToTop";
 import { useContentBottomPadding, useContentTopPadding } from "@/features/shell/metrics";
 import { useT } from "@/i18n";
 import { useTheme } from "@/theme/provider";
@@ -354,6 +355,8 @@ export default function LibraryScreen() {
   // Rows are fixed height, so the list never has to measure them; the
   // header is measured once and offsets every row.
   const headerHeight = useRef(0);
+  const listRef = useRef<FlatList>(null);
+  useTabScrollToTop(listRef);
   const getItemLayout = useCallback(
     (_data: ArrayLike<LibraryRow> | null | undefined, index: number) => ({
       length: rowHeight,
@@ -375,6 +378,7 @@ export default function LibraryScreen() {
 
   return (
     <FlatList
+      ref={listRef}
       // numColumns cannot change on a live FlatList; the key remounts the
       // list when the mode (or the column count under it) changes. Only the
       // desktop toggle can cause that - mobile is always the single column.

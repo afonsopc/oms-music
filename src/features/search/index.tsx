@@ -16,7 +16,7 @@
  * em linhas, artistas/álbuns/playlists com capas grandes, esqueleto enquanto
  * pesquisa, estados de vazio, sem resultados e erro.
  */
-import React, { memo, useCallback, useMemo, useState } from "react";
+import React, { memo, useCallback, useMemo, useRef, useState } from "react";
 import {
   Keyboard,
   Pressable,
@@ -56,6 +56,7 @@ import {
   useContentTopPadding,
 } from "@/features/shell/metrics";
 import { TabHeader } from "@/features/shell/TabHeader";
+import { useTabScrollToTop } from "@/features/shell/useTabScrollToTop";
 import { useT } from "@/i18n";
 import { haptics } from "@/lib/haptics";
 import {
@@ -448,6 +449,8 @@ export default function SearchScreen() {
   const cardWidth = useCardWidth();
   const bottomPadding = useContentBottomPadding();
   const topPadding = useContentTopPadding(12);
+  const scrollRef = useRef<ScrollView>(null);
+  useTabScrollToTop(scrollRef);
   const params = useLocalSearchParams<{ query?: string }>();
   /**
    * Computador: a barra de cima já tem o campo com sugestões, por isso esta
@@ -958,6 +961,7 @@ export default function SearchScreen() {
 
   return (
     <ScrollView
+      ref={scrollRef}
       style={{ flex: 1, backgroundColor: tokens.background }}
       contentContainerStyle={{
         paddingTop: topPadding,

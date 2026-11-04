@@ -17,7 +17,7 @@
  *    chega vazio. Se tudo falhar há "Tentar de novo"; se não houver nada,
  *    uma frase e o caminho para a Pesquisa.
  */
-import React, { memo, useCallback, useMemo, useState, useSyncExternalStore } from "react";
+import React, { memo, useCallback, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { RefreshControl, ScrollView, Text, View } from "react-native";
 import { useRouter, type Href } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -29,6 +29,7 @@ import { artistDisplayName, artistRouteSegment } from "@/domain/album";
 import { artistImageSource, playlistArtworkSource, type ArtworkSource } from "@/domain/artwork";
 import { useContentBottomPadding } from "@/features/shell/metrics";
 import { TabHeader } from "@/features/shell/TabHeader";
+import { useTabScrollToTop } from "@/features/shell/useTabScrollToTop";
 import { useT } from "@/i18n";
 import { mixStampText, mixTitle } from "@/i18n/mixLabels";
 import { hiddenByCollectionPlay } from "@/lib/albumPlayMarks";
@@ -133,6 +134,8 @@ export default function HomeScreen() {
   const router = useRouter();
   const { tokens } = useTheme();
   const insets = useSafeAreaInsets();
+  const scrollRef = useRef<ScrollView>(null);
+  useTabScrollToTop(scrollRef);
   const bottomPadding = useContentBottomPadding();
   const cardWidth = useCardWidth();
   const artistWidth = useCardWidth(true);
@@ -322,6 +325,7 @@ export default function HomeScreen() {
 
   return (
     <ScrollView
+      ref={scrollRef}
       style={{ flex: 1, backgroundColor: tokens.background }}
       contentContainerStyle={{ paddingTop: insets.top + 12, paddingBottom: bottomPadding + 24 }}
       refreshControl={
