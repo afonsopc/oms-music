@@ -62,6 +62,7 @@ import { hasOptimisticPlay, togglePlaybackOptimistic, useShownPlaying } from "./
 import { usePlayerSurfaceLive } from "./sheet/liveSurface";
 import { closePlayerSheet } from "./sheet/sheetStore";
 import { Waveform } from "@/features/viz/Waveform";
+import { openVisualizer } from "@/features/viz/openVisualizer";
 import { Slider } from "./Slider";
 
 const NP = "components.music.NowPlayingSheet";
@@ -403,7 +404,6 @@ export const PlayerChrome = () => {
   const t = useT();
   const { scheme, tokens } = useTheme();
   useShellSlotsVersion();
-  const router = useRouter();
   const playing = useShownPlaying();
   const buffering = usePlaybackView((v) => v.buffering);
   const mode = usePlayerModeStore((s) => s.mode);
@@ -550,12 +550,13 @@ export const PlayerChrome = () => {
             togglePlayerMode("jam");
           }}
         />
+        {/* O ecrã inteiro é o visualizador (no telemóvel a folha continua a ser o leitor). */}
         <GhostIconButton
-          icon="sparkles"
+          icon="maximize"
           accessibilityLabel={t("native.viz.title")}
           onPress={() => {
             haptics.select();
-            router.push("/(player)/visualizer");
+            openVisualizer();
           }}
         />
         <GhostIconButton

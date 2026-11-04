@@ -6,6 +6,8 @@ export interface SceneEnv {
   artist: string;
   cover: HTMLImageElement | null;
   lowPower: boolean;
+  /** A linha da letra que está a tocar ("" sem letra). */
+  lyric?: string;
 }
 
 export interface Canvas2DScene {

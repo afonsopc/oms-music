@@ -911,7 +911,6 @@
       "tenantLyrics": "Lyrics",
       "tenantDevices": "Devices",
       "tenantFriends": "Friend activity",
-      "cinemaMode": "Cinema mode",
       "miniplayerEmpty": "Nothing playing",
       "miniplayerClose": "Close the mini player",
       "resizePanel": "Resize the right panel",
@@ -1232,7 +1231,11 @@
       "fav": "Favourite",
       "banned": "Never",
       "prefsHint": "Tap to mark: favourite, never, normal.",
-      "montage": "Montage"
+      "montage": "Montage",
+      "lyricsAlways": "Lyrics: always",
+      "lyricsSometimes": "Lyrics: sometimes",
+      "lyricsNever": "Lyrics: never",
+      "queue": "Queue"
     }
   }
 }

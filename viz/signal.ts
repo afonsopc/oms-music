@@ -4,7 +4,7 @@
  * análise (ainda a chegar, ou música sem ela) há uma respiração lenta e
  * calma, para nunca ficar parado.
  */
-import type { VizAnalysis } from "./protocol";
+import type { VizAnalysis, VizSection } from "./protocol";
 
 export interface Signal {
   energy: number;
@@ -32,6 +32,7 @@ export interface Decoded {
   onsets: Float64Array;
   env: Uint8Array;
   bands: Uint8Array[];
+  sections: VizSection[];
 }
 
 const b64 = (s: string): Uint8Array => {
@@ -48,7 +49,19 @@ export const decode = (a: VizAnalysis): Decoded => ({
   onsets: Float64Array.from(a.onsets.map((ms) => ms / 1000)),
   env: b64(a.env),
   bands: a.bands.map(b64),
+  sections: (a.sections ?? []).map((x) => ({ ...x, t: x.t / 1000 })),
 });
+
+/** A secção em que `t` cai (índice), ou -1 sem secções. */
+export const sectionAt = (d: Decoded | null, t: number): number => {
+  if (!d || d.sections.length === 0) return -1;
+  let i = -1;
+  for (let k = 0; k < d.sections.length; k++) {
+    if (d.sections[k].t <= t) i = k;
+    else break;
+  }
+  return i;
+};
 
 /** Índice do último elemento <= t (pesquisa binária). */
 const lastAtOrBefore = (arr: Float64Array, t: number): number => {

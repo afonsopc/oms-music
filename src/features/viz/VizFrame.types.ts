@@ -1,5 +1,5 @@
 import type { StyleProp, ViewStyle } from "react-native";
-import type { FromViz, SceneName, SceneSelection, VizFx } from "../../../viz/protocol";
+import type { FromViz, LyricsMode, SceneName, SceneSelection, VizFx } from "../../../viz/protocol";
 
 export interface VizFrameProps {
   mode: "background" | "full";
@@ -7,7 +7,8 @@ export interface VizFrameProps {
   chaos?: boolean;
   fx?: Partial<VizFx>;
   paused?: boolean;
-  autoCycleBars?: number;
+  /** A letra por cima: sempre, às vezes, nunca. */
+  lyrics?: LyricsMode;
   selection?: SceneSelection;
   favorites?: SceneName[];
   banned?: SceneName[];

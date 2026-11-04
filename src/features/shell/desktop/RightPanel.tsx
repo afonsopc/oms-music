@@ -18,8 +18,8 @@
  * Forms by window width: >= 1200px and open, the real column; >= 1200px and
  * closed, a 32px rail whose icons reopen straight into a tenant; 900-1200px,
  * the rail is geometry only (the tenants live behind the transport-bar
- * routes there). The maximize button opens the desktop cinema overlay
- * (features/player/cinema) - the (player) modal remains the MOBILE player.
+ * routes there). The maximize button opens the visualizer, the app's only
+ * fullscreen (features/viz) - the (player) sheet remains the MOBILE player.
  *
  * Web-only by construction: only DesktopShell.web.tsx imports this file.
  */
@@ -28,7 +28,7 @@ import { ScrollView, View } from "react-native";
 import { DevicePickerBody } from "@/features/devices/DevicePicker";
 import FriendsBody from "@/features/friends";
 import LyricsBody from "@/features/lyrics";
-import { openCinema } from "@/features/player/cinema";
+import { openVisualizer } from "@/features/viz/openVisualizer";
 import { PanelNowPlaying } from "@/features/player/panelNowPlaying";
 import QueueBody from "@/features/player/queue";
 import { useT } from "@/i18n";
@@ -183,8 +183,8 @@ export const DesktopRightPanel = ({
         <GhostIconButton
           icon="maximize-2"
           size={14}
-          accessibilityLabel={t("native.desktop.cinemaMode")}
-          onPress={openCinema}
+          accessibilityLabel={t("native.viz.title")}
+          onPress={openVisualizer}
           style={{ width: 30, height: 36 }}
         />
         <GhostIconButton

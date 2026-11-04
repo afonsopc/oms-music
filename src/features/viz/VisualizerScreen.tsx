@@ -8,7 +8,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Platform, Pressable, ScrollView, Text, useWindowDimensions, View, type GestureResponderEvent } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { formatArtists } from "@/domain/format";
+import { formatArtists, formatDuration } from "@/domain/format";
 import { togglePlaybackOptimistic, useShownPlaying } from "@/features/player/optimisticPlay";
 import { getTransport } from "@/contracts/transport";
 import { useT } from "@/i18n";
@@ -18,7 +18,13 @@ import { GhostIconButton, PlayFab } from "@/ui";
 import { FULL_SCENES, type SceneName, type VizFx } from "../../../viz/protocol";
 import { useSongAnalysis } from "./analysis";
 import { useMontagePanel, type VideoLayerMode } from "./montageSlot";
-import { cycleScenePref, setVizSelection, useVizPrefs } from "./prefs";
+import { cycleLyricsMode, cycleScenePref, setVizSelection, useVizPrefs } from "./prefs";
+import { exitFullscreen } from "./openVisualizer";
+import { Waveform } from "./Waveform";
+import { Slider } from "@/features/player/Slider";
+import QueueBody from "@/features/player/queue";
+import { useLikedIds, useToggleLike } from "@/api/queries/likedSongs";
+import { usePlayerStore } from "@/player/store";
 import { VizFrame } from "./VizFrame";
 import { estimatedPosition } from "./vizMessages";
 
@@ -43,6 +49,75 @@ const Toggle = ({ label, on, onPress }: { label: string; on: boolean; onPress: (
     <Text style={{ color: "#fff", fontSize: 13, fontWeight: on ? "600" : "500" }}>{label}</Text>
   </Pressable>
 );
+
+/** O progresso com a forma de onda, por cima da cena. */
+const VizScrub = () => {
+  const t = useT();
+  const position = usePlaybackView((v) => v.position);
+  const duration = usePlaybackView((v) => v.duration);
+  const songId = usePlaybackView((v) => (v.song ? String(v.song.id) : null));
+  const [drag, setDrag] = useState<number | null>(null);
+  const shown = drag ?? position;
+  const fraction = duration > 0 ? Math.min(1, Math.max(0, shown / duration)) : 0;
+  return (
+    <View>
+      <View style={{ marginBottom: -12 }}>
+        <Waveform songId={songId} fraction={fraction} height={22} bars={96} />
+      </View>
+      <Slider
+        value={fraction}
+        accessibilityLabel={t("native.player.progress")}
+        disabled={duration <= 0}
+        height={4}
+        thumbSize={12}
+        fillColor="#ffffff"
+        trackColor="rgba(255,255,255,0.25)"
+        onSlide={(v) => setDrag(v * duration)}
+        onCommit={(v) => {
+          setDrag(null);
+          getTransport().seek(v * duration);
+        }}
+      />
+      <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: -6 }}>
+        <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: 12, fontVariant: ["tabular-nums"] }}>{formatDuration(shown)}</Text>
+        <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: 12, fontVariant: ["tabular-nums"] }}>{formatDuration(duration)}</Text>
+      </View>
+    </View>
+  );
+};
+
+const LikeButton = () => {
+  const t = useT();
+  const song = usePlaybackView((v) => v.song);
+  const likedIds = useLikedIds();
+  const toggleLike = useToggleLike();
+  if (!song) return null;
+  const liked = (likedIds.data ?? []).includes(song.id);
+  return (
+    <GhostIconButton
+      icon="heart"
+      filled={liked}
+      color="#fff"
+      accessibilityLabel={liked ? t("components.music.BottomBar.unlike") : t("components.music.BottomBar.like")}
+      onPress={() => {
+        if (!liked) haptics.success();
+        toggleLike.mutate({ songId: song.id, liked });
+      }}
+    />
+  );
+};
+
+const VizVolume = () => {
+  const t = useT();
+  const volume = usePlaybackView((v) => v.volume);
+  const supported = usePlayerStore((s) => s.volumeSupported);
+  if (!supported) return null;
+  return (
+    <View style={{ width: 120 }}>
+      <Slider value={volume} accessibilityLabel={t("native.player.volume")} height={4} thumbSize={10} fillColor="#ffffff" trackColor="rgba(255,255,255,0.25)" onCommit={(v) => getTransport().setVolume(v)} />
+    </View>
+  );
+};
 
 /** A folha das definições: aleatório ou pelo estilo, e as favoritas/banidas. */
 const SettingsPanel = ({ onClose }: { onClose: () => void }) => {
@@ -141,8 +216,26 @@ export default function VisualizerScreen() {
     [poke],
   );
   const close = useCallback(() => {
+    exitFullscreen();
     if (router.canGoBack()) router.back();
     else router.replace("/home");
+  }, [router]);
+  const [queueOpen, setQueueOpen] = useState(false);
+
+  // Sair do ecrã inteiro do browser (Esc ou F11) também fecha o visualizador.
+  useEffect(() => {
+    if (Platform.OS !== "web" || typeof document === "undefined") return;
+    let was = !!document.fullscreenElement;
+    const onChange = () => {
+      const now = !!document.fullscreenElement;
+      if (was && !now) {
+        if (router.canGoBack()) router.back();
+        else router.replace("/home");
+      }
+      was = now;
+    };
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
   }, [router]);
 
   useEffect(() => {
@@ -179,7 +272,7 @@ export default function VisualizerScreen() {
   const fade = { opacity: chrome ? 1 : 0, ...(Platform.OS === "web" ? ({ transition: "opacity .35s ease" } as object) : null) };
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#000" }}>
+    <View style={[{ flex: 1, backgroundColor: "#000" }, Platform.OS === "web" && !chrome ? ({ cursor: "none" } as object) : null]}>
       {/* A camada de vídeo da Montagem (montageSlot): por trás da cena ou em vez dela. */}
       {videoLayer ? <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}>{videoLayer.node}</View> : null}
       <VizFrame
@@ -187,7 +280,7 @@ export default function VisualizerScreen() {
         chaos={chaos}
         fx={fx}
         stepToken={step}
-        autoCycleBars={16}
+        lyrics={prefs.lyrics}
         selection={prefs.selection}
         favorites={prefs.favorites}
         banned={prefs.banned}
@@ -240,6 +333,7 @@ export default function VisualizerScreen() {
               {song ? formatArtists(song) : ""}
             </Text>
           </View>
+          <VizScrub />
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 28 }}>
             <GhostIconButton icon="skip-back" size={28} color="#fff" accessibilityLabel={t("components.music.BottomBar.previous")} onPress={() => { haptics.tap(); getTransport().previous(); poke(); }} />
             <PlayFab
@@ -250,9 +344,30 @@ export default function VisualizerScreen() {
             />
             <GhostIconButton icon="skip-forward" size={28} color="#fff" accessibilityLabel={t("components.music.BottomBar.next")} onPress={() => { haptics.tap(); getTransport().next(); poke(); }} />
           </View>
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, flexWrap: "wrap" }}>
+            <LikeButton />
+            <Toggle
+              label={t(prefs.lyrics === "always" ? "native.viz.lyricsAlways" : prefs.lyrics === "never" ? "native.viz.lyricsNever" : "native.viz.lyricsSometimes")}
+              on={prefs.lyrics !== "never"}
+              onPress={() => { haptics.select(); cycleLyricsMode(); poke(); }}
+            />
+            <Toggle label={t("native.viz.queue")} on={queueOpen} onPress={() => { setQueueOpen((q) => !q); poke(); }} />
+            {Platform.OS === "web" ? <VizVolume /> : null}
+          </View>
         </View>
       </View>
       {settingsOpen ? <SettingsPanel onClose={() => setSettingsOpen(false)} /> : null}
+      {queueOpen ? (
+        <View style={{ position: "absolute", top: 0, left: 0, bottom: 0, width: Platform.OS === "web" ? ("min(420px, 92%)" as unknown as number) : "92%", maxWidth: 420, backgroundColor: "rgba(10,10,10,0.94)", borderRightWidth: 1, borderColor: "#262626", paddingTop: insets.top + 8 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 12 }}>
+            <Text style={{ flex: 1, color: "#fff", fontSize: 17, fontWeight: "700" }}>{t("native.viz.queue")}</Text>
+            <GhostIconButton icon="x" color="#fff" accessibilityLabel={t("native.viz.close")} onPress={() => setQueueOpen(false)} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <QueueBody />
+          </View>
+        </View>
+      ) : null}
       {montage?.Background ? (
         <montage.Background song={song} getPosition={estimatedPosition} playing={playing} analysis={analysis} setVideoLayer={setVideoLayer} />
       ) : null}

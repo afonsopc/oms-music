@@ -11,6 +11,7 @@ import { artworkSourceUri } from "@/ui";
 import { useReducedMotion } from "@/ui/motion";
 import type { FromViz, ToViz } from "../../../viz/protocol";
 import { useSongAnalysis } from "./analysis";
+import { useVizLyrics } from "./vizLyrics";
 import type { VizFrameProps } from "./VizFrame.types";
 import { followPlayback, paletteFrom } from "./vizMessages";
 
@@ -47,7 +48,7 @@ export const useVizDriver = (send: (msg: ToViz) => void, props: VizFrameProps) =
     sendRef.current({ type: "analysis", songId, data });
   }, [ready, songId, analysis.data]);
 
-  const { mode, scene, chaos, fx, paused, autoCycleBars, selection, cycleOnTrack } = props;
+  const { mode, scene, chaos, fx, paused, selection, cycleOnTrack, lyrics } = props;
   const fxKey = JSON.stringify(fx ?? {});
   const favKey = JSON.stringify(props.favorites ?? []);
   const banKey = JSON.stringify(props.banned ?? []);
@@ -61,13 +62,21 @@ export const useVizDriver = (send: (msg: ToViz) => void, props: VizFrameProps) =
       fx: JSON.parse(fxKey),
       paused,
       reduceMotion,
-      autoCycleBars,
+      lyrics,
       selection,
       favorites: JSON.parse(favKey),
       banned: JSON.parse(banKey),
       cycleOnTrack,
     });
-  }, [ready, mode, scene, chaos, fxKey, paused, reduceMotion, autoCycleBars, selection, favKey, banKey, cycleOnTrack]);
+  }, [ready, mode, scene, chaos, fxKey, paused, reduceMotion, lyrics, selection, favKey, banKey, cycleOnTrack]);
+
+  // A letra (palavra a palavra quando o servidor a tem; com "tradução"
+  // ligada, as linhas traduzidas), só no ecrã inteiro.
+  const lines = useVizLyrics(mode === "full" ? songId : null);
+  useEffect(() => {
+    if (!ready || !songId || mode !== "full") return;
+    sendRef.current({ type: "lyrics", songId, lines });
+  }, [ready, songId, lines, mode]);
 
   const step = props.stepToken;
   useEffect(() => {

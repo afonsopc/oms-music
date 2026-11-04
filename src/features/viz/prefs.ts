@@ -8,8 +8,12 @@ import type { SceneName, SceneSelection } from "../../../viz/protocol";
 
 const KEY = "oms-music.viz.prefs";
 
+export type LyricsMode = "always" | "sometimes" | "never";
+
 export interface VizPrefs {
   selection: SceneSelection;
+  /** A letra por cima das cenas: sempre, às vezes (refrões, depois de uma queda, de tantas em tantas linhas) ou nunca. */
+  lyrics: LyricsMode;
   favorites: SceneName[];
   banned: SceneName[];
 }
@@ -18,6 +22,7 @@ const initial = (): VizPrefs => {
   const stored = kvGetJson<Partial<VizPrefs>>(KEY);
   return {
     selection: stored?.selection === "random" ? "random" : "style",
+    lyrics: stored?.lyrics === "always" || stored?.lyrics === "never" ? stored.lyrics : "sometimes",
     favorites: Array.isArray(stored?.favorites) ? stored.favorites : [],
     banned: Array.isArray(stored?.banned) ? stored.banned : [],
   };
@@ -31,6 +36,12 @@ const save = (next: Partial<VizPrefs>) => {
 };
 
 export const setVizSelection = (selection: SceneSelection) => save({ selection });
+
+export const cycleLyricsMode = () => {
+  const order: LyricsMode[] = ["sometimes", "always", "never"];
+  const cur = useVizPrefs.getState().lyrics;
+  save({ lyrics: order[(order.indexOf(cur) + 1) % order.length] });
+};
 
 /** Três estados por cena: normal -> favorita -> banida -> normal. */
 export const cycleScenePref = (scene: SceneName) => {

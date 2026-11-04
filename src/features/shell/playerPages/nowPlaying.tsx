@@ -1,11 +1,11 @@
 import React, { useEffect } from "react";
-import { useRouter } from "expo-router";
+import { Redirect, useRouter } from "expo-router";
 import { isPlayerSheetAvailable, openPlayerSheet } from "@/features/player/sheet/sheetStore";
-import { NowPlayingScreen } from "../PlayerPager";
 
 /**
  * /now-playing: onde há folha do leitor (telemóvel), a rota abre-a e sai de
- * si própria; onde não há (computador), mostra o leitor como antes.
+ * si própria; onde não há (computador), o ecrã inteiro é o visualizador
+ * (o modo cinema e o leitor esticado saíram a 2026-11-04).
  */
 export default function NowPlayingPage() {
   const router = useRouter();
@@ -17,5 +17,5 @@ export default function NowPlayingPage() {
     else router.replace("/home");
   }, [sheet, router]);
   if (sheet) return null;
-  return <NowPlayingScreen />;
+  return <Redirect href="/(player)/visualizer" />;
 }

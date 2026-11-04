@@ -23,12 +23,14 @@ export type SceneName =
   | "film"
   | "matrix"
   | "vector"
-  | "pixel8";
+  | "pixel8"
+  | "collage";
 
 /** As cenas do ecrã inteiro, pela ordem em que se percorrem. */
 export const FULL_SCENES: SceneName[] = [
   "milk", "text3d", "chrome", "tunnel", "kaleido", "pipes", "mystify", "starfield", "scope", "plasma", "desktop",
   "synthwave", "liquid", "voxel", "galaxy", "vhs", "datamosh", "ink", "film", "matrix", "vector", "pixel8",
+  "collage",
 ];
 
 /**
@@ -40,7 +42,7 @@ export type SceneFamily = "calm" | "electronic" | "chaos" | "retro";
 export const SCENE_FAMILIES: Record<SceneFamily, SceneName[]> = {
   calm: ["ink", "film", "kaleido", "plasma", "liquid", "galaxy", "milk"],
   electronic: ["synthwave", "tunnel", "voxel", "galaxy", "milk", "chrome", "liquid", "kaleido"],
-  chaos: ["datamosh", "vhs", "desktop", "pixel8", "matrix", "text3d", "chrome", "tunnel", "milk"],
+  chaos: ["datamosh", "vhs", "desktop", "pixel8", "matrix", "text3d", "chrome", "tunnel", "milk", "collage"],
   retro: ["pipes", "mystify", "starfield", "scope", "vector", "pixel8", "matrix", "text3d", "desktop"],
 };
 
@@ -56,6 +58,25 @@ export interface VizSong {
   bpm?: number | null;
 }
 
+/** Uma secção da música (Music::AudioAnalysis v2). `big`: queda ou refrão, onde se muda de visual. */
+export interface VizSection {
+  t: number;
+  type: "intro" | "verse" | "build" | "drop" | "chorus" | "high" | "breakdown" | "outro";
+  intensity: number;
+  group: number;
+  big: boolean;
+}
+
+/** Uma linha da letra: início e fim em s, e as palavras [início, fim, palavra] quando há. */
+export interface VizLyricLine {
+  t: number;
+  end: number;
+  text: string;
+  words?: [number, number, string][];
+}
+
+export type LyricsMode = "always" | "sometimes" | "never";
+
 export interface VizAnalysis {
   v: number;
   fps: number;
@@ -65,6 +86,7 @@ export interface VizAnalysis {
   onsets: number[];
   env: string;
   bands: string[];
+  sections?: VizSection[];
 }
 
 export interface VizFx {
@@ -78,6 +100,7 @@ export type ToViz =
   | { type: "state"; song: VizSong | null; playing: boolean; position: number; at: number }
   | { type: "analysis"; songId: string; data: VizAnalysis | null }
   | { type: "palette"; colors: [string, string, string] }
+  | { type: "lyrics"; songId: string; lines: VizLyricLine[] | null }
   | {
       type: "config";
       mode: "background" | "full";
@@ -87,12 +110,12 @@ export type ToViz =
       reduceMotion?: boolean;
       lowPower?: boolean;
       paused?: boolean;
-      autoCycleBars?: number;
       selection?: SceneSelection;
       favorites?: SceneName[];
       banned?: SceneName[];
       /** Mudar de cena quando muda a música. */
       cycleOnTrack?: boolean;
+      lyrics?: LyricsMode;
     }
   | { type: "next"; dir: 1 | -1 };
 

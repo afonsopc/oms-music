@@ -12,6 +12,7 @@
  * below stands down. That one line is what lets a global Space exist
  * without fighting inputs.
  */
+import { openVisualizer } from "@/features/viz/openVisualizer";
 import { useEffect, useRef } from "react";
 import { useRouter } from "expo-router";
 import { getTransport } from "@/contracts/transport";
@@ -136,7 +137,7 @@ export const DesktopShortcuts = ({
           return;
         case "toggleNowPlayingPanel":
           if (wide) toggleTenant("nowPlaying");
-          else r.push("/(player)/now-playing");
+          else openVisualizer();
           return;
         case "toggleSidebar":
           toggleSidebar();

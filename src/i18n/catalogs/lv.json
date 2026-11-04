@@ -911,7 +911,6 @@
       "tenantLyrics": "Dziesmu vārdi",
       "tenantDevices": "Ierīces",
       "tenantFriends": "Draugu aktivitāte",
-      "cinemaMode": "Kino režīms",
       "miniplayerEmpty": "Nekas neatskaņojas",
       "miniplayerClose": "Aizvērt mini atskaņotāju",
       "resizePanel": "Mainīt labā paneļa platumu",
@@ -1232,7 +1231,11 @@
       "fav": "Iecienīts",
       "banned": "Nekad",
       "prefsHint": "Pieskaries: iecienīts, nekad, parasti.",
-      "montage": "Montāža"
+      "montage": "Montāža",
+      "lyricsAlways": "Dziesmas vārdi: vienmēr",
+      "lyricsSometimes": "Dziesmas vārdi: dažreiz",
+      "lyricsNever": "Dziesmas vārdi: nekad",
+      "queue": "Rinda"
     }
   }
 }

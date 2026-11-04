@@ -14,7 +14,7 @@ describe("escolha das cenas", () => {
   });
 
   it("sem géneros, o andamento e a energia", () => {
-    const loud = { fps: 25, bpm: 160, beats: new Float64Array(), onsets: new Float64Array(), env: new Uint8Array(100).fill(220), bands: [] };
+    const loud = { fps: 25, bpm: 160, beats: new Float64Array(), onsets: new Float64Array(), env: new Uint8Array(100).fill(220), bands: [], sections: [] };
     const soft = { ...loud, bpm: 80, env: new Uint8Array(100).fill(90) };
     expect(familyFor(song([]), loud)).toBe("chaos");
     expect(familyFor(song([]), soft)).toBe("calm");

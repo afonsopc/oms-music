@@ -8,8 +8,8 @@
  *            repeat, with elapsed - slider - total underneath;
  *  - right:  the right-panel toggles (panel, lyrics, queue, devices) at
  *            >= 1200px or the cast slot + full-screen queue below it, then
- *            volume and cinema mode - the DESKTOP fullscreen overlay
- *            (features/player/cinema), which floats above the shell while
+ *            volume and the fullscreen button, which opens the visualizer
+ *            (features/viz, o único ecrã inteiro desde 2026-11-04) while
  *            this bar stays visible and keeps owning the transport. The
  *            mobile (player) modal is never opened from here.
  *
@@ -39,7 +39,7 @@ import { usePlaybackView } from "@/remote/mirror";
 import { useRemoteStore } from "@/remote/store";
 import { useTheme } from "@/theme/provider";
 import { ArtworkImage, GhostIconButton, PlayFab, type PopoverAnchor } from "@/ui";
-import { CinemaOverlay, toggleCinema } from "@/features/player/cinema";
+import { openVisualizer } from "@/features/viz/openVisualizer";
 import { DjButton } from "./DjButton";
 import { Waveform } from "@/features/viz/Waveform";
 import { PlayerSettingsPopover } from "@/features/player/settingsSheet";
@@ -401,23 +401,15 @@ export const DesktopTransportBar = ({
           />
         </View>
         <GhostIconButton
-          icon="sparkles"
-          size={18}
-          disabled={!song}
-          accessibilityLabel={t("native.viz.title")}
-          onPress={() => router.push("/(player)/visualizer")}
-        />
-        <GhostIconButton
           icon="maximize"
           size={18}
           disabled={!song}
-          accessibilityLabel={t("native.desktop.cinemaMode")}
-          onPress={toggleCinema}
+          accessibilityLabel={t("native.viz.title")}
+          onPress={openVisualizer}
         />
       </View>
       {/* Mounted here because the bar exists at every desktop width; the
           overlay positions itself against the window, not this row. */}
-      <CinemaOverlay />
       <PlayerSettingsPopover
         anchor={playbackSettingsAnchor}
         onClose={() => setPlaybackSettingsAnchor(null)}

@@ -18,7 +18,7 @@
  * they test without dragging react-native into bun test.
  */
 import { router } from "expo-router";
-import { openCinema } from "@/features/player/cinema";
+import { openVisualizer } from "@/features/viz/openVisualizer";
 import { buildLockScreenMetadata, routeRemoteCommand } from "@/player/lockScreen";
 import { playerStore, type PlayerStoreState } from "@/player/store";
 import { toSongKey } from "@/domain/ids";
@@ -69,7 +69,7 @@ export const startDesktopBridge = (): boolean => {
   void tauri.event.listen(SHELL_COMMAND_EVENT, (event) => {
     const payload = event.payload as { type?: string } | null;
     if (payload?.type === "cinema") {
-      openCinema();
+      openVisualizer();
     } else if (payload?.type === "settings") {
       router.push("/settings");
     }

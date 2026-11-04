@@ -3,9 +3,10 @@
  * Canvas 2D, DOM) e uma camada de efeitos; uma cena de cada vez.
  */
 import { compile, fullscreenTriangle, hexToVec, target, textureFrom, type Target } from "./gl";
-import { type FromViz, type SceneName, type ToViz, type VizFx, type VizSong } from "./protocol";
-import { decode, sample, Smoother, type Decoded } from "./signal";
-import { matrix, mystify, pipes, pixel8, scope, starfield, vector } from "./scenes/canvas";
+import { type FromViz, type LyricsMode, type SceneName, type ToViz, type VizFx, type VizSection, type VizSong } from "./protocol";
+import { decode, sample, sectionAt, Smoother, type Decoded } from "./signal";
+import { collage, matrix, mystify, pipes, pixel8, scope, starfield, vector } from "./scenes/canvas";
+import { lyricStyleFor, Overlays } from "./overlays";
 import { familyFor, ScenePicker } from "./selector";
 import { desktop, text3d } from "./scenes/dom";
 import { AURORA, CHROME, DATAMOSH, FILM, GALAXY, INK, KALEIDO, LIQUID, MILK, PLASMA, SYNTHWAVE, TUNNEL, VHS, VOXEL } from "./scenes/shaders";
@@ -17,7 +18,7 @@ const GL_SOURCES: Partial<Record<SceneName, string>> = {
 };
 /** As cenas que lêem o frame anterior (PREV). */
 const FEEDBACK = new Set<SceneName>(["milk", "datamosh"]);
-const make2d: Partial<Record<SceneName, () => Canvas2DScene>> = { pipes, mystify, starfield, scope, matrix, vector, pixel8 };
+const make2d: Partial<Record<SceneName, () => Canvas2DScene>> = { pipes, mystify, starfield, scope, matrix, vector, pixel8, collage };
 const makeDom: Partial<Record<SceneName, () => DomScene>> = { text3d, desktop };
 
 // ---------------------------------------------------------------- estado
@@ -35,12 +36,20 @@ let fx: VizFx = { crt: false, chroma: false, pixel: false, dither: false };
 let reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 let lowPower = (navigator.hardwareConcurrency ?? 8) <= 4 || ((navigator as { deviceMemory?: number }).deviceMemory ?? 8) <= 3;
 let paused = false;
-let autoCycleBars = 16;
 let selection: "random" | "style" = "random";
 let favorites: SceneName[] = [];
 let banned: SceneName[] = [];
 let cycleOnTrack = true;
 const picker = new ScenePicker();
+const overlays = new Overlays();
+let lyricsMode: LyricsMode = "sometimes";
+/** Que visual teve cada grupo de secções nesta música (o refrão que volta traz o mesmo). */
+let groupScene = new Map<number, SceneName>();
+let lastSection = -2;
+let lastSwitchAt = 0;
+let emaShort = 0.5;
+let emaLong = 0.5;
+let flashUntil = 0;
 const history: SceneName[] = [];
 let cover: HTMLImageElement | null = null;
 let coverTex: WebGLTexture | null = null;
@@ -154,7 +163,7 @@ const setScene = (next: SceneName) => {
   post({ type: "scene", name: next });
   dirty = true;
 };
-const env = (): SceneEnv => ({ colors, title: song?.title ?? "", artist: song?.artist ?? "", cover, lowPower });
+const env = (): SceneEnv => ({ colors, title: song?.title ?? "", artist: song?.artist ?? "", cover, lowPower, lyric: overlays.currentLine(position()) });
 /** Seguinte: o escolhedor (aleatório ou pelo estilo). Anterior: a que passou antes. */
 const step = (dir: 1 | -1) => {
   if (dir === -1 && history.length > 1) {
@@ -190,8 +199,13 @@ const handle = (msg: ToViz) => {
       baseAt = msg.at;
       if (changed) {
         loadCover(song?.artworkUrl ?? null);
-        if (mode === "full" && cycleOnTrack && song) step(1);
-        else if (currentDom) { currentDom.unmount(); currentDom.mount(dom, env()); }
+        groupScene = new Map();
+        lastSection = -2;
+        lastSwitchAt = msg.position;
+        if (mode === "full" && cycleOnTrack && song) {
+          step(1);
+          overlays.titleCard(song);
+        } else if (currentDom) { currentDom.unmount(); currentDom.mount(dom, env()); }
       }
       dirty = true;
       break;
@@ -199,6 +213,9 @@ const handle = (msg: ToViz) => {
     case "analysis":
       analyses.set(msg.songId, msg.data ? decode(msg.data) : null);
       if (analyses.size > 12) analyses.delete(analyses.keys().next().value!);
+      break;
+    case "lyrics":
+      overlays.setLyrics(msg.songId, msg.lines);
       break;
     case "palette":
       colors = msg.colors;
@@ -212,11 +229,12 @@ const handle = (msg: ToViz) => {
       if (msg.reduceMotion !== undefined) reduceMotion = msg.reduceMotion;
       if (msg.lowPower !== undefined) lowPower = msg.lowPower;
       if (msg.paused !== undefined) paused = msg.paused;
-      if (msg.autoCycleBars !== undefined) autoCycleBars = msg.autoCycleBars;
       if (msg.selection) selection = msg.selection;
       if (msg.favorites) favorites = msg.favorites;
       if (msg.banned) banned = msg.banned;
       if (msg.cycleOnTrack !== undefined) cycleOnTrack = msg.cycleOnTrack;
+      if (msg.lyrics) lyricsMode = msg.lyrics;
+      if (mode !== "full") overlays.clearAll();
       if (mode === "background") {
         if (scene !== "aurora" || prevMode !== mode) { resize(); setScene("aurora"); }
       } else if (msg.scene && msg.scene !== scene) {
@@ -252,8 +270,6 @@ addEventListener("keydown", (e) => {
 const position = () => basePos + (playing ? (Date.now() - baseAt) / 1000 : 0);
 let last = performance.now();
 let tAcc = 0;
-let lastCycleBar = -1;
-let lastChaosBar = -1;
 const frameTimes: number[] = [];
 let lastReport = performance.now();
 
@@ -314,6 +330,55 @@ const drawGl = (s: ReturnType<typeof sample>, t: number) => {
   }
 };
 
+/**
+ * A estrutura da música manda nas mudanças (regra do dono: nada de mudar por
+ * tempo). Fronteira grande (queda, refrão): visual novo, ou o mesmo do
+ * primeiro refrão quando o grupo volta, com um clarão; a capa entra e a letra
+ * fica à vista. Fronteira pequena: só a paleta roda e os efeitos mexem.
+ * Sem secções (análise a chegar): saltos de energia ao vivo; em último caso,
+ * uma mudança a cada 2,5 minutos.
+ */
+const structure = (d: Decoded | null, s: ReturnType<typeof sample>) => {
+  const pos = position();
+  if (d && d.sections.length) {
+    const si = sectionAt(d, pos);
+    if (lastSection === -2) { lastSection = si; return; }
+    if (si === lastSection || si < 0) return;
+    lastSection = si;
+    boundary(d.sections[si], pos);
+    return;
+  }
+  emaShort += (s.energy - emaShort) * 0.08;
+  emaLong += (s.energy - emaLong) * 0.008;
+  const since = pos - lastSwitchAt;
+  if (s.real && emaShort - emaLong > 0.22 && emaLong < 0.6 && since > 20) {
+    boundary({ t: pos, type: "drop", intensity: emaShort, group: -1, big: true }, pos);
+  } else if (since > 150) {
+    boundary({ t: pos, type: "verse", intensity: 0.5, group: -1, big: true }, pos);
+  }
+};
+
+const boundary = (sec: VizSection, pos: number) => {
+  lastSwitchAt = pos;
+  if (sec.big || chaos) {
+    const back = sec.group >= 0 ? groupScene.get(sec.group) : undefined;
+    if (back && !banned.includes(back) && back !== scene && !chaos) {
+      picker.saw(back);
+      history.push(back);
+      setScene(back);
+    } else {
+      step(1);
+      if (sec.group >= 0) groupScene.set(sec.group, scene);
+    }
+    flashUntil = performance.now() + (sec.type === "drop" ? 140 : 80);
+    overlays.bigMoment(pos, cover, sec.intensity);
+    if (chaos) { fx = { crt: Math.random() < 0.5, chroma: Math.random() < 0.5, pixel: Math.random() < 0.2, dither: Math.random() < 0.3 }; applyFx(); }
+  } else {
+    colors = [colors[1], colors[2], colors[0]];
+    overlays.minorMoment(cover);
+  }
+};
+
 const loop = (now: number) => {
   requestAnimationFrame(loop);
   const dt = Math.min(0.1, (now - last) / 1000);
@@ -326,20 +391,14 @@ const loop = (now: number) => {
   const d = song ? analyses.get(song.id) ?? null : null;
   const raw = sample(d, position(), playing);
   const s = reduceMotion ? { ...raw, beat: 0, onset: 0, energy: 0.5, bass: 0.4 } : smoother.step(raw, dt);
-  if (mode === "full" && !reduceMotion) {
-    const bar = Math.floor(s.bar);
-    if (chaos && bar !== lastChaosBar) {
-      lastChaosBar = bar;
-      if (bar % 4 === 0) step(1);
-      if (Math.random() < 0.5) { fx = { crt: Math.random() < 0.5, chroma: Math.random() < 0.5, pixel: Math.random() < 0.25, dither: Math.random() < 0.3 }; applyFx(); }
-    } else if (!chaos && autoCycleBars > 0 && s.real) {
-      const cyc = Math.floor(bar / autoCycleBars);
-      if (lastCycleBar >= 0 && cyc !== lastCycleBar) step(1);
-      lastCycleBar = cyc;
-    }
-    if (chaos && s.beat > 0.95 && Math.random() < 0.15) stage.style.filter = `invert(1) ${fx.chroma ? "url(#chroma)" : ""}`;
-    else if (chaos && s.beat < 0.5) applyFxFilterOnly();
+  if (mode === "full" && !reduceMotion) structure(d, s);
+  if (mode === "full") {
+    const pos = position();
+    const si = sectionAt(d, pos);
+    overlays.frame(pos, lyricsMode, lyricStyleFor(scene), si >= 0 && d ? d.sections[si] : null, colors[1], song?.id);
   }
+  if (performance.now() < flashUntil) stage.style.filter = "brightness(2.2) contrast(1.3)";
+  else if (flashUntil) { flashUntil = 0; applyFxFilterOnly(); }
   if (isGl(scene)) drawGl(s, tAcc);
   else if (current2d && ctx2) current2d.frame(ctx2, c2.width, c2.height, dt, tAcc, s, env());
   else if (currentDom) currentDom.frame(dt, tAcc, s, env(), innerWidth, innerHeight);
