@@ -27,10 +27,10 @@ import { ScrollViewStyleReset } from "expo-router/html";
 import type { PropsWithChildren } from "react";
 
 const BOOT_CSS = `
-html,body{background:#1c1b1a;color-scheme:dark}
+html,body{background:#0a0a0a;color-scheme:dark}
 @media (prefers-color-scheme: light){html:not([data-boot=dark]),html:not([data-boot=dark]) body{background:#fff;color-scheme:light}html:not([data-boot=dark]) #boot{--sk:#ececec;--sk2:#f6f6f6}}
-html[data-boot=light],html[data-boot=light] body{background:#fff;color-scheme:light}html[data-boot=light] #boot{--sk:#ececec;--sk2:#f6f6f6}
-#boot{--sk:#2a2927;--sk2:#383633;position:fixed;inset:0;z-index:2147483646;background:inherit;pointer-events:none;transition:opacity .22s ease-out}
+html[data-boot=light],html[data-boot=light] body{background:#fafafa;color-scheme:light}html[data-boot=light] #boot{--sk:#ececec;--sk2:#f6f6f6}
+#boot{--sk:#1c1c1c;--sk2:#2a2a2a;position:fixed;inset:0;z-index:2147483646;background:inherit;pointer-events:none;transition:opacity .22s ease-out}
 #boot.out{opacity:0}
 #boot .w{max-width:760px;margin:0 auto;padding:calc(env(safe-area-inset-top) + 20px) 20px 0}
 #boot i{display:block;border-radius:6px;background:linear-gradient(90deg,var(--sk) 0,var(--sk2) 40%,var(--sk) 80%);background-size:300% 100%;animation:bk 1.4s ease-in-out infinite}
@@ -86,7 +86,7 @@ export default function Root({ children }: PropsWithChildren) {
         />
         <link rel="icon" href="/favicon.ico" />
         <ScrollViewStyleReset />
-        <meta name="theme-color" content="#1c1b1a" />
+        <meta name="theme-color" content="#0a0a0a" />
         <script dangerouslySetInnerHTML={{ __html: BOOT_THEME_JS }} />
         <link rel="preload" href="/fonts/inter-4-latin.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
         <style dangerouslySetInnerHTML={{ __html: FONT_CSS }} />

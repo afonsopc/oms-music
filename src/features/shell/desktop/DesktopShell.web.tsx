@@ -89,7 +89,7 @@ const PANEL_RAIL_WIDTH = 0;
 export const DesktopShell = ({ children }: DesktopShellProps) => {
   const desktop = useDesktopShell();
   const panelWide = useRightPanelWide();
-  const { tokens, scheme } = useTheme();
+  const { tokens } = useTheme();
   const { width: windowWidth } = useWindowDimensions();
   const t = useT();
   /** Dentro do shell Tauri a janela nao tem barra de titulo propria. */
@@ -178,7 +178,7 @@ export const DesktopShell = ({ children }: DesktopShellProps) => {
    */
   const hairline = tokens.border;
   // A barra lateral um degrau acima do fundo, como no Apple Music.
-  const sidebarBg = scheme === "dark" ? "#21201e" : "#f6f5f3";
+  const sidebarBg = tokens.background;
   const zone: React.CSSProperties = {
     minWidth: 0,
     minHeight: 0,

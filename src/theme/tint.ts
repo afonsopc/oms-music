@@ -19,10 +19,10 @@ export interface Tint {
   ink: string;
 }
 
-const DARK_BASE = "#1c1b1a";
-const LIGHT_BASE = "#ffffff";
-const DARK_TEXT = "#f5f3f0";
-const LIGHT_TEXT = "#141312";
+const DARK_BASE = "#0a0a0a";
+const LIGHT_BASE = "#fafafa";
+const DARK_TEXT = "#ebebeb";
+const LIGHT_TEXT = "#171717";
 /** Folga acima do AA (4,5) para o texto secundário também passar. */
 const MIN_TEXT = 7;
 
@@ -59,4 +59,4 @@ export const tintFromAccent = (accent: string, scheme: "light" | "dark"): Tint =
 
 /** Sem capa (ou a extrair): o neutro do tema, para nunca piscar outra cor. */
 export const neutralTint = (scheme: "light" | "dark"): Tint =>
-  scheme === "dark" ? { wash: "#232220", ink: "#d6d2cc" } : { wash: "#f3f2f0", ink: "#3a3836" };
+  scheme === "dark" ? { wash: "#161616", ink: "#d4d4d4" } : { wash: "#ededed", ink: "#3a3a3a" };

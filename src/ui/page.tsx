@@ -18,7 +18,6 @@ import React, { useEffect, useState } from "react";
 import { Pressable, Text, View, type StyleProp, type TextStyle, type ViewStyle } from "react-native";
 import { useT } from "@/i18n";
 import { useTheme } from "@/theme/provider";
-import { ACCENT } from "@/theme/tokens";
 import { Icon, type IconName } from "./icons";
 import { Reveal } from "./motion";
 import { waitPhraseKey } from "./motionMath";
@@ -33,8 +32,8 @@ export const useGutter = (): number => (useDesktopShell() ? GUTTER_DESKTOP : GUT
 
 /** Escala de texto da página (a mesma em todos os ecrãs): títulos em negrito, sem serifa. */
 export const pageType = {
-  title: { fontSize: 32, lineHeight: 38, fontWeight: "800", letterSpacing: -0.6 } as TextStyle,
-  section: { fontSize: 22, lineHeight: 27, fontWeight: "700", letterSpacing: -0.3 } as TextStyle,
+  title: { fontSize: 30, lineHeight: 36, fontWeight: "700", letterSpacing: -0.6 } as TextStyle,
+  section: { fontSize: 21, lineHeight: 26, fontWeight: "700", letterSpacing: -0.3 } as TextStyle,
   label: { fontSize: 13, lineHeight: 16, fontWeight: "600", letterSpacing: 0.1 } as TextStyle,
   body: { fontSize: 16, lineHeight: 21 } as TextStyle,
   meta: { fontSize: 14, lineHeight: 18 } as TextStyle,
@@ -57,7 +56,7 @@ export const PageTitle = ({
       minimumFontScale={0.75}
       style={[
         pageType.title,
-        desktop ? { fontSize: 36, lineHeight: 42, letterSpacing: -0.7 } : null,
+        desktop ? { fontSize: 34, lineHeight: 40, letterSpacing: -0.7 } : null,
         { color: tokens.foreground, flexShrink: 1 },
         style,
       ]}
@@ -117,7 +116,7 @@ export const SectionLabel = ({
   onAction?: () => void;
   style?: StyleProp<ViewStyle>;
 }) => {
-  const { tokens, scheme } = useTheme();
+  const { tokens } = useTheme();
   const gutter = useGutter();
   const desktop = useDesktopShell();
   return (
@@ -147,7 +146,7 @@ export const SectionLabel = ({
         <Pressable accessibilityRole="button" onPress={onAction} hitSlop={10}>
           {({ pressed }) => (
             <Text
-              style={{ color: ACCENT[scheme].ink, fontSize: 15, fontWeight: "500", opacity: pressed ? 0.6 : 1 }}
+              style={{ color: tokens.mutedForeground, fontSize: 14, fontWeight: "500", opacity: pressed ? 0.6 : 1 }}
             >
               {actionLabel}
             </Text>

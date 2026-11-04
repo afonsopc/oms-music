@@ -1,195 +1,407 @@
 /**
- * Barra lateral do computador (ronda 2, 2026-11-04, idioma do Apple Music
- * escolhido pelo dono): a pesquisa no topo, depois a navegação (Início,
- * Explorar, Rádio, Assistente), a Biblioteca (Gostadas, Playlists,
- * Artistas, Álbuns) e por fim a lista das playlists. Uma linha activa tem o
- * fundo cinzento arredondado e o ícone no destaque.
+ * Desktop sidebar, first iteration (plano-uma-so-app 4.3, row 1): the
+ * persistent left column that replaces the bottom tab bar. Top block is the
+ * icon rail (Home / Search / Library, the exact three tabs); below it the
+ * sidebar renders the LIBRARY itself - playlists, artists and albums with
+ * filter chips and a local search box, reusing the Library tab's queries and
+ * its pure row assembly (buildLibraryRows) so both surfaces filter and label
+ * rows identically forever.
  *
- * Recolhida, fica só o carril de ícones. O estado recolhido persiste
- * (layoutPrefs); a lista das playlists não é pedida enquanto está recolhida.
+ * The list is topped by the PINNED Liked Songs row (immune to the chips) and
+ * the column ends in the account block: avatar + name (avatar alone on the
+ * rail) opening the anchored profile menu - profile, friends, downloads,
+ * settings, the four destinations the Library tab's quick links used to own.
+ *
+ * Collapsed, it narrows to the icon rail plus that avatar. Collapse state,
+ * active chip and search text persist through layoutPrefs (4.5): a desktop
+ * app REMEMBERS its layout, and the queries stay off while collapsed so a
+ * closed sidebar costs no network.
  *
  * Web-only by construction: only DesktopShell.web.tsx imports this file.
  */
-import React from "react";
-import { FlatList, Pressable, Text, View } from "react-native";
-import { usePathname, useRouter, type Href } from "expo-router";
+import React, { useMemo, useState } from "react";
+import {
+  FlatList,
+  Pressable,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+import { useRouter, useSegments } from "expo-router";
 import { usePlaylists } from "@/api/queries/playlists";
-import { playlistArtworkSource } from "@/domain/artwork";
-import { playlistRoute } from "@/lib/routes";
+import { useLibraryAlbums, useLibraryArtists } from "@/features/library/queries";
+import {
+  buildLibraryRows,
+  likedLibraryRow,
+  rowMatchesSearch,
+  type LibraryFilter,
+  type LibraryRow,
+} from "@/features/library/rows";
+import { TabIcon, type TabIconName } from "@/features/shell/TabIcon";
 import { useT } from "@/i18n";
 import { useTheme } from "@/theme/provider";
-import { ACCENT } from "@/theme/tokens";
-import { ArtworkImage, GhostIconButton, Icon, type IconName } from "@/ui";
-import { TopBarSearch } from "./TopBarSearch";
+import { RADIUS } from "@/theme/tokens";
+import {
+  ArtworkImage,
+  EmptyState,
+  FilterPills,
+  GhostIconButton,
+  Icon,
+} from "@/ui";
+import {
+  readSidebarFilter,
+  readSidebarSearch,
+  writeSidebarFilter,
+  writeSidebarSearch,
+} from "./layoutPrefs";
 
 export interface DesktopSidebarProps {
   collapsed: boolean;
   onToggleCollapsed: () => void;
-  /** Dentro do Tauri: os semáforos do macOS flutuam no canto, a faixa de cima fica livre e arrasta a janela. */
+  /** Dentro do Tauri: os semáforos do macOS flutuam no canto; a faixa de cima fica livre e arrasta a janela. */
   tauri?: boolean;
 }
 
-/** Altura da faixa dos semáforos no Tauri. */
 const TAURI_TOP_INSET = 40;
 
 interface NavItem {
-  key: string;
-  icon: IconName;
+  key: TabIconName;
   labelKey: string;
-  route: string;
-  /** Também activo nestes caminhos (a pesquisa vive em /search). */
-  match?: (path: string) => boolean;
+  // Rotas NUAS, sem prefixo de grupo: desde a migracao para native tabs cada
+  // tab tem a sua stack e cada uma destas tres so existe no seu grupo, por
+  // isso a forma nua e inequivoca. Prefixar com o grupo passaria a ser um
+  // caminho invalido nos typed routes.
+  route: "/home" | "/search" | "/library" | "/assistant";
 }
 
-const NAV: NavItem[] = [
-  { key: "home", icon: "music", labelKey: "native.shell.tabHome", route: "/home" },
-  { key: "explore", icon: "compass", labelKey: "native.desktop.navExplore", route: "/search" },
-  { key: "radio", icon: "radio", labelKey: "native.desktop.navRadio", route: "/dj" },
-  { key: "assistant", icon: "sparkles", labelKey: "native.shell.tabAssistant", route: "/assistant", match: (p) => p.startsWith("/assistant") },
+// Sem "Pesquisar" de proposito (dono, 2026-08-17): no desktop a pesquisa
+// vive na topbar (campo sempre visivel + Cmd+K), e uma linha de navegacao
+// para uma pagina cujo unico papel la e "ver todos" nao ganhava o lugar.
+// O ponto 18 tentou salva-la (navegar e focar); a resposta foi tirar de vez.
+const NAV_ITEMS: NavItem[] = [
+  { key: "home", labelKey: "native.shell.tabHome", route: "/home" },
+  { key: "library", labelKey: "native.shell.tabLibrary", route: "/library" },
+  { key: "assistant", labelKey: "native.shell.tabAssistant", route: "/assistant" },
 ];
 
-const LIBRARY: NavItem[] = [
-  { key: "liked", icon: "heart", labelKey: "components.music.Sidebar.liked", route: "/liked" },
-  { key: "playlists", icon: "list-music", labelKey: "components.music.Sidebar.playlists", route: "/playlists" },
-  { key: "artists", icon: "users", labelKey: "components.music.Sidebar.artists", route: "/artists" },
-  { key: "albums", icon: "disc", labelKey: "native.desktop.navAlbums", route: "/library" },
-];
-
-const Row = ({
-  label,
+const NavRow = ({
+  item,
   active,
   collapsed,
   onPress,
-  leading,
 }: {
-  label: string;
+  item: NavItem;
   active: boolean;
   collapsed: boolean;
   onPress: () => void;
-  leading: React.ReactNode;
 }) => {
   const { tokens } = useTheme();
+  const t = useT();
+  const tint = active ? tokens.primary : tokens.mutedForeground;
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={label}
+      accessibilityLabel={t(item.labelKey)}
       accessibilityState={{ selected: active }}
       style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => ({
         flexDirection: "row",
         alignItems: "center",
         justifyContent: collapsed ? "center" : "flex-start",
-        gap: 12,
-        minHeight: 36,
-        paddingVertical: 4,
-        paddingHorizontal: collapsed ? 0 : 10,
-        borderRadius: 8,
-        backgroundColor: active ? tokens.muted : hovered ? tokens.secondary : "transparent",
+        gap: 14,
+        height: 42,
+        paddingHorizontal: collapsed ? 0 : 12,
+        borderRadius: RADIUS,
+        // Sem pílula no activo (ronda 2): só o texto e o ícone a branco.
+        backgroundColor: hovered && !active ? tokens.secondary : "transparent",
         opacity: pressed ? 0.7 : 1,
       })}
     >
-      {leading}
+      <TabIcon name={item.key} color={tint} />
       {collapsed ? null : (
-        <Text numberOfLines={1} style={{ flex: 1, color: tokens.foreground, fontSize: 15, fontWeight: active ? "600" : "500" }}>
-          {label}
+        <Text
+          style={{
+            color: active ? tokens.foreground : tokens.mutedForeground,
+            fontSize: 16,
+            fontWeight: active ? "600" : "500",
+          }}
+          numberOfLines={1}
+        >
+          {t(item.labelKey)}
         </Text>
       )}
     </Pressable>
   );
 };
 
-const Heading = ({ text }: { text: string }) => {
+/** Compact library row: 36px artwork, one-line name + kind subtitle. */
+const SidebarRow = ({ row, onPress }: { row: LibraryRow; onPress: () => void }) => {
   const { tokens } = useTheme();
   return (
-    <Text style={{ color: tokens.mutedForeground, fontSize: 12, fontWeight: "600", paddingHorizontal: 10, marginTop: 20, marginBottom: 4 }}>
-      {text}
-    </Text>
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={row.name}
+      style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => ({
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 12,
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: RADIUS,
+        backgroundColor: hovered ? tokens.secondary : "transparent",
+        opacity: pressed ? 0.7 : 1,
+      })}
+    >
+      <ArtworkImage
+        source={row.artwork}
+        size={44}
+        shape={row.circular ? "circle" : "rounded"}
+        recyclingKey={row.key}
+      />
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+          <Text
+            style={{
+              color: tokens.foreground,
+              fontSize: 15,
+              lineHeight: 19,
+              fontWeight: row.pinned ? "600" : "500",
+              flexShrink: 1,
+            }}
+            numberOfLines={1}
+          >
+            {row.name}
+          </Text>
+          {row.system ? (
+            <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: tokens.mutedForeground }} />
+          ) : null}
+        </View>
+        <Text style={{ color: tokens.mutedForeground, fontSize: 13, lineHeight: 17, marginTop: 1 }} numberOfLines={1}>
+          {row.subtitle}
+        </Text>
+      </View>
+    </Pressable>
   );
 };
 
 export const DesktopSidebar = ({ collapsed, onToggleCollapsed, tauri = false }: DesktopSidebarProps) => {
-  const { tokens, scheme } = useTheme();
+  const { tokens } = useTheme();
   const t = useT();
   const router = useRouter();
-  const path = usePathname();
-  const accent = ACCENT[scheme].ink;
-  const playlistsQuery = usePlaylists({ enabled: !collapsed });
-  const playlists = playlistsQuery.data ?? [];
+  const segments = useSegments() as string[];
 
-  const isActive = (item: NavItem): boolean => (item.match ? item.match(path) : path === item.route);
-  const navRow = (item: NavItem) => {
-    const active = isActive(item);
-    return (
-      <Row
-        key={item.key}
-        label={t(item.labelKey)}
-        active={active}
-        collapsed={collapsed}
-        onPress={() => router.push(item.route as Href)}
-        leading={<Icon name={item.icon} size={18} color={accent} filled={item.icon === "heart"} />}
-      />
-    );
+  // Chip + search text hydrate from kv so a reload keeps the shape (4.5).
+  const [filter, setFilterState] = useState<LibraryFilter>(readSidebarFilter);
+  const [search, setSearchState] = useState<string>(readSidebarSearch);
+
+  const setFilter = (next: LibraryFilter): void => {
+    setFilterState(next);
+    writeSidebarFilter(next);
+  };
+  const setSearch = (next: string): void => {
+    setSearchState(next);
+    writeSidebarSearch(next);
   };
 
-  const header = (
-    <View>
-      {collapsed ? null : (
-        <View style={{ marginBottom: 8, zIndex: 50 }}>
-          <TopBarSearch />
-        </View>
-      )}
-      <View style={{ gap: 2 }}>{NAV.map(navRow)}</View>
-      {collapsed ? <View style={{ height: 16 }} /> : <Heading text={t("native.desktop.sectionLibrary")} />}
-      <View style={{ gap: 2 }}>{LIBRARY.map(navRow)}</View>
-      {collapsed || playlists.length === 0 ? null : <Heading text={t("native.desktop.sectionPlaylists")} />}
-    </View>
+  // Same gating discipline as the Library tab: the active chip decides which
+  // lists load, and a collapsed sidebar loads nothing at all.
+  const wantsPlaylists = !collapsed && (filter === "all" || filter === "playlists");
+  const wantsArtists = !collapsed && (filter === "all" || filter === "artists");
+  const wantsAlbums = !collapsed && (filter === "all" || filter === "albums");
+
+  const playlistsQuery = usePlaylists({ enabled: wantsPlaylists });
+  const artistsQuery = useLibraryArtists(wantsArtists);
+  const albumsQuery = useLibraryAlbums(wantsAlbums);
+
+  const labels = useMemo(
+    () => ({
+      playlistKind: t("components.music.Sidebar.playlistKind"),
+      artistKind: t("components.music.Sidebar.artistKind"),
+      albumKind: t("components.music.Sidebar.albumKind"),
+      synced: t("components.music.Sidebar.synced"),
+    }),
+    [t],
+  );
+
+  const rows = useMemo(
+    () =>
+      buildLibraryRows(
+        filter,
+        {
+          playlists: playlistsQuery.data ?? [],
+          artists: artistsQuery.data ?? [],
+          albums: albumsQuery.data ?? [],
+        },
+        search,
+        labels,
+      ),
+    [filter, playlistsQuery.data, artistsQuery.data, albumsQuery.data, search, labels],
+  );
+
+  // Pinned above the list, but ONLY where a playlist belongs: Tudo and
+  // Playlists. A "playlist Gostadas" no meio dos artistas ou dos albuns e
+  // ruido, nao ancora (feedback do dono 2026-08-14).
+  const likedRow = useMemo(
+    () => likedLibraryRow(t("components.music.Sidebar.liked"), labels.playlistKind),
+    [t, labels],
+  );
+  const wantsLiked = filter === "all" || filter === "playlists";
+  const data = useMemo(
+    () => (wantsLiked && rowMatchesSearch(likedRow, search) ? [likedRow, ...rows] : rows),
+    [wantsLiked, likedRow, rows, search],
+  );
+
+  const isLoading =
+    (wantsPlaylists && playlistsQuery.isLoading) ||
+    (wantsArtists && artistsQuery.isLoading) ||
+    (wantsAlbums && albumsQuery.isLoading);
+
+  const activeTab = segments.includes("(tabs)") ? segments[segments.length - 1] : null;
+
+  const pills = [
+    { key: "all", label: t("components.music.Sidebar.filterAll") },
+    { key: "playlists", label: t("components.music.Sidebar.filterPlaylists") },
+    { key: "artists", label: t("components.music.Sidebar.filterArtists") },
+    { key: "albums", label: t("components.music.Sidebar.filterAlbums") },
+  ];
+
+  // The pinned row keeps the list technically non-empty, so the loading /
+  // empty message drops to the FOOTER whenever only Liked Songs rendered.
+  const statusFallback = isLoading ? (
+    <Text style={{ color: tokens.mutedForeground, fontSize: 14, paddingHorizontal: 12 }}>
+      {t("components.music.Sidebar.loading")}
+    </Text>
+  ) : (
+    <EmptyState
+      icon="library"
+      text={
+        search.trim()
+          ? t("native.library.noFilterMatches")
+          : t("components.music.Sidebar.emptyLibrary")
+      }
+    />
   );
 
   return (
-    <View style={{ flex: 1, paddingTop: tauri ? TAURI_TOP_INSET : 16 }}>
+    // paddingBottom 0: a lista rola ate BATER no limite do cartao (feedback
+    // do dono); so o topo respira.
+    <View style={{ flex: 1, paddingHorizontal: collapsed ? 8 : 12, paddingTop: tauri ? TAURI_TOP_INSET : 14, gap: 4 }}>
       {tauri ? (
         <View
           {...{ dataSet: { "tauri-drag-region": "true" } }}
           style={{ position: "absolute", top: 0, left: 0, right: 0, height: TAURI_TOP_INSET }}
         />
       ) : null}
-      <FlatList
-        style={{ flex: 1 }}
-        contentContainerStyle={{ paddingHorizontal: collapsed ? 8 : 12, paddingBottom: 12, gap: 2 }}
-        data={collapsed ? [] : playlists}
-        keyExtractor={(p) => String(p.id)}
-        ListHeaderComponent={header}
-        ListHeaderComponentStyle={{ zIndex: 50 }}
-        renderItem={({ item }) => {
-          const route = playlistRoute(item.id);
-          return (
-            <Row
-              label={item.name}
-              active={path === route}
-              collapsed={false}
-              onPress={() => router.push(route)}
-              leading={
-                <ArtworkImage
-                  source={playlistArtworkSource(item)}
-                  size={28}
-                  borderRadius={5}
-                  recyclingKey={`pl:${item.id}`}
-                />
-              }
-            />
-          );
+      <View style={{ gap: 2 }}>
+        {NAV_ITEMS.map((item) => (
+          <NavRow
+            key={item.key}
+            item={item}
+            active={activeTab === item.key}
+            collapsed={collapsed}
+            onPress={() => router.push(item.route)}
+          />
+        ))}
+      </View>
+
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: collapsed ? "center" : "space-between",
+          paddingLeft: collapsed ? 0 : 12,
+          marginTop: 8,
         }}
-        initialNumToRender={30}
-        keyboardShouldPersistTaps="handled"
-      />
-      <View style={{ flexDirection: "row", justifyContent: collapsed ? "center" : "flex-end", paddingHorizontal: 8, paddingBottom: 8, borderTopWidth: 1, borderColor: tokens.border, paddingTop: 6 }}>
+      >
+        {collapsed ? null : (
+          <Text
+            style={{ color: tokens.foreground, fontSize: 16, fontWeight: "700", flexShrink: 1 }}
+            numberOfLines={1}
+          >
+            {t("components.music.Sidebar.libraryTitle")}
+          </Text>
+        )}
         <GhostIconButton
           icon={collapsed ? "chevron-right" : "chevron-left"}
           size={16}
-          accessibilityLabel={collapsed ? t("components.music.Sidebar.expandSidebar") : t("components.music.Sidebar.collapseSidebar")}
+          accessibilityLabel={
+            collapsed
+              ? t("components.music.Sidebar.expandSidebar")
+              : t("components.music.Sidebar.collapseSidebar")
+          }
           onPress={onToggleCollapsed}
         />
       </View>
+
+      {collapsed ? null : (
+        <>
+          {/* Full-bleed strip: the negative margin lets overflowing pills
+              scroll across the card's whole width, the inset re-aligns pill
+              one with the search capsule below. */}
+          <FilterPills
+            pills={pills}
+            activeKey={filter}
+            onChange={(key) => setFilter(key as LibraryFilter)}
+            contentPaddingHorizontal={10}
+            style={{ flexGrow: 0, marginHorizontal: -10 }}
+          />
+
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 8,
+              paddingHorizontal: 10,
+              height: 38,
+              borderRadius: RADIUS,
+              borderWidth: 1,
+              borderColor: tokens.border,
+              marginTop: 6,
+            }}
+          >
+            <Icon name="search" size={14} color={tokens.mutedForeground} />
+            <TextInput
+              value={search}
+              onChangeText={setSearch}
+              placeholder={t("components.music.Sidebar.searchPlaceholder")}
+              placeholderTextColor={tokens.mutedForeground}
+              autoCorrect={false}
+              accessibilityLabel={t("components.music.Sidebar.searchPlaceholder")}
+              style={{ flex: 1, color: tokens.foreground, fontSize: 15 }}
+            />
+            {search.length > 0 ? (
+              <Pressable
+                onPress={() => setSearch("")}
+                accessibilityRole="button"
+                accessibilityLabel={t("components.music.MusicSearchInput.clear")}
+                hitSlop={8}
+              >
+                <Icon name="x" size={13} color={tokens.mutedForeground} />
+              </Pressable>
+            ) : null}
+          </View>
+
+          <FlatList
+            style={{ flex: 1, marginTop: 4 }}
+            data={data}
+            keyExtractor={(row) => row.key}
+            renderItem={({ item }) => (
+              <SidebarRow row={item} onPress={() => router.push(item.route)} />
+            )}
+            ListEmptyComponent={statusFallback}
+            ListFooterComponent={data.length > 0 && rows.length === 0 ? statusFallback : null}
+            initialNumToRender={30}
+            maxToRenderPerBatch={30}
+            windowSize={11}
+            removeClippedSubviews
+            keyboardShouldPersistTaps="handled"
+          />
+        </>
+      )}
+
+      {/* A conta mudou-se para o canto direito da topbar (AccountMenu.tsx,
+          o sitio das apps de referencia) - a sidebar acaba na lista. */}
     </View>
   );
 };

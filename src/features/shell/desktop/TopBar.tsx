@@ -21,6 +21,7 @@ import { isDesktopShell as isTauriShell } from "@/desktop/tauri";
 import { useT } from "@/i18n";
 import { GhostIconButton } from "@/ui";
 import { AccountMenu } from "./AccountMenu";
+import { TopBarSearch } from "./TopBarSearch";
 
 export const DesktopTopBar = () => {
   const t = useT();
@@ -52,8 +53,9 @@ export const DesktopTopBar = () => {
         accessibilityLabel={t("native.desktop.forward")}
         onPress={() => window.history.forward()}
       />
-      {/* A pesquisa mudou-se para o topo da barra lateral (ronda 2). */}
-      <View style={{ flex: 1 }} pointerEvents="none" />
+      <View style={{ flex: 1, alignItems: "flex-start", paddingLeft: 12 }} pointerEvents="box-none">
+        <TopBarSearch />
+      </View>
       <View style={{ width: 52, alignItems: "flex-end" }}>
         <AccountMenu />
       </View>

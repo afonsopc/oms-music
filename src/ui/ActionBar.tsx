@@ -9,8 +9,8 @@
  * folha de baixo. Cada controlo só aparece quando o ecrã passa o handler.
  */
 import React, { useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, Text, View, type StyleProp, type ViewStyle } from "react-native";
-import { GhostIconButton } from "./buttons";
+import { Pressable, Text, View, type StyleProp, type ViewStyle } from "react-native";
+import { GhostIconButton, PlayFab } from "./buttons";
 import { Icon, iconForHint } from "./icons";
 import { Reveal } from "./motion";
 import { useGutter } from "./page";
@@ -18,8 +18,6 @@ import { BottomSheet } from "./sheets/BottomSheet";
 import { useT } from "@/i18n";
 import { haptics } from "@/lib/haptics";
 import { useTheme } from "@/theme/provider";
-import { ACCENT, ON_ACCENT } from "@/theme/tokens";
-import { useDesktopShell } from "./shellLayout";
 
 export interface ActionBarMenuItem {
   id: string;
@@ -54,51 +52,6 @@ export interface ActionBarProps {
   style?: StyleProp<ViewStyle>;
 }
 
-const BigButton = ({
-  icon,
-  label,
-  primary = false,
-  loading = false,
-  desktop,
-  onPress,
-}: {
-  icon: "play" | "pause" | "shuffle";
-  label: string;
-  primary?: boolean;
-  loading?: boolean;
-  desktop: boolean;
-  onPress: () => void;
-}) => {
-  const { tokens, scheme } = useTheme();
-  const fg = primary ? ON_ACCENT : ACCENT[scheme].ink;
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      style={({ pressed }) => ({
-        flex: desktop ? undefined : 1,
-        minWidth: desktop ? 132 : undefined,
-        height: 46,
-        paddingHorizontal: 18,
-        borderRadius: 10,
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 8,
-        backgroundColor: primary ? ACCENT[scheme].fill : tokens.secondary,
-        transform: [{ scale: pressed ? 0.97 : 1 }],
-        opacity: pressed ? 0.9 : 1,
-      })}
-    >
-      {loading ? <ActivityIndicator color={fg} /> : <Icon name={icon} size={17} color={fg} filled={icon !== "shuffle"} />}
-      <Text style={{ color: fg, fontSize: 16, fontWeight: "600" }} numberOfLines={1}>
-        {label}
-      </Text>
-    </Pressable>
-  );
-};
-
 export const ActionBar = ({
   onPlay,
   onShuffle,
@@ -118,7 +71,6 @@ export const ActionBar = ({
   const { tokens, ink } = useTheme();
   const t = useT();
   const gutter = useGutter();
-  const desktop = useDesktopShell();
   const [menuOpen, setMenuOpen] = useState(false);
 
   // Adicionar e rádio deixaram de ser ícones soltos: entram no topo do menu.
@@ -150,38 +102,40 @@ export const ActionBar = ({
           {
             flexDirection: "row",
             alignItems: "center",
-            gap: 10,
+            gap: 6,
             paddingHorizontal: gutter,
-            paddingTop: 16,
-            paddingBottom: 14,
+            paddingTop: 14,
+            paddingBottom: 12,
           },
           style,
         ]}
       >
-        {/* Ronda 2 (idioma Apple Music): dois botões com nome, Tocar no
-            destaque e Aleatório no cinzento; o resto são ícones. */}
         {onPlay ? (
-          <BigButton
-            icon={isPlayingThisCollection ? "pause" : "play"}
-            label={isPlayingThisCollection ? t("components.music.ActionBar.pause") : t("components.music.ActionBar.play")}
+          <PlayFab
+            playing={isPlayingThisCollection}
             loading={playLoading}
-            primary
-            desktop={desktop}
             onPress={() => {
               haptics.tap();
               onPlay();
             }}
+            size={56}
+            style={{ marginRight: 8 }}
+            accessibilityLabel={
+              isPlayingThisCollection
+                ? t("components.music.ActionBar.pause")
+                : t("components.music.ActionBar.play")
+            }
           />
         ) : null}
         {onShuffle ? (
-          <BigButton
+          <GhostIconButton
             icon="shuffle"
-            label={t("native.collection.shuffleShort")}
-            desktop={desktop}
+            size={24}
             onPress={() => {
               haptics.tap();
               onShuffle();
             }}
+            accessibilityLabel={t("components.music.ActionBar.shuffle")}
           />
         ) : null}
         {onToggleOffline ? (
@@ -214,7 +168,7 @@ export const ActionBar = ({
           />
         ) : null}
         {secondarySlot}
-        {desktop ? <View style={{ flex: 1 }} /> : null}
+        <View style={{ flex: 1 }} />
         {allItems.length > 0 ? (
           <GhostIconButton
             icon="more-horizontal"

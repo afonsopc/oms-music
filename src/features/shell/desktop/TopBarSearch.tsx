@@ -244,23 +244,23 @@ export const TopBarSearch = () => {
       style={{
         position: "relative",
         width: "100%",
+        maxWidth: 520,
         display: "flex",
         flexDirection: "column",
       }}
     >
       <View
         style={{
-          height: 36,
+          height: 40,
           flexDirection: "row",
           alignItems: "center",
-          gap: 8,
-          paddingHorizontal: 10,
+          gap: 10,
+          paddingHorizontal: 12,
           borderRadius: 8,
-          backgroundColor: tokens.secondary,
-          // O contorno existe sempre (nada salta) e acende no `ring` quando
-          // o campo tem o cursor (a11y de teclado).
+          // O campo do omelhorsite: traço fino, sem enchimento; acende no
+          // `ring` quando tem o cursor (a11y de teclado), sem saltar.
           borderWidth: 1,
-          borderColor: focused ? tokens.ring : "transparent",
+          borderColor: focused ? tokens.ring : tokens.border,
         }}
       >
         <Icon name="search" size={16} color={tokens.mutedForeground} />
@@ -312,11 +312,9 @@ export const TopBarSearch = () => {
           style={[
             {
               position: "absolute",
-              top: 42,
+              top: 46,
               left: 0,
-              // Na barra lateral o campo é estreito: a lista sai para a
-              // direita, por cima do conteúdo.
-              width: 440,
+              right: 0,
               zIndex: 100,
               borderRadius: 12,
               backgroundColor: tokens.popover,

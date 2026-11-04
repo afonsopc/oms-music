@@ -10,10 +10,10 @@ import React from "react";
 import { Pressable, Text, View, type StyleProp, type ViewStyle } from "react-native";
 import { Image } from "expo-image";
 import { Icon, type IconName } from "./icons";
-import { foregroundWash } from "./uiTheme";
+import { foregroundWash, gradientBackground, linearGradient } from "./uiTheme";
 import type { MixKind } from "@/domain/mixes";
 import { useTheme } from "@/theme/provider";
-import { MIX_KIND_GRADIENTS, MIX_KIND_TINTS, RADIUS } from "@/theme/tokens";
+import { MIX_KIND_GRADIENTS, RADIUS } from "@/theme/tokens";
 import { typeScale } from "@/theme/typography";
 import { TILE_WIDTH } from "./Tile";
 
@@ -50,28 +50,12 @@ export interface MixTileArtworkProps {
 
 /** The gradient square alone (also used as a Hero artworkSlot). */
 export const MixTileArtwork = ({ kind, stamp, artworkUri, size, icon }: MixTileArtworkProps) => {
-  const { scheme } = useTheme();
   const gradient = MIX_KIND_GRADIENTS[kind];
-  const tint = MIX_KIND_TINTS[kind][scheme];
-  // Ronda 2 (2026-11-04): cada tipo de mix tem um tom calmo seu (fundo
-  // profundo no escuro, pastel no claro) e o nome vai com serifa, em letra
-  // normal. Com foto do artista, a foto enche o mosaico e o nome assenta
-  // numa faixa do tom em baixo, como a capa de uma revista.
-  const fontSize = Math.round(stampFontSize(stamp) * (size >= 160 ? 0.92 : 0.8));
-  const stampText = (
-    <Text
-      style={{
-        color: tint.ink,
-        fontWeight: "800",
-        letterSpacing: -0.4,
-        fontSize,
-        lineHeight: Math.round(fontSize * 1.08),
-      }}
-      numberOfLines={artworkUri ? 2 : 3}
-    >
-      {stamp}
-    </Text>
-  );
+  // Ronda 2 (dono): de volta ao mosaico de imagem inteira, mais limpo. Com
+  // foto, a foto enche o quadrado e um véu escuro em baixo segura o nome;
+  // sem foto, uma capa gerada em carvão com o ícone do tipo em grande e
+  // esbatido. O nome vai em letra normal (nada de maiúsculas a gritar).
+  const fontSize = Math.round(stampFontSize(stamp) * (size >= 160 ? 0.88 : 0.76));
   return (
     <View
       style={{
@@ -79,39 +63,48 @@ export const MixTileArtwork = ({ kind, stamp, artworkUri, size, icon }: MixTileA
         height: size,
         borderRadius: RADIUS,
         overflow: "hidden",
-        backgroundColor: tint.wash,
+        justifyContent: "flex-end",
+        ...gradientBackground(linearGradient("150deg", ...gradient.colors)),
       }}
     >
       {artworkUri ? (
-        <>
-          <Image
-            alt=""
-            source={{ uri: artworkUri }}
-            contentFit="cover"
-            style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: "34%" }}
-            accessible={false}
-          />
-          <View
-            style={{
-              position: "absolute",
-              left: 0,
-              right: 0,
-              bottom: 0,
-              height: "34%",
-              paddingHorizontal: 12,
-              justifyContent: "center",
-              backgroundColor: tint.wash,
-            }}
-          >
-            {stampText}
-          </View>
-        </>
+        <Image
+          alt=""
+          source={{ uri: artworkUri }}
+          contentFit="cover"
+          style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
+          accessible={false}
+        />
       ) : (
-        <View style={{ flex: 1, padding: 14, justifyContent: "space-between" }}>
-          <Icon name={icon ?? gradient.icon} size={22} color={tint.ink} />
-          {stampText}
+        <View pointerEvents="none" style={{ position: "absolute", right: -size * 0.12, top: -size * 0.08, opacity: 0.1 }}>
+          <Icon name={icon ?? gradient.icon} size={size * 0.78} color="#ffffff" />
         </View>
       )}
+      <View
+        pointerEvents="none"
+        style={{
+          position: "absolute",
+          left: 0,
+          right: 0,
+          bottom: 0,
+          height: "62%",
+          ...gradientBackground(linearGradient("to bottom", "rgba(0,0,0,0) 0%", "rgba(0,0,0,0.45) 55%", "rgba(0,0,0,0.78) 100%")),
+        }}
+      />
+      <Text
+        style={{
+          color: "#ffffff",
+          fontWeight: "700",
+          letterSpacing: -0.3,
+          fontSize,
+          lineHeight: Math.round(fontSize * 1.1),
+          paddingHorizontal: 12,
+          paddingBottom: 12,
+        }}
+        numberOfLines={3}
+      >
+        {stamp}
+      </Text>
     </View>
   );
 };

@@ -7,7 +7,7 @@ import { ActivityIndicator, Pressable, type StyleProp, type ViewStyle } from "re
 import { Icon, type IconName } from "./icons";
 import { heavyShadow } from "./uiTheme";
 import { useTheme } from "@/theme/provider";
-import { ACCENT, ON_ACCENT } from "@/theme/tokens";
+import { ACCENT } from "@/theme/tokens";
 
 export interface PlayFabProps {
   playing?: boolean;
@@ -19,7 +19,7 @@ export interface PlayFabProps {
   style?: StyleProp<ViewStyle>;
 }
 
-/** Round play/pause button, no destaque rosa-vermelho (ronda 2) com o glifo branco. */
+/** Round play/pause button: branco com o glifo preto no escuro (o do omelhorsite), o inverso no claro. */
 export const PlayFab = ({
   playing = false,
   loading = false,
@@ -57,12 +57,12 @@ export const PlayFab = ({
       ]}
     >
       {loading ? (
-        <ActivityIndicator color={ON_ACCENT} />
+        <ActivityIndicator color={ACCENT[scheme].on} />
       ) : (
         <Icon
           name={playing ? "pause" : "play"}
           size={size * 0.42}
-          color={ON_ACCENT}
+          color={ACCENT[scheme].on}
           filled
         />
       )}
@@ -98,6 +98,7 @@ export const GhostIconButton = ({
   const { tokens, scheme } = useTheme();
   // O coração gostado é sempre o lilás calmo das Gostadas (ronda 2).
   const likedHeart = icon === "heart" && filled;
+  // Ícones cinzentos; o activo (e o coração gostado) a branco. Nada de cor.
   const tint = color ?? (likedHeart || active ? ACCENT[scheme].ink : tokens.foreground);
   return (
     <Pressable

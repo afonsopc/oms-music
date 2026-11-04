@@ -44,7 +44,7 @@ import type { ArtworkSource } from "@/domain/artwork";
 import { useT } from "@/i18n";
 import { withAlpha } from "@/theme/contrast";
 import { useTheme } from "@/theme/provider";
-import { ACCENT, type KindTint } from "@/theme/tokens";
+import type { KindTint } from "@/theme/tokens";
 import { useArtworkTint } from "@/theme/useArtworkTint";
 
 export type HeroKind = "playlist" | "album" | "artist" | "mix" | "radio";
@@ -342,7 +342,7 @@ export const Hero = ({
           >
             {title}
           </Text>
-          {owner ? <OwnerRow owner={owner} color={ACCENT[scheme].ink} /> : null}
+          {owner ? <OwnerRow owner={owner} color={tokens.foreground} /> : null}
           <MetaLine kindLine={kindLine} meta={meta} color={muted} size={14} />
         </Reveal>
       </View>
@@ -381,13 +381,13 @@ export const Hero = ({
           {art}
         </FadeIn>
       ) : null}
-      <Reveal order={1} style={{ gap: 6, alignItems: artistAvatar ? "flex-start" : "center" }}>
+      <Reveal order={1} style={{ gap: 6, alignItems: "flex-start" }}>
         <Text
           accessibilityRole="header"
           numberOfLines={2}
           style={{
             color: tokens.foreground,
-            textAlign: artistAvatar ? "left" : "center",
+            textAlign: "left",
             fontSize: Math.min(26, titleSize),
             lineHeight: Math.round(Math.min(26, titleSize) * 1.15),
             fontWeight: "800",
@@ -396,7 +396,7 @@ export const Hero = ({
         >
           {title}
         </Text>
-        {owner ? <OwnerRow owner={owner} color={ACCENT[scheme].ink} center={!artistAvatar} /> : null}
+        {owner ? <OwnerRow owner={owner} color={tokens.foreground} /> : null}
         <MetaLine kindLine={kindLine} meta={meta} color={muted} size={14} />
       </Reveal>
     </View>

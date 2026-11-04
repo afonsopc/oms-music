@@ -34,70 +34,70 @@ export interface ThemeTokens {
 const hsl = (h: number, s: number, l: number): string => `hsl(${h}, ${s}%, ${l}%)`;
 
 /**
- * Ronda 2 (2026-11-04): o dono escolheu o idioma do Apple Music. Escuro
- * SUAVE (cinzentos quentes, nunca preto puro) e um claro a sério; a cor vem
- * das capas e de UM destaque rosa-vermelho calmo (ACCENT).
+ * Ronda 2 (2026-11-04, decisão final do dono): os neutros do omelhorsite.pt
+ * (frontend/app/[language]/globals.css), sem cor nenhuma na interface. A cor
+ * vem só das capas e da camada visual (/viz/).
  */
 export const lightTokens: ThemeTokens = {
-  background: "#ffffff",
-  foreground: "#141312",
+  background: "#fafafa",
+  foreground: "#171717",
   card: "#ffffff",
-  cardForeground: "#141312",
+  cardForeground: "#171717",
   popover: "#ffffff",
-  popoverForeground: "#141312",
-  primary: "#141312",
-  primaryForeground: "#ffffff",
-  secondary: "#f3f2f0",
-  secondaryForeground: "#141312",
-  muted: "#e6e4e1",
-  mutedForeground: "#6c6864",
-  accent: "#f3f2f0",
-  accentForeground: "#141312",
+  popoverForeground: "#171717",
+  primary: "#171717",
+  primaryForeground: "#fafafa",
+  secondary: "#ededed",
+  secondaryForeground: "#171717",
+  muted: "#e8e8e8",
+  mutedForeground: "#616161",
+  accent: "#ededed",
+  accentForeground: "#171717",
   destructive: hsl(0, 84.2, 60.2),
-  destructiveForeground: "#ffffff",
+  destructiveForeground: "#fafafa",
   success: hsl(140, 60, 30),
   successForeground: "#ffffff",
-  border: "#e7e5e2",
-  input: "#e2e0dc",
-  ring: "#141312",
+  border: "#dedede",
+  input: "#dedede",
+  ring: "#171717",
 };
 
-/** Escuro suave: cinzentos quentes em degraus, texto quase branco. */
+/** Escuro do omelhorsite: quase preto, superfícies em degraus de cinzento neutro. */
 export const darkTokens: ThemeTokens = {
-  background: "#1c1b1a",
-  foreground: "#f5f3f0",
-  card: "#232220",
-  cardForeground: "#f5f3f0",
-  popover: "#2a2927",
-  popoverForeground: "#f5f3f0",
-  primary: "#f5f3f0",
-  primaryForeground: "#1c1b1a",
-  secondary: "#2a2927",
-  secondaryForeground: "#f5f3f0",
-  muted: "#383633",
-  mutedForeground: "#a8a39d",
-  accent: "#2a2927",
-  accentForeground: "#f5f3f0",
+  background: "#0a0a0a",
+  foreground: "#ebebeb",
+  card: "#111111",
+  cardForeground: "#ebebeb",
+  popover: "#161616",
+  popoverForeground: "#ebebeb",
+  primary: "#ebebeb",
+  primaryForeground: "#0a0a0a",
+  secondary: "#212121",
+  secondaryForeground: "#ebebeb",
+  muted: "#2b2b2b",
+  mutedForeground: "#a3a3a3",
+  accent: "#212121",
+  accentForeground: "#ebebeb",
   destructive: hsl(0, 62.8, 40),
   destructiveForeground: "#fafafa",
   success: hsl(140, 44, 44),
   successForeground: "#fafafa",
-  border: "#302e2c",
-  input: "#383633",
-  ring: "#d6d2cc",
+  border: "#262626",
+  input: "#2b2b2b",
+  ring: "#d4d4d4",
 };
 
 /**
- * O destaque: um rosa-vermelho calmo, a única cor fixa da interface (links
- * "Ver tudo", o separador activo, o coração, o botão Tocar). `ink` é para
- * texto e ícones sobre o fundo do tema; `fill` é o fundo dos botões, com
- * texto branco por cima.
+ * O "destaque" passou a neutro (o dono não quer cor nos controlos): `ink` é
+ * o texto/ícone activo, `fill` o fundo do botão de tocar (branco no escuro,
+ * quase preto no claro) e `on` o glifo por cima.
  */
 export const ACCENT = {
-  dark: { ink: "#ff6b7f", fill: "#d93a52" },
-  light: { ink: "#c42a43", fill: "#d93a52" },
+  dark: { ink: "#ebebeb", fill: "#ebebeb", on: "#0a0a0a" },
+  light: { ink: "#171717", fill: "#171717", on: "#fafafa" },
 } as const;
-export const ON_ACCENT = "#ffffff";
+/** @deprecated o glifo sobre o botão depende do tema: ACCENT[scheme].on */
+export const ON_ACCENT = "#0a0a0a";
 
 /** Resolved scheme name. Declared here so pure modules need no React import. */
 export type ResolvedScheme = "light" | "dark";
@@ -111,7 +111,7 @@ export const tokensFor = (scheme: ResolvedScheme): ThemeTokens =>
   scheme === "dark" ? darkTokens : lightTokens;
 
 /** Base corner radius (px). Pills and play buttons are fully round. */
-export const RADIUS = 10;
+export const RADIUS = 8;
 
 // ---------------------------------------------------------------------------
 // Fixed identity colors
@@ -149,11 +149,11 @@ export const LIKED_GRADIENT = ["#3a3a3a", "#262626", "#141414"] as const;
 export const EMERALD = "#059669"; // emerald-600 (strip background)
 export const EMERALD_BADGE = "#10b981"; // emerald-500 (badge tint)
 /**
- * As Gostadas (ronda 2): o coração no destaque rosa-vermelho.
+ * As Gostadas: coração neutro (branco no escuro) sobre carvão.
  * `LIKED_INK` é o coração e os detalhes; `LIKED_WASH` o fundo da coleção.
  */
 export const LIKED_INK = { dark: ACCENT.dark.ink, light: ACCENT.light.ink } as const;
-export const LIKED_WASH = { dark: "#3a2328", light: "#fdf1f3" } as const;
+export const LIKED_WASH = { dark: "#1c1c1c", light: "#ededed" } as const;
 export const LIKED_TINT = {
   dark: { wash: LIKED_WASH.dark, ink: LIKED_INK.dark },
   light: { wash: LIKED_WASH.light, ink: LIKED_INK.light },
