@@ -206,3 +206,86 @@ aparelhos do dono), `docs/redesenho/comparar/*-390.webp` (antes | depois).
   arrancar a app e ver o login, não para entrar e tocar. A build do
   TestFlight é a verificação no telemóvel.
 - O id serve a foto da conta em tamanho original (386 KB para 36 px).
+
+## Ronda 2 (4/11/2026, tarde)
+
+O que o dono pediu depois da v85: o computador "não está nada bem", sair do
+ar de Spotify, um leitor do telemóvel que não seja lento, e cor sem ficar
+berrante. Pelo caminho mudou de ideias duas vezes (estilo Apple Music, depois
+"parecido com o omelhorsite"); fica a última:
+
+- **Interface sóbria como o omelhorsite**: os neutros dele (`#0a0a0a`,
+  `#111`, traços `#262626`; claro `#fafafa`), Inter servida por nós, botão de
+  tocar branco, ícones cinzentos e o activo a branco, nenhuma cor nos
+  controlos. A cor vem só das capas e da camada visual.
+- **Letras**: a web caía na pilha de sistema do react-native-web (Arial/
+  Liberation no Linux e no Windows). Agora Inter em woff2 (latin e latin-ext),
+  `font-display: swap`, só o latin em preload, e um remendo ao
+  react-native-web (`patches/`) que põe a `OMS Sans` à cabeça da pilha. Medido
+  pelo protocolo do Chrome (letra que cada texto usa de facto): num Chromium
+  em Linux real (Docker no Mini) 100 % Inter.
+- **Computador**: um só fundo com traços finos (sem cartões nem folgas), o
+  conteúdo enche a zona principal toda (a caixa centrada de 1440 deixava
+  bandas vazias com zoom), barra lateral com a lista da biblioteca em letra
+  maior, pesquisa em cima, painel da direita fechado por omissão, barra do
+  leitor maior. Verificado a 1280, 1440, 1920 e 2560, com e sem painel.
+- **Mixes**: mosaico de imagem inteira com o nome por cima; sem imagem, uma
+  capa gerada em carvão.
+
+### Leitor do telemóvel
+
+Abrir era navegar para um ecrã modal (montava o leitor inteiro antes do
+primeiro frame; fechar arrastava e só depois navegava). Agora é uma folha
+montada uma vez (`src/features/player/sheet/`): no nativo o dedo escreve no
+progresso (Reanimated) na thread da UI, no mini-leitor para cima e na
+pega/capa para baixo, e a mola acaba com a velocidade do dedo; na web o
+ponteiro mexe no `transform` sem estado React e uma transição CSS acaba. O
+corpo é `memo`, a barra de progresso só ouve a posição com a folha aberta,
+play/pausa muda no toque (`optimisticPlay`), o slider tem 44 px de toque e
+engrossa a arrastar, a capa encolhe na pausa, o fundo é a cor da capa.
+
+Medido na web do telemóvel (390 px, toque, CPU 4x mais lenta,
+`/tmp/omsm-r2/tools/measure.mjs`):
+
+| | antes (v89) | depois (v91) |
+|---|---|---|
+| abrir: do toque ao primeiro movimento | 343 ms na 1.a vez, depois um corte seco sem animação | 46 ms, desliza 300 ms |
+| abrir: frames perdidos | 1 | 0 |
+| fechar: do dedo à reacção / frames perdidos | 54 ms / 0 | 38 ms / 0 |
+| play/pausa, seguinte | 30-50 ms | 30-60 ms (o ícone muda no toque) |
+
+No iPhone não deu para medir aqui (este Mac não tem a app Simulator): a
+arquitectura é a que tira o trabalho da thread de JS durante o gesto, e o
+teste é o TestFlight.
+
+### A camada que reage à música
+
+- **Análise no backend** (oms-music-backend `Music::AudioAnalysis`): um ffmpeg
+  com `nice` mede o RMS em 5 faixas a 50 blocos/s; ataques, BPM e grelha das
+  batidas; guarda energia e 4 faixas a 25/s (30-60 KB por música) em
+  `song_analyses`. `GET /songs/:id/analysis` (202 enquanto faz, pedido único).
+  1-2 s por música no Mini, uma de cada vez; a varredura faz 12 músicas de 10
+  em 10 minutos (primeiro as tocadas nos últimos 90 dias), as 11 681 em ~5 dias.
+- **Motor `/viz/`** (`viz/`, 30 KB, sem dependências): um iframe na web e no
+  computador, um WebView no iOS/Android. Sem FFT ao vivo na web: o `<audio>`
+  não é carregado com `crossOrigin` e um `AnalyserNode` assim calava a música;
+  fica a análise pré-calculada em todo o lado.
+- **Onde aparece**: o fundo do leitor (aurora viva, só depois da primeira
+  abertura, em pausa escondido), o visualizador em ecrã inteiro
+  (`/visualizer`: 11 cenas, deslizar ou setas, muda a cada 16 compassos, modo
+  caos, CRT, cores partidas, píxeis, pontilhado), o mini-leitor a brilhar nas
+  batidas, a forma de onda nas barras de progresso e a marca "OMS Música" em
+  OMS Wide a girar na barra lateral (o truque do antigo nome do omelhorsite).
+- **Frames** (Chromium deste Mac, 1280x720, depois de aquecer): 60 fps em
+  todas as cenas, 0 frames perdidos por janela de 2 s; o título 3D, a mais
+  pesada (24 camadas de DOM), 57 fps.
+
+Capturas: `docs/redesenho/ronda2/antes/`, `ronda2/depois/` (produção v94) e
+`ronda2/visuais/` (cada cena). Vídeos (fora do repo, 14 MB):
+`~/Documents/oms/builds/oms-music-ronda2/videos/`.
+
+### Fica para depois
+
+- Inclinação da capa pelo giroscópio no telemóvel: precisa de um módulo
+  nativo novo (`expo-sensors`); no computador não foi feito.
+- Medir os frames no iPhone (o motor manda-os à app; falta mostrá-los).
