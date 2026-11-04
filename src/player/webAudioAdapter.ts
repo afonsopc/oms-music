@@ -80,6 +80,8 @@ export interface WebMediaElement {
   playbackRate: number;
   preservesPitch: boolean;
   volume: number;
+  /** Só o elemento do preload da seguinte o usa (calado). */
+  muted?: boolean;
   preload: string;
   readonly error: { code: number; message?: string } | null;
   src: string;
@@ -152,6 +154,8 @@ export const createWebAudioAdapter = (env: WebAudioAdapterEnv = {}): AudioAdapte
     env.cancel ?? ((handle: unknown) => clearInterval(handle as ReturnType<typeof setInterval>));
 
   let sourceUri: string | null = null;
+  /** O elemento do preload da música seguinte (criado no primeiro uso). */
+  let nextMedia: WebMediaElement | null = null;
   /**
    * Bumped by every replace(): a play() promise that settles AFTER its
    * source was swapped away belongs to a dead world. Without this, the
@@ -445,6 +449,20 @@ export const createWebAudioAdapter = (env: WebAudioAdapterEnv = {}): AudioAdapte
     },
     play,
     pause,
+    preload(uri: string): void {
+      // Um segundo elemento, calado, que só busca o início da seguinte: o
+      // browser guarda a resposta e o replace() que vem a seguir arranca
+      // sem esperar pela rede. Um de cada vez; o próximo pedido substitui.
+      if (uri === sourceUri) return;
+      if (!nextMedia) {
+        nextMedia = (env.createMedia ?? (() => new Audio()))();
+        nextMedia.preload = "auto";
+        nextMedia.muted = true;
+      }
+      if (nextMedia.src === uri) return;
+      nextMedia.src = uri;
+      nextMedia.load();
+    },
     replace(uri: string | null): void {
       // INERT by contract (header, point 6): the engine alone decides
       // whether the new source plays. Never auto-resume here.

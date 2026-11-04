@@ -48,8 +48,22 @@ const PERSIST_PREFIXES: readonly (readonly string[])[] = [
   ["playEvents"],
 ];
 
-const shouldPersist = (queryKey: readonly unknown[]): boolean =>
-  PERSIST_PREFIXES.some((prefix) => prefix.every((seg, i) => queryKey[i] === seg));
+/**
+ * As músicas das playlists também vão para o disco (redesenho 2026-11-04):
+ * sem elas, o primeiro toque numa playlist depois de um arranque frio
+ * esperava pela rede. Ficam de fora se a fotografia passar do tecto (na web
+ * o kv é o localStorage, ~5 MB por origem): mais vale a lista leve inteira
+ * do que nada.
+ */
+const SONG_LIST_PREFIXES: readonly (readonly string[])[] = [["playlistSongs"]];
+export const SNAPSHOT_SOFT_LIMIT_CHARS = 2_500_000;
+
+const matches = (prefixes: readonly (readonly string[])[], queryKey: readonly unknown[]): boolean =>
+  prefixes.some((prefix) => prefix.every((seg, i) => queryKey[i] === seg));
+
+export const shouldPersist = (queryKey: readonly unknown[], withSongLists = true): boolean =>
+  matches(PERSIST_PREFIXES, queryKey) ||
+  (withSongLists && matches(SONG_LIST_PREFIXES, queryKey) && queryKey[1] !== "membership");
 
 /**
  * The memo now lives in auth/lastUser.ts, written on EVERY platform.
@@ -101,11 +115,18 @@ const write = (): void => {
   const key = snapshotKey();
   if (!key) return;
   try {
-    const state = dehydrate(queryClient, {
-      shouldDehydrateQuery: (query) =>
-        query.state.status === "success" && shouldPersist(query.queryKey),
-    });
-    kvSet(key, JSON.stringify({ version: VERSION, at: Date.now(), state }));
+    const serialize = (withSongLists: boolean): string =>
+      JSON.stringify({
+        version: VERSION,
+        at: Date.now(),
+        state: dehydrate(queryClient, {
+          shouldDehydrateQuery: (query) =>
+            query.state.status === "success" && shouldPersist(query.queryKey, withSongLists),
+        }),
+      });
+    let json = serialize(true);
+    if (json.length > SNAPSHOT_SOFT_LIMIT_CHARS) json = serialize(false);
+    kvSet(key, json);
   } catch {
     // Serialization is best-effort; the in-memory cache stays correct.
   }

@@ -119,3 +119,13 @@ describe("prefetch slot (one-shot)", () => {
     expect(r.takePrefetched(key, "n1")).toBe("url");
   });
 });
+
+describe("prefetch avisa quem pediu", () => {
+  it("chama onResolved com o URL quando chega", async () => {
+    const resolver = new PresignedResolver(async (id) => `http://cdn/${id}`);
+    const got: string[] = [];
+    resolver.prefetch("k1" as never, "n1" as never, (url) => got.push(url));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(got).toEqual(["http://cdn/n1"]);
+  });
+});

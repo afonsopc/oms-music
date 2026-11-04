@@ -1882,7 +1882,7 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
     if (!resolved.wantedNodeId) return;
     // A local file will play: no network resolve needed.
     if (resolved.candidates[0]?.kind !== "network") return;
-    this.resolver.prefetch(key, resolved.wantedNodeId);
+    this.resolver.prefetch(key, resolved.wantedNodeId, (url) => this.player.preload?.(url));
   }
 
   // ----- helpers ------------------------------------------------------------

@@ -89,7 +89,7 @@ export class PresignedResolver {
    * One-shot prefetch for the upcoming song (FR-60): single attempt, one
    * in-flight prefetch per song, result stored in the slot.
    */
-  prefetch(songKey: SongKey, nodeId: FsNodeId): void {
+  prefetch(songKey: SongKey, nodeId: FsNodeId, onResolved?: (url: string) => void): void {
     const slot = this.prefetched;
     if (
       slot &&
@@ -107,6 +107,7 @@ export class PresignedResolver {
       .then((url) => {
         if (epoch !== this.epoch || nodeEp !== this.epochOf(nodeId)) return;
         this.prefetched = { songKey, nodeId, url, resolvedAt: this.now() };
+        onResolved?.(url);
       })
       .catch(() => undefined)
       .finally(() => {

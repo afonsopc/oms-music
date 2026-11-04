@@ -29,6 +29,7 @@ class FakeMedia implements WebMediaElement {
   ended = false;
   readyState = 0;
   playbackRate = 1;
+  muted = false;
   preservesPitch = true;
   volume = 1;
   preload = "";
@@ -407,5 +408,32 @@ describe("volume support probe", () => {
     adapter.setVolume(0.4);
 
     expect(adapter.supportsVolume?.()).toBe(false);
+  });
+});
+
+describe("web adapter: preload da música seguinte", () => {
+  it("usa um segundo elemento calado e nunca toca no que está a tocar", () => {
+    const made: FakeMedia[] = [];
+    const adapter = createWebAudioAdapter({
+      createMedia: () => {
+        const m = new FakeMedia();
+        made.push(m);
+        return m;
+      },
+      mediaSession: null,
+      schedule: () => 0,
+      cancel: () => {},
+    });
+    adapter.replace("http://cdn/1");
+    adapter.preload?.("http://cdn/2");
+    expect(made.length).toBe(2);
+    expect(made[0]!.src).toBe("http://cdn/1");
+    expect(made[1]!.src).toBe("http://cdn/2");
+    expect(made[1]!.muted).toBe(true);
+    // O mesmo URL outra vez não recomeça o pedido; o que já toca é ignorado.
+    adapter.preload?.("http://cdn/2");
+    adapter.preload?.("http://cdn/1");
+    expect(made.length).toBe(2);
+    expect(made[1]!.src).toBe("http://cdn/2");
   });
 });

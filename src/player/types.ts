@@ -154,6 +154,12 @@ export interface AudioAdapter {
   /** Replace the source; null clears it. Never point this at /data. */
   replace(uri: string | null): void;
   /**
+   * OPCIONAL: começar já a buscar a música seguinte (o URL que o motor
+   * pré-resolveu nos últimos 30 s), para o salto entre faixas não esperar
+   * pela rede. Só a web o tem; no nativo o prefetch descarrega o ficheiro.
+   */
+  preload?(uri: string): void;
+  /**
    * `precise`: aterra no sample pedido em vez do ponto de sincronização mais
    * barato. Só o loop A-B o pede - um scrub a arrastar quer a resposta
    * imediata, e num ficheiro remoto a exactidão custa descodificação.
