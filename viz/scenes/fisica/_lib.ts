@@ -7,7 +7,7 @@
  * pontos e linhas lidos de uma textura de estado), e apaga tudo no fim.
  * Todos os programas têm os uniformes do GLSL_HEAD (R, T, B, BEAT, C1...)
  * mais os de `FIS_HEAD`: S0..S2 (texturas de entrada), SR (tamanho do alvo),
- * DT (passo fixo), STEP (contador de passos) e P[8] (vec4 que a cena enche
+ * DT (passo fixo), STEP (contador de passos) e P[12] (vec4 que a cena enche
  * no JS: impulsos, posições, modos).
  *
  * `Stepper`: passo fixo com tecto (a simulação anda igual a 30 ou a 144 fps
@@ -24,7 +24,7 @@ export const FIS_HEAD = GLSL_HEAD + `
 uniform sampler2D S0, S1, S2;
 uniform vec2 SR;
 uniform float DT, STEP;
-uniform vec4 P[8];
+uniform vec4 P[12];
 float lum(vec3 c){ return dot(c, vec3(.2126,.7152,.0722)); }
 vec3 vivid(vec3 c){ vec3 g=vec3(lum(c)); c=mix(g,c,1.4); float l=max(lum(c),.001); return clamp(c*max(1.,.45/l),0.,1.); }
 vec2 hash22(vec2 p){ p=vec2(dot(p,vec2(127.1,311.7)),dot(p,vec2(269.5,183.3))); return fract(sin(p)*43758.5453); }
@@ -37,7 +37,7 @@ export const VHEAD = `#version 300 es
 precision highp float;
 out vec2 uv;
 uniform vec2 R, SR; uniform float T, E, B, LM, M, H, BEAT, BAR, ON, DROP, SEC, SECAGE, DT, STEP;
-uniform vec3 C1, C2, C3; uniform sampler2D S0, S1, S2; uniform vec4 P[8];
+uniform vec3 C1, C2, C3; uniform sampler2D S0, S1, S2; uniform vec4 P[12];
 float hash11(float n){ return fract(sin(n*12.9898)*43758.5453); }
 vec3 pal(float t){ t=fract(t); return t<.33? mix(C1,C2,t*3.) : t<.66? mix(C2,C3,(t-.33)*3.) : mix(C3,C1,(t-.66)*3.); }
 float lum(vec3 c){ return dot(c, vec3(.2126,.7152,.0722)); }
@@ -70,8 +70,8 @@ export class Gpu {
   dt = 0;
   w = 1;
   h = 1;
-  /** Os 8 vec4 de `P[8]`, enchidos pela cena. */
-  readonly P = new Float32Array(32);
+  /** Os 12 vec4 de `P[12]`, enchidos pela cena. */
+  readonly P = new Float32Array(48);
   /** Há texturas de vírgula flutuante em que se possa desenhar. */
   readonly float: boolean;
   private bufs = new Set<Buf>();
