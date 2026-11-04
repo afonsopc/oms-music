@@ -146,3 +146,63 @@ Uma só forma de página em todos os ecrãs. Peças em `src/ui/page.tsx`,
 - **Texto**: pt-PT pré-AO90 (acção, selecção, actualizar, óptimo, direcção),
   "tu" sempre, curto, sem jargão (nada de cache, stem, mixer, feed, bug,
   sync); chaves novas nos três catálogos.
+
+## Depois (produção, v85, 4/11/2026)
+
+Lighthouse 12 no telemóvel, produção, 2 corridas:
+
+| | antes | depois |
+|---|---|---|
+| `/` → `/login`, desempenho | 55-64 | **71** |
+| LCP | 7,2-7,5 s | **5,8 s** |
+| Speed Index | – | 2,4-2,6 s |
+| peso | 1106 KB | **765 KB** |
+| acessibilidade / boas práticas / SEO | 100 / 96 / 100 | 100 / 96 / 100 |
+
+Com sessão (a conta do dono, 1509 músicas), o mesmo Mac a servir o export
+antigo (a4b2264) e o novo, telemóvel simulado (CPU 4×, 150 ms, 1,6 Mbps):
+
+| | antes | depois |
+|---|---|---|
+| primeiro desenho | 6,5 s (ecrã preto) | **0,25 s** (esqueleto) |
+| 6 capas visíveis, arranque frio | 7,3 s | **5,3 s** |
+| JS da página | 3,98 MB num ficheiro | 2,56 MB em pedaços por rota |
+
+Lighthouse de `/home` com sessão em produção: 65-68 (o LCP é uma capa
+grande; 1,4 MB de imagens, das quais 386 KB são a foto da conta que o id
+serve sem tamanho). O resto do tempo é o JS do react-native-web e do
+expo-router, que já não dá para cortar sem sair do Expo.
+
+Capturas: `docs/redesenho/depois/` (390 e 1400 de cada ecrã; o leitor, a
+fila e as letras tiradas no servidor local com música a tocar, porque em
+produção as capturas correm com o tempo real desligado para não mexer nos
+aparelhos do dono), `docs/redesenho/comparar/*-390.webp` (antes | depois).
+
+### O que mudou em cada ecrã
+
+- **Início**: sem os cartões de gradiente; DJ, Rewind e Assistente são
+  linhas; filas de capas grandes; erro e vazio.
+- **Pesquisa**: um campo, resultados por secção, esqueletos, estados; só as
+  4 primeiras fotos de artista pedidas à parte.
+- **Biblioteca / Playlists / Artistas / Amigos / Perfil**: linhas sem caixas,
+  "Sincronizada" só em texto, "+" no cabeçalho, esqueletos, foto grande do
+  artista em destaque.
+- **Playlist / álbum / Gostadas / mix / rádio**: capa quase do tamanho do
+  ecrã, título grande à esquerda, uma fila de acções, "Mudar a capa" no "⋯".
+- **Artista**: foto grande, "Populares", álbuns numa fila de capas.
+- **Leitor, fila, letras**: capa maior, fundo mais escuro, hápticos em tudo;
+  mini-leitor neutro com gestos no nativo; "A tocar em X" discreto.
+- **Definições / conta / aparelhos / transferências / importar / login**:
+  linhas, visto no tema e na língua, "Avançado", textos curtos pré-AO90,
+  "Terminar sessão", lista de passos ao importar ficheiros.
+- **DJ / Assistente / Rewind / Jam**: neutros; o Rewind com as capas
+  desfocadas por trás e calado quando este aparelho comanda outro.
+- **Página de importar** (oms-music-import): o mesmo padrão, com a lista de
+  passos de cada importação.
+
+### Fica para depois
+
+- O simulador iOS deste Mac não tem a app Simulator (só o runtime): deu para
+  arrancar a app e ver o login, não para entrar e tocar. A build do
+  TestFlight é a verificação no telemóvel.
+- O id serve a foto da conta em tamanho original (386 KB para 36 px).
