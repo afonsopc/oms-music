@@ -15,7 +15,7 @@ export default natShader({
   families: ["calm", "electronic"],
   tags: ["natureza", "céu", "suave", "dia"],
   intensity: 2,
-  cost: 2,
+  cost: 1,
   signals: ["energy", "bass", "beat", "drop", "section", "palette"],
   lyrics: "extrude",
 }, NAT_GLSL + `
@@ -47,12 +47,13 @@ void main(){
   // nuvens: projectadas num plano de céu, com luz a atravessar
   if(p.y > hz){
     float z = 1./(p.y - hz + .25);
-    vec2 q = vec2(p.x*z, z*2.5)*.9;
+    vec2 q = vec2(p.x*z, z*2.5)*.55;
     float c = clouds(q, t);
     vec2 toSun = normalize(vec2(sun.x - p.x, .3))*.15;
     float c2 = clouds(q + toSun, t);
-    float lit = clamp(.85 - (c2 - c)*4. - c2*.35, 0., 1.);
-    vec3 cc = mix(mix(vec3(.25,.27,.35), vivid(C3)*.4, .4)*(1. - night*.85), sc*(1.1 - night*.8), lit);
+    float lit = clamp(.9 - (c2 - c)*6. - c2*.5, 0., 1.);
+    vec3 cc = mix(mix(vec3(.16,.17,.24), vivid(C3)*.3, .4)*(1. - night*.85), sc*(1.25 - night*.9), lit);
+    cc += sc*.6*smoothstep(.05, .0, c)*smoothstep(.0, .02, c)*(1. - night);
     cc += sc*pow(max(0., 1. - sd), 6.)*(1. - c)*.6*(1. - night);
     float fadeH = smoothstep(hz, hz + .08, p.y);
     col = mix(col, cc, c*fadeH);
@@ -70,7 +71,7 @@ void main(){
     if(p.y < h2){ grass *= .7; grass = mix(grass, grass*mix(1.2, .5, shadow), .5); }
     col = grass*(1. + dusk*.4*sc);
   }
-  col += sc*.1*BEAT*(1. - night);
+  col += sc*(.06*BEAT + .25*DROP)*(1. - night);
   col *= 1. - .25*dot(p, p);
   o = vec4(post(aces(col*1.1), gl_FragCoord.xy), 1.);
 }`, {

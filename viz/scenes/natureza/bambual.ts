@@ -21,7 +21,7 @@ export default natShader({
 void main(){
   vec2 p = (pixuv(uv) - .5)*vec2(R.x/R.y, 1.);
   float sway = U[0].x, gust = U[0].y, leafT = U[0].z;
-  vec3 green = mix(vec3(.35,.6,.25), vivid(C1), .4);
+  vec3 green = mix(vec3(.35,.6,.25), vivid(C1), .22);
   vec3 light = mix(vivid(C2), vec3(1., .95, .75), .45);
   vec3 col = mix(green*.55 + light*.2, vivid(C3)*.08, smoothstep(-.6, .7, p.y));
   col += light*.35*exp(-length(p - vec2(.55, .45))*2.);
@@ -37,7 +37,7 @@ void main(){
     float h = hash1(id*1.3 + fl*7.);
     float fx = fract(xs) - .5 - (h - .5)*.5;
     float wdt = (.055 + .04*h)*scl;
-    float stalk = step(.15, h)*smoothstep(wdt, wdt*.7, abs(fx));
+    float stalk = step(.3, h)*smoothstep(wdt, wdt*.7, abs(fx));
     // nós do bambu
     float seg = .14 + .08*h;
     float ny = fract(y/seg + h*4.);

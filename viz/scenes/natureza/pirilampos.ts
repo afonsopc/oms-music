@@ -43,7 +43,7 @@ void main(){
   float asp = R.x/R.y;
   vec3 ff = mix(vec3(.8, 1., .35), vivid(C2), .55);
   // céu
-  vec3 col = mix(vivid(C2)*.28, vivid(C3)*.05, smoothstep(-.25, .5, p.y));
+  vec3 col = mix(vivid(C2)*.4, vivid(C3)*.07, smoothstep(-.25, .5, p.y));
   col = mix(col, vivid(C1)*.18, exp(-abs(p.y + .1)*5.)*.6);
   vec2 sp = floor(p*180.);
   col += step(.996, hash(sp))*smoothstep(.0, .3, p.y)*(.4 + .3*sin(T + hash(sp)*30.));
@@ -70,18 +70,18 @@ void main(){
       float gl = g == 0 ? U[0].x : g == 1 ? U[0].y : g == 2 ? U[0].z : U[0].w;
       gl = gl*step(.3, fract(h.x*13.)) + U[1].x*pow(max(0., sin(T*(1.1 + h.y) + h.x*40.)), 30.);
       gl += U[1].z*exp(-pow((wp.x/asp + .5 - U[1].y)*7., 2.));
-      gl = min(gl, 1.4);
+      gl = min(gl, 1.2);
       float d = length(q - c)/sc;
-      float sz = (.004 + .003*fl);
+      float sz = (.006 + .004*fl);
       float a = .05 + .95*gl;
-      col += ff*a*(smoothstep(sz, 0., d)*1.6 + .5*exp(-d/(sz*(2.5 + 2.*gl)))*gl);
+      col += ff*a*(smoothstep(sz, 0., d)*1.8 + .8*exp(-d/(sz*(3. + 3.*gl)))*gl*smoothstep(1.2/sc, .2/sc, d));
       glowSum += gl*(1. + fl);
     }
   }
   // erva à frente (duas camadas), iluminada de leve pelos pirilampos
   float wind = .02 + .05*B + .02*sin(T*.4);
   float g1 = grass(p, 1., 70., .26, wind*.7);
-  col = mix(col, vivid(C3)*.03 + ff*.02*(glowSum*.03), smoothstep(.0015, -.0015, g1));
+  col = mix(col, vivid(C3)*.04 + ff*.04*min(glowSum*.05, 2.), smoothstep(.0015, -.0015, g1));
   float g2 = grass(p, 2., 38., .36, wind);
   col = mix(col, vec3(.002,.004,.003), smoothstep(.002, -.002, g2));
   col *= 1. - .3*dot(p, p);
