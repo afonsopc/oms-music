@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Build macOS local (plano F5): .app + .dmg com assinatura AD-HOC
-# (signingIdentity "-" no tauri.conf.json - a conta Apple e um free team, sem
-# Developer ID). Nao publica nem notariza NADA; a notarizacao esta documentada
-# em desktop/README.md e so entra quando houver conta paga.
+# Build macOS local (plano F5): .app + .dmg assinados com o Developer ID
+# (signingIdentity no tauri.conf.json, Hardened Runtime + Entitlements.plist).
+# Sem as variaveis APPLE_API_* nao notariza nem publica nada; o release
+# assinado, notarizado e publicado e scripts/release-macos.sh.
 #
 # A chave privada do updater tem de existir porque createUpdaterArtifacts
 # esta ligado: o bundler assina o .app.tar.gz do updater no build. Isto e

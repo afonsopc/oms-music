@@ -30,7 +30,7 @@ bun install
 # Dev: abre o shell contra o dev server do expo (porta 8081).
 bun run dev
 
-# Build macOS: .app + .dmg, assinatura ad-hoc. Reutiliza ../dist se existir;
+# Build macOS: .app + .dmg, assinado com o Developer ID (sem notarizar). Reutiliza ../dist se existir;
 # OMS_FORCE_WEB_BUILD=1 obriga a repetir scripts/build-web.sh (2-3 min).
 bun run build
 
@@ -98,20 +98,40 @@ pipeline de assinatura e validado em TODOS os builds, nao no dia do release.
   uma versao = release no GitHub com o `latest.json` (url + assinatura de
   cada plataforma) como asset; o "latest" do GitHub e o que as apps veem.
 
-## Assinatura macOS e notarizacao (documentado, NAO executado)
+## Release macOS (assinado + notarizado)
 
-O build actual usa `signingIdentity: "-"` (ad-hoc): a conta Apple e um free
-team. Ad-hoc chega para correr localmente; noutro Mac o Gatekeeper exige
-right-click > Open. Quando houver Developer ID (conta paga):
+Uma linha, a partir de `desktop/`, depois de subir a versao em
+`src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`, `src-tauri/Cargo.lock`
+e `package.json` e de commitar:
 
-1. `signingIdentity: "Developer ID Application: <nome> (<team>)"` no
-   tauri.conf.json; manter `Entitlements.plist` (allow-jit +
-   allow-unsigned-executable-memory sao OBRIGATORIOS com Hardened Runtime -
-   sem eles a app notarizada morre a arrancar num Mac limpo).
-2. `xcrun notarytool submit <dmg> --keychain-profile oms-notary --wait`
-   (perfil criado com `xcrun notarytool store-credentials`).
-3. `xcrun stapler staple "OMS Music.app"` e o mesmo ao .dmg.
-4. Nao por a notarizacao no caminho critico de um release (plano 3.6).
+```sh
+OMS_RELEASE_NOTES="O que muda, numa linha." bun run release
+```
+
+`scripts/release-macos.sh` faz tudo: export web novo, build arm64 assinado
+com `Developer ID Application: Afonso Coutinho (6FYT6632J8)` (Hardened
+Runtime + `Entitlements.plist`), notarizacao e stapler do `.app` (pelo
+bundler do Tauri, com `APPLE_API_KEY`/`APPLE_API_ISSUER`/`APPLE_API_KEY_PATH`
+tiradas de `~/.appstoreconnect/oms-ci.env`) e do `.dmg` (`notarytool` +
+`stapler`), verificacao (`codesign --verify --deep --strict`, `spctl`,
+`stapler validate`, tambem no `.app` de dentro do `.app.tar.gz` do updater, e
+a chave do `.sig` contra a pubkey), `latest.json`, tag + release `vX.Y.Z` no
+GitHub como "latest", e no fim confirma que `updates.omelhorsite.pt` ja da a
+versao nova. Termina em `RELEASE_OK vX.Y.Z <sha> <url>`.
+
+- Allow-jit + allow-unsigned-executable-memory no `Entitlements.plist` sao
+  OBRIGATORIOS com Hardened Runtime: sem eles a app notarizada morre a
+  arrancar num Mac limpo.
+- Duas assinaturas independentes: a da Apple (codesign/notarizacao, para o
+  Gatekeeper) e a do updater (minisign, `keys/updater.key`, verificada pela
+  app antes de instalar). Trocar a identidade Apple nao mexe na do updater.
+- A passagem de ad-hoc (ate a 1.2.1) para Developer ID (1.2.2+) e
+  transparente: o updater troca o .app no sitio, a sessao vive no
+  localStorage do WKWebView (`~/Library/WebKit/pt.omelhorsite.music.desktop`),
+  chaveado pelo bundle id e nao pela assinatura, e a app nao usa o keychain.
+- `bun run build` tambem assina com o Developer ID (precisa da identidade no
+  keychain), mas sem as variaveis APPLE_API_* nao notariza.
+- Linux nao passa por aqui (`bun run build:linux`, `scripts/release-local.sh`).
 
 Antes de fechar F5 a serio: repetir o soak do spike 4 (30 min, em bateria,
 noutro Space) com ESTE .app empacotado - o veredicto "segue" foi medido no
