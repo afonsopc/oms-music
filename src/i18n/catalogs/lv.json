@@ -73,9 +73,7 @@
         "uploading": "Augšupielādē…",
         "uploadFailed": "Neizdevās augšupielādēt",
         "previewStories": "Mākslinieka priekšskatījums",
-        "previewKicker": "Priekšskatījums:",
-        "dailySyncOn": "Ieslēgt ikdienas sinhronizāciju",
-        "dailySyncOff": "Izslēgt ikdienas sinhronizāciju"
+        "previewKicker": "Priekšskatījums:"
       },
       "ArtistMultiSelect": {
         "addArtist": "Pievienot izpildītāju",
@@ -99,12 +97,6 @@
         "error": "Neizdevās ielādēt",
         "empty": "Nav ko rādīt.",
         "onlyDownloadedEmpty": "Neviens no šiem ierakstiem nav lejupielādēts. Iestatījumos izslēdz \"Rādīt tikai lejupielādētos\"."
-      },
-      "ExternalResults": {
-        "title": "Ārējie rezultāti",
-        "empty": "Vēl nav ārējo sakritību. Mēģiniet pievienot Spotify kontu.",
-        "import": "Importēt",
-        "openSource": "Atvērt avotu"
       },
       "Search": {
         "loading": "Meklē...",
@@ -145,7 +137,6 @@
         "loadingPlaylist": "Ielādē spējlisti...",
         "errorLoadingPlaylist": "Kļūda ielādējot spējlisti.",
         "playlistLabel": "Spējliste",
-        "syncedFromSpotify": "Sinhronizēts no Spotify",
         "lastSynced": "sinhr. {when}",
         "copyToEditable": "Veidot rediģējamu kopiju",
         "song": "dziesma",
@@ -156,7 +147,8 @@
         "loadingSongs": "Ielādē dziesmas...",
         "errorLoadingSongs": "Kļūda ielādējot dziesmas",
         "noSongsInPlaylist": "Vēl nav dziesmu šajā spējlistē.",
-        "removeFromPlaylist": "Noņemt no šīs spējlistes"
+        "removeFromPlaylist": "Noņemt no šīs spējlistes",
+        "synced": "Sinhronizēts"
       },
       "SongCard": {
         "unknownArtist": "Nezināms Izpildītājs",
@@ -184,18 +176,6 @@
         "rolePrimary": "Galvenie izpildītāji",
         "roleFeatured": "Pieaicinātie izpildītāji",
         "roleWith": "Kopā ar"
-      },
-      "SongMatchDialog": {
-        "menuItem": "Nepareizs ieraksts?",
-        "title": "Atrastie avoti",
-        "current": "Pašlaik lietots",
-        "rejected": "Noraidītie",
-        "retryAuto": "Meklēt atbilstību vēlreiz automātiski",
-        "working": "Notiek atkārtota importēšana",
-        "searching": "Meklē visos avotos",
-        "unavailable": "Neizdevās sasniegt lejupielādētāju.",
-        "done": "Nomainīts. Dziesma saglabā atskaņošanas sarakstus un patīk atzīmes.",
-        "failed": "Atkārtotā importēšana neizdevās."
       },
       "SongTable": {
         "title": "Nosaukums",
@@ -397,11 +377,7 @@
         "artists": "Izpildītāji",
         "ImportPage": {
           "title": "Importēt mūziku",
-          "description": "Pievieno dziesmas no failiem, no playlist URL, no tava Spotify, vai visas no viena izpildītāja.",
-          "tabFiles": "Faili",
-          "tabUrl": "Playlist URL",
-          "tabSpotify": "Spotify",
-          "tabArtist": "Pēc izpildītāja"
+          "description": "Pievieno dziesmas no saviem failiem."
         },
         "SongsPage": {
           "title": "Dziesmas",
@@ -410,44 +386,6 @@
         "ArtistsPage": {
           "title": "Izpildītāji",
           "description": "Pārvaldi visus izpildītājus, pārdēvē, augšupielādē attēlus, vai dzēs tos bez dziesmām."
-        },
-        "ArtistImport": {
-          "title": "Importēt visu izpildītāju",
-          "description": "Izvēlies izpildītāju no bibliotēkas vai Spotify, atzīmē albumus, un mēs ievietosim katru dziesmu rindā.",
-          "searchPlaceholder": "Meklēt izpildītājus...",
-          "searching": "Meklē...",
-          "searchFailed": "Meklēšana neizdevās",
-          "albumsFailed": "Neizdevās ielādēt albumus",
-          "inYourLibrary": "Tavā bibliotēkā",
-          "inYourLibraryDescription": "Izvēlies izpildītāju, kas jau ir bibliotēkā, lai importētu trūkstošos albumus.",
-          "onSpotify": "Spotify",
-          "onSpotifyDescription": "No Spotify kataloga.",
-          "rosterSubtitle": "Jau ir bibliotēkā",
-          "followers": "{count} sekotāju",
-          "noMatches": "Nav rezultātu",
-          "notFoundOnSpotify": "Spotify šo izpildītāju neatradām",
-          "changeArtist": "Mainīt",
-          "loadingAlbums": "Ielādē albumus...",
-          "selectedSummary": "{selected} no {total} albumiem ({tracks} dziesmas)",
-          "selectAll": "Atzīmēt visus",
-          "clear": "Notīrīt",
-          "tracks": "{count} dziesmas",
-          "import": "Importēt {count} albumus",
-          "cancel": "Atcelt",
-          "queued": "{count} albumi rindā",
-          "importFailed": "Importu nevarēja sākt",
-          "recentTitle": "Nesenās importēšanas",
-          "albumsProgress": "{processed} / {total} albumi",
-          "trackTotals": "{queued} jaunas · {skipped} jau bibliotēkā",
-          "spotifyConnectTitle": "Pievieno Spotify, lai importētu",
-          "spotifyConnectDescription": "Pievieno savu Spotify kontu no informācijas paneļa, lai meklētu Spotify katalogā un importētu albumus.",
-          "spotifyRelinkTitle": "Spotify ir jāatjauno saite",
-          "spotifyRelinkDescription": "Spotify savienojums beidzies. Atjauno savu kontu informācijas panelī, lai turpinātu importēšanu.",
-          "spotifyUpstreamTitle": "Spotify pieredz īslaicīgu kļūmi",
-          "spotifyUpstreamDescription": "Spotify noraidīja pieprasījumu. Pagaidi mirkli un mēģini vēlreiz, parasti tā ir īslaicīga problēma viņu pusē.",
-          "spotifyIssueLinkAction": "Atvērt informācijas paneli",
-          "spotifyIssueRetry": "Mēģināt vēlreiz",
-          "spotifyIssueDismiss": "Aizvērt"
         },
         "ArtistsTable": {
           "loading": "Ielādē izpildītājus...",
@@ -515,7 +453,6 @@
         "retryImport": "Augšupielādēt mapi vēlreiz, lai mēģinātu vēlreiz",
         "reuploadFolderToRetry": "Lūdzu augšupielādēt mapi vēlreiz, lai mēģinātu vēlreiz neizdevušos importēšanas",
         "importInProgress": "Notiek importēšana",
-        "importInProgressDescription": "Pašlaik notiek importēšana. Lūdzu, uzgaidiet, līdz tā pabeigta.",
         "ignoreFile": "Ignorēt šo failu (nemēģinās vēlreiz)",
         "deleteWarningTooltip": "Dzēst šo brīdinājumu (var izraisīt dublikātu dziesmas, ja atkārtoti importēsiet)",
         "deleteWarningTitle": "Dzēst Importēšanas Brīdinājumu",
@@ -525,56 +462,12 @@
         "cancel": "Atcelt",
         "warningDeleted": "Brīdinājums dzēsts",
         "errorDeletingWarning": "Kļūda dzēšot brīdinājumu",
-        "SpotifySync": {
-          "title": "Spotify Sinhronizācija",
-          "notConnected": "Sasaisti savu Spotify kontu, lai katru dienu sinhronizētu sarakstus un patiktas dziesmas.",
-          "connect": "Sasaistīt Spotify",
-          "connectedAs": "Pieslēgts kā {name}",
-          "syncNow": "Sinhronizēt tagad",
-          "syncing": "Sinhronizē…",
-          "lastSync": "Pēdējā sinhronizācija: {when}",
-          "autoSync": "Automātiskā ikdienas sinhronizācija",
-          "autoSyncHint": "Katru dienu automātiski sinhronizē izvēlētos sarakstus.",
-          "syncLiked": "Sinhronizēt Patiktās dziesmas",
-          "syncLikedHint": "Pievieno Spotify patiktās dziesmas vietējam sarakstam.",
-          "playlistsHeader": "Spotify saraksti",
-          "trackCount": "{count, plural, one {# dziesma} other {# dziesmas}}"
-        },
-        "PlaylistImport": {
-          "title": "Importēt Atskaņošanas sarakstu",
-          "subtitle": "Importē atskaņošanas sarakstus no YouTube, SoundCloud un citiem avotiem (Spotify prasa kontu sasaisti).",
-          "urlPlaceholder": "https://www.youtube.com/playlist?list=...",
-          "preview": "Priekšskatīt",
-          "previewFailed": "Neizdevās nolasīt URL",
-          "tracks": "dziesmas",
-          "openConfirm": "Atvērt apstiprinājumu",
-          "modal": {
-            "title": "Apstiprini un importē",
-            "subtitleSingle": "Rediģē tagus pirms importa.",
-            "subtitleMulti": "Rediģē katras dziesmas tagus pirms importēt visas {count}.",
-            "targetLabel": "Kur importēt",
-            "targetNew": "Jauns saraksts:",
-            "targetNewPlaceholder": "Jaunā saraksta nosaukums",
-            "targetExisting": "Pievienot esošam sarakstam:",
-            "targetExistingPlaceholder": "Izvēlies sarakstu...",
-            "targetLibrary": "Tikai bibliotēkā (bez saraksta)",
-            "metaTitle": "Nosaukums",
-            "metaArtist": "Izpildītājs",
-            "metaAlbum": "Albums",
-            "artworkSection": "Vāks",
-            "noTrackSelected": "Nav izvēlēta dziesma",
-            "close": "Aizvērt",
-            "importOne": "Importēt",
-            "importAll": "Importēt {count} dziesmas"
-          }
-        },
         "SongsTable": {
           "loading": "Ielādē dziesmas...",
           "errorLoadingSongs": "Kļūda ielādējot dziesmas",
           "totalSongs": "Kopā dziesmu:",
           "filteredSongs": "Filtrētas dziesmas:",
           "filterByTitle": "Filtrēt pēc nosaukuma...",
-          "filterByOrigin": "Avots",
           "filterByQuality": "Kvalitāte",
           "filterByCodec": "Kodeks",
           "qualityLossless": "Bezzudumu",
@@ -606,10 +499,6 @@
             "selectRow": "Atlasīt rindu",
             "vocals": "Vokāli",
             "instrumental": "Instrumentāls",
-            "source": "Avots",
-            "sourceUpload": "Augšupielāde",
-            "sourceUnknownFile": "Sākotnējais fails nav zināms",
-            "openSource": "Atvērt avotu",
             "quality": "Kvalitāte",
             "lossless": "Lossless",
             "channelMono": "mono",
@@ -717,12 +606,12 @@
         "playlistKind": "Saraksts",
         "artistKind": "Izpildītājs",
         "albumKind": "Albums",
-        "syncedFromSpotify": "Spotify",
         "emptyLibrary": "Tava bibliotēka ir tukša.",
         "settingsPlayback": "Atskaņošana",
         "searchMusic": "Ko vēlies klausīties?",
         "collapseSidebar": "Sakļaut sānjoslu",
-        "expandSidebar": "Izvērst sānjoslu"
+        "expandSidebar": "Izvērst sānjoslu",
+        "synced": "Sinhronizēts"
       },
       "AddToPlaylistDialog": {
         "title": "Pievienot Atskaņošanas Sarakstam",
@@ -966,7 +855,6 @@
         "unauthorized": "Autorizācija tika noraidīta.",
         "conflict": "Šī identitāte jau ir piesaistīta citam kontam.",
         "internal": "Iekšēja kļūda. Mēģiniet vēlreiz.",
-        "spotifyNotAllowlisted": "Spotify piekļuve ir atļauta tikai apstiprinātu kontu sarakstam. Lūdziet administratoram pievienot jūsu kontu un mēģiniet saistīt vēlreiz.",
         "emailUnverified": "Šī konta e-pasts vēl nav apstiprināts. Apstipriniet to vietnē id.omelhorsite.pt un mēģiniet vēlreiz.",
         "oauthFailed": "Pierakstīšanās neizdevās. Mēģiniet vēlreiz."
       },
@@ -1169,25 +1057,6 @@
         "mediaBanner": "banneris",
         "mediaGallery": "galerija",
         "emptyFiltered": "Neviens izpildītājs neatbilst šim filtram."
-      }
-    },
-    "import": {
-      "url": {
-        "artworkSearch": "Meklēt vākus",
-        "artworkSearchPlaceholder": "Izpildītājs un nosaukums",
-        "artworkUpload": "Augšupielādēt attēlu",
-        "deduped": "Jau ir bibliotēkā",
-        "noTracks": "Šajā URL nav ko importēt."
-      },
-      "spotify": {
-        "progressTitle": "Sinhronizācijas gaita",
-        "trackTotals": "{queued} jaunas, {skipped} jau bibliotēkā",
-        "enabled": "Sinhronizē",
-        "disabled": "Nesinhronizē",
-        "destructiveTitle": "Dzēst lokālo kopiju?",
-        "destructiveLiked": "Izslēdzot patīk sinhronizāciju, spoguļotais patīk saraksts tiek dzēsts uzreiz. To ieslēdzot atkal, saraksts tiek izveidots nākamajā sinhronizācijā.",
-        "destructivePlaylist": "Noņemot \"{name}\", tā lokālā kopija tiek dzēsta uzreiz. To atzīmējot atkal, saraksts tiek izveidots nākamajā sinhronizācijā.",
-        "destructiveConfirm": "Dzēst"
       }
     },
     "jam": {

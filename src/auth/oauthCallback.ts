@@ -46,18 +46,16 @@ const LOCALE_SEGMENTS = new Set(["en", "pt", "lv"]);
 
 /**
  * `zitadel` is the ONLY way to sign in (id.omelhorsite.pt: passkey, password or email
- * code; accounts are created there too). `spotify` survives only for account
- * LINKING (/auth/link/spotify), never as a sign-in button.
+ * code; accounts are created there too).
  */
-export type OAuthProvider = "zitadel" | "spotify";
-export type OAuthMode = "signin" | "link";
+export type OAuthProvider = "zitadel";
+export type OAuthMode = "signin";
 
 /**
  * Every code `IdentitiesController` can put in `?error=`, plus the two the
  * client raises for itself. Server side:
  * `account_exists`, `account_not_found`, `unauthorized`, `conflict`,
- * `internal` (`identities_controller.rb:71-111`) and
- * `spotify_not_allowlisted` (`:30`, `:130`), plus `email_unverified` when
+ * `internal` (`identities_controller.rb:71-111`), plus `email_unverified` when
  * id.omelhorsite.pt hands back an email it never verified.
  */
 export type OAuthErrorCode =
@@ -66,7 +64,6 @@ export type OAuthErrorCode =
   | "unauthorized"
   | "conflict"
   | "internal"
-  | "spotify_not_allowlisted"
   | "email_unverified"
   | "oauth_state"
   | "oauth_failed";
@@ -78,7 +75,6 @@ export const OAUTH_ERROR_KEYS: Record<OAuthErrorCode, string> = {
   unauthorized: "native.auth.oauthErrors.unauthorized",
   conflict: "native.auth.oauthErrors.conflict",
   internal: "native.auth.oauthErrors.internal",
-  spotify_not_allowlisted: "native.auth.oauthErrors.spotifyNotAllowlisted",
   email_unverified: "native.auth.oauthErrors.emailUnverified",
   oauth_state: "native.auth.oauthErrors.oauthFailed",
   oauth_failed: "native.auth.oauthErrors.oauthFailed",

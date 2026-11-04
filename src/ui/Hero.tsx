@@ -33,7 +33,7 @@ import { typeScale } from "@/theme/typography";
 export type HeroKind = "playlist" | "album" | "artist" | "mix" | "radio";
 
 /**
- * Linha do dono a Spotify (ponto 16): avatar pequeno redondo + nome, entre o
+ * Linha do dono como as apps de referencia (ponto 16): avatar pequeno redondo + nome, entre o
  * titulo e a linha de meta. Sem `avatarUri` desenha o disco de iniciais
  * (album: o artista principal, que nao tem foto garantida).
  */
@@ -92,7 +92,7 @@ interface HeroContentProps {
 }
 
 /**
- * The hero's content in its two arrangements, both after Spotify's playlist
+ * The hero's content in its two arrangements, both after the reference app's playlist
  * header (owner screenshots 2026-08-14 + 2026-08-16 point 16). MOBILE: the
  * cover sits CENTERED and large (~60% of the window) above a left-aligned
  * text column - title, owner row, meta. DESKTOP shell: artwork on the LEFT,
@@ -120,7 +120,7 @@ const HeroContent = ({
   metaInk,
   metaSize,
 }: HeroContentProps) => {
-  // Spotify scales the cover with the pane: ~18% of the width on desktop,
+  // the reference app scales the cover with the pane: ~18% of the width on desktop,
   // ~60% of the window on mobile, both clamped so a narrow surface still
   // shows a real cover and a wide one does not poster it. The artist
   // avatar fallback keeps its shipped disc size - the artist page has its
@@ -223,7 +223,7 @@ const HeroContent = ({
         gap: 16,
       }}
     >
-      {/* A capa centra-se (Spotify mobile); o disco de iniciais do artista
+      {/* A capa centra-se (como nas apps de referencia); o disco de iniciais do artista
           mantem o alinhamento antigo ate a pagina de artista ter o seu
           proprio redesenho. O texto fica sempre encostado a esquerda. */}
       {artwork ? (

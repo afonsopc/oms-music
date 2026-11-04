@@ -1,5 +1,5 @@
 /**
- * Lyrics CARD for the now playing scroll (the Spotify idiom the owner asked
+ * Lyrics CARD for the now playing scroll (the reference-app idiom the owner asked
  * for by screenshot): an accent-coloured panel below the controls showing the
  * current line and the next few, tap anywhere to open the full lyrics page.
  *

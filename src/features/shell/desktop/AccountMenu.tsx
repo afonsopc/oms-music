@@ -1,6 +1,6 @@
 /**
  * O avatar da conta no canto direito da topbar (feedback do dono
- * 2026-08-14, "olha onde eles tem o avatar"): o mesmo sitio do Spotify
+ * 2026-08-14, "olha onde eles tem o avatar"): o mesmo sitio das apps de referencia
  * desktop. Clique abre o menu ancorado com os quatro destinos que os quick
  * links da Biblioteca tinham (perfil, amigos, transferencias, definicoes).
  * Viveu primeiro no fundo da sidebar; a topbar ganhou-o porque e o unico
@@ -84,7 +84,7 @@ export const AccountMenu = () => {
         accessibilityRole="button"
         accessibilityLabel={t("native.desktop.profileMenu")}
         style={({ pressed }) => ({
-          // O anel subtil da pressao imita o hover-plate do Spotify sem
+          // O anel subtil da pressao imita o hover-plate das apps de referencia sem
           // pintar nada em repouso.
           padding: 3,
           borderRadius: 999,

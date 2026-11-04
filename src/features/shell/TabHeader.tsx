@@ -1,10 +1,10 @@
 /**
  * O cabeçalho partilhado das tabs (pedido do dono, 2026-08-18, com
- * screenshots do Spotify): o avatar SEMPRE à esquerda, e à direita só muda
+ * screenshots das apps de referencia): o avatar SEMPRE à esquerda, e à direita só muda
  * a parte de cada tab - as pills de filtro na Home, o título nas outras.
  * Antes disto cada ecrã inventava o seu topo (a Home tinha a marca à
  * esquerda e o avatar à direita; a Biblioteca o contrário), e a app perdia
- * exactamente a consistência que faz o padrão do Spotify parecer "sempre
+ * exactamente a consistência que faz o padrão das apps de referencia parecer "sempre
  * igual". O wordmark Druk Wide saiu da Home com esta troca - o pedido novo
  * substitui o de 2026-08-16.
  *

@@ -60,7 +60,6 @@ export interface SongFilterState {
   title: string;
   artist: string;
   album: string;
-  origins: string[];
   qualities: string[];
   codecs: string[];
 }
@@ -69,16 +68,12 @@ export const EMPTY_SONG_FILTERS: SongFilterState = {
   title: "",
   artist: "",
   album: "",
-  origins: [],
   qualities: [],
   codecs: [],
 };
 
 export const hasTextFilter = (f: SongFilterState): boolean =>
   !!(f.title.trim() || f.artist.trim() || f.album.trim());
-
-export const songOriginKey = (song: Pick<Song, "source_provider" | "source_kind">): string =>
-  song.source_provider || song.source_kind || "upload";
 
 export const filterSongs = (songs: readonly Song[], f: SongFilterState): Song[] => {
   const title = f.title.trim().toLowerCase();
@@ -88,7 +83,6 @@ export const filterSongs = (songs: readonly Song[], f: SongFilterState): Song[] 
     if (title && !song.title.toLowerCase().includes(title)) return false;
     if (artist && !formatArtists(song).toLowerCase().includes(artist)) return false;
     if (album && !(song.album ?? "").toLowerCase().includes(album)) return false;
-    if (f.origins.length > 0 && !f.origins.includes(songOriginKey(song))) return false;
     if (f.qualities.length > 0) {
       const quality = song.audio_lossless ? "lossless" : "lossy";
       if (!f.qualities.includes(quality)) return false;
@@ -102,9 +96,6 @@ export const filterSongs = (songs: readonly Song[], f: SongFilterState): Song[] 
 };
 
 /** Option lists built from the data so only present values are offered. */
-export const originOptions = (songs: readonly Song[]): string[] =>
-  Array.from(new Set(songs.map(songOriginKey))).sort();
-
 export const codecOptions = (songs: readonly Song[]): string[] =>
   Array.from(
     new Set(

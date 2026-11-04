@@ -1,0 +1,1502 @@
+diff --git a/dist/index.js b/dist/index.js
+index 212793ea50c1c339875c1a62fb6d2f51645c6129..48f6ccc44800e13ad289c8bba2e57ea99046ff63 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -4933,7 +4933,7 @@ var EFF_LONG_WORDLIST = Object.freeze([
+   "italics",
+   "item",
+   "itinerary",
+-  "itunes",
++  "itself",
+   "ivory",
+   "ivy",
+   "jab",
+@@ -6753,7 +6753,7 @@ var EFF_LONG_WORDLIST = Object.freeze([
+   "remake",
+   "remark",
+   "remarry",
+-  "rematch",
++  "remaster",
+   "remedial",
+   "remedy",
+   "remember",
+@@ -10368,7 +10368,7 @@ class AdminEventAlertsNamespace extends Resource {
+ }
+ 
+ // src/resources/admin/identities.ts
+-var IDENTITY_PROVIDERS = ["google_oauth2", "github", "spotify"];
++var IDENTITY_PROVIDERS = ["google_oauth2", "github"];
+ var LINKED_IDENTITY_FILTER_COLUMNS = Object.freeze(["user_id"]);
+ 
+ class LinkedIdentitiesNamespace extends Resource {
+@@ -10754,7 +10754,6 @@ function adminUpdateBody(input) {
+   set("group", input.group);
+   if (input.password)
+     set("password", input.password);
+-  set("allowed_to_use_spotify", input.allowedToUseSpotify);
+   return body;
+ }
+ 
+@@ -11579,11 +11578,6 @@ var NOTIFICATION_KINDS = [
+   "caption_job_failed",
+   "jumpstyle_job_done",
+   "jumpstyle_job_failed",
+-  "song_import_done",
+-  "song_import_failed",
+-  "spotify_sync_done",
+-  "spotify_sync_failed",
+-  "artist_import_done",
+   "blog_new_post",
+   "form_submission_received",
+   "ticket_reply",
+@@ -11647,7 +11641,7 @@ class ServiceUsagesNamespace extends Resource {
+ }
+ 
+ // src/resources/content/servicesStatus.ts
+-var EXTERNAL_SERVICE_SLUGS = ["vocal_separator", "ai", "yt_dlp"];
++var EXTERNAL_SERVICE_SLUGS = ["vocal_separator", "ai"];
+ var INTERNAL_SERVICE_SLUGS = [
+   "accounts",
+   "notifications",
+@@ -12992,74 +12986,7 @@ var ARTIST_IMAGE_CONTENT_TYPES = [
+   "image/gif"
+ ];
+ var ARTIST_FILTER_COLUMNS = Object.freeze(["id", "name", "slug", "canonical_name", "created_at"]);
+-var ARTIST_IMPORT_STATES = ["queued", "running", "complete", "failed"];
+-var ARTIST_IMPORT_POLL_INTERVAL_MS = 1500;
+-function isArtistImportTerminal(state) {
+-  return state === "complete" || state === "failed";
+-}
+-
+-class MusicArtistImportsNamespace extends Resource {
+-  async search(query, options = {}) {
+-    return this.http.get("/artist_imports/search", {
+-      timeoutMs: 60000,
+-      ...options,
+-      query: { q: query }
+-    });
+-  }
+-  async albums(spotifyArtistId, options = {}) {
+-    assertPresent("spotifyArtistId", spotifyArtistId);
+-    const body = await this.http.get("/artist_imports/albums", {
+-      timeoutMs: 60000,
+-      ...options,
+-      query: { spotify_artist_id: spotifyArtistId }
+-    });
+-    return body.items ?? [];
+-  }
+-  async create(input, options = {}) {
+-    assertPresent("spotifyArtistId", input.spotifyArtistId);
+-    if (input.albumIds.length === 0) {
+-      throw new OmsError('albumIds is empty. An import with no albums is rejected by the server with 400 "album_ids required".', "invalid_request");
+-    }
+-    return this.http.post("/artist_imports", {
+-      spotify_artist_id: input.spotifyArtistId,
+-      spotify_artist_name: input.spotifyArtistName ?? "",
+-      album_ids: input.albumIds
+-    }, { retry: false, ...options });
+-  }
+-  async list(params = {}, options = {}) {
+-    const body = await this.http.get("/artist_imports", {
+-      ...options,
+-      ...params.limit === undefined ? {} : { query: { limit: params.limit } }
+-    });
+-    return body.items ?? [];
+-  }
+-}
+-
+-class MusicArtistSyncsNamespace extends Resource {
+-  async list(options = {}) {
+-    const body = await this.http.get("/artist_syncs", options);
+-    return body.items ?? [];
+-  }
+-  async create(input, options = {}) {
+-    assertPresent("spotifyArtistId", input.spotifyArtistId);
+-    return this.http.post("/artist_syncs", {
+-      spotify_artist_id: input.spotifyArtistId,
+-      spotify_artist_name: input.spotifyArtistName ?? ""
+-    }, { timeoutMs: 60000, retry: {}, ...options });
+-  }
+-  async delete(id, options = {}) {
+-    await this.http.delete(`/artist_syncs/${id}`, options);
+-  }
+-}
+-
+ class MusicArtistsNamespace extends Resource {
+-  imports;
+-  syncs;
+-  constructor(http) {
+-    super(http);
+-    this.imports = new MusicArtistImportsNamespace(http);
+-    this.syncs = new MusicArtistSyncsNamespace(http);
+-  }
+   async list(params = {}, options = {}) {
+     const base = {
+       search: { name: params.name },
+@@ -13112,190 +13039,6 @@ function fileSize(file2) {
+   return;
+ }
+ 
+-// src/resources/music/imports.ts
+-var SONG_IMPORT_STATES = Object.freeze({
+-  pending: "pending",
+-  processing: "processing",
+-  complete: "complete",
+-  failed: "failed"
+-});
+-var SONG_IMPORT_TERMINAL_STATES = Object.freeze([
+-  SONG_IMPORT_STATES.complete,
+-  SONG_IMPORT_STATES.failed
+-]);
+-function isSongImportTerminal(state) {
+-  return SONG_IMPORT_TERMINAL_STATES.includes(state);
+-}
+-var SONG_IMPORT_FILTER_COLUMNS = Object.freeze([
+-  "id",
+-  "state",
+-  "playlist_id",
+-  "user_id",
+-  "created_at",
+-  "updated_at"
+-]);
+-var PLAYLIST_IMPORT_PREVIEW_HOURLY_LIMIT = 60;
+-var PLAYLIST_IMPORT_PREVIEW_BURST_LIMIT_PER_MINUTE = 20;
+-var SONG_IMPORT_SERVER_TIMEOUT_MS = 600000;
+-var SONG_IMPORT_POLL_INTERVAL_MS = 1500;
+-function songImportProgress(record) {
+-  const fraction = typeof record.progress_pct === "number" ? record.progress_pct : 0;
+-  return {
+-    phase: "processing",
+-    loaded: Math.max(0, Math.min(100, Math.round(fraction * 100))),
+-    total: 100,
+-    status: record.state
+-  };
+-}
+-
+-class MusicImportsNamespace extends Resource {
+-  spotify;
+-  constructor(http) {
+-    super(http);
+-    this.spotify = new SpotifySyncNamespace(http);
+-  }
+-  async list(params = {}, options = {}) {
+-    const base = {
+-      exactSearch: { state: params.state, playlist_id: params.playlistId, user_id: params.userId, id: params.id }
+-    };
+-    return paginate(params, 100, (at) => this.http.get("/song_imports", { ...options, query: listQuery(params, at, base) }));
+-  }
+-  async get(id, options = {}) {
+-    return this.http.get(`/song_imports/${encodeURIComponent(String(id))}`, options);
+-  }
+-  async create(input, options = {}) {
+-    const sourceUrl = input.sourceUrl?.trim();
+-    const searchMode = Boolean(input.searchArtist?.trim()) && Boolean(input.searchTitle?.trim());
+-    if (!sourceUrl && !searchMode) {
+-      throw new TypeError("createSongImport needs either `sourceUrl`, or BOTH `searchArtist` and `searchTitle`. " + "One search field without the other is not search mode and the server answers 400.");
+-    }
+-    return this.http.post("/song_imports", createBody(input, sourceUrl), options);
+-  }
+-  async wait(id, options = {}) {
+-    return pollUntilTerminal(this.pollPlan(id, options));
+-  }
+-  watch(id, options = {}) {
+-    return watchUntilTerminal(this.pollPlan(id, options));
+-  }
+-  async createAndWait(input, options = {}) {
+-    const created = await this.create(input, requestPartOf2(options));
+-    if (isSongImportTerminal(created.state))
+-      return created;
+-    return this.wait(created.id, options);
+-  }
+-  async previewPlaylist(url, options = {}) {
+-    return this.http.post("/playlist_imports/preview", { url }, { timeoutMs: 120000, ...options, retry: options.retry ?? false });
+-  }
+-  pollPlan(id, options) {
+-    return {
+-      pollIntervalMs: SONG_IMPORT_POLL_INTERVAL_MS,
+-      ...options,
+-      label: `song import ${id}`,
+-      poll: (request) => this.get(id, request),
+-      terminal: (record) => isSongImportTerminal(record.state),
+-      progress: songImportProgress
+-    };
+-  }
+-}
+-var SPOTIFY_SYNC_STALE_AFTER_MS = 7200000;
+-function isSpotifySyncRunning(status) {
+-  return status.sync_progress?.state === "running";
+-}
+-
+-class SpotifySyncNamespace extends Resource {
+-  async status(options = {}) {
+-    return this.http.get("/spotify_syncs/status", options);
+-  }
+-  async preview(options = {}) {
+-    return this.http.get("/spotify_syncs/preview", {
+-      timeoutMs: 60000,
+-      ...options,
+-      retry: options.retry ?? false
+-    });
+-  }
+-  async updateSettings(input, options = {}) {
+-    const body = {};
+-    if (input.enabledPlaylists !== undefined)
+-      body["enabled_playlists"] = input.enabledPlaylists;
+-    if (input.syncLiked !== undefined)
+-      body["sync_liked"] = input.syncLiked;
+-    if (input.autoSync !== undefined)
+-      body["auto_sync"] = input.autoSync;
+-    return this.http.patch("/spotify_syncs/settings", body, options);
+-  }
+-  async start(input = {}, options = {}) {
+-    return this.http.post("/spotify_syncs", input.playlistIds === undefined ? {} : { playlist_ids: input.playlistIds }, options);
+-  }
+-  async waitForSync(options = {}) {
+-    return pollUntilTerminal(this.syncPollPlan(options));
+-  }
+-  watchSync(options = {}) {
+-    return watchUntilTerminal(this.syncPollPlan(options));
+-  }
+-  async startAndWait(input = {}, options = {}) {
+-    await this.start(input, requestPartOf2(options));
+-    return this.waitForSync(options);
+-  }
+-  syncPollPlan(options) {
+-    return {
+-      ...options,
+-      label: "the Spotify sync",
+-      poll: (request) => this.status(request),
+-      terminal: (status) => !isSpotifySyncRunning(status),
+-      progress: spotifySyncProgress
+-    };
+-  }
+-}
+-function spotifySyncProgress(status) {
+-  const playlists = status.sync_progress?.playlists ?? [];
+-  let loaded = 0;
+-  let total = 0;
+-  for (const entry of playlists) {
+-    loaded += (entry.queued ?? 0) + (entry.skipped ?? 0);
+-    if (total !== undefined) {
+-      total = typeof entry.total === "number" ? total + entry.total : undefined;
+-    }
+-  }
+-  return {
+-    phase: "processing",
+-    loaded,
+-    total,
+-    status: status.sync_progress?.state ?? "idle"
+-  };
+-}
+-function createBody(input, sourceUrl) {
+-  const body = {};
+-  const put = (key, value) => {
+-    if (value !== undefined)
+-      body[key] = value;
+-  };
+-  put("source_url", sourceUrl);
+-  put("search_artist", input.searchArtist);
+-  put("search_title", input.searchTitle);
+-  put("search_album", input.searchAlbum);
+-  put("isrc", input.isrc);
+-  put("source_provider", input.sourceProvider);
+-  put("source_id", input.sourceId);
+-  put("source_kind", input.sourceKind);
+-  put("override_title", input.overrideTitle);
+-  put("override_artist", input.overrideArtist);
+-  put("override_album", input.overrideAlbum);
+-  put("artwork_url", input.artworkUrl);
+-  put("artwork_data_b64", input.artworkDataB64);
+-  put("expected_duration_s", input.expectedDurationS);
+-  put("playlist_id", input.playlistId);
+-  put("position", input.position);
+-  return body;
+-}
+-function requestPartOf2(options) {
+-  return {
+-    ...options.signal === undefined ? {} : { signal: options.signal },
+-    ...options.timeoutMs === undefined ? {} : { timeoutMs: options.timeoutMs },
+-    ...options.headers === undefined ? {} : { headers: options.headers },
+-    ...options.retry === undefined ? {} : { retry: options.retry }
+-  };
+-}
+-
+ // src/resources/music/playlists.ts
+ var PLAYLIST_MANUAL_BLOCK_FLOOR = 1e5;
+ var PLAYLIST_SEED_CAP = 500;
+@@ -13755,7 +13498,7 @@ var SONG_ORDER_COLUMNS = Object.freeze([
+ ]);
+ var LIKED_SONGS_DEFAULT_LIMIT = 200;
+ var LIKED_SONGS_MAX_LIMIT = 500;
+-var SONG_IMPORT_EXTENSIONS = Object.freeze([
++var SONG_UPLOAD_EXTENSIONS = Object.freeze([
+   "mp3",
+   "wav",
+   "flac",
+@@ -13764,14 +13507,8 @@ var SONG_IMPORT_EXTENSIONS = Object.freeze([
+   "m4a",
+   "opus"
+ ]);
+-var SONG_IMPORT_MAX_BYTES = 1073741824;
++var SONG_UPLOAD_MAX_BYTES = 1073741824;
+ var SONG_METADATA_MAX_BYTES = 52428800;
+-function isMusicExternalSearchRateLimited(error) {
+-  if (!(error instanceof OmsApiError) || error.status !== 400)
+-    return false;
+-  const body = typeof error.body === "string" ? error.body : error.message;
+-  return body === "Rate limit exceeded";
+-}
+ function songArtistsLine(song, includeWith = false) {
+   const credits = song.artists ?? [];
+   if (credits.length === 0) {
+@@ -13872,13 +13609,6 @@ class MusicSongsNamespace extends Resource {
+   async deleteSeparation(id, options = {}) {
+     await this.http.delete(`/songs/${encodeURIComponent(String(id))}/separation`, options);
+   }
+-  async matchCandidates(id, params = {}, options = {}) {
+-    const body = await this.http.get(`/songs/${encodeURIComponent(String(id))}/match_candidates`, { ...options, query: { limit: params.limit } });
+-    return body.items ?? [];
+-  }
+-  async rematch(id, input = {}, options = {}) {
+-    return this.http.post(`/songs/${encodeURIComponent(String(id))}/rematch`, input.sourceUrl === undefined ? {} : { source_url: input.sourceUrl }, options);
+-  }
+   async listLiked(params = {}, options = {}) {
+     const before = params.before instanceof Date ? params.before.toISOString() : params.before;
+     const rows = await this.http.get("/liked_songs", {
+@@ -13918,17 +13648,6 @@ class MusicSongsNamespace extends Resource {
+   async syncLyrics(songId, options = {}) {
+     return this.http.post("/lyrics/sync", { song_id: songId }, { retry: false, ...options });
+   }
+-  async externalSearch(params, options = {}) {
+-    const body = await this.http.get("/music/external_search", {
+-      ...options,
+-      query: { q: params.q, ...params.kind === undefined ? {} : { kind: params.kind } }
+-    });
+-    return {
+-      tracks: body?.tracks ?? [],
+-      albums: body?.albums ?? [],
+-      artists: body?.artists ?? []
+-    };
+-  }
+   async artistMetadata(name, options = {}) {
+     return this.http.get(`/artist_metadata/${encodeURIComponent(name)}`, options);
+   }
+@@ -13990,14 +13709,12 @@ class MusicNamespace extends Resource {
+   songs;
+   artists;
+   playlists;
+-  imports;
+   social;
+   constructor(http) {
+     super(http);
+     this.songs = new MusicSongsNamespace(http);
+     this.artists = new MusicArtistsNamespace(http);
+     this.playlists = new MusicPlaylistsNamespace(http);
+-    this.imports = new MusicImportsNamespace(http);
+     this.social = new MusicSocialNamespace(http);
+   }
+ }
+@@ -15532,86 +15249,6 @@ class CaptionsNamespace extends Resource {
+   }
+ }
+ 
+-// src/resources/tools/downloader.ts
+-var DOWNLOADER_TERMINAL_STATUSES = Object.freeze([
+-  "complete",
+-  "failed"
+-]);
+-function isDownloaderTerminal(status) {
+-  return DOWNLOADER_TERMINAL_STATUSES.includes(status);
+-}
+-function downloaderProgress(job) {
+-  const fraction = job.progress;
+-  const known = typeof fraction === "number";
+-  return {
+-    phase: "download",
+-    loaded: known ? Math.round(fraction * 100) : 0,
+-    total: known ? 100 : undefined,
+-    status: job.status ?? "queued"
+-  };
+-}
+-
+-class DownloaderNamespace extends Resource {
+-  async preview(url, options = {}) {
+-    return this.http.post("/tools_downloader/preview", { url }, { ...options, retry: options.retry ?? false });
+-  }
+-  async artworkSearch(input, options = {}) {
+-    const answer = await this.http.post("/tools_downloader/artwork_search", {
+-      ...input.artist === undefined ? {} : { artist: input.artist },
+-      ...input.title === undefined ? {} : { title: input.title },
+-      ...input.album === undefined ? {} : { album: input.album },
+-      ...input.query === undefined ? {} : { query: input.query }
+-    }, { ...options, retry: options.retry ?? false });
+-    return answer?.items ?? [];
+-  }
+-  async createJob(input, options = {}) {
+-    const answer = await this.http.post("/tools_downloader/jobs", {
+-      ...input.sourceUrl === undefined ? {} : { source_url: input.sourceUrl },
+-      ...input.artist === undefined ? {} : { artist: input.artist },
+-      ...input.title === undefined ? {} : { title: input.title },
+-      ...input.album === undefined ? {} : { album: input.album },
+-      ...input.source === undefined ? {} : { source: input.source },
+-      ...input.kind === undefined ? {} : { kind: input.kind },
+-      ...input.formatId === undefined ? {} : { format_id: input.formatId },
+-      ...input.overrideTitle === undefined ? {} : { override_title: input.overrideTitle },
+-      ...input.overrideArtist === undefined ? {} : { override_artist: input.overrideArtist },
+-      ...input.overrideAlbum === undefined ? {} : { override_album: input.overrideAlbum },
+-      ...input.artworkUrl === undefined ? {} : { artwork_url: input.artworkUrl },
+-      ...input.artworkDataB64 === undefined ? {} : { artwork_data_b64: input.artworkDataB64 }
+-    }, { ...options, retry: options.retry ?? false });
+-    return withId(answer, readId(answer));
+-  }
+-  async getJob(id, options = {}) {
+-    const answer = await this.http.get(`/tools_downloader/jobs/${encodeURIComponent(id)}`, options);
+-    return withId(answer, id);
+-  }
+-  async run(input, options = {}) {
+-    const created = await this.createJob(input, options);
+-    options.onProgress?.(downloaderProgress(created));
+-    return this.wait(created.id, options);
+-  }
+-  async wait(id, options = {}) {
+-    return pollUntilTerminal({
+-      ...options,
+-      label: `download ${id}`,
+-      poll: (request) => this.getJob(id, request),
+-      terminal: (job) => isDownloaderTerminal(job.status ?? ""),
+-      progress: downloaderProgress
+-    });
+-  }
+-  async download(id, options = {}) {
+-    return (await this.downloadFile(id, options)).data;
+-  }
+-  async downloadFile(id, options = {}) {
+-    return this.http.download(`/tools_downloader/jobs/${encodeURIComponent(id)}/file`, {
+-      ...options,
+-      retry: options.retry ?? false
+-    });
+-  }
+-  fileUrl(id) {
+-    return this.http.url(`/tools_downloader/jobs/${encodeURIComponent(id)}/file`);
+-  }
+-}
+ function readId(answer) {
+   const raw = answer?.["request_id"] ?? answer?.["id"];
+   return typeof raw === "string" ? raw : "";
+@@ -15908,7 +15545,6 @@ class ToolsNamespace extends Resource {
+   vocalSeparation;
+   captions;
+   jumpstyle;
+-  downloader;
+   srMachine;
+   constructor(http) {
+     super(http);
+@@ -15918,7 +15554,6 @@ class ToolsNamespace extends Resource {
+     this.vocalSeparation = new VocalSeparationNamespace(http);
+     this.captions = new CaptionsNamespace(http);
+     this.jumpstyle = new JumpstyleNamespace(http);
+-    this.downloader = new DownloaderNamespace(http);
+     this.srMachine = new SRMachineNamespace(http);
+   }
+ }
+@@ -16032,9 +15667,7 @@ export {
+   supportsResponseStreaming,
+   supportsNativeFormDataFiles,
+   staticToken,
+-  spotifySyncProgress,
+   splitRedirectUris,
+-  songImportProgress,
+   songArtistsLine,
+   sleep,
+   scopesOf,
+@@ -16094,15 +15727,12 @@ export {
+   isSystemPlaylist,
+   isSystemMovieCollection,
+   isSystemMessage,
+-  isSpotifySyncRunning,
+-  isSongImportTerminal,
+   isShippedClient,
+   isSafeMethod,
+   isPendingRequest,
+   isPasskeyBase64Url,
+   isNativeFile,
+   isMusicProfileVisible,
+-  isMusicExternalSearchRateLimited,
+   isMediaMissing,
+   isMediaId,
+   isLikedMirror,
+@@ -16111,11 +15741,9 @@ export {
+   isFriendship,
+   isFileInput,
+   isExpired,
+-  isDownloaderTerminal,
+   isCaptionBusy,
+   isBookChatBusy,
+   isBlock,
+-  isArtistImportTerminal,
+   intelArticleImageUrl,
+   headerRecord,
+   handshakeUrl,
+@@ -16128,7 +15756,6 @@ export {
+   encodeQuery,
+   encodeQr,
+   editWouldRequeue,
+-  downloaderProgress,
+   src_default as default,
+   decodeIdToken,
+   dataUrlFromFile,
+@@ -16170,7 +15797,6 @@ export {
+   TICKET_ATTACHMENT_TYPES,
+   StorageRateGate,
+   StorageNamespace,
+-  SpotifySyncNamespace,
+   SpaceInvadersNamespace,
+   SocialNamespace,
+   SiteConfigNamespace,
+@@ -16179,7 +15805,6 @@ export {
+   ServiceUsagesNamespace,
+   SearchNamespace,
+   SRMachineNamespace,
+-  SPOTIFY_SYNC_STALE_AFTER_MS,
+   SPACE_INVADERS_MAX_SESSION_SECONDS,
+   SPACE_INVADERS_MAX_POINTS_PER_KILL,
+   SPACE_INVADERS_MAX_KILLS_PER_SECOND,
+@@ -16187,13 +15812,8 @@ export {
+   SPACE_INVADERS_GAME_FILTER_COLUMNS,
+   SONG_ORDER_COLUMNS,
+   SONG_METADATA_MAX_BYTES,
+-  SONG_IMPORT_TERMINAL_STATES,
+-  SONG_IMPORT_STATES,
+-  SONG_IMPORT_SERVER_TIMEOUT_MS,
+-  SONG_IMPORT_POLL_INTERVAL_MS,
+-  SONG_IMPORT_MAX_BYTES,
+-  SONG_IMPORT_FILTER_COLUMNS,
+-  SONG_IMPORT_EXTENSIONS,
++  SONG_UPLOAD_MAX_BYTES,
++  SONG_UPLOAD_EXTENSIONS,
+   SONG_FILTER_COLUMNS,
+   SOCKET_OPEN,
+   SHORT_LINK_FILTER_COLUMNS,
+@@ -16226,8 +15846,6 @@ export {
+   PLAYLIST_SONG_FILTER_COLUMNS,
+   PLAYLIST_SEED_CAP,
+   PLAYLIST_MANUAL_BLOCK_FLOOR,
+-  PLAYLIST_IMPORT_PREVIEW_HOURLY_LIMIT,
+-  PLAYLIST_IMPORT_PREVIEW_BURST_LIMIT_PER_MINUTE,
+   PLAYLIST_FILTER_COLUMNS,
+   PART_URL_WINDOW,
+   OmsTimeoutError,
+@@ -16268,13 +15886,10 @@ export {
+   MusicNamespace,
+   MusicMixesNamespace,
+   MusicJamsNamespace,
+-  MusicImportsNamespace,
+   MusicDjNamespace,
+   MusicAssistantNamespace,
+   MusicAssistantChatsNamespace,
+   MusicArtistsNamespace,
+-  MusicArtistSyncsNamespace,
+-  MusicArtistImportsNamespace,
+   MoviesNamespace,
+   MovieWatchProgressesNamespace,
+   MovieCollectionsNamespace,
+@@ -16411,12 +16026,10 @@ export {
+   EXTERNAL_SERVICE_SLUGS,
+   EFF_LONG_WORDLIST,
+   DynamicQrsNamespace,
+-  DownloaderNamespace,
+   DirectMessagesNamespace,
+   DeviceFlow,
+   DYNAMIC_QR_NAMESPACE,
+   DYNAMIC_QR_BASE_URL,
+-  DOWNLOADER_TERMINAL_STATUSES,
+   DEVICE_SLOW_DOWN_STEP_MS,
+   DEVICE_CODE_GRANT_TYPE,
+   DEFAULT_UPLOAD_CONCURRENCY,
+@@ -16492,8 +16105,6 @@ export {
+   AccountSessionsNamespace,
+   AccountNamespace,
+   ARTIST_ROSTER_PAGE_SIZE,
+-  ARTIST_IMPORT_STATES,
+-  ARTIST_IMPORT_POLL_INTERVAL_MS,
+   ARTIST_IMAGE_MAX_BYTES,
+   ARTIST_IMAGE_CONTENT_TYPES,
+   ARTIST_FILTER_COLUMNS,
+diff --git a/dist/types/resources/account.d.ts b/dist/types/resources/account.d.ts
+index d6e3b787d655e9786865108b68cc1b356ba9df2c..ac9c7d22db2ad9427b256918a94869096962876b 100644
+--- a/dist/types/resources/account.d.ts
++++ b/dist/types/resources/account.d.ts
+@@ -48,8 +48,6 @@ export interface User extends BaseRecord {
+     readonly gender?: string | null;
+     /** Privilege group, e.g. `"admin"`. Owner and administrators only. */
+     readonly group?: string | null;
+-    /** Owner and administrators only. */
+-    readonly allowed_to_use_spotify?: boolean;
+     /** Owner and administrators only: whether friends see this user's playback. */
+     readonly share_listening?: boolean;
+     /** Administrators only. */
+diff --git a/dist/types/resources/admin/identities.d.ts b/dist/types/resources/admin/identities.d.ts
+index ed997d4e013936dec604fe0e171c199e1b252b67..a72adc910dcd0669a339f14ab213cc9e21878d4f 100644
+--- a/dist/types/resources/admin/identities.d.ts
++++ b/dist/types/resources/admin/identities.d.ts
+@@ -3,7 +3,7 @@ import { Resource } from "../../http";
+ import type { ListParams } from "../../listing";
+ import type { Id, Paginated, RequestOptions, Timestamp } from "../../types";
+ /** The identity providers this server accepts. */
+-export declare const IDENTITY_PROVIDERS: readonly ["google_oauth2", "github", "spotify"];
++export declare const IDENTITY_PROVIDERS: readonly ["google_oauth2", "github"];
+ /**
+  * One of {@link IDENTITY_PROVIDERS}. Note `"google_oauth2"`, not `"google"`:
+  * it is the exact value the server stores and matches on.
+diff --git a/dist/types/resources/admin/users.d.ts b/dist/types/resources/admin/users.d.ts
+index 2c9b3e7d80974512678ae70b4a46308d9393022f..a824a709e6d557c59e19f7f9f53bdec75cdc91a8 100644
+--- a/dist/types/resources/admin/users.d.ts
++++ b/dist/types/resources/admin/users.d.ts
+@@ -26,7 +26,6 @@ export interface AdminUpdateUserInput {
+     /** Privilege group, e.g. `"administrator"`. */
+     readonly group?: string;
+     readonly password?: string;
+-    readonly allowedToUseSpotify?: boolean;
+     readonly picture?: FileInput | NativeFile;
+ }
+ export declare class AdminUsersNamespace extends Resource {
+diff --git a/dist/types/resources/content/notifications.d.ts b/dist/types/resources/content/notifications.d.ts
+index 6670e49b6c93a4a343b038aa39eecee5b694a152..0e36849f7ef544fe5497f5ce76135309b2da2ff4 100644
+--- a/dist/types/resources/content/notifications.d.ts
++++ b/dist/types/resources/content/notifications.d.ts
+@@ -20,7 +20,7 @@ export type NotificationCategory = (typeof NOTIFICATION_CATEGORIES)[number];
+  * `admin_*` kinds only ever reach administrators. The `_done` / `_failed`
+  * pairs of the media tools only reach the account that started the job.
+  */
+-export declare const NOTIFICATION_KINDS: readonly ["security_new_session", "security_password_changed", "security_email_changed", "security_passkey_added", "security_app_authorized", "friendship_request", "friendship_accepted", "user_followed", "message_received", "group_chat_message", "jam_invite", "fs_grant_received", "chest_expires_soon", "vocal_separation_done", "vocal_separation_failed", "transcription_done", "transcription_failed", "upscale_done", "upscale_failed", "background_removal_done", "background_removal_failed", "caption_job_done", "caption_job_failed", "jumpstyle_job_done", "jumpstyle_job_failed", "song_import_done", "song_import_failed", "spotify_sync_done", "spotify_sync_failed", "artist_import_done", "blog_new_post", "form_submission_received", "ticket_reply", "ticket_status_changed", "intel_report_ready", "intel_source_failing", "oauth_application_approved", "oauth_application_rejected", "admin_oauth_application_submitted", "admin_ticket_created", "admin_feedback_received"];
++export declare const NOTIFICATION_KINDS: readonly ["security_new_session", "security_password_changed", "security_email_changed", "security_passkey_added", "security_app_authorized", "friendship_request", "friendship_accepted", "user_followed", "message_received", "group_chat_message", "jam_invite", "fs_grant_received", "chest_expires_soon", "vocal_separation_done", "vocal_separation_failed", "transcription_done", "transcription_failed", "upscale_done", "upscale_failed", "background_removal_done", "background_removal_failed", "caption_job_done", "caption_job_failed", "jumpstyle_job_done", "jumpstyle_job_failed", "blog_new_post", "form_submission_received", "ticket_reply", "ticket_status_changed", "intel_report_ready", "intel_source_failing", "oauth_application_approved", "oauth_application_rejected", "admin_oauth_application_submitted", "admin_ticket_created", "admin_feedback_received"];
+ /**
+  * One of {@link NOTIFICATION_KINDS}.
+  *
+diff --git a/dist/types/resources/content/servicesStatus.d.ts b/dist/types/resources/content/servicesStatus.d.ts
+index 7f26c646e94a7ab62e715298e1a9168bddb7d74d..64fdf87ebd422465659c6c53e8e467bed342a773 100644
+--- a/dist/types/resources/content/servicesStatus.d.ts
++++ b/dist/types/resources/content/servicesStatus.d.ts
+@@ -2,7 +2,7 @@
+ import { Resource } from "../../http";
+ import type { RequestOptions, Timestamp } from "../../types";
+ /** The three services `GET /services_status` actually probes. */
+-export declare const EXTERNAL_SERVICE_SLUGS: readonly ["vocal_separator", "ai", "yt_dlp"];
++export declare const EXTERNAL_SERVICE_SLUGS: readonly ["vocal_separator", "ai"];
+ /**
+  * The eight services that live inside the Rails process and are therefore
+  * "up" whenever the healthcheck job runs at all. They appear in
+@@ -11,7 +11,7 @@ export declare const EXTERNAL_SERVICE_SLUGS: readonly ["vocal_separator", "ai",
+  */
+ export declare const INTERNAL_SERVICE_SLUGS: readonly ["accounts", "notifications", "storage", "socials", "short_links", "ip_lookup", "jokes", "space_invaders"];
+ /** Every slug the uptime report covers. */
+-export declare const ALL_SERVICE_SLUGS: readonly ["accounts", "notifications", "storage", "socials", "short_links", "ip_lookup", "jokes", "space_invaders", "vocal_separator", "ai", "yt_dlp"];
++export declare const ALL_SERVICE_SLUGS: readonly ["accounts", "notifications", "storage", "socials", "short_links", "ip_lookup", "jokes", "space_invaders", "vocal_separator", "ai"];
+ /** A service slug. Open, because the registry is a constant somebody will extend. */
+ export type ServiceSlug = (typeof ALL_SERVICE_SLUGS)[number] | (string & {});
+ /** Live health of one external service. */
+diff --git a/dist/types/resources/music/artists.d.ts b/dist/types/resources/music/artists.d.ts
+index ce43112e60c82ecd8921d4d69af8a2f466f82838..a21e17bb1ac11397a02c5abaf94fe709b86c4c5a 100644
+--- a/dist/types/resources/music/artists.d.ts
++++ b/dist/types/resources/music/artists.d.ts
+@@ -41,8 +41,6 @@ import type { FileInput, NativeFile, Paginated, RequestOptions, Timestamp } from
+  * nodes, which are strings. `user_id` on the same record is a string.
+  */
+ export type ArtistId = number;
+-/** Primary key of an artist import. Also an integer. */
+-export type ArtistImportId = number;
+ /**
+  * Default roster page size, 60. Nothing on the server requires it; it is here
+  * so every caller pages identically and caches line up.
+@@ -365,447 +363,8 @@ export interface ArtistOverview {
+     /** In the library, nothing played in 90 days. Up to 12. */
+     readonly neglected: ArtistNeglectedEntry[];
+ }
+-/** Every state an artist import can be in. */
+-export declare const ARTIST_IMPORT_STATES: readonly ["queued", "running", "complete", "failed"];
+-/** State of a bulk artist import. */
+-export type ArtistImportState = (typeof ARTIST_IMPORT_STATES)[number];
+-/**
+- * Sensible cadence to poll an in-flight import at. Nothing pushes import
+- * progress over the realtime stream.
+- */
+-export declare const ARTIST_IMPORT_POLL_INTERVAL_MS = 1500;
+-/**
+- * True once an import will never change again.
+- *
+- * Test against this rather than against a string you typed from memory: the
+- * terminal success state is `"complete"`, not `"completed"`, and a loop that
+- * waits for the wrong spelling never ends.
+- */
+-export declare function isArtistImportTerminal(state: ArtistImportState | string): boolean;
+-/**
+- * One bulk import of an artist's Spotify catalogue into the library.
+- *
+- * Read the counters together: `processed_albums` of `total_albums` is
+- * progress, and `queued + skipped + failed` is what became of the tracks.
+- */
+-export interface ArtistImport {
+-    readonly id: ArtistImportId;
+-    readonly created_at: Timestamp;
+-    readonly updated_at: Timestamp;
+-    /** Owner. A string id. */
+-    readonly user_id: string;
+-    readonly spotify_artist_id: string;
+-    /** Echoed back from the request; null when the caller sent it blank. */
+-    readonly spotify_artist_name: string | null;
+-    /** Exactly the ids the caller asked for, in the order they were sent. */
+-    readonly album_ids: string[];
+-    readonly state: ArtistImportState;
+-    readonly total_albums: number | null;
+-    /** Null until the albums have been expanded into tracks. */
+-    readonly total_tracks: number | null;
+-    readonly processed_albums: number;
+-    /** Tracks handed to the song-import pipeline. */
+-    readonly queued_count: number;
+-    /** Tracks the library already had. */
+-    readonly skipped_count: number;
+-    readonly failed_count: number;
+-    /** Human-readable progress line, e.g. `"Waiting in queue…"`. */
+-    readonly last_message: string | null;
+-    /** Set only in the `failed` state. */
+-    readonly error_message: string | null;
+-    readonly started_at: Timestamp | null;
+-    readonly finished_at: Timestamp | null;
+-}
+-/** An artist the caller ALREADY has, offered by the import picker. */
+-export interface ArtistImportRosterMatch {
+-    readonly kind: "roster";
+-    /** The local {@link ArtistId}. An integer. */
+-    readonly id: ArtistId;
+-    readonly name: string;
+-    readonly slug: string;
+-    /** A real URL (`picture_medium`, then `external_image_url`), or null. */
+-    readonly image_url: string | null;
+-}
+-/** A Spotify search hit offered by the import picker. */
+-export interface ArtistImportSpotifyMatch {
+-    readonly kind: "spotify";
+-    /** SPOTIFY's id, a string. This is what the other two methods take. */
+-    readonly id: string;
+-    readonly name: string;
+-    readonly followers: number | null;
+-    readonly genres: string[];
+-    /** Largest image Spotify offered, or null. */
+-    readonly image_url: string | null;
+-    readonly external_url: string | null;
+-}
+-/**
+- * The import picker's two lists: what you already have, and what Spotify
+- * found.
+- */
+-export interface ArtistImportSearchResult {
+-    /** Up to 8 local matches, ordered by name. Available without Spotify. */
+-    readonly roster: ArtistImportRosterMatch[];
+-    /**
+-     * Up to 10 Spotify hits.
+-     *
+-     * EMPTY IS AMBIGUOUS and deliberately so: it means no Spotify identity is
+-     * linked, or Spotify genuinely matched nothing, or Spotify answered with an
+-     * upstream error that the server logged and swallowed so the roster half
+-     * would still render. Only a token-refresh failure is surfaced, as a 400.
+-     */
+-    readonly spotify: ArtistImportSpotifyMatch[];
+-}
+-/** One album in an artist's Spotify catalogue. */
+-export interface ArtistImportAlbum {
+-    /** Spotify album id - this is what goes in `albumIds`. */
+-    readonly id: string;
+-    readonly name: string;
+-    /** `"album" | "single" | "compilation"`, as Spotify spells it. */
+-    readonly album_type: string | null;
+-    /** `"album" | "single" | "compilation" | "appears_on"`. */
+-    readonly album_group: string | null;
+-    /** Spotify's partial date: `"2019"`, `"2019-05"` or `"2019-05-31"`. */
+-    readonly release_date: string | null;
+-    readonly total_tracks: number | null;
+-    readonly image_url: string | null;
+-    readonly external_url: string | null;
+-}
+-/** Arguments for {@link MusicArtistImportsNamespace.create}. */
+-export interface CreateArtistImportInput {
+-    /** Spotify's artist id, NOT a local {@link ArtistId}. */
+-    readonly spotifyArtistId: string;
+-    /** Stored for display. Sent blank, it lands as null. */
+-    readonly spotifyArtistName?: string;
+-    /** Spotify album ids. At least one, or the request is a 400. */
+-    readonly albumIds: string[];
+-}
+-/** Arguments for {@link MusicArtistImportsNamespace.list}. */
+-export interface ListArtistImportsParams {
+-    /**
+-     * How many of the newest imports to return. Clamped server-side to `1..50`;
+-     * the default is 20. Out-of-range values are clamped, never rejected.
+-     */
+-    readonly limit?: number;
+-}
+-/**
+- * Bulk artist import, reachable as `oms.music.artists.imports`.
+- *
+- * ## Every route here needs a LINKED SPOTIFY IDENTITY, not a flag
+- *
+- * Without one the answer is `400 "Connect Spotify first."`, and when the
+- * stored refresh token no longer works it is
+- * `400 "Spotify connection needs to be relinked."`
+- * Both are plain JSON strings, both arrive as an {@link OmsApiError} with
+- * status 400, and the only way to tell them apart is the message - so match on
+- * it if the UI needs to distinguish "connect" from "reconnect".
+- *
+- * {@link search} is the exception: its roster half works with no Spotify at all.
+- *
+- * ## These calls are SLOW and they are on the general ceiling
+- *
+- * `/artist_imports*` sits under the general authenticated ceiling (600/min).
+- * What bounds it in practice is Spotify: {@link search} and {@link albums}
+- * both call out synchronously, and {@link albums} pages through an entire
+- * discography. This namespace allows 60 seconds for each.
+- */
+-export declare class MusicArtistImportsNamespace extends Resource {
+-    /**
+-     * `GET /artist_imports/search?q=` - the import picker.
+-     *
+-     * A blank or whitespace-only query short-circuits to
+-     * `{ roster: [], spotify: [] }` with a `200` and no upstream call, so
+-     * debouncing an empty box is free. There is no minimum length beyond that
+-     * and no pagination.
+-     *
+-     * Retried like any GET. Sixty seconds by default, because the Spotify leg is
+-     * synchronous.
+-     *
+-     * @throws {OmsApiError} 400 `"Spotify connection needs to be relinked."`
+-     *   when the stored refresh token is dead. Note that a plain Spotify
+-     *   outage is NOT an error here - it comes back as an empty `spotify` array.
+-     */
+-    search(query: string, options?: RequestOptions): Promise<ArtistImportSearchResult>;
+-    /**
+-     * `GET /artist_imports/albums?spotify_artist_id=` - the artist's catalogue,
+-     * deduplicated by lowercased album name, first occurrence wins.
+-     *
+-     * That dedup is why the result can be shorter than Spotify's own catalogue
+-     * and why a deluxe edition sometimes disappears behind the standard one: the
+-     * comparison is the NAME, not the id.
+-     *
+-     * The server wraps the array in `{ items: [...] }`; this returns the array.
+-     *
+-     * `spotifyArtistId` is validated here rather than sent empty: a missing key
+-     * answers a generic 400 whose body is not one of the API's bare JSON
+-     * strings.
+-     *
+-     * @throws {OmsError} `invalid_request` when `spotifyArtistId` is blank.
+-     * @throws {OmsApiError} 400 `"Connect Spotify first."` with no linked
+-     *   identity, `"Spotify connection needs to be relinked."` on a dead refresh
+-     *   token, or `"Spotify upstream error: ..."` (truncated to 200 characters)
+-     *   when Spotify itself failed. Unlike {@link search}, an outage IS surfaced
+-     *   here.
+-     */
+-    albums(spotifyArtistId: string, options?: RequestOptions): Promise<ArtistImportAlbum[]>;
+-    /**
+-     * `POST /artist_imports` - queues every track of the chosen albums.
+-     *
+-     * Answers `201` immediately with a `queued` record; the work happens in the
+-     * background. Watch it with {@link list} at
+-     * {@link ARTIST_IMPORT_POLL_INTERVAL_MS} - THERE IS NO `GET
+-     * /artist_imports/:id`, so polling means re-reading the recent list and
+-     * finding your id in it.
+-     *
+-     * Not retried, and this one matters more than most: a replay does not
+-     * deduplicate, it creates a second import and runs the whole catalogue
+-     * through the pipeline again. Pass `retry: {}` only if you are
+-     * prepared to explain the duplicate.
+-     *
+-     * @throws {OmsError} `invalid_request` when `spotifyArtistId` is blank or
+-     *   `albumIds` is empty. The first would answer a generic 400 (see
+-     *   {@link albums}); the second is a clean `400 "album_ids required"`,
+-     *   checked here only so the round trip is saved.
+-     * @throws {OmsApiError} 400 for the two Spotify-identity messages.
+-     */
+-    create(input: CreateArtistImportInput, options?: RequestOptions): Promise<ArtistImport>;
+-    /**
+-     * `GET /artist_imports?limit=` - the caller's own imports, newest first.
+-     *
+-     * Not the List DSL: no `search`, no `modifiers`, no paging beyond `limit`,
+-     * and the payload is wrapped in `{ items: [...] }` (unwrapped here). Fifty
+-     * is the ceiling and it is clamped, not rejected.
+-     *
+-     * This is also the poll: filter for a `state` that
+-     * {@link isArtistImportTerminal} rejects to know whether anything is still
+-     * running. Nothing pushes import progress over the realtime stream.
+-     */
+-    list(params?: ListArtistImportsParams, options?: RequestOptions): Promise<ArtistImport[]>;
+-}
+-/**
+- * Primary key of an artist sync. An integer, like {@link ArtistId} and
+- * {@link ArtistImportId}, and interchangeable with NEITHER: a sync is keyed on
+- * a SPOTIFY artist id and never references a local artist at all. Three
+- * integer id spaces meet in this file and only the field name tells them apart.
+- */
+-export type ArtistSyncId = number;
+-/**
+- * A followed artist, as `/artist_syncs` renders it.
+- *
+- * ## The base fields you expect are MISSING
+- *
+- * This is the one music record with no `created_at` and no `updated_at`. Do
+- * not sort a list of these by `created_at` client-side; the server already
+- * returns them newest-first and that ordering is the only one available.
+- *
+- * The known album ids themselves are not exposed either: only their COUNT
+- * crosses the wire, so the SDK cannot tell you WHICH albums are already known
+- * - only how many.
+- */
+-export interface ArtistSync {
+-    readonly id: ArtistSyncId;
+-    /** Spotify's artist id. The join key, and the natural key of the row. */
+-    readonly spotify_artist_id: string;
+-    /**
+-     * Display name captured when the sync was created or last re-POSTed.
+-     *
+-     * `null` when the very first {@link MusicArtistSyncsNamespace.create} omitted
+-     * it. It is never refreshed from Spotify, and it cannot be CLEARED: a create
+-     * with a blank name keeps whatever the row already had (see
+-     * {@link CreateArtistSyncInput.spotifyArtistName}).
+-     */
+-    readonly artist_name: string | null;
+-    /**
+-     * Whether the daily check will pick this row up.
+-     *
+-     * Always `true` on anything this SDK can produce: `create` sets it, and there
+-     * is no update route to turn it off. A `false` here can only have been
+-     * written by an administrator, and the only way a client can stop a sync is
+-     * {@link MusicArtistSyncsNamespace.delete}. Render it, do not offer a toggle.
+-     */
+-    readonly enabled: boolean;
+-    /**
+-     * When the daily check last ran, ISO-8601, or `null` in the vanishingly
+-     * short window before `create` saves the row.
+-     *
+-     * A TOUCH, not a success marker. It is written whether the check succeeded
+-     * or failed (dead refresh token, Spotify upstream error), so a fresh
+-     * timestamp proves the check ran, never that Spotify answered. There is no
+-     * field that records the last failure, so a UI cannot honestly say "last
+-     * checked, all good".
+-     */
+-    readonly last_checked_at: Timestamp | null;
+-    /**
+-     * How many Spotify album ids the snapshot holds.
+-     *
+-     * This is the baseline the daily diff runs against, not a count of songs
+-     * imported. It GROWS and never shrinks, because each check stores the union
+-     * of what it knew and what it saw, precisely so an album Spotify hides and
+-     * later shows again cannot re-import as new.
+-     */
+-    readonly known_album_count: number;
+-}
+-/** Arguments for {@link MusicArtistSyncsNamespace.create}. */
+-export interface CreateArtistSyncInput {
+-    /**
+-     * Spotify's artist id - the same string
+-     * {@link MusicArtistImportsNamespace.search} returns on its `spotify` side,
+-     * NOT a local {@link ArtistId}.
+-     */
+-    readonly spotifyArtistId: string;
+-    /**
+-     * Display name to store. Optional, and asymmetric: omitted on a FIRST create
+-     * it lands as `null`, omitted on a re-create it leaves the existing name
+-     * alone. Blank and absent behave identically, so there is no way to erase a
+-     * name once written - only to overwrite it with another.
+-     */
+-    readonly spotifyArtistName?: string;
+-}
+-/**
+- * Daily release watch for a Spotify artist, reachable as
+- * `oms.music.artists.syncs`.
+- *
+- * ## `syncs` versus `imports`: a subscription versus a backfill
+- *
+- * They share a Spotify artist id and nothing else, and picking the wrong one
+- * is the mistake this namespace exists to make hard:
+- *
+- * | | {@link MusicArtistImportsNamespace} | this |
+- * | --- | --- | --- |
+- * | what it does | imports the albums you CHOSE, now | watches for albums released LATER |
+- * | back catalogue | yes, that is the point | never |
+- * | when work happens | immediately | daily, 05:00 server time |
+- * | you pick albums | yes, `albumIds` is required | no, there is no album argument |
+- * | repeating the call | duplicates the whole import | idempotent, one row per artist |
+- *
+- * "Follow" here means FROM NOW ON. {@link create} takes a snapshot of the
+- * artist's current catalogue and stores the album ids; the discography that
+- * already exists is deliberately excluded from everything the sync will ever
+- * do. A user who wants both has to do both - follow for the future, and run an
+- * import for the past.
+- *
+- * ## What the sync produces is an ArtistImport, so watch it there
+- *
+- * The daily check runs at 05:00 server time, at a random offset inside a
+- * 30-minute window. It re-walks the artist's catalogue, diffs it against the
+- * snapshot and, when something is new, creates an ordinary
+- * {@link ArtistImport} holding ONLY the new album ids - `last_message` starts
+- * as `"Novo lançamento detectado pelo sync diário…"`, which is the marker that
+- * tells an automatic import from one a person asked for.
+- *
+- * So there is no progress on this namespace and nothing to poll here. Progress
+- * lives in {@link MusicArtistImportsNamespace.list}, mixed in with manual
+- * imports. Nothing pushes either over the realtime stream.
+- *
+- * ## A LINKED SPOTIFY IDENTITY is required to write, not to read
+- *
+- * {@link create} answers `400 "Connect Spotify first."` without one. {@link
+- * list} and {@link delete} are not gated, which matters after an unlink: the
+- * rows survive, they still list, they can still be deleted, and the daily
+- * check quietly skips them without recording that it did.
+- *
+- * ## Ceilings and cost
+- *
+- * Every route here is on the GENERAL authenticated ceiling of 600/min.
+- * `/artist_syncs` is not in the 60/min `/artists/*` bucket and has no budget
+- * of its own, even though {@link create} is by far the slowest call in this
+- * file.
+- *
+- * ## An OAuth access token cannot reach any of this
+- *
+- * An OAuth access token gets `403 {"error":"insufficient_scope"}` here as it
+- * does everywhere else in `music`. Session token or cookie only.
+- */
+-export declare class MusicArtistSyncsNamespace extends Resource {
+-    /**
+-     * `GET /artist_syncs` - every artist this account follows, newest first.
+-     *
+-     * Not the List DSL and not a paginated index: no `search`, no
+-     * `exact_search`, no `modifiers`, no `limit`, and NO `ETag`, so this cannot
+-     * answer `304` and every poll pays for the full body. The server orders by
+-     * `created_at DESC` and hands back everything; a user following two hundred
+-     * artists gets two hundred rows.
+-     *
+-     * The array is wrapped in `{ items: [...] }` on the wire - the same envelope
+-     * `/artist_imports` uses and the opposite of the bare arrays the rest of the
+-     * API returns - and is unwrapped here.
+-     *
+-     * Safe to retry, and scoped to the caller: there is no way to read anyone
+-     * else's follows.
+-     */
+-    list(options?: RequestOptions): Promise<ArtistSync[]>;
+-    /**
+-     * `POST /artist_syncs` - follow an artist, and snapshot what it has today.
+-     *
+-     * Answers `201` with the stored row. The response is worth reading rather
+-     * than discarding: `known_album_count` is the size of the snapshot that was
+-     * just taken, and it is the only confirmation that the catalogue walk
+-     * actually happened.
+-     *
+-     * ## Idempotent, unlike its neighbour
+-     *
+-     * One row per artist per account, so calling this twice for one artist
+-     * updates a single row instead of creating a second - it re-enables the
+-     * sync, overwrites the name if one was sent, and touches `last_checked_at`.
+-     * It does NOT re-snapshot when a snapshot already exists, so a second create
+-     * is cheap and, more importantly, cannot silently widen the baseline and
+-     * swallow releases that arrived in between.
+-     *
+-     * That is why this one opts INTO retries (`retry: {}`) while
+-     * {@link MusicArtistImportsNamespace.create} refuses them: a replayed follow
+-     * converges on the same row, a replayed import runs a whole discography
+-     * twice. Pass `retry: false` to opt back out.
+-     *
+-     * ## It is slow, because it walks the discography before answering
+-     *
+-     * Every album is paged through before the response is written, exactly like
+-     * {@link MusicArtistImportsNamespace.albums}. Sixty seconds by default. The
+-     * one case that is instant is a re-create over a row that already has a
+-     * snapshot.
+-     *
+-     * An artist with a genuinely EMPTY catalogue never stops paying that cost:
+-     * an empty snapshot counts as no snapshot, so every create for it walks
+-     * Spotify again.
+-     *
+-     * @throws {OmsError} `invalid_request` when `spotifyArtistId` is blank. The
+-     *   server would answer `400` for it too, but the round trip buys nothing.
+-     * @throws {OmsApiError} 400 `"Connect Spotify first."` with no linked
+-     *   identity, `"Spotify connection needs to be relinked."` on a dead refresh
+-     *   token, or `"Spotify upstream error: ..."` (truncated to 200 characters).
+-     *   All three are bare JSON strings and only the text separates them.
+-     */
+-    create(input: CreateArtistSyncInput, options?: RequestOptions): Promise<ArtistSync>;
+-    /**
+-     * `DELETE /artist_syncs/:id` - unfollow.
+-     *
+-     * Takes the {@link ArtistSyncId}, NOT the Spotify artist id: the only place
+-     * to get one is {@link list} or the record {@link create} returned.
+-     *
+-     * Destroys the row and its snapshot outright. Nothing already imported is
+-     * touched, and re-following later starts from a FRESH snapshot of the
+-     * catalogue as it stands then - which means anything released during the gap
+-     * is now part of the baseline and will never be picked up. That gap is
+-     * silent; if it matters, run an import for the missing albums.
+-     *
+-     * The server answers `200 {"ok": true}` here rather than the `204` the rest
+-     * of the API uses for a destroy. This resolves to `undefined` either way -
+-     * the body carries no information - but a caller reading `response.status`
+-     * through {@link ApiClient.raw} should not expect 204.
+-     *
+-     * Not retried, by the transport's default for `DELETE`: the second attempt
+-     * would find nothing and report `404` for a row it had just removed.
+-     *
+-     * @throws {OmsApiError} 404 `"Artist sync not found"` for an id that is not
+-     *   yours or no longer exists. A non-numeric id lands here too rather than
+-     *   being rejected.
+-     */
+-    delete(id: ArtistSyncId, options?: RequestOptions): Promise<void>;
+-}
+ /** The `music.artists` namespace, reachable as `oms.music.artists`. */
+ export declare class MusicArtistsNamespace extends Resource {
+-    /** Bulk import of a Spotify artist's catalogue. */
+-    readonly imports: MusicArtistImportsNamespace;
+-    /** Daily watch for FUTURE releases. Not a backfill - see the class. */
+-    readonly syncs: MusicArtistSyncsNamespace;
+     constructor(http: ApiClient);
+     /**
+      * `GET /artists` - the roster.
+diff --git a/dist/types/resources/music/imports.d.ts b/Users/afonso/.bun/install/cache/@omelhorsite/sdk@0.15.1@@@1/dist/types/resources/music/imports.d.ts
+deleted file mode 100644
+index 06b6fa35489a2925f7b81589eb0eae2c3161a28e..0000000000000000000000000000000000000000
+diff --git a/dist/types/resources/music/index.d.ts b/dist/types/resources/music/index.d.ts
+index 6309ea186569e9ae7997b0328ce5294d7313be11..09ca45f31f54812a024a8388e62c91d941951861 100644
+--- a/dist/types/resources/music/index.d.ts
++++ b/dist/types/resources/music/index.d.ts
+@@ -37,12 +37,10 @@
+  */
+ import { ApiClient, Resource } from "../../http";
+ import { MusicArtistsNamespace } from "./artists";
+-import { MusicImportsNamespace } from "./imports";
+ import { MusicPlaylistsNamespace } from "./playlists";
+ import { MusicSocialNamespace } from "./social";
+ import { MusicSongsNamespace } from "./songs";
+ export * from "./artists";
+-export * from "./imports";
+ export * from "./playlists";
+ export * from "./social";
+ export * from "./songs";
+@@ -54,8 +52,6 @@ export declare class MusicNamespace extends Resource {
+     readonly artists: MusicArtistsNamespace;
+     /** Playlists, plus `.songs`, `.mixes`, `.radios` and `.plays`. */
+     readonly playlists: MusicPlaylistsNamespace;
+-    /** Getting audio in: uploads, URL downloads, `.spotify` sync and `.srMachine`. */
+-    readonly imports: MusicImportsNamespace;
+     /** Jams, music profiles, the assistant and the DJ. */
+     readonly social: MusicSocialNamespace;
+     constructor(http: ApiClient);
+diff --git a/dist/types/resources/music/songs.d.ts b/dist/types/resources/music/songs.d.ts
+index e7b12feb8b2eca5243f0415aa9cd596d245eeb07..f15894ebce7f77e15f36b44052649bdffbaf73bf 100644
+--- a/dist/types/resources/music/songs.d.ts
++++ b/dist/types/resources/music/songs.d.ts
+@@ -60,7 +60,6 @@ import { Resource } from "../../http";
+ import type { ListParams } from "../../listing";
+ import { type BaseRecord, type FileInput, type FileOutput, type Id, type NativeFile, type Paginated, type RequestOptions, type Timestamp } from "../../types";
+ import type { VocalSeparation } from "../tools/vocalSeparation";
+-import type { SongImport } from "./imports";
+ /**
+  * Primary key of a song. An **integer**, unlike most ids in this API.
+  *
+@@ -114,7 +113,7 @@ export interface SongArtistCredit extends Omit<BaseRecord, "id"> {
+     readonly compressed_image_fs_node_id?: Id | null;
+ }
+ /** Where a track came from. */
+-export type SongSourceKind = "upload" | "yt_dlp" | "spotify_sync" | "rematch";
++export type SongSourceKind = string;
+ /**
+  * A track in the library.
+  *
+@@ -284,48 +283,6 @@ export interface SongSeparationStatus {
+      */
+     readonly job: VocalSeparation | null;
+ }
+-/** Providers a track can be matched against. */
+-export type SongMatchSource = "youtube" | "soundcloud" | "bandcamp";
+-/**
+- * One take the matcher found for a track, scored the way the import scores it.
+- *
+- * A candidate with `score: null` was REJECTED and `reject_reason` says why
+- * ("title says 'cover', query did not"); it is returned anyway, because the
+- * reason is often the whole answer to "why did I get this recording". Rejected
+- * candidates can still be passed to {@link MusicSongsNamespace.rematch}: a
+- * deliberate choice is not second-guessed.
+- */
+-export interface SongMatchCandidate {
+-    readonly source: SongMatchSource;
+-    readonly title: string | null;
+-    readonly uploader: string | null;
+-    /** The page to import from. Feed it back as `sourceUrl` to take this one. */
+-    readonly url: string | null;
+-    /** Absent for providers whose search does not carry a runtime. */
+-    readonly duration_s: number | null;
+-    readonly thumbnail: string | null;
+-    readonly source_id: string | null;
+-    /** Higher is a better match; `null` means rejected. */
+-    readonly score: number | null;
+-    readonly reject_reason: string | null;
+-    /** Where the provider's own search ranked it, before scoring. */
+-    readonly rank: number;
+-    /** True for the source the song's audio already came from. */
+-    readonly current: boolean;
+-}
+-/** Arguments for {@link MusicSongsNamespace.matchCandidates}. */
+-export interface ListSongMatchCandidatesParams {
+-    /** Candidates per provider. Clamped to 1..20; defaults to 8. */
+-    readonly limit?: number;
+-}
+-/** Arguments for {@link MusicSongsNamespace.rematch}. */
+-export interface RematchSongInput {
+-    /**
+-     * The page to download from, normally a {@link SongMatchCandidate.url}.
+-     * Omit to re-run the matcher over the track's original search terms.
+-     */
+-    readonly sourceUrl?: string;
+-}
+ /** A liked track. The join row, with the whole song inlined. */
+ export interface LikedSong extends Omit<BaseRecord, "id"> {
+     /** Integer primary key of the like itself. NOT the song id. */
+@@ -410,60 +367,6 @@ export interface ArtistMetadata {
+     /** @deprecated Legacy twin of `compressed_banner_media_id`. Same value. */
+     readonly compressed_banner_fs_node_id?: Id | null;
+ }
+-/**
+- * Where an external-search hit came from.
+- *
+- * `"soundcloud"` and `"bandcamp"` are kept for compatibility only: the search
+- * queries Spotify, iTunes and YouTube and nothing else, so they never appear
+- * today.
+- */
+-export type MusicExternalSource = "spotify" | "itunes" | "youtube" | "soundcloud" | "bandcamp";
+-/** What to ask the external providers for. */
+-export type MusicExternalSearchKind = "track" | "album" | "artist" | "any";
+-/** An external track hit. */
+-export interface MusicExternalTrack {
+-    readonly source: MusicExternalSource;
+-    readonly kind: "track";
+-    /** Provider-native id. `null` from iTunes rows missing a `trackId`. */
+-    readonly source_id: string | null;
+-    /** Downloadable or linkable page. Only YouTube rows are actually downloadable. */
+-    readonly source_url: string | null;
+-    readonly title: string | null;
+-    /** Already joined with `", "` for Spotify rows; the uploader name for YouTube. */
+-    readonly artist: string | null;
+-    readonly album: string | null;
+-    readonly duration_ms: number | null;
+-    /** Spotify only; `null` from iTunes and YouTube. The importer's fast path. */
+-    readonly isrc: string | null;
+-    readonly artwork_url: string | null;
+-}
+-/** An external album hit. Spotify only. */
+-export interface MusicExternalAlbum {
+-    readonly source: "spotify";
+-    readonly kind: "album";
+-    readonly source_id: string | null;
+-    readonly source_url: string | null;
+-    readonly title: string | null;
+-    readonly artist: string | null;
+-    readonly total_tracks: number | null;
+-    readonly artwork_url: string | null;
+-}
+-/** An external artist hit. Spotify only. */
+-export interface MusicExternalArtist {
+-    readonly source: "spotify";
+-    readonly kind: "artist";
+-    readonly source_id: string | null;
+-    readonly source_url: string | null;
+-    readonly name: string | null;
+-    readonly followers: number | null;
+-    readonly artwork_url: string | null;
+-}
+-/** All three lists, always all three keys. */
+-export interface MusicExternalSearchResult {
+-    readonly tracks: MusicExternalTrack[];
+-    readonly albums: MusicExternalAlbum[];
+-    readonly artists: MusicExternalArtist[];
+-}
+ /**
+  * Columns `search` and `exact_search` accept on `/songs` and `/songs/albums`.
+  *
+@@ -686,38 +589,16 @@ export interface ModifySongMetadataInput {
+      */
+     readonly metadata: SongFileMetadata;
+ }
+-/** Arguments for {@link MusicSongsNamespace.externalSearch}. */
+-export interface MusicExternalSearchParams {
+-    /** The query. Blank short-circuits to three empty lists without spending budget. */
+-    readonly q: string;
+-    /** Defaults to `"track"` server-side. See the method for what it does and does not change. */
+-    readonly kind?: MusicExternalSearchKind;
+-}
+ /** Default `limit` the liked-songs endpoint applies when none is sent. */
+ export declare const LIKED_SONGS_DEFAULT_LIMIT = 200;
+ /** Hard ceiling the liked-songs endpoint clamps `limit` to. */
+ export declare const LIKED_SONGS_MAX_LIMIT = 500;
+ /** Audio extensions `POST /songs/import` accepts. Anything else is a 415. */
+-export declare const SONG_IMPORT_EXTENSIONS: readonly string[];
++export declare const SONG_UPLOAD_EXTENSIONS: readonly string[];
+ /** Ceiling `POST /songs/import` enforces on the uploaded file: 1 GiB. */
+-export declare const SONG_IMPORT_MAX_BYTES = 1073741824;
++export declare const SONG_UPLOAD_MAX_BYTES = 1073741824;
+ /** Ceiling `POST /songs/metadata_modifier` enforces on its input: 50 MiB. */
+ export declare const SONG_METADATA_MAX_BYTES = 52428800;
+-/**
+- * True when this error is `music/external_search` refusing on its rate limit.
+- *
+- * That endpoint answers **`400 "Rate limit exceeded"`**, not `429`, so it
+- * arrives as an {@link OmsApiError} with `code === "invalid_request"` and slips
+- * straight past `instanceof OmsQuotaError` and past `status === 429`. Every
+- * error handler that routes by status treats it as "your query was malformed"
+- * and retries with a different query, which spends more budget. This is the
+- * check to use instead.
+- *
+- * Matched on the body rather than only on the status, because a genuine 400
+- * from this route is possible in principle and must not be swallowed as a
+- * quota.
+- */
+-export declare function isMusicExternalSearchRateLimited(error: unknown): boolean;
+ /**
+  * Builds the one-line artist credit for a song, Spotify style.
+  *
+@@ -818,7 +699,7 @@ export declare class MusicSongsNamespace extends Resource {
+      * Answers **200**, not 201, with the created song. Do not branch on the code.
+      *
+      * Two size limits and they are not the same one. The API rejects anything
+-     * over {@link SONG_IMPORT_MAX_BYTES} (1 GiB) with a 400 - but the CDN in
++     * over {@link SONG_UPLOAD_MAX_BYTES} (1 GiB) with a 400 - but the CDN in
+      * front of it refuses a request body over roughly 100 MB with its own `413`
+      * before the API ever sees it. A big FLAC therefore fails with an HTML-ish
+      * 413 that says nothing about songs. There is no chunked import route; that
+@@ -828,7 +709,7 @@ export declare class MusicSongsNamespace extends Resource {
+      * it is appended verbatim and streamed off disk by the native layer.
+      *
+      * @throws {OmsApiError} 400 for a missing file, a file over 1 GiB, an
+-     *   extension outside {@link SONG_IMPORT_EXTENSIONS}, or
++     *   extension outside {@link SONG_UPLOAD_EXTENSIONS}, or
+      *   `"Music storage quota exceeded"`; 415 with validation messages when the
+      *   audio itself will not import.
+      */
+@@ -982,49 +863,6 @@ export declare class MusicSongsNamespace extends Resource {
+      * @throws {OmsAuthError} 401 when the song is not yours.
+      */
+     deleteSeparation(id: SongId, options?: RequestOptions): Promise<void>;
+-    /**
+-     * `GET /songs/:id/match_candidates` - every take the matcher can find for
+-     * this track, across all three providers, scored and ordered best first.
+-     *
+-     * This is the answer to "this is the wrong recording". A track imported by
+-     * artist and title is matched, not looked up, and the classic wrong result is
+-     * a cover: same runtime, the original artist's name in its title, and nothing
+-     * about it that a duration check can catch. The pool shows what the matcher
+-     * chose between, with the rejects kept and labelled.
+-     *
+-     * Candidates are searched live on three providers, so this is SLOW - seconds,
+-     * not milliseconds - and worth its own timeout. Nothing is cached: two calls
+-     * a minute apart can return different pools.
+-     *
+-     * Scores are comparable within one response and meaningless across two.
+-     *
+-     * @throws {OmsApiError} 404 for a song that is not yours, 502 when the
+-     *   downloader is unreachable.
+-     */
+-    matchCandidates(id: SongId, params?: ListSongMatchCandidatesParams, options?: RequestOptions): Promise<SongMatchCandidate[]>;
+-    /**
+-     * `POST /songs/:id/rematch` - re-download this track onto the same record.
+-     *
+-     * The song row survives: its id, its credits, and every playlist entry, like
+-     * and play event that points at it. Only the audio is replaced, along with
+-     * the fields that describe the file (runtime, codec, source). Any vocal
+-     * separation is thrown away, because the stems came out of audio the song no
+-     * longer has.
+-     *
+-     * With a `sourceUrl` the pick is taken as given - no duration or cover check
+-     * stands between you and the recording you named. Without one the matcher
+-     * re-runs over the track's original search terms, which is the useful move
+-     * after a bad match rather than a repeat of it.
+-     *
+-     * Returns the import to poll through `music.imports`; the swap lands when it
+-     * reaches `complete`.
+-     *
+-     * @throws {OmsAuthError} 401 when the song is not yours.
+-     * @throws {OmsApiError} 400 for a `sourceUrl` that is not http(s), or when no
+-     *   `sourceUrl` is given and the track has no search terms to re-run (an
+-     *   uploaded file, for one - there is nothing to match it against).
+-     */
+-    rematch(id: SongId, input?: RematchSongInput, options?: RequestOptions): Promise<SongImport>;
+     /**
+      * `GET /liked_songs` - the caller's likes, newest first, with each song
+      * inlined in full.
+@@ -1159,42 +997,6 @@ export declare class MusicSongsNamespace extends Resource {
+      *   404 `"Song not found"`.
+      */
+     syncLyrics(songId: SongId, options?: RequestOptions): Promise<LyricsSyncHandle>;
+-    /**
+-     * `GET /music/external_search` - searches Spotify, iTunes and YouTube for
+-     * something to import.
+-     *
+-     * **The trap: over its limit this endpoint answers `400 "Rate limit
+-     * exceeded"`, not `429`.** Every handler that routes by status code reads
+-     * that as a malformed query and does the worst possible thing - rewords it
+-     * and tries again, spending more of a budget that is already gone. The limit
+-     * is 30 requests per minute per user.
+-     * {@link isMusicExternalSearchRateLimited} is the check to use, and the
+-     * transport will not retry a 400 on its own, so nothing recovers silently.
+-     *
+-     * Two more things the shape does not tell you:
+-     *
+-     * - **`albums` and `artists` are Spotify-only.** They are populated from a
+-     *   Spotify search that only runs when the caller has a linked Spotify
+-     *   identity; without one both arrive as `[]` forever, however good the
+-     *   query. `tracks` is always populated, from iTunes and YouTube;
+-     * - **`kind` steers Spotify and nothing else.** iTunes and YouTube are
+-     *   always queried for TRACKS, so `kind: "artist"` still returns tracks
+-     *   alongside the artists. Tracks from all sources are deduplicated by
+-     *   lowercased title-and-artist and capped at 12, Spotify first.
+-     *
+-     * A blank query short-circuits to three empty lists WITHOUT spending budget,
+-     * which makes it safe to wire straight to an input. A cached hit does spend
+-     * it: the rate check runs before the 15-minute cache is consulted. Debounce
+-     * and require two characters.
+-     *
+-     * Every failing upstream is swallowed server-side, so a partial answer and a
+-     * complete one are indistinguishable - an empty `tracks` may mean "no
+-     * results" or "YouTube timed out".
+-     *
+-     * @throws {OmsApiError} 400 - which is either a real problem or the rate
+-     *   limit. Do not guess: call {@link isMusicExternalSearchRateLimited}.
+-     */
+-    externalSearch(params: MusicExternalSearchParams, options?: RequestOptions): Promise<MusicExternalSearchResult>;
+     /**
+      * `GET /artist_metadata/:name` - the legacy artist payload, by name or slug.
+      *
+diff --git a/dist/types/resources/tools/downloader.d.ts b/Users/afonso/.bun/install/cache/@omelhorsite/sdk@0.15.1@@@1/dist/types/resources/tools/downloader.d.ts
+deleted file mode 100644
+index d4716b0b5997e2b7167bc2a44b8f9c6e7554910b..0000000000000000000000000000000000000000
+diff --git a/dist/types/resources/tools/index.d.ts b/dist/types/resources/tools/index.d.ts
+index 572560682092ae1220821a0af63dc787fe455924..2e865b15f3714facc582cd6801d3bc78d6394227 100644
+--- a/dist/types/resources/tools/index.d.ts
++++ b/dist/types/resources/tools/index.d.ts
+@@ -36,7 +36,6 @@ import type { BaseRecord, OperationOptions, Progress, QuotaStatus, RequestOption
+ import { type JobsNamespace } from "../jobs";
+ import { BackgroundRemovalNamespace } from "./backgroundRemoval";
+ import { CaptionsNamespace } from "./captions";
+-import { DownloaderNamespace } from "./downloader";
+ import { JumpstyleNamespace } from "./jumpstyle";
+ import { TranscriptionNamespace } from "./transcription";
+ import { UpscaleNamespace } from "./upscale";
+@@ -44,7 +43,6 @@ import { SRMachineNamespace } from "./srMachine";
+ import { VocalSeparationNamespace } from "./vocalSeparation";
+ export * from "./backgroundRemoval";
+ export * from "./captions";
+-export * from "./downloader";
+ export * from "./jumpstyle";
+ export * from "./transcription";
+ export * from "./upscale";
+@@ -255,8 +253,6 @@ export declare class ToolsNamespace extends Resource {
+     readonly captions: CaptionsNamespace;
+     /** Beat-synced clip edits over a track. */
+     readonly jumpstyle: JumpstyleNamespace;
+-    /** Fetches media from a public URL. */
+-    readonly downloader: DownloaderNamespace;
+     /** Fetch, convert and package a track. Administrators only. */
+     readonly srMachine: SRMachineNamespace;
+     constructor(http: ApiClient);

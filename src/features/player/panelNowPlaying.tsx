@@ -1,6 +1,6 @@
 /**
  * "A tocar" tenant of the desktop right panel (plano-uma-so-app 4.3
- * amendment): a LEAN Spotify-style column, not the mobile player. The
+ * amendment): a LEAN reference-app-style column, not the mobile player. The
  * transport bar under the grid already owns play/seek/volume, so this
  * surface renders none of them - duplicated controls in a 320px column was
  * exactly the screenshot complaint. Top to bottom:

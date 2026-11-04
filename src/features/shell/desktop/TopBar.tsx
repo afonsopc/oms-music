@@ -5,7 +5,7 @@
  * window.history is the single source of truth for both directions. The
  * center is the persistent search field with its Cmd/Ctrl+K typeahead
  * (TopBarSearch); the right corner holds the account avatar (AccountMenu),
- * Spotify's placement.
+ * the reference app's placement.
  *
  * Inside the TAURI shell the window uses the SYSTEM title bar as overlay
  * (titleBarStyle Overlay, feedback do dono): the traffic lights float over

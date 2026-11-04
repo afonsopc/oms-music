@@ -44,7 +44,7 @@ export interface Song {
   instrumental_media_id: FsNodeId | null;
   vocal_separation_started_at: string | null;
   user_id: UserId;
-  source_kind: "upload" | "yt_dlp" | "spotify_sync" | null;
+  source_kind: string | null;
   source_provider: string | null;
   source_url: string | null;
   source_id: string | null;

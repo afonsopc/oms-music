@@ -1,7 +1,7 @@
 /**
  * Home (FR-23..29), rewritten mobile-first (owner requests 2026-08-08/11):
  *
- *  - the filter pills ARE the header (Spotify's top-of-home idiom); pills
+ *  - the filter pills ARE the header (the reference app's top-of-home idiom); pills
  *    only show/hide sections, never refetch (FR-23);
  *  - QUICK GRID (2x4): Gostadas first, then what was ACTUALLY played last -
  *    local recently-played collections (lib/recentCollections) merged with
@@ -62,7 +62,7 @@ import { useFriendsStripActive, useFriendsStripSlot } from "./friendsSlot";
 
 type HomeFilter = "all" | "playlists" | "albums" | "artists";
 
-/** Grid cells on a phone (2 columns x 4 rows, Spotify-shaped), Gostadas included. */
+/** Grid cells on a phone (2 columns x 4 rows, reference-shaped), Gostadas included. */
 const QUICK_GRID_ITEMS = 8;
 /** Recents the grid absorbs; the rest feed the "recently played" rail. */
 const QUICK_GRID_RECENTS = 7;
@@ -252,7 +252,7 @@ export default function HomeScreen() {
   }
 
   // The rail keeps the full server-side recents (a bit of overlap with the
-  // grid is the Spotify shape too).
+  // grid is the reference-app shape too).
   const railRecents = recentAlbums;
 
   const showSection = (kind: "playlists" | "albums" | "artists"): boolean =>
@@ -282,7 +282,7 @@ export default function HomeScreen() {
         />
       }
     >
-      {/* O topo a Spotify (pedido do dono, 2026-08-18): avatar a esquerda,
+      {/* O topo como as apps de referencia (pedido do dono, 2026-08-18): avatar a esquerda,
           as pills logo ao lado - o TabHeader e o mesmo das outras tabs e so
           muda o que vai a direita. O wordmark Druk Wide saiu daqui com esta
           troca; o pedido novo substitui o de 2026-08-16. */}

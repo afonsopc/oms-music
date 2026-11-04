@@ -11,7 +11,7 @@
  *
  *   - a GAP IN PLAYBACK is a worse defect than a slow tap, so the next queue
  *     track outranks everything while the current one is nearly over;
- *   - but ~39 % of Spotify playbacks are random access, so the browse want
+ *   - but ~39 % of streaming playbacks are random access, so the browse want
  *     must not be starved the other 95 % of the time.
  *
  * Gating `queue-next` on `remainingS <= QUEUE_LOOKAHEAD_S` gives it rank 0

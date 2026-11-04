@@ -1,6 +1,6 @@
 /**
  * FR-35 row assembly: pills decide which kinds are built, the local filter
- * matches name OR subtitle, system playlists are flagged (Spotify marker,
+ * matches name OR subtitle, synced playlists are flagged (synced marker,
  * never an edit affordance) and the liked mirror always draws the purple
  * heart artwork instead of any stored cover.
  */
@@ -19,7 +19,7 @@ const labels = {
   playlistKind: "Playlist",
   artistKind: "Artist",
   albumKind: "Album",
-  spotify: "Spotify",
+  synced: "Synced",
 };
 
 const playlist = (id: number, name: string, extra: Partial<Playlist> = {}): Playlist =>
@@ -38,8 +38,9 @@ const album = (name: string | null, artistValue: AlbumSummary["artist"] = null):
 const sources: LibrarySources = {
   playlists: [
     playlist(1, "Road trip"),
-    playlist(2, "From Spotify", { source_kind: "spotify_sync" }),
-    playlist(3, "Liked", { source_kind: "spotify_sync", source_external_id: "liked" }),
+    playlist(2, "Kept in sync", { synced: true }),
+    playlist(3, "Liked", { synced: true, source_external_id: "liked" }),
+    playlist(4, "Old cache", { source_kind: "other" }),
   ],
   artists: [artist(10, "Xutos & Pontapes", "xutos-pontapes"), artist(11, "Rui Veloso")],
   albums: [album("Circo de Feras", "Xutos & Pontapes"), album(null)],
@@ -47,21 +48,23 @@ const sources: LibrarySources = {
 
 describe("buildLibraryRows", () => {
   it("builds only the kinds the active pill asks for", () => {
-    expect(buildLibraryRows("playlists", sources, "", labels)).toHaveLength(3);
+    expect(buildLibraryRows("playlists", sources, "", labels)).toHaveLength(4);
     expect(buildLibraryRows("artists", sources, "", labels)).toHaveLength(2);
     // The nameless album row is dropped.
     expect(buildLibraryRows("albums", sources, "", labels)).toHaveLength(1);
-    expect(buildLibraryRows("all", sources, "", labels)).toHaveLength(6);
+    expect(buildLibraryRows("all", sources, "", labels)).toHaveLength(7);
   });
 
-  it("flags system playlists and labels them with the Spotify subtitle", () => {
+  it("flags synced playlists and labels them with the synced subtitle", () => {
     const rows = buildLibraryRows("playlists", sources, "", labels);
     expect(rows[0].system).toBeFalsy();
     expect(rows[1].system).toBeTruthy();
-    expect(rows[1].subtitle).toBe("Playlist • Spotify");
+    expect(rows[1].subtitle).toBe("Playlist • Synced");
+    // Rows cached before `synced` existed fall back to a non-manual source_kind.
+    expect(rows[3].system).toBeTruthy();
   });
 
-  it("draws the purple heart for the Spotify liked mirror", () => {
+  it("draws the purple heart for the liked mirror", () => {
     const rows = buildLibraryRows("playlists", sources, "", labels);
     expect(rows[2].artwork.kind).toBe("likedHeart");
   });

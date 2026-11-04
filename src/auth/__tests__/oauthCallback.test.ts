@@ -56,7 +56,6 @@ describe("parseOAuthCallback", () => {
       "unauthorized",
       "conflict",
       "internal",
-      "spotify_not_allowlisted",
       "email_unverified",
     ]) {
       expect(parseOAuthCallback(`${OAUTH_CALLBACK_PREFIX}?error=${code}`)).toEqual({

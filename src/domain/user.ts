@@ -15,7 +15,6 @@ export interface User {
   group?: string;
   email?: string;
   gender?: string | null;
-  allowed_to_use_spotify?: boolean;
   share_listening?: boolean;
 }
 

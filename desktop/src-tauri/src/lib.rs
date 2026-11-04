@@ -29,8 +29,10 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
     tauri_specta::Builder::<tauri::Wry>::new()
         .commands(collect_commands![
             media::update_now_playing,
-            // Login e Spotify pelo browser do sistema (login.rs).
+            // Login pelo browser do sistema (login.rs).
             login::browser_login::<tauri::Wry>,
+            // A pagina de importacao no browser do sistema (login.rs).
+            login::open_import_page::<tauri::Wry>,
             media::update_playback,
             miniplayer::miniplayer_toggle::<tauri::Wry>,
             miniplayer::miniplayer_set_size::<tauri::Wry>,

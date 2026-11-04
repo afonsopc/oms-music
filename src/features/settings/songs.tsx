@@ -1,7 +1,7 @@
 /**
  * Songs management (FR-96). Infinite /songs at 500/page (the hard server cap)
  * with a load-more button and a `<loaded>+` total; client-side filters over
- * the loaded pages (title / artist / album substring, origin, quality, codec)
+ * the loaded pages (title / artist / album substring, quality, codec)
  * with a PARALLEL server search folded in so a track the infinite query has
  * not reached yet still shows up; multi-select bulk delete with confirm; the
  * per-song edit dialog (multipart artwork + the always-present
@@ -30,7 +30,6 @@ import {
   filterSongs,
   hasTextFilter,
   mergeLookups,
-  originOptions,
   EMPTY_SONG_FILTERS,
   type SongFilterState,
 } from "./songsFilters";
@@ -206,14 +205,12 @@ const FiltersSheet = ({
   onClose,
   filters,
   onChange,
-  origins,
   codecs,
 }: {
   visible: boolean;
   onClose: () => void;
   filters: SongFilterState;
   onChange: (next: SongFilterState) => void;
-  origins: string[];
   codecs: string[];
 }) => {
   const t = useT();
@@ -228,13 +225,6 @@ const FiltersSheet = ({
         <Text style={{ color: tokens.foreground, fontSize: 17, fontWeight: "700" }}>
           {t("native.settings.songs.filtersTitle")}
         </Text>
-        <FilterGroup
-          label={t(`${TABLE_KEY}.filterByOrigin`)}
-          options={origins}
-          selected={filters.origins}
-          onToggle={(value) => onChange({ ...filters, origins: toggle(filters.origins, value) })}
-          labelFor={(value) => value}
-        />
         <FilterGroup
           label={t(`${TABLE_KEY}.filterByQuality`)}
           options={["lossless", "lossy"]}
@@ -257,7 +247,7 @@ const FiltersSheet = ({
             <GhostButton
               label={t("native.settings.songs.filtersClear")}
               onPress={() =>
-                onChange({ ...filters, origins: [], qualities: [], codecs: [] })
+                onChange({ ...filters, qualities: [], codecs: [] })
               }
             />
           </View>
@@ -298,7 +288,6 @@ export default function SongsManagementScreen() {
   const pages = useMemo(() => songsQuery.data?.pages.flat() ?? [], [songsQuery.data]);
   const loadedSongs = useMemo(() => mergeLookups(pages, lookups), [pages, lookups]);
   const filtered = useMemo(() => filterSongs(loadedSongs, filters), [loadedSongs, filters]);
-  const origins = useMemo(() => originOptions(loadedSongs), [loadedSongs]);
   const codecs = useMemo(() => codecOptions(loadedSongs), [loadedSongs]);
 
   const selectedSongs = useMemo(
@@ -511,7 +500,6 @@ export default function SongsManagementScreen() {
         onClose={() => setFiltersOpen(false)}
         filters={filters}
         onChange={setFilters}
-        origins={origins}
         codecs={codecs}
       />
 

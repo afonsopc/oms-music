@@ -4,8 +4,7 @@
  * WebView (WP2) renders /auth/<provider>?mode=signin and intercepts that URL
  * with parseOAuthCallback, then hands the ticket to
  * `auth/session.ts#adoptOAuthTicket`, which runs the one shared
- * session-establishment path. Spotify account LINKING reuses the WebView
- * against /auth/link/spotify?token=<session token>.
+ * session-establishment path.
  *
  * The URL parsing and the error-code map are pure and live
  * in ./oauthCallback so they can be unit tested; they are re-exported here so
@@ -19,7 +18,6 @@ import { Platform } from "react-native";
 import { API_BASE_URL, oms, omsPublic } from "@/api/oms";
 import { OAUTH_NATIVE_CALLBACK } from "./oauthCallback";
 import type { OAuthMode, OAuthProvider } from "./oauthCallback";
-import { getToken } from "./token";
 
 export {
   isOAuthCallbackUrl,
@@ -64,28 +62,9 @@ export const buildOAuthUrl = (_provider: OAuthProvider, _mode: OAuthMode): strin
  */
 export const desktopLoginStartUrl = (): string => `${API_BASE_URL}/music/auth/start`;
 
-/** Ligar o Spotify no desktop: o token vai no URL, como no nativo. */
-export const desktopLinkStartUrl = (provider: OAuthProvider): string =>
-  `${API_BASE_URL}/auth/link/${provider}?token=${encodeURIComponent(getToken() ?? "")}`;
-
 /** Where the provider round trip must land for THIS platform. */
 export const oauthReturnUrl = (): string =>
   Platform.OS === "web" ? `${window.location.origin}/oauth/callback` : OAUTH_NATIVE_CALLBACK;
-
-/**
- * Ligar o Spotify (é da app de música: /auth/link/spotify). No nativo vai o
- * token da sessão no URL (o WebView não tem outra forma de o levar) e o
- * regresso é o callback https que o WebView intercepta; na web vai o cookie
- * (o separador novo é do mesmo site) e o regresso é a própria app.
- */
-export const buildLinkUrl = (provider: OAuthProvider): string => {
-  if (Platform.OS === "web") {
-    const origin = encodeURIComponent(window.location.origin);
-    return `${API_BASE_URL}/auth/link/${provider}?app_origin=${origin}`;
-  }
-  const token = getToken();
-  return `${API_BASE_URL}/auth/link/${provider}?token=${encodeURIComponent(token ?? "")}`;
-};
 
 /**
  * POST /music/auth/adopt { ticket } -> { token, session }. O bilhete é
@@ -106,15 +85,3 @@ export const exchangeLegacySession = async (): Promise<string | null> => {
   const response = await oms().http.post<{ token?: string | null }>("/music/auth/exchange");
   return response?.token ?? null;
 };
-
-/** A ligação ao Spotify (GET/DELETE /music/spotify). */
-export interface SpotifyLinkStatus {
-  allowed: boolean;
-  connected: boolean;
-  link: { id: string; name: string | null; email: string | null } | null;
-}
-
-export const getSpotifyLink = (): Promise<SpotifyLinkStatus> =>
-  oms().http.get<SpotifyLinkStatus>("/music/spotify");
-
-export const unlinkSpotify = (): Promise<void> => oms().http.delete<void>("/music/spotify");

@@ -180,7 +180,7 @@ export const createRemoteTransportDecorator =
         opts?: { shuffle?: boolean; context?: QueueContext | null },
       ) => {
         // Replacing the queue makes THIS device the player, exactly like
-        // pressing play on a second Spotify device.
+        // pressing play on a second device in other apps.
         if (isController() || isNoActive()) {
           deps.markTakeover();
           deps.claimActive("steal");

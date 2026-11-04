@@ -1,6 +1,6 @@
 /**
  * Preview do artista em stories (pedido do dono, 2026-08-18, o idioma do
- * Spotify): o segundo inquilino do StoryPager. Cada cartão é uma das top
+ * the reference app): o segundo inquilino do StoryPager. Cada cartão é uma das top
  * músicas e o áudio é REAL - toca um excerto pelo próprio motor, saltando
  * para ~1/3 da faixa, onde os refrões costumam viver.
  *

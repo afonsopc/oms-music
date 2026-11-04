@@ -1,7 +1,7 @@
 /**
  * The back arrow every pushed screen was missing (owner report 2026-08-16,
  * point 12: "falta uma seta no canto superior esquerdo ao abrir playlists,
- * definicoes, etc. - o Spotify tem").
+ * definicoes, etc. - as apps de referencia tem").
  *
  * Why it lives HERE and not in each screen. All four Stack navigators in the
  * app run `headerShown: false`, and the tab stack renders a bare `<Stack />`
@@ -24,7 +24,7 @@
  *  - it does not draw a bar. A bar would need a title, the pushed screens
  *    already draw their own, and stacking two headings is exactly the
  *    "billboard" the player and profile screens were pulled back from. It is
- *    one circular glyph over whatever is underneath, which is what Spotify
+ *    one circular glyph over whatever is underneath, which is what the reference app
  *    puts over a playlist hero.
  *
  * The scrim disc is not decoration: half these screens open on a full-bleed

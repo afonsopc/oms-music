@@ -9,11 +9,12 @@ the player, the queue, the download manager and the realtime layer are all reimp
 TypeScript on React Native.
 
 Scope is the 126 functional requirements in `docs/SPEC.md`: your library (songs, playlists,
-artists, albums, liked), search including external sources and imports, the full player
+artists, albums, liked), search, the full player
 (queue, lyrics with translation and sync, playback modes with vocal separation), offline
 downloads, listening together (jams, friends listening, music profiles), remote playback
-across your own devices, and the settings and import surfaces (files, URL, Spotify sync,
-artist import). 28 screens, three languages (en, pt in European Portuguese, lv).
+across your own devices, and the settings and file import. Importing from outside (other
+services, links) is NOT in this app: it lives at import.omelhorsite.pt, see
+`docs/app-store.md`. Three languages (en, pt in European Portuguese, lv).
 
 ---
 
@@ -173,6 +174,8 @@ The specification the implementation was built against. Read in this order:
 | `LOCKSCREEN-PATCH.md` | the expo-audio native diff for lock-screen track commands |
 
 `store/listing.md` holds the App Store and Play listing copy (EN and PT-PT).
+`app-store.md` (pt-PT) is the store gate: no import from outside, the `.web.tsx` rule, the
+SDK patch and the bundle grep to run before any iOS or Android build.
 
 ---
 
@@ -194,9 +197,8 @@ Everything in `SPEC.md` ships except the items in `DESIGN.md` section 16. Curren
    Still needs configuration outside this repo before it works in production: publish the two
    `.well-known` files (written into the website repo), confirm the Apple Developer Program
    membership, and choose the Android signing key. `docs/PASSKEYS.md` has the steps.
-4. **Google OAuth (FR-12).** GitHub and Spotify ship through the WebView interception flow;
-   Google refuses embedded WebViews, so its button is hidden. Follow-up is a web-side
-   callback bounce into `omsmusic://oauth`; the `/sessions/adopt` plumbing already ships.
+4. **Sign-in (FR-12).** Only through id.omelhorsite.pt (`/music/auth/start`); no other
+   provider and no account linking in the app.
 5. **Verified https deep links (FR-20).** `omsmusic://` on both platforms plus an unverified
    Android intent filter (disambiguation dialog). iOS cannot claim https links without an
    AASA file. The parser already handles full web URLs.

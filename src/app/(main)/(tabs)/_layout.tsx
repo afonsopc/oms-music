@@ -74,7 +74,7 @@ export default function TabsLayout() {
           item (primeiro um botao falso que abria uma gaveta, depois uma tab
           a serio) e nenhuma das duas coisas resistiu ao teste: a UITabBar
           nao mascara imagens, portanto a fotografia saia sempre quadrada, e
-          uma tab de "Definicoes" e peso morto. O Spotify e o Apple Music
+          uma tab de "Definicoes" e peso morto. As apps de musica grandes
           resolvem isto da mesma maneira: o avatar vive no CABECALHO dos
           ecras (features/home, features/library) e leva a /account, que
           junta perfil, amigos, transferencias e definicoes. */}

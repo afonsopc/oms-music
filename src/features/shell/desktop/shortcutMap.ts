@@ -3,7 +3,7 @@
  * React imports so the matching rules are bun-testable: a keystroke
  * (already reduced to plain fields) either names ONE action or nothing.
  *
- * The plan's deliberate divergence from Spotify is encoded here: bare
+ * The plan's deliberate divergence from the reference app is encoded here: bare
  * arrows are NOT transport - they belong to list navigation - so every
  * transport/volume binding rides the Cmd/Ctrl modifier. Panel toggles take
  * Alt+Shift and match on `code`, because on macOS Alt+letter produces a

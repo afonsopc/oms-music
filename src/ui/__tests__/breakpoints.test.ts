@@ -174,7 +174,7 @@ describe("heroTitleTypeMobile", () => {
   // iPhone 15 / 14 Pro / SE, in points.
   const PHONES = [393, 390, 375, 320];
 
-  it("caps at 28, where Spotify sets the same title on the same phone", () => {
+  it("caps at 28, where the reference app sets the same title on the same phone", () => {
     for (const width of PHONES) {
       expect(heroTitleTypeMobile(width, 6).fontSize).toBeLessThanOrEqual(28);
     }
@@ -215,7 +215,7 @@ describe("heroTitleType (desktop only)", () => {
   });
 
   it("fits the one-line rule: 21 chars at 1200px sit well below display size", () => {
-    const liked = "Liked Songs (Spotify)".length;
+    const liked = "Liked Songs (Library)".length;
     const { fontSize } = heroTitleType(1200, liked);
     expect(fontSize).toBeLessThanOrEqual(64);
     expect(fontSize).toBeGreaterThanOrEqual(48);

@@ -188,7 +188,7 @@ describe("token text pairs on their real backgrounds", () => {
       [darkTokens.destructive, darkTokens.background, "dark", "destructive"],
       // Light `destructive` is red-500: 3.76:1, under AA for body copy.
       [lightTokens.destructive, lightTokens.background, "light", "destructive"],
-      // The Spotify-sync emerald-500 marker: ~2.5:1 on the light page.
+      // The sync emerald-500 marker: ~2.5:1 on the light page.
       [EMERALD_BADGE, lightTokens.background, "light", "sync"],
     ];
     for (const [raw, surface, scheme, key] of regressions) {

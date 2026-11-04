@@ -5,7 +5,7 @@
  */
 
 /**
- * Spotify P2P'10 starts next-track prefetch at 30 s remaining. We use 45 s
+ * A 2010 streaming study starts next-track prefetch at 30 s remaining. We use 45 s
  * because we fetch WHOLE files, not a 15 s prefix: the extra head start is
  * what buys a gapless-feeling handover on a slow link. (The engine's own
  * FR-60 URL prefetch stays at 30 s - that one resolves a URL, this one moves

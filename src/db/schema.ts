@@ -71,7 +71,7 @@ CREATE TABLE IF NOT EXISTS offline_collections (
  *
  * The offline resolver rebuilt every playlist as a bare manual one, which
  * erased `source_external_id` - and with it the liked-MIRROR detection, so
- * "Liked Songs (Spotify)" fell to the placeholder photo whenever a list was
+ * "Liked Songs (Library)" fell to the placeholder photo whenever a list was
  * served from this cache (owner report 2026-08-13).
  */
 export const MIGRATION_OFFLINE_PLAYLIST_SOURCE = `

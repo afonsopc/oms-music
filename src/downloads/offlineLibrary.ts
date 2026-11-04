@@ -56,7 +56,7 @@ export class OfflineUnavailableError extends Error {
 let netOnline = true;
 /** The GO OFFLINE switch (owner request 2026-08-14): user-forced offline
  *  that composes with (and survives) every NetInfo event. Persisted in kv:
- *  Spotify semantics, an offline toggle survives an app restart. */
+ *  the reference app semantics, an offline toggle survives an app restart. */
 let manualOffline = false;
 const MANUAL_OFFLINE_KV_KEY = "oms-music.downloads.manual-offline";
 const onlineListeners = new Set<(value: boolean) => void>();

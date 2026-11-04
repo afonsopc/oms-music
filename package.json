@@ -59,5 +59,8 @@
     "smoke": "bun scripts/smoke.ts",
     "deeplinks": "bun e2e/deeplinks.ts"
   },
-  "private": true
+  "private": true,
+  "patchedDependencies": {
+    "@omelhorsite/sdk@0.15.1": "patches/@omelhorsite%2Fsdk@0.15.1.patch"
+  }
 }

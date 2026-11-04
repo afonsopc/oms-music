@@ -5,8 +5,6 @@ import {
   codecOptions,
   filterSongs,
   mergeLookups,
-  originOptions,
-  songOriginKey,
   EMPTY_SONG_FILTERS,
 } from "../songsFilters";
 import type { Song, SongArtistEntry } from "@/domain/song";
@@ -143,8 +141,6 @@ describe("filterSongs", () => {
       album: null,
       audio_codec: "aac",
       audio_lossless: false,
-      source_kind: "yt_dlp",
-      source_provider: "youtube",
       artists: [artistEntry("Carlos Paiao", 1, "primary")],
     }),
   ];
@@ -155,17 +151,13 @@ describe("filterSongs", () => {
     expect(filterSongs(library, { ...EMPTY_SONG_FILTERS, album: "iced" })).toHaveLength(1);
   });
 
-  it("filters origin, quality and codec", () => {
-    expect(filterSongs(library, { ...EMPTY_SONG_FILTERS, origins: ["upload"] })).toHaveLength(1);
-    expect(filterSongs(library, { ...EMPTY_SONG_FILTERS, origins: ["youtube"] })).toHaveLength(1);
+  it("filters quality and codec", () => {
     expect(filterSongs(library, { ...EMPTY_SONG_FILTERS, qualities: ["lossless"] })).toHaveLength(1);
     expect(filterSongs(library, { ...EMPTY_SONG_FILTERS, codecs: ["flac"] })).toHaveLength(1);
   });
 
   it("builds option lists from present values only", () => {
-    expect(originOptions(library)).toEqual(["upload", "youtube"]);
     expect(codecOptions(library)).toEqual(["aac", "flac"]);
-    expect(songOriginKey(library[1]!)).toBe("youtube");
   });
 });
 

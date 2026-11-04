@@ -199,7 +199,7 @@ export const DesktopTransportBar = ({
           <>
             {/* Artwork e titulo abrem o album JA COM a musica destacada
                 (songHighlightRoute, o hash do FR-44); o artista abre o
-                perfil dele - o idioma do Spotify, pedido do dono
+                perfil dele - o idioma das apps de referencia, pedido do dono
                 (2026-08-17). Sao Pressable/onPress e nao links para
                 continuarem a viver dentro da linha da grelha. */}
             {/* Uma intervencao do DJ nao abre album nenhum: mostra a capa

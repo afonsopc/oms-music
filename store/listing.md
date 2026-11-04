@@ -33,8 +33,7 @@ Musica is the native app for your omelhorsite music library.
   the host, vote to skip, and see what your friends are listening to right now.
 - Your devices: move playback between your phone, your tablet and the web player, and
   control whichever device is playing from any of the others.
-- Import: add music from a file, from a URL, or sync your Spotify playlists (where
-  enabled).
+- Import: add your own music files to your library.
 
 Sign in with your omelhorsite account. An account is required.
 
@@ -66,8 +65,7 @@ A Música é a aplicação nativa para a tua biblioteca de música do omelhorsit
   músicas ao anfitrião, vota para passar à frente e vê o que os teus amigos estão a ouvir.
 - Os teus dispositivos: passa a reprodução entre o telemóvel, o tablet e o site, e
   controla o dispositivo que está a tocar a partir de qualquer um dos outros.
-- Importar: adiciona música a partir de um ficheiro, de um endereço ou sincroniza as tuas
-  listas do Spotify (quando disponível).
+- Importar: adiciona os teus próprios ficheiros de música à biblioteca.
 
 Inicia sessão com a tua conta do omelhorsite. É necessária uma conta.
 

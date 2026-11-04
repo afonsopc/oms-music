@@ -286,7 +286,7 @@ export const CollectionScreen = ({
 
   /**
    * O sticky no mobile tambem passa a derivar da MEDICAO: com a capa
-   * centrada a Spotify o hero e dimensionado pelo conteudo e a antiga
+   * centrada como as apps de referencia o hero e dimensionado pelo conteudo e a antiga
    * fraccao da janela subestimava-o, fazendo o titulo fixo aparecer com o
    * hero ainda inteiro no ecra. O corte e quando o titulo do hero (acima da
    * ActionBar) desliza para fora, com a folga de 60 de sempre.

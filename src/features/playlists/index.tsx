@@ -4,7 +4,7 @@
  * offers to create the first one. The create dialog invalidates the list,
  * so a new playlist appears without a manual refresh.
  *
- * System (Spotify-synced) playlists carry the "Synced from Spotify"
+ * Synced playlists (kept up to date from outside) carry the "Synced"
  * subtitle here too; the read-only rules themselves live on the detail
  * screen (FR-53).
  */
@@ -59,7 +59,7 @@ const PlaylistRow = ({ playlist, onPress }: { playlist: Playlist; onPress: () =>
         </Text>
         {system ? (
           <Text style={{ color: tokens.mutedForeground, fontSize: 12 }} numberOfLines={1}>
-            {t("components.music.PlaylistView.syncedFromSpotify")}
+            {t("components.music.PlaylistView.synced")}
           </Text>
         ) : null}
       </View>

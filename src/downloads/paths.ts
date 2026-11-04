@@ -38,7 +38,7 @@ export const ensureUserDownloadDirectory = (userId: string): Directory => {
   } catch {
     // Existing directory or transient FS error; downloads will surface it.
   }
-  // FR-84: keep downloads out of iCloud / iTunes backups. The root carries the
+  // FR-84: keep downloads out of iCloud backups. The root carries the
   // flag for everything beneath it; the per-user directory is flagged too so a
   // pre-existing root that missed the call still covers this user. Never
   // throws, and a false return only means the files stay backed up.

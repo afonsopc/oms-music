@@ -2,7 +2,7 @@
  * Playlist detail (FR-48, FR-50, FR-52, FR-53). Three flavors:
  *  - manual: row removal + drag reorder (ONLY when fully loaded; sends the
  *    COMPLETE song-id array, optimistic with rollback) + delete;
- *  - system (Spotify-synced): read-only rows, "Synced from Spotify"
+ *  - synced (kept up to date from outside): read-only rows, "Synced"
  *    subtitle + last-synced meta, Copy + Delete only - NO edit affordance
  *    ever (the server rejects all of them including rename);
  *  - liked mirror: the purple heart artwork + #7e22ce accent.
@@ -84,7 +84,7 @@ const PlaylistBody = ({ playlistId }: { playlistId: PlaylistId }) => {
   const likedMirror = playlist ? isLikedMirror(playlist) : false;
 
   /**
-   * Linha do dono a Spotify (ponto 16): quase sempre e o proprio (a sessao
+   * Linha do dono (ponto 16): quase sempre e o proprio (a sessao
    * ja tem o User carregado), mas uma playlist partilhada por outra conta
    * resolve o dono por /users/:id - ate la a linha simplesmente nao aparece.
    */
@@ -259,7 +259,7 @@ const PlaylistBody = ({ playlistId }: { playlistId: PlaylistId }) => {
         title={playlist?.name ?? ""}
         subtitle={
           system
-            ? t("components.music.PlaylistView.syncedFromSpotify")
+            ? t("components.music.PlaylistView.synced")
             : t("components.music.PlaylistView.playlistLabel")
         }
         meta={playlist ? meta : undefined}

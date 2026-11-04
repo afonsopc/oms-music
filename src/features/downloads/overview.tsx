@@ -209,7 +209,7 @@ export default function DownloadsOverviewScreen() {
       </Text>
 
       {/* GO OFFLINE: force the offline resolvers even with a live network -
-          the Spotify semantics (test your downloads, save data). Never on
+          the reference-app semantics (test your downloads, save data). Never on
           web: with no downloads subsystem there the flag would only empty
           the library, persist that state across reloads, and give the tab
           nothing it could possibly play (plano "uma so app", F1). */}

@@ -64,7 +64,7 @@ export const navigationColorsFor = (scheme: ResolvedScheme): NavigationColors =>
  * `success`, `destructive` and the emerald sync marker are FILL tokens: the
  * palette pairs each with its own `*Foreground` text, never with the page.
  * Used directly as ink - error copy under a form, the download badge in a
- * song row, the import status glyphs, the Spotify-sync dot - they collapse:
+ * song row, the import status glyphs, the sync dot - they collapse:
  * dark `destructive` lands at about 2:1 on the page background and emerald
  * 500 at about 2.5:1 on the light one. These are the same colors nudged just
  * far enough to read as ink, hue intact.
@@ -77,7 +77,7 @@ export const navigationColorsFor = (scheme: ResolvedScheme): NavigationColors =>
 export interface StatusInk {
   success: string;
   destructive: string;
-  /** Spotify-sync emerald: sync dots, "synced" hints, the done progress bar. */
+  /** sync emerald: sync dots, "synced" hints, the done progress bar. */
   sync: string;
 }
 

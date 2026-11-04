@@ -73,9 +73,7 @@
         "uploading": "A carregar...",
         "uploadFailed": "Falha ao carregar",
         "previewStories": "Preview do artista",
-        "previewKicker": "Preview de",
-        "dailySyncOn": "Ligar sync diário deste artista",
-        "dailySyncOff": "Desligar sync diário"
+        "previewKicker": "Preview de"
       },
       "ArtistMultiSelect": {
         "addArtist": "Adicionar artista",
@@ -99,12 +97,6 @@
         "error": "Erro ao carregar",
         "empty": "Sem músicas para mostrar.",
         "onlyDownloadedEmpty": "Nenhuma destas músicas está descarregada. Desactiva o filtro \"Mostrar só descarregadas\" nas definições."
-      },
-      "ExternalResults": {
-        "title": "Resultados externos",
-        "empty": "Sem resultados externos. Liga a tua conta Spotify para ver mais.",
-        "import": "Importar",
-        "openSource": "Abrir origem"
       },
       "Search": {
         "loading": "A pesquisar...",
@@ -145,7 +137,6 @@
         "loadingPlaylist": "A carregar playlist...",
         "errorLoadingPlaylist": "Erro ao carregar playlist.",
         "playlistLabel": "Playlist",
-        "syncedFromSpotify": "Sincronizada do Spotify",
         "lastSynced": "sync {when}",
         "copyToEditable": "Criar cópia editável",
         "song": "música",
@@ -156,7 +147,8 @@
         "loadingSongs": "A carregar músicas...",
         "errorLoadingSongs": "Erro ao carregar músicas",
         "noSongsInPlaylist": "Ainda não há músicas nesta playlist.",
-        "removeFromPlaylist": "Remover desta playlist"
+        "removeFromPlaylist": "Remover desta playlist",
+        "synced": "Sincronizada"
       },
       "SongCard": {
         "unknownArtist": "Artista Desconhecido",
@@ -184,18 +176,6 @@
         "rolePrimary": "Artistas principais",
         "roleFeatured": "Artistas convidados",
         "roleWith": "Com"
-      },
-      "SongMatchDialog": {
-        "menuItem": "Música errada?",
-        "title": "Fontes encontradas",
-        "current": "Em uso agora",
-        "rejected": "Postas de parte",
-        "retryAuto": "Voltar a emparelhar automaticamente",
-        "working": "A reimportar",
-        "searching": "A procurar em todas as fontes",
-        "unavailable": "Não foi possível chegar ao descarregador.",
-        "done": "Trocada. A música mantém as playlists e os gostos.",
-        "failed": "A reimportação falhou."
       },
       "SongTable": {
         "title": "Título",
@@ -395,11 +375,7 @@
         "artists": "Artistas",
         "ImportPage": {
           "title": "Importar música",
-          "description": "Adiciona músicas de ficheiros locais, de um URL de playlist, da tua biblioteca Spotify, ou todas de um artista de uma vez.",
-          "tabFiles": "Ficheiros",
-          "tabUrl": "URL de playlist",
-          "tabSpotify": "Spotify",
-          "tabArtist": "Por artista"
+          "description": "Adiciona músicas a partir dos teus ficheiros."
         },
         "SongsPage": {
           "title": "Músicas",
@@ -408,44 +384,6 @@
         "ArtistsPage": {
           "title": "Artistas",
           "description": "Gere todos os artistas da tua biblioteca, renomear, carregar imagens e banners, ou apagar os que não têm músicas."
-        },
-        "ArtistImport": {
-          "title": "Importar artista inteiro",
-          "description": "Escolhe um artista da tua biblioteca ou de qualquer lado no Spotify, marca os álbuns e nós tratamos do download de todas as faixas.",
-          "searchPlaceholder": "Procurar artistas...",
-          "searching": "A procurar...",
-          "searchFailed": "Falha na pesquisa",
-          "albumsFailed": "Não consegui carregar os álbuns",
-          "inYourLibrary": "Na tua biblioteca",
-          "inYourLibraryDescription": "Escolhe um artista que já tens para importar os álbuns que faltam.",
-          "onSpotify": "No Spotify",
-          "onSpotifyDescription": "Vêm directamente do catálogo do Spotify.",
-          "rosterSubtitle": "Já está na tua biblioteca",
-          "followers": "{count} seguidores",
-          "noMatches": "Sem resultados",
-          "notFoundOnSpotify": "Não encontrei este artista no Spotify",
-          "changeArtist": "Trocar",
-          "loadingAlbums": "A carregar álbuns...",
-          "selectedSummary": "{selected} de {total} álbuns ({tracks} faixas)",
-          "selectAll": "Selecionar todos",
-          "clear": "Limpar",
-          "tracks": "{count} faixas",
-          "import": "Importar {count} álbuns",
-          "cancel": "Cancelar",
-          "queued": "{count} álbuns na fila de importação",
-          "importFailed": "Não consegui iniciar a importação",
-          "recentTitle": "Importações recentes",
-          "albumsProgress": "{processed} / {total} álbuns",
-          "trackTotals": "{queued} novas · {skipped} já na biblioteca",
-          "spotifyConnectTitle": "Liga o Spotify para importar",
-          "spotifyConnectDescription": "Liga a tua conta Spotify no dashboard para procurar no catálogo do Spotify e importar álbuns.",
-          "spotifyRelinkTitle": "O Spotify precisa de ser religado",
-          "spotifyRelinkDescription": "A ligação ao Spotify expirou. Volta a ligar a conta no dashboard para continuares a importar.",
-          "spotifyUpstreamTitle": "O Spotify está a ter um soluço",
-          "spotifyUpstreamDescription": "O Spotify rejeitou o pedido. Espera um momento e tenta de novo, normalmente é só uma falha temporária do lado deles.",
-          "spotifyIssueLinkAction": "Abrir dashboard",
-          "spotifyIssueRetry": "Tentar de novo",
-          "spotifyIssueDismiss": "Fechar"
         },
         "ArtistsTable": {
           "loading": "A carregar artistas...",
@@ -515,7 +453,6 @@
         "retryImport": "Reenviar pasta para tentar novamente",
         "reuploadFolderToRetry": "Por favor reenvie a pasta para tentar novamente as importações falhadas",
         "importInProgress": "Importação em progresso",
-        "importInProgressDescription": "Uma importação está a decorrer. Por favor aguarde que termine.",
         "ignoreFile": "Ignorar este ficheiro (não tentará novamente)",
         "deleteWarningTooltip": "Eliminar este aviso (pode causar músicas duplicadas se reimportar)",
         "deleteWarningTitle": "Eliminar Aviso de Importação",
@@ -525,56 +462,12 @@
         "cancel": "Cancelar",
         "warningDeleted": "Aviso eliminado",
         "errorDeletingWarning": "Erro ao eliminar aviso",
-        "SpotifySync": {
-          "title": "Sincronização Spotify",
-          "notConnected": "Liga a tua conta Spotify para sincronizar playlists e gostos diariamente.",
-          "connect": "Ligar Spotify",
-          "connectedAs": "Ligado como {name}",
-          "syncNow": "Sincronizar agora",
-          "syncing": "A sincronizar…",
-          "lastSync": "Última sincronização: {when}",
-          "autoSync": "Sincronização automática diária",
-          "autoSyncHint": "Sincroniza as playlists selecionadas automaticamente todos os dias.",
-          "syncLiked": "Sincronizar Liked Songs",
-          "syncLikedHint": "Adicionar as músicas que deste like no Spotify a uma playlist local.",
-          "playlistsHeader": "Playlists Spotify",
-          "trackCount": "{count, plural, one {# faixa} other {# faixas}}"
-        },
-        "PlaylistImport": {
-          "title": "Importar Playlist",
-          "subtitle": "Importa playlists do YouTube, SoundCloud e outras fontes (Spotify requer ligar a conta).",
-          "urlPlaceholder": "https://www.youtube.com/playlist?list=...",
-          "preview": "Pré-visualizar",
-          "previewFailed": "Não foi possível ler o URL",
-          "tracks": "músicas",
-          "openConfirm": "Abrir confirmação",
-          "modal": {
-            "title": "Confirma e importa",
-            "subtitleSingle": "Edita os tags antes de importar.",
-            "subtitleMulti": "Edita os tags de cada música antes de importar as {count}.",
-            "targetLabel": "Para onde importar",
-            "targetNew": "Nova playlist:",
-            "targetNewPlaceholder": "Nome da nova playlist",
-            "targetExisting": "Adicionar a playlist existente:",
-            "targetExistingPlaceholder": "Escolher playlist...",
-            "targetLibrary": "Apenas para a biblioteca (sem playlist)",
-            "metaTitle": "Título",
-            "metaArtist": "Artista",
-            "metaAlbum": "Álbum",
-            "artworkSection": "Capa",
-            "noTrackSelected": "Nenhuma música selecionada",
-            "close": "Fechar",
-            "importOne": "Importar",
-            "importAll": "Importar {count} músicas"
-          }
-        },
         "SongsTable": {
           "loading": "A carregar músicas...",
           "errorLoadingSongs": "Erro ao carregar músicas",
           "totalSongs": "Total de músicas:",
           "filteredSongs": "Músicas filtradas:",
           "filterByTitle": "Filtrar por título...",
-          "filterByOrigin": "Origem",
           "filterByQuality": "Qualidade",
           "filterByCodec": "Codec",
           "qualityLossless": "Lossless",
@@ -606,10 +499,6 @@
             "selectRow": "Selecionar linha",
             "vocals": "Vocais",
             "instrumental": "Instrumental",
-            "source": "Origem",
-            "sourceUpload": "Upload",
-            "sourceUnknownFile": "Ficheiro original desconhecido",
-            "openSource": "Abrir fonte",
             "quality": "Qualidade",
             "lossless": "Lossless",
             "channelMono": "mono",
@@ -717,12 +606,12 @@
         "playlistKind": "Playlist",
         "artistKind": "Artista",
         "albumKind": "Álbum",
-        "syncedFromSpotify": "Spotify",
         "emptyLibrary": "A tua biblioteca está vazia.",
         "settingsPlayback": "Reprodução",
         "searchMusic": "O que queres ouvir?",
         "collapseSidebar": "Recolher barra lateral",
-        "expandSidebar": "Expandir barra lateral"
+        "expandSidebar": "Expandir barra lateral",
+        "synced": "Sincronizada"
       },
       "AddToPlaylistDialog": {
         "title": "Adicionar à Playlist",
@@ -966,7 +855,6 @@
         "unauthorized": "A autorização foi recusada.",
         "conflict": "Esta identidade já está associada a outra conta.",
         "internal": "Erro interno. Tente novamente.",
-        "spotifyNotAllowlisted": "O acesso ao Spotify está limitado a uma lista de contas aprovadas. Peça a um administrador para adicionar a sua e tente associar novamente.",
         "emailUnverified": "O email desta conta ainda não foi verificado. Confirme-o em id.omelhorsite.pt e tente novamente.",
         "oauthFailed": "O início de sessão falhou. Tente novamente."
       },
@@ -1169,25 +1057,6 @@
         "mediaBanner": "banner",
         "mediaGallery": "galeria",
         "emptyFiltered": "Nenhum artista corresponde a este filtro."
-      }
-    },
-    "import": {
-      "url": {
-        "artworkSearch": "Procurar capas",
-        "artworkSearchPlaceholder": "Artista e título",
-        "artworkUpload": "Carregar imagem",
-        "deduped": "Já está na tua biblioteca",
-        "noTracks": "Não há nada para importar neste URL."
-      },
-      "spotify": {
-        "progressTitle": "Progresso da sincronização",
-        "trackTotals": "{queued} novas, {skipped} já na biblioteca",
-        "enabled": "A sincronizar",
-        "disabled": "Sem sincronizar",
-        "destructiveTitle": "Apagar a cópia local?",
-        "destructiveLiked": "Desligar a sincronização dos gostos apaga já a lista espelho das músicas gostadas. Ao voltar a ligar, a lista é recriada na sincronização seguinte.",
-        "destructivePlaylist": "Desmarcar \"{name}\" apaga já a cópia local. Ao voltar a marcar, a lista é recriada na sincronização seguinte.",
-        "destructiveConfirm": "Apagar"
       }
     },
     "jam": {

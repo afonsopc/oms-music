@@ -211,7 +211,7 @@ export const DesktopSidebar = ({ collapsed, onToggleCollapsed }: DesktopSidebarP
       playlistKind: t("components.music.Sidebar.playlistKind"),
       artistKind: t("components.music.Sidebar.artistKind"),
       albumKind: t("components.music.Sidebar.albumKind"),
-      spotify: t("components.music.Sidebar.syncedFromSpotify"),
+      synced: t("components.music.Sidebar.synced"),
     }),
     [t],
   );
@@ -386,7 +386,7 @@ export const DesktopSidebar = ({ collapsed, onToggleCollapsed }: DesktopSidebarP
       )}
 
       {/* A conta mudou-se para o canto direito da topbar (AccountMenu.tsx,
-          o sitio do Spotify) - a sidebar acaba na lista. */}
+          o sitio das apps de referencia) - a sidebar acaba na lista. */}
     </View>
   );
 };

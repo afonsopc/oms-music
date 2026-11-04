@@ -1,7 +1,7 @@
 /**
  * Locks the global shortcut map (plano-uma-so-app 4.4). The load-bearing
  * rules: bare arrows are NEVER transport (the plan's deliberate divergence
- * from Spotify), typing targets swallow everything except Cmd/Ctrl+K and
+ * from the reference app), typing targets swallow everything except Cmd/Ctrl+K and
  * Cmd/Ctrl+/, Space stands down on real buttons (the browser clicks them),
  * and the Alt+Shift panel chords match on `code` so macOS Alt-symbols
  * cannot break them.

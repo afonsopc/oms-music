@@ -1,8 +1,8 @@
 //! Mini-player como janela propria (plano 3.5): NSPanel no macOS via
 //! tauri-nspanel (flutua sobre outras apps, nao rouba foco, aparece em todos
 //! os Spaces), janela normal always-on-top nas outras plataformas. Tres
-//! tamanhos como o Spotify - barra so-transporte, rectangulo, quadrado com
-//! artwork grande - e, ao contrario do Spotify (queixa aberta deles), o
+//! tamanhos como as apps de referencia - barra so-transporte, rectangulo, quadrado com
+//! artwork grande - e, ao contrario das apps de referencia (queixa aberta la), o
 //! tamanho escolhido PERSISTE entre sessoes, num JSON no app_config_dir.
 //!
 //! A janela carrega o mesmo bundle com `?miniplayer=1`: o shell so garante a
@@ -173,7 +173,7 @@ pub fn miniplayer_toggle<R: Runtime>(app: AppHandle<R>) -> Result<bool, String> 
 }
 
 /// Muda o preset, aplica ja se a janela existir, e persiste SEMPRE - e esta
-/// persistencia que e a nossa melhoria sobre o Spotify.
+/// persistencia que e a nossa melhoria sobre as apps de referencia.
 #[tauri::command]
 #[specta::specta]
 pub fn miniplayer_set_size<R: Runtime>(

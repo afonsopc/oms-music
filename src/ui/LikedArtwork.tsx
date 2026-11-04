@@ -1,7 +1,7 @@
 /**
  * The purple heart tile: violet-700 -> purple-700 -> indigo-900 gradient
  * with a centered white heart at 1/3 size. Drawn by BOTH the local Liked
- * Songs surface and any Spotify liked-mirror playlist so the two read as
+ * Songs surface and any synced liked-mirror playlist so the two read as
  * the same thing.
  */
 import React from "react";

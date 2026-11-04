@@ -88,7 +88,7 @@ const LibraryRowView = ({
           >
             {row.name}
           </Text>
-          {/* Spotify-sync marker: emerald, per the design language. */}
+          {/* sync marker: emerald, per the design language. */}
           {row.system ? (
             <View
               style={{
@@ -121,7 +121,7 @@ const LibraryRowView = ({
             >
               {row.name}
             </Text>
-            {/* Spotify-sync marker: emerald, per the design language. */}
+            {/* sync marker: emerald, per the design language. */}
             {row.system ? (
               <View
                 style={{
@@ -226,7 +226,7 @@ export default function LibraryScreen() {
       playlistKind: t("components.music.Sidebar.playlistKind"),
       artistKind: t("components.music.Sidebar.artistKind"),
       albumKind: t("components.music.Sidebar.albumKind"),
-      spotify: t("components.music.Sidebar.syncedFromSpotify"),
+      synced: t("components.music.Sidebar.synced"),
     }),
     [t],
   );

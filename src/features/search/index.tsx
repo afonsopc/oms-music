@@ -62,7 +62,6 @@ import {
   Tile,
   useDesktopShell,
 } from "@/ui";
-import { ExternalResults } from "./ExternalResults";
 import {
   albumHitRoute,
   buildSuggestions,
@@ -793,7 +792,6 @@ export default function SearchScreen() {
             </View>
           ) : null}
 
-          <ExternalResults query={term} />
         </>
       )}
     </ScrollView>

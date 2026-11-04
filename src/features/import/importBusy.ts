@@ -1,7 +1,7 @@
 /**
  * Global import-busy flag (FR-99). The web sets `window.musicImportBusy` so a
  * second import surface disables itself while one is running; native uses
- * this tiny store instead. Every import surface (files, URL, artist) reads it
+ * this tiny store instead. The files tab reads it
  * and refuses to start a second run.
  */
 import { useSyncExternalStore } from "react";

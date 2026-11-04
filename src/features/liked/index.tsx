@@ -5,7 +5,7 @@
  * owner row (the session user - liked songs are always yours), play/shuffle
  * on the right of the action bar, and `addedAt = liked_at` in the table.
  *
- * Renders through the shared CollectionScreen (ponto 16, vistas a Spotify):
+ * Renders through the shared CollectionScreen (ponto 16, vistas como as apps de referencia):
  * before this it duplicated the Hero + StickyTitle + SongTable assembly by
  * hand, and every header redesign had to be made twice. The hover-heart on
  * this surface is an inline "remove from liked" like everywhere else.

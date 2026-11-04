@@ -285,7 +285,7 @@ export const nextIndex = (
 };
 
 /**
- * FR-58 previous, Spotify-style: position > 3 s (or first entry under
+ * FR-58 previous, reference-app-style: position > 3 s (or first entry under
  * LoopMode.None) -> restart; else index - 1, wrap only under All; a wrap
  * that lands on the same entry restarts too.
  */

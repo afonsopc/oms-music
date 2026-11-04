@@ -69,7 +69,7 @@ export default function AlbumScreen() {
   }`;
 
   // O artista subiu para a linha do dono do Hero (avatar de iniciais +
-  // nome, a Spotify - ponto 16); a meta fica so com ano e contagem/duracao.
+  // nome, como as apps de referencia - ponto 16); a meta fica so com ano e contagem/duracao.
   const meta = [...(year != null ? [String(year)] : []), countLabel].join(" • ");
 
   const firstSong = songs[0];

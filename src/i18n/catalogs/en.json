@@ -73,9 +73,7 @@
         "uploading": "Uploading...",
         "uploadFailed": "Upload failed",
         "previewStories": "Artist preview",
-        "previewKicker": "Previewing",
-        "dailySyncOn": "Enable daily sync for this artist",
-        "dailySyncOff": "Disable daily sync"
+        "previewKicker": "Previewing"
       },
       "ArtistMultiSelect": {
         "addArtist": "Add artist",
@@ -99,12 +97,6 @@
         "error": "Failed to load",
         "empty": "No tracks to show.",
         "onlyDownloadedEmpty": "None of these tracks are downloaded. Turn off \"Show downloaded only\" in settings."
-      },
-      "ExternalResults": {
-        "title": "External results",
-        "empty": "No external matches yet, try connecting your Spotify account.",
-        "import": "Import",
-        "openSource": "Open source"
       },
       "Search": {
         "loading": "Searching...",
@@ -145,7 +137,6 @@
         "loadingPlaylist": "Loading playlist...",
         "errorLoadingPlaylist": "Error loading playlist.",
         "playlistLabel": "Playlist",
-        "syncedFromSpotify": "Synced from Spotify",
         "lastSynced": "synced {when}",
         "copyToEditable": "Make editable copy",
         "song": "song",
@@ -156,7 +147,8 @@
         "loadingSongs": "Loading songs...",
         "errorLoadingSongs": "Error loading songs",
         "noSongsInPlaylist": "No songs in this playlist yet.",
-        "removeFromPlaylist": "Remove from this playlist"
+        "removeFromPlaylist": "Remove from this playlist",
+        "synced": "Synced"
       },
       "SongCard": {
         "unknownArtist": "Unknown Artist",
@@ -184,18 +176,6 @@
         "rolePrimary": "Main artists",
         "roleFeatured": "Featured artists",
         "roleWith": "With"
-      },
-      "SongMatchDialog": {
-        "menuItem": "Wrong track?",
-        "title": "Sources found",
-        "current": "In use now",
-        "rejected": "Ruled out",
-        "retryAuto": "Match again automatically",
-        "working": "Re-importing",
-        "searching": "Searching all sources",
-        "unavailable": "Could not reach the downloader.",
-        "done": "Swapped. The track keeps its playlists and likes.",
-        "failed": "The re-import failed."
       },
       "SongTable": {
         "title": "Title",
@@ -397,11 +377,7 @@
         "artists": "Artists",
         "ImportPage": {
           "title": "Import music",
-          "description": "Add songs from local files, an existing playlist URL, your Spotify library, or by importing every track from a single artist.",
-          "tabFiles": "Files",
-          "tabUrl": "Playlist URL",
-          "tabSpotify": "Spotify",
-          "tabArtist": "By artist"
+          "description": "Add songs from your own files."
         },
         "SongsPage": {
           "title": "Songs",
@@ -410,44 +386,6 @@
         "ArtistsPage": {
           "title": "Artists",
           "description": "Manage every artist in your library, rename, upload images and banners, or delete the ones with no songs."
-        },
-        "ArtistImport": {
-          "title": "Import a whole artist",
-          "description": "Pick an artist from your library or anywhere on Spotify, choose the albums and we'll queue every track for download.",
-          "searchPlaceholder": "Search artists...",
-          "searching": "Searching...",
-          "searchFailed": "Search failed",
-          "albumsFailed": "Could not load albums",
-          "inYourLibrary": "In your library",
-          "inYourLibraryDescription": "Pick an existing artist to import any albums you don't already have.",
-          "onSpotify": "On Spotify",
-          "onSpotifyDescription": "These come straight from Spotify's catalogue.",
-          "rosterSubtitle": "Already in your library",
-          "followers": "{count} followers",
-          "noMatches": "No matches",
-          "notFoundOnSpotify": "Couldn't find this artist on Spotify",
-          "changeArtist": "Change",
-          "loadingAlbums": "Loading albums...",
-          "selectedSummary": "{selected} of {total} albums selected ({tracks} tracks)",
-          "selectAll": "Select all",
-          "clear": "Clear",
-          "tracks": "{count} tracks",
-          "import": "Import {count} albums",
-          "cancel": "Cancel",
-          "queued": "Queued {count} albums for import",
-          "importFailed": "Could not start the import",
-          "recentTitle": "Recent imports",
-          "albumsProgress": "{processed} / {total} albums",
-          "trackTotals": "{queued} new · {skipped} already in library",
-          "spotifyConnectTitle": "Connect Spotify to import",
-          "spotifyConnectDescription": "Link your Spotify account from the dashboard to search Spotify's catalogue and import albums.",
-          "spotifyRelinkTitle": "Spotify needs to be relinked",
-          "spotifyRelinkDescription": "Your Spotify connection expired. Relink your account from the dashboard to keep importing.",
-          "spotifyUpstreamTitle": "Spotify is having a hiccup",
-          "spotifyUpstreamDescription": "Spotify rejected the request. Wait a moment and try again, usually it's a transient upstream blip.",
-          "spotifyIssueLinkAction": "Open dashboard",
-          "spotifyIssueRetry": "Retry",
-          "spotifyIssueDismiss": "Dismiss"
         },
         "ArtistsTable": {
           "loading": "Loading artists...",
@@ -515,7 +453,6 @@
         "retryImport": "Re-upload folder to retry",
         "reuploadFolderToRetry": "Please re-upload the folder to retry failed imports",
         "importInProgress": "Import in progress",
-        "importInProgressDescription": "An import is currently running. Please wait for it to complete.",
         "ignoreFile": "Ignore this file (won't retry)",
         "deleteWarningTooltip": "Delete this warning (may cause duplicate songs if you re-import)",
         "deleteWarningTitle": "Delete Import Warning",
@@ -525,56 +462,12 @@
         "cancel": "Cancel",
         "warningDeleted": "Warning deleted",
         "errorDeletingWarning": "Error deleting warning",
-        "SpotifySync": {
-          "title": "Spotify Sync",
-          "notConnected": "Link your Spotify account to sync playlists and likes daily.",
-          "connect": "Link Spotify",
-          "connectedAs": "Connected as {name}",
-          "syncNow": "Sync now",
-          "syncing": "Syncing…",
-          "lastSync": "Last sync: {when}",
-          "autoSync": "Automatic daily sync",
-          "autoSyncHint": "Sync your selected playlists automatically every day.",
-          "syncLiked": "Sync Liked Songs",
-          "syncLikedHint": "Add tracks you liked on Spotify to a local playlist.",
-          "playlistsHeader": "Spotify Playlists",
-          "trackCount": "{count, plural, one {# track} other {# tracks}}"
-        },
-        "PlaylistImport": {
-          "title": "Import Playlist",
-          "subtitle": "Import playlists from YouTube, SoundCloud and other sources (Spotify requires linking your account).",
-          "urlPlaceholder": "https://www.youtube.com/playlist?list=...",
-          "preview": "Preview",
-          "previewFailed": "Could not read URL",
-          "tracks": "tracks",
-          "openConfirm": "Open confirmation",
-          "modal": {
-            "title": "Confirm and import",
-            "subtitleSingle": "Edit the tags before importing.",
-            "subtitleMulti": "Edit the tags of each track before importing all {count}.",
-            "targetLabel": "Where to import",
-            "targetNew": "New playlist:",
-            "targetNewPlaceholder": "New playlist name",
-            "targetExisting": "Add to existing playlist:",
-            "targetExistingPlaceholder": "Choose playlist...",
-            "targetLibrary": "Library only (no playlist)",
-            "metaTitle": "Title",
-            "metaArtist": "Artist",
-            "metaAlbum": "Album",
-            "artworkSection": "Artwork",
-            "noTrackSelected": "No track selected",
-            "close": "Close",
-            "importOne": "Import",
-            "importAll": "Import {count} tracks"
-          }
-        },
         "SongsTable": {
           "loading": "Loading songs...",
           "errorLoadingSongs": "Error loading songs",
           "totalSongs": "Total songs:",
           "filteredSongs": "Filtered songs:",
           "filterByTitle": "Filter by title...",
-          "filterByOrigin": "Origin",
           "filterByQuality": "Quality",
           "filterByCodec": "Codec",
           "qualityLossless": "Lossless",
@@ -606,10 +499,6 @@
             "selectRow": "Select row",
             "vocals": "Vocals",
             "instrumental": "Instrumental",
-            "source": "Source",
-            "sourceUpload": "Upload",
-            "sourceUnknownFile": "Original file unknown",
-            "openSource": "Open source",
             "quality": "Quality",
             "lossless": "Lossless",
             "channelMono": "mono",
@@ -717,12 +606,12 @@
         "playlistKind": "Playlist",
         "artistKind": "Artist",
         "albumKind": "Album",
-        "syncedFromSpotify": "Spotify",
         "emptyLibrary": "Your library is empty.",
         "settingsPlayback": "Playback",
         "searchMusic": "What do you want to play?",
         "collapseSidebar": "Collapse sidebar",
-        "expandSidebar": "Expand sidebar"
+        "expandSidebar": "Expand sidebar",
+        "synced": "Synced"
       },
       "AddToPlaylistDialog": {
         "title": "Add to Playlist",
@@ -966,7 +855,6 @@
         "unauthorized": "Authorization was refused.",
         "conflict": "This identity is already linked to another account.",
         "internal": "Internal error. Try again.",
-        "spotifyNotAllowlisted": "Spotify access is limited to an approved list of accounts. Ask an administrator to add yours, then try linking again.",
         "emailUnverified": "This account's email has not been verified yet. Confirm it at id.omelhorsite.pt and try again.",
         "oauthFailed": "Sign-in failed. Try again."
       },
@@ -1169,25 +1057,6 @@
         "mediaBanner": "banner",
         "mediaGallery": "gallery",
         "emptyFiltered": "No artists match this filter."
-      }
-    },
-    "import": {
-      "url": {
-        "artworkSearch": "Search covers",
-        "artworkSearchPlaceholder": "Artist and title",
-        "artworkUpload": "Upload image",
-        "deduped": "Already in your library",
-        "noTracks": "Nothing importable at that URL."
-      },
-      "spotify": {
-        "progressTitle": "Sync progress",
-        "trackTotals": "{queued} new, {skipped} already in library",
-        "enabled": "Syncing",
-        "disabled": "Not syncing",
-        "destructiveTitle": "Delete the local copy?",
-        "destructiveLiked": "Turning liked sync off deletes the mirrored Liked Songs playlist right away. Turning it back on recreates it on the next sync.",
-        "destructivePlaylist": "Deselecting \"{name}\" deletes its local copy right away. Selecting it again recreates it on the next sync.",
-        "destructiveConfirm": "Delete"
       }
     },
     "jam": {

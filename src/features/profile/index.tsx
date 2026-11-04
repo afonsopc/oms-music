@@ -135,7 +135,7 @@ const ProfileHeader = ({
   const t = useT();
   const router = useRouter();
   const { tokens } = useTheme();
-  // A linha de números do Spotify ("0 seguidores · A seguir 7"), com os
+  // A linha de números das apps de referencia ("0 seguidores · A seguir 7"), com os
   // números que a API consegue jurar: amigos e plays de 30 dias.
   const stats = [
     friendsCount !== null ? t(`${PROFILE}.friendsCount`, { count: friendsCount }) : null,

@@ -120,7 +120,7 @@ export const desktopCapabilities = (): DesktopCapabilities | null => {
 // ---------------------------------------------------------------------------
 
 /**
- * Login (e ligar o Spotify) no desktop: o popup da web não abre no webview do
+ * Login no desktop: o popup da web não abre no webview do
  * Tauri, por isso o shell abre `startUrl` no browser do sistema com
  * `app_origin` = um endereço local seu e devolve o URL do regresso
  * (`http://127.0.0.1:<porta>/oauth/callback?ticket=…`), com a mesma forma do

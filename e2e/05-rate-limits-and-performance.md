@@ -9,11 +9,9 @@ Measure over 60 seconds with the relevant screen open:
 
 - [ ] Separation status: about 20 requests per minute per polled song (3 s), and ZERO once
       the projection reaches "no job, no stems" or a terminal state.
-- [ ] URL / file / Spotify import progress: about 40 per minute (1.5 s) while running,
-      zero after a terminal state (including the deduped terminal case).
+- [ ] File import: at most 3 uploads in flight, zero requests once the batch ends.
 - [ ] Lyrics sync job: JobChannel first, with the 10 s poll only as a fallback; a 404 while
       waiting keeps waiting instead of failing.
-- [ ] Spotify sync status: 1.5 s only while a run is active.
 - [ ] Cable heartbeat: one per 20 s while subscribed, plus one request_snapshot and one
       heartbeat per foreground.
 - [ ] Active publisher: at most ~5 publishes per second while dragging a slider
@@ -28,8 +26,6 @@ Measure over 60 seconds with the relevant screen open:
 - [ ] A 429 anywhere parks queries for the retry_after window instead of hammering.
 - [ ] A 401 triggers exactly ONE `/sessions/mine` probe (single flight), then either
       resumes or logs out; the proxy shows no retry storm.
-- [ ] URL import errors (Spotify refusal, SSRF refusal, 502 text, 60/h) all render their
-      specific message.
 
 ## Performance
 

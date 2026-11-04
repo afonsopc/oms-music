@@ -34,6 +34,19 @@ async browserLogin(startUrl: string) : Promise<Result<string, string>> {
 }
 },
 /**
+ * A pagina de importacao (servico a parte) no browser do sistema: o webview
+ * nao abre separadores. Sem argumentos, de proposito: o shell so abre este
+ * endereco fixo, nunca um URL que o webview lhe passe.
+ */
+async openImportPage() : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("open_import_page") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
  * Estado tocar/pausa + posicao. O bridge manda em flips de estado, saltos de
  * seek e num tick lento (5s) enquanto toca - a posicao autoritativa continua
  * do lado do player, isto e so o espelho para a UI da plataforma.

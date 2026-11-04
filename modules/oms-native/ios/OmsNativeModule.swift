@@ -16,7 +16,7 @@
 //
 // FR-84 (downloads excluded from backup):
 //   expo-file-system SDK 57 exposes no isExcludedFromBackup flag, so the
-//   downloads directory would otherwise ride into iCloud/iTunes backups.
+//   downloads directory would otherwise ride into iCloud backups.
 //
 // Both entry points are safe to call repeatedly.
 import ExpoModulesCore
@@ -54,7 +54,7 @@ public final class OmsNativeModule: Module {
       }
     }
 
-    // Marks a directory (or file) as excluded from iCloud / iTunes backups.
+    // Marks a directory (or file) as excluded from iCloud backups.
     // Accepts both "file:///..." URLs and bare paths. Returns false when the
     // target does not exist or the flag could not be written.
     Function("excludeFromBackup") { (path: String) -> Bool in

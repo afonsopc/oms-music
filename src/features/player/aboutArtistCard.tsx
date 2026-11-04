@@ -1,5 +1,5 @@
 /**
- * "About the artist" card at the end of the now-playing scroll (the Spotify
+ * "About the artist" card at the end of the now-playing scroll (the reference app
  * card the owner asked for by screenshot): photo, name, listeners, and the
  * whole card navigates to the artist page - dismissing the player modal
  * first, same as every other link that leaves the player.

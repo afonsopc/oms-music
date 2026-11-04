@@ -1,5 +1,5 @@
 /**
- * Control row under the hero, arranged like Spotify's (owner point 16,
+ * Control row under the hero, arranged like the reference app's (owner point 16,
  * 2026-08-16): the SMALL secondary actions (like, download, add, radio,
  * overflow...) cluster on the LEFT, and playback - shuffle plus the 56px
  * play FAB - sits LARGE on the RIGHT. Each control renders ONLY when its
@@ -41,7 +41,7 @@ export interface ActionBarProps {
   /**
    * Extra SMALL actions, rendered with the secondary cluster on the left
    * (view-mode toggles, artist stories preview...). Was `rightSlot` before
-   * the Spotify arrangement moved play/shuffle to the right side.
+   * the reference-app arrangement moved play/shuffle to the right side.
    */
   secondarySlot?: React.ReactNode;
   style?: StyleProp<ViewStyle>;
@@ -82,7 +82,7 @@ export const ActionBar = ({
         style,
       ]}
     >
-      {/* Cluster secundario, pequeno, a ESQUERDA (ordem a Spotify: gosto,
+      {/* Cluster secundario, pequeno, a ESQUERDA (ordem como as apps de referencia: gosto,
           download, adicionar, radio, extras, overflow no fim). */}
       <View style={{ flexDirection: "row", alignItems: "center", gap: 4, flexShrink: 1 }}>
         {onLike ? (

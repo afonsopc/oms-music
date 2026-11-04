@@ -125,7 +125,7 @@ export const LIKED_ACCENT = "#7e22ce";
 /** Liked artwork gradient: violet-700 -> purple-700 -> indigo-900. */
 export const LIKED_GRADIENT = ["#6d28d9", "#7e22ce", "#312e81"] as const;
 /**
- * Spotify-sync markers and the "Playing on X" controller strip. Both are
+ * sync markers and the "Playing on X" controller strip. Both are
  * FILLS: as ink on the light page emerald-500 is ~2.5:1, so anything drawing
  * the marker as text, a glyph or a dot takes `statusInkFor(scheme).sync`
  * instead (theme/scheme.ts).
@@ -167,7 +167,7 @@ export const MIX_KIND_GRADIENTS: Record<MixKind, KindGradient> = {
     icon: "sparkles",
   },
   // "This Is <artista>" (dono, 2026-08-17): essenciais por plays, o idioma
-  // do Spotify - a moldura clara com a foto do artista vem do MixTile.
+  // das apps de referencia - a moldura clara com a foto do artista vem do MixTile.
   this_is: {
     colors: ["#0f172a", "#334155", "#0ea5e9"], // slate-900 slate-700 sky-500
     accent: "#0ea5e9",

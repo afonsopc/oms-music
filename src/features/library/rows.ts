@@ -26,7 +26,7 @@ export interface LibraryRow {
   subtitle: string;
   artwork: ArtworkSource;
   route: Href;
-  /** Spotify-synced playlist: draws the emerald badge, never an edit affordance. */
+  /** Synced playlist: draws the emerald badge, never an edit affordance. */
   system: boolean;
   circular: boolean;
   /** The pinned Liked Songs entry: bold name, immune to the filter pills. */
@@ -37,7 +37,7 @@ export interface LibraryRowLabels {
   playlistKind: string;
   artistKind: string;
   albumKind: string;
-  spotify: string;
+  synced: string;
 }
 
 export interface LibrarySources {
@@ -94,7 +94,7 @@ export const buildLibraryRows = (
         kind: "playlist",
         name: playlist.name,
         subtitle: system
-          ? `${labels.playlistKind} • ${labels.spotify}`
+          ? `${labels.playlistKind} • ${labels.synced}`
           : labels.playlistKind,
         artwork: playlistArtworkSource(playlist),
         route: playlistRoute(playlist.id),

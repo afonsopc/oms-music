@@ -30,7 +30,6 @@ export const keys = {
     ],
     byArtist: (artist: string, role: string): QueryKey => ["songs", "byArtist", artist, role],
     separation: (id: SongId): QueryKey => ["songs", "separation", id],
-    matchCandidates: (id: SongId): QueryKey => ["songs", "matchCandidates", id],
     artistPictures: (name: string): QueryKey => ["songs", "artistPictures", name],
   },
   albums: {
@@ -102,21 +101,6 @@ export const keys = {
     all: ["assistantChats"] as QueryKey,
     list: ["assistantChats", "list"] as QueryKey,
     detail: (id: number): QueryKey => ["assistantChats", "detail", id],
-  },
-
-  externalSearch: (q: string, kind: string): QueryKey => ["externalSearch", q, kind],
-  songImport: (id: number): QueryKey => ["songImports", "detail", id],
-  songImports: (filters: unknown): QueryKey => ["songImports", "list", filters],
-  artworkSearch: (query: unknown): QueryKey => ["artworkSearch", query],
-
-  spotifySync: {
-    status: ["spotifySync", "status"] as QueryKey,
-    preview: ["spotifySync", "preview"] as QueryKey,
-  },
-  artistImports: {
-    search: (q: string): QueryKey => ["artistImports", "search", q],
-    albums: (spotifyArtistId: string): QueryKey => ["artistImports", "albums", spotifyArtistId],
-    recents: ["artistImports", "recents"] as QueryKey,
   },
 
   sessions: ["sessions"] as QueryKey,

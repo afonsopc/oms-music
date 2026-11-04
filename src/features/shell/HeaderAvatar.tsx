@@ -5,7 +5,7 @@
  * E aqui que ele vive desde 2026-08-16, depois de duas tentativas falhadas
  * de o por na barra de tabs: como item falso que abria uma gaveta, e como
  * quarta tab. A barra nativa nao mascara imagens (saia sempre quadrado) e
- * uma tab so para isto e peso morto. O Spotify e o Apple Music poem-no
+ * uma tab so para isto e peso morto. As apps de musica grandes poem-no
  * exactamente aqui, no cabecalho dos ecras.
  *
  * No shell desktop nao renderiza: la o avatar ja esta na topbar

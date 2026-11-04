@@ -8,16 +8,24 @@ export interface Playlist {
   name: string;
   user_id: UserId;
   artwork_media_id: FsNodeId | null;
-  source_kind: "manual" | "spotify_sync" | "imported" | null;
+  source_kind: string | null;
   source_provider: string | null;
   source_url: string | null;
-  source_external_id: string | null; // "liked" = Spotify liked mirror
+  source_external_id: string | null; // "liked" = the synced liked-songs mirror
   synced_at: string | null;
+  /** True when an outside sync keeps this playlist up to date (read-only here). */
+  synced?: boolean;
 }
 
-/** System playlists are read-only server-side (rename included). */
+/**
+ * Synced playlists are read-only server-side (rename included). The backend
+ * sends `synced` on every playlist; rows cached before it existed (offline
+ * library) fall back to a non-manual `source_kind`.
+ */
 export const isSystemPlaylist = (p: Playlist): boolean =>
-  !!p.source_kind && p.source_kind !== "manual";
+  typeof p.synced === "boolean"
+    ? p.synced
+    : p.source_kind != null && p.source_kind !== "manual";
 
 export const isLikedMirror = (p: Playlist): boolean =>
   p.source_external_id === "liked";

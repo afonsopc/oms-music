@@ -1,4 +1,4 @@
-//! Login (e ligar o Spotify) pelo browser do sistema, com o regresso num
+//! Login pelo browser do sistema, com o regresso num
 //! endereco local (RFC 8252, "loopback redirect").
 //!
 //! O webview do Tauri nao abre o popup que a web usa (`window.open` nao cria
@@ -9,9 +9,8 @@
 //! 1. escuta em 127.0.0.1 numa porta livre;
 //! 2. abre o URL pedido no browser do sistema com `app_origin` = essa origem
 //!    (o id, as passkeys e os cookies do browser valem como no iOS);
-//! 3. o backend devolve para `http://127.0.0.1:<porta>/oauth/callback?ticket=`
-//!    (ou `/?spotify=linked`); o shell responde "pode voltar a app" e
-//!    entrega o URL inteiro ao JS, que o le com o mesmo parser da web.
+//! 3. o backend devolve para `http://127.0.0.1:<porta>/oauth/callback?ticket=`;
+//!    o shell responde "pode voltar a app" e entrega o URL inteiro ao JS, que o le com o mesmo parser da web.
 //!
 //! So um pedido de cada vez: um segundo clique em Entrar cancela o anterior.
 //! O bilhete vive 2 min e so serve com o `POST /music/auth/adopt`.
@@ -102,8 +101,8 @@ fn respond(stream: &mut TcpStream, status: &str, body: &str) {
     let _ = stream.flush();
 }
 
-/// O regresso e o primeiro pedido com query (`?ticket=`, `?error=`,
-/// `?spotify=`); o resto (favicon, pre-carregamentos) leva 404.
+/// O regresso e o primeiro pedido com query (`?ticket=`, `?error=`);
+/// o resto (favicon, pre-carregamentos) leva 404.
 fn wait_for_return(listener: TcpListener, generation: u64, origin: &str) -> Result<String, String> {
     listener.set_nonblocking(true).map_err(|e| e.to_string())?;
     let deadline = Instant::now() + WAIT;
@@ -168,6 +167,18 @@ pub async fn browser_login<R: Runtime>(
         }
     }
     result
+}
+
+/// A pagina de importacao (servico a parte) no browser do sistema: o webview
+/// nao abre separadores. Sem argumentos, de proposito: o shell so abre este
+/// endereco fixo, nunca um URL que o webview lhe passe.
+#[tauri::command]
+#[specta::specta]
+pub fn open_import_page<R: Runtime>(webview: tauri::Webview<R>) -> Result<(), String> {
+    if webview.label() != "main" {
+        return Err("comando indisponivel nesta janela".into());
+    }
+    open_in_browser("https://import.omelhorsite.pt").map_err(|e| e.to_string())
 }
 
 #[cfg(test)]

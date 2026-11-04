@@ -93,7 +93,7 @@ export const heroMinHeight = (containerWidth: number, artistBackdrop: boolean): 
 
 /**
  * Mobile collection-cover edge (dono, ponto 16 do handoff de 2026-08-16: as
- * vistas de playlist seguem o Spotify). A capa passa a viver CENTRADA no
+ * vistas de playlist seguem as apps de referencia). A capa passa a viver CENTRADA no
  * hero e ocupa ~60% da janela, com clamp para um telemovel pequeno guardar
  * espaco de texto e um tablet nao a transformar em poster. So o shell
  * mobile: a fila desktop mantem a conta de 18% do pane no Hero.tsx.
@@ -115,11 +115,11 @@ export interface HeroTitleType {
 }
 
 /**
- * Desktop entity-title size, a Spotify: o titulo dimensiona-se para caber
+ * Desktop entity-title size, como as apps de referencia: o titulo dimensiona-se para caber
  * NUMA linha na largura util do bloco de texto, com o bucket como tecto
  * (main-sm 32, main-md 72, main-lg 96) e snap a degraus discretos para o
  * tamanho nao dancar pixel a pixel num resize. A regra antiga (rampa por
- * bucket + cliff nos 24 caracteres) deixava "Liked Songs (Spotify)" - 21
+ * bucket + cliff nos 24 caracteres) deixava "Liked Songs (Library)" - 21
  * chars - em DUAS linhas de 96px (report do dono 2026-08-15); o ajuste ao
  * risco elimina o wrap em qualquer largura e so da display size a titulos
  * que realmente cabem.
@@ -135,7 +135,7 @@ export interface HeroTitleType {
  * 2026-08-16, point 14, "ainda demasiado grande"): 34pt at weight 900 is
  * display type, a 20-character title still got it, and `numberOfLines={3}`
  * let it eat 114pt of the screen before the first track row. The cap comes
- * down to 28, which is where Spotify sets the same title on the same device
+ * down to 28, which is where the reference app sets the same title on the same device
  * (owner's reference screenshots), and everything below it is a fit rather
  * than a guess.
  */
