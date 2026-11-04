@@ -109,7 +109,10 @@ EOF
 # Leftover bracket shells are route-group ALIASES of the seven above
 # ((main)/artist/[artist].html ...). Nothing links to them and their names
 # are exactly the problem the rename dodges, so they do not ship.
-find "$DIST" -type f -name '*\[*' -delete
+# Só os .html: com a divisão por rotas (asyncRoutes) os pedaços de JS das
+# rotas dinâmicas também se chamam [id]-<hash>.js e são precisos (apagá-los
+# deixou /playlist, /artist e /album em branco na v80).
+find "$DIST" -type f -name '*\[*.html' -delete
 find "$DIST" -type d -empty -delete
 
 # --- 3. real 404 ------------------------------------------------------------
@@ -155,6 +158,13 @@ grep -q '<title data-rh="true">In' "$DIST/home.html" \
   || fail "home.html sem o <title> prerenderizado"
 grep -q '<title data-rh="true">M' "$DIST/index.html" \
   || fail "index.html sem o <title> de fallback"
+
+# Cada <script src> de cada HTML tem de existir (divisão por rotas).
+missing=$(grep -oh 'src="/_expo/static/js/web/[^"]*"' $(find "$DIST" -name '*.html') \
+  | sed 's/src="//;s/"$//' | sort -u | while read -r js; do [ -f "$DIST$js" ] || echo "$js"; done)
+[ -z "$missing" ] || fail "scripts em falta no export: $missing"
+grep -q '/_expo/static/js/web/\[id\]-' "$DIST/playlist/__dynamic.html" \
+  || fail "playlist/__dynamic.html sem o pedaço da rota"
 
 html_count=$(find "$DIST" -name '*.html' | wc -l | tr -d ' ')
 total_size=$(du -sh "$DIST" | cut -f1)
