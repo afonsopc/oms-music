@@ -379,3 +379,28 @@ export const steps = (st: { acc: number }, dt: number, hz: number, max: number) 
   if (n > max) { n = max; st.acc = 0; }
   return n;
 };
+
+/**
+ * Bolas com brilho, uma por cor da `CssPal` (para o Canvas 2D: `drawImage` de
+ * um sprite é muito mais barato que gradientes por bola). Refazer de vez em
+ * quando, não por frame; reutiliza os canvases de `out`.
+ */
+export const ballSprites = (pal: CssPal, out: HTMLCanvasElement[], size = 64) => {
+  for (let i = 0; i < pal.size; i++) {
+    const c = out[i] ?? document.createElement("canvas");
+    c.width = c.height = size;
+    const x = c.getContext("2d")!;
+    x.clearRect(0, 0, size, size);
+    const r = Math.round(pal.v[i * 3] * 255), g = Math.round(pal.v[i * 3 + 1] * 255), b = Math.round(pal.v[i * 3 + 2] * 255);
+    const h = size / 2;
+    const gr = x.createRadialGradient(h * 0.8, h * 0.8, size / 32, h, h, h);
+    gr.addColorStop(0, "rgba(255,255,255,1)");
+    gr.addColorStop(0.25, `rgba(${r},${g},${b},1)`);
+    gr.addColorStop(0.5, `rgba(${r >> 1},${g >> 1},${b >> 1},0.95)`);
+    gr.addColorStop(0.55, `rgba(${r},${g},${b},0.25)`);
+    gr.addColorStop(1, `rgba(${r},${g},${b},0)`);
+    x.fillStyle = gr;
+    x.fillRect(0, 0, size, size);
+    out[i] = c;
+  }
+};
