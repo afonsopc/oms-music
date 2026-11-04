@@ -9,7 +9,7 @@
  * `onReorder(fromVisible, toVisible)`. Only enabled when the surface says
  * so (playlists refuse reorder until fully loaded, FR-50).
  */
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
   FlatList,
@@ -386,40 +386,7 @@ export const SongTable = ({
 
   const renderItem = useCallback(
     ({ item, index }: { item: Song; index: number }) => {
-      const row = (
-        <SongRow
-          song={item}
-          index={index}
-          columns={columns}
-          addedAt={addedAtFor?.(item, index)}
-          playCount={playCounts ? (playCounts[item.id] ?? 0) : undefined}
-          liked={likedIds?.has(item.id) ?? false}
-          isCurrent={currentSongId != null && currentSongId === item.id}
-          isPlaying={isPlaying}
-          highlighted={!!highlightTitle && highlightTitle === item.title}
-          surface={surface}
-          extraActions={extraActionsFor?.(item, index)}
-          compact={compact}
-          onPlay={() => onPlay(item, index)}
-          onToggleLike={
-            onToggleLike
-              ? () => onToggleLike(item, likedIds?.has(item.id) ?? false)
-              : undefined
-          }
-          dragHandle={
-            reorderEnabled ? (
-              <DragHandle
-                index={index}
-                color={tokens.mutedForeground}
-                onStart={startDrag}
-                onMove={moveDrag}
-                onEnd={endDrag}
-                label={t("components.music.SongTable.drag")}
-              />
-            ) : undefined
-          }
-        />
-      );
+      const isCurrent = currentSongId != null && currentSongId === item.id;
       // TODA a linha vive dentro do mesmo Animated.View, arrastada ou não.
       // Trocar o tipo do elemento (SongRow -> Animated.View) quando o arrasto
       // começa DESMONTA a linha, e com ela a View que segura o gesto: na web,
@@ -427,7 +394,34 @@ export const SongTable = ({
       // e o arrasto morria no instante em que se agarrava no grip, com dy = 0
       // e portanto sem reordenar nada. A forma da árvore fica fixa; muda só o
       // estilo.
-      return <Animated.View style={rowDragStyle(index)}>{row}</Animated.View>;
+      return (
+        <Animated.View style={rowDragStyle(index)}>
+          <TableRow
+            song={item}
+            index={index}
+            columns={columns}
+            addedAt={addedAtFor?.(item, index)}
+            playCount={playCounts ? (playCounts[item.id] ?? 0) : undefined}
+            liked={likedIds?.has(item.id) ?? false}
+            isCurrent={isCurrent}
+            // Só a linha actual sabe se está a tocar: play/pausa já não
+            // re-renderiza as outras (o memo da linha segura).
+            isPlaying={isCurrent && isPlaying}
+            highlighted={!!highlightTitle && highlightTitle === item.title}
+            surface={surface}
+            extraActionsFor={extraActionsFor}
+            compact={compact}
+            onPlay={onPlay}
+            onToggleLike={onToggleLike}
+            reorderEnabled={reorderEnabled}
+            dragColor={tokens.mutedForeground}
+            dragLabel={t("components.music.SongTable.drag")}
+            onDragStart={startDrag}
+            onDragMove={moveDrag}
+            onDragEnd={endDrag}
+          />
+        </Animated.View>
+      );
     },
     [
       columns,
@@ -452,7 +446,28 @@ export const SongTable = ({
     ],
   );
 
-  const keyExtractor = useCallback((item: Song, index: number) => `${item.id}:${index}`, []);
+  // A mesma música pode repetir-se numa playlist, por isso o índice entra só
+  // quando o id já apareceu antes: reordenar deixa de remontar a lista toda.
+  const keyFor = useMemo(() => {
+    const seen = new Map<Song["id"], number>();
+    return songs.map((song) => {
+      const n = seen.get(song.id) ?? 0;
+      seen.set(song.id, n + 1);
+      return n === 0 ? String(song.id) : `${song.id}#${n}`;
+    });
+  }, [songs]);
+  const keyExtractor = useCallback(
+    (item: Song, index: number) => keyFor[index] ?? `${item.id}:${index}`,
+    [keyFor],
+  );
+  const getItemLayout = useCallback(
+    (_data: ArrayLike<Song> | null | undefined, index: number) => ({
+      length: rowHeight,
+      offset: headerHeight.current + rowHeight * index,
+      index,
+    }),
+    [rowHeight, headerHeight],
+  );
 
   // O offset é sempre seguido (o auto-scroll precisa de saber onde a lista
   // estava quando se agarrou na linha); o callback do ecrã, quando existe,
@@ -478,9 +493,10 @@ export const SongTable = ({
       data={songs}
       renderItem={renderItem}
       keyExtractor={keyExtractor}
-      initialNumToRender={40}
-      maxToRenderPerBatch={40}
-      windowSize={11}
+      getItemLayout={getItemLayout}
+      initialNumToRender={16}
+      maxToRenderPerBatch={24}
+      windowSize={9}
       removeClippedSubviews
       scrollEnabled={scrollEnabled && drag == null}
       onEndReached={onEndReached}
@@ -516,6 +532,76 @@ export const SongTable = ({
     />
   );
 };
+
+
+interface TableRowProps {
+  song: Song;
+  index: number;
+  columns: SongRowColumn[];
+  addedAt?: string;
+  playCount?: number;
+  liked: boolean;
+  isCurrent: boolean;
+  isPlaying: boolean;
+  highlighted: boolean;
+  surface?: string;
+  extraActionsFor?: (song: Song, index: number) => SongMenuItem[] | undefined;
+  compact: boolean;
+  onPlay: (song: Song, index: number) => void;
+  onToggleLike?: (song: Song, liked: boolean) => void;
+  reorderEnabled: boolean;
+  dragColor: string;
+  dragLabel: string;
+  onDragStart: (index: number) => void;
+  onDragMove: (dy: number) => void;
+  onDragEnd: (index: number, dy: number) => void;
+}
+
+/**
+ * Uma linha da tabela. Recebe as funções da TABELA (estáveis) e não fechos
+ * novos por linha, por isso o memo segura: tocar, pausar ou mudar de música
+ * só volta a desenhar a linha que deixou de ser e a que passou a ser actual.
+ */
+const TableRow = memo(function TableRow({
+  song,
+  index,
+  extraActionsFor,
+  onPlay,
+  onToggleLike,
+  liked,
+  reorderEnabled,
+  dragColor,
+  dragLabel,
+  onDragStart,
+  onDragMove,
+  onDragEnd,
+  ...rest
+}: TableRowProps) {
+  const extraActions = useMemo(() => extraActionsFor?.(song, index), [extraActionsFor, song, index]);
+  return (
+    <SongRow
+      {...rest}
+      song={song}
+      index={index}
+      liked={liked}
+      extraActions={extraActions}
+      onPlay={() => onPlay(song, index)}
+      onToggleLike={onToggleLike ? () => onToggleLike(song, liked) : undefined}
+      dragHandle={
+        reorderEnabled ? (
+          <DragHandle
+            index={index}
+            color={dragColor}
+            onStart={onDragStart}
+            onMove={onDragMove}
+            onEnd={onDragEnd}
+            label={dragLabel}
+          />
+        ) : undefined
+      }
+    />
+  );
+});
 
 interface DragHandleProps {
   index: number;

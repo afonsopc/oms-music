@@ -19,7 +19,7 @@ import type {
   QueueContext,
   QueueState,
 } from "@/domain/playback";
-import type { Song } from "@/domain/song";
+import { isDjClip, type Song } from "@/domain/song";
 import { getPlaybackInterceptor } from "@/contracts/playbackInterceptor";
 import { getStemFileProvider } from "@/contracts/stemFiles";
 import { getStemMixer } from "@/contracts/stemMixer";
@@ -1843,6 +1843,25 @@ export class PlayerEngineImpl implements PlayerEngine, PlayerEngineExtras {
   }
 
   // ----- prefetch (FR-60) ---------------------------------------------------
+
+  private lastWarmAt = 0;
+
+  /**
+   * O dedo encostou numa linha (transport.warm): resolve já o URL do áudio
+   * para a cache de 5 min do resolver, e o loadCandidate do play que vem a
+   * seguir encontra-o pronto. No máximo um a cada 250 ms (um dedo a passar
+   * por uma lista não dispara uma rajada), nunca para ficheiros locais nem
+   * para músicas da jam.
+   */
+  warm(song: Song): void {
+    const now = this.now();
+    if (now - this.lastWarmAt < 250) return;
+    if (!song || song.audio_url || isDjClip(song)) return;
+    const resolved = resolveSources(song, playerStore.getState().playbackMode);
+    if (!resolved.wantedNodeId || resolved.candidates[0]?.kind !== "network") return;
+    this.lastWarmAt = now;
+    this.resolver.resolve(resolved.wantedNodeId).catch(() => {});
+  }
 
   private maybePrefetchNext(): void {
     const loop = this.loopMode();

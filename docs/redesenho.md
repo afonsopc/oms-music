@@ -86,3 +86,23 @@ Medido no mesmo Mac, export servido com gzip, Lighthouse 12 telemóvel:
 | LCP | 7,5 s | 5,8 s |
 | Speed Index | – | 2,1 s |
 | TBT | 380-400 ms | 190-200 ms |
+
+### Passo 1b — listas e toque
+
+- `SongTable`: cada linha é um `TableRow` com memo que recebe as funções da
+  tabela (estáveis) em vez de fechos novos por linha, e só a linha actual
+  sabe se está a tocar: play/pausa/mudar de música redesenha 2 linhas em vez
+  de todas as visíveis. `getItemLayout` (altura fixa), chave pelo id (o
+  índice só entra quando a mesma música se repete), menos linhas montadas à
+  partida (16 em vez de 40).
+- Mini-leitor: só a barra fina ouve a posição (arredondada a 0,2 %); a
+  pílula deixa de redesenhar 4×/s.
+- Toque instantâneo: ao encostar o dedo numa música (`onPressIn`) o motor
+  pede já o URL do áudio (`transport.warm`, no máximo 1 a cada 250 ms, nada
+  a controlar outro aparelho); o play que vem a seguir encontra-o na cache.
+- `build-web.sh`: os pedaços de JS das rotas dinâmicas (`[id]-<hash>.js`)
+  eram apagados com os HTML de nome com `[` (v80 deixou playlist/artista/
+  álbum em branco; v78 reposta em minutos, corrigido na v81). O build agora
+  falha se algum `<script>` de um HTML não existir.
+- Backend: o cookie da sessão da música passa a contar como credencial no
+  tecto de pedidos (a web inteira estava no tecto anónimo de 120/min por IP).

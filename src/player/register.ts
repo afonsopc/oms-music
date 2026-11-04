@@ -54,6 +54,7 @@ const engineTransport = (e: PlayerEngineImpl): TransportActions => ({
   removeFromQueue: (visibleIndex) => e.removeFromQueue(visibleIndex),
   reorderQueue: (fromVisible, toVisible) => e.reorderQueue(fromVisible, toVisible),
   setQueue: (songs, startIndex, opts) => e.setQueue(songs, startIndex, opts),
+  warm: (song) => e.warm(song),
 });
 
 /** Idempotent: boot calls this once; late callers get the same singleton. */

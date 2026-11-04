@@ -41,6 +41,13 @@ export interface TransportActions {
     startIndex?: number,
     opts?: { shuffle?: boolean; context?: QueueContext | null },
   ): void;
+  /**
+   * Aquecer: o dedo encostou numa música e é provável que a toque. Pede já o
+   * endereço do áudio (o mesmo que o play pediria), para que o som comece
+   * quando o dedo sai. Opcional e sem efeitos visíveis; a controlar outro
+   * aparelho não faz nada.
+   */
+  warm?(song: Song): void;
 }
 
 const noop = (): void => {};

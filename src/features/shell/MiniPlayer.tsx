@@ -20,12 +20,12 @@ import { useTheme } from "@/theme/provider";
 import { SCRIM_BASE } from "@/theme/tokens";
 import { useT } from "@/i18n";
 import { getShellSlots, useShellSlotsVersion } from "./slots";
-import { usePillPlayerState } from "./usePillPlayerState";
+import { usePillPlayerState, usePillProgress } from "./usePillPlayerState";
 import { OVERLAY_PILL_HEIGHT } from "./metrics";
 import { PauseGlyph, PlayGlyph } from "./glyphs";
 
 export const MiniPlayer = () => {
-  const { song, playing, buffering, position, duration } = usePillPlayerState();
+  const { song, playing, buffering } = usePillPlayerState();
   useShellSlotsVersion();
   const { tokens } = useTheme();
   const t = useT();
@@ -41,7 +41,6 @@ export const MiniPlayer = () => {
         ? { uri: artwork.url }
         : PLACEHOLDER_ARTWORK;
 
-  const progress = duration > 0 ? Math.min(1, Math.max(0, position / duration)) : 0;
   const CastButton = getShellSlots().castButton;
   const artistsLine = formatArtists(song);
 
@@ -123,25 +122,19 @@ export const MiniPlayer = () => {
           <PlayGlyph color={tokens.foreground} size={15} />
         )}
       </Pressable>
-      <View
-        pointerEvents="none"
-        style={{
-          position: "absolute",
-          left: 0,
-          right: 0,
-          bottom: 0,
-          height: 2,
-          backgroundColor: tokens.muted,
-        }}
-      >
-        <View
-          style={{
-            width: `${progress * 100}%`,
-            height: 2,
-            backgroundColor: tokens.primary,
-          }}
-        />
-      </View>
+      <MiniProgress track={tokens.muted} fill={tokens.primary} />
     </Pressable>
+  );
+};
+
+const MiniProgress = ({ track, fill }: { track: string; fill: string }) => {
+  const progress = usePillProgress();
+  return (
+    <View
+      pointerEvents="none"
+      style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 2, backgroundColor: track }}
+    >
+      <View style={{ width: `${progress * 100}%`, height: 2, backgroundColor: fill }} />
+    </View>
   );
 };

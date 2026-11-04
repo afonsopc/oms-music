@@ -187,5 +187,9 @@ export const createRemoteTransportDecorator =
         }
         base.setQueue(songs, startIndex, opts);
       },
+      warm: (song: Song) => {
+        if (isController()) return;
+        base.warm?.(song);
+      },
     };
   };

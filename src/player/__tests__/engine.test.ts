@@ -1143,3 +1143,40 @@ describe("local index gating (desktop cold start)", () => {
     }
   });
 });
+
+describe("warm (o dedo encostou numa linha)", () => {
+  beforeEach(() => resetPlayerStore());
+
+  it("resolve o URL antes do play e o play reaproveita-o", async () => {
+    const ctx = setup();
+    const s1 = makeSong(1);
+    urlFor(ctx, s1);
+    ctx.engine.warm(s1);
+    await flush();
+    expect(ctx.resolver.control.calls).toEqual(["compressed-1"]);
+    ctx.engine.setQueue([s1]);
+    await flush();
+    expect(ctx.player.playing).toBe(true);
+    // Um só pedido: o play encontrou o URL na cache do resolver.
+    expect(ctx.resolver.control.calls).toEqual(["compressed-1"]);
+    ctx.engine.dispose();
+  });
+
+  it("um dedo a passar pela lista não dispara uma rajada", async () => {
+    const ctx = setup();
+    const songs = [makeSong(1), makeSong(2), makeSong(3)];
+    for (const s of songs) urlFor(ctx, s);
+    for (const s of songs) ctx.engine.warm(s);
+    await flush();
+    expect(ctx.resolver.control.calls).toEqual(["compressed-1"]);
+    ctx.engine.dispose();
+  });
+
+  it("músicas da jam (audio_url) não aquecem", async () => {
+    const ctx = setup();
+    ctx.engine.warm(makeSong(9, { audio_url: "http://jam/9" } as Partial<Song>));
+    await flush();
+    expect(ctx.resolver.control.calls).toEqual([]);
+    ctx.engine.dispose();
+  });
+});

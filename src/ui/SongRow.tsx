@@ -21,6 +21,7 @@ import { songArtworkSource } from "@/domain/artwork";
 import { formatArtists, formatDuration } from "@/domain/format";
 import type { Song } from "@/domain/song";
 import type { SongMenuItem } from "@/contracts/songMenu";
+import { getTransport } from "@/contracts/transport";
 import { useLocale, useT } from "@/i18n";
 import { formatDate, formatElapsed } from "@/lib/dates";
 import { useTheme } from "@/theme/provider";
@@ -196,6 +197,8 @@ const SongRowInner = ({
     <>
       <Pressable
         onPress={onPlay}
+        // O áudio começa a ser pedido no toque, não no levantar do dedo.
+        onPressIn={() => getTransport().warm?.(song)}
         onLongPress={openMenuSheet}
         onHoverIn={() => setHovered(true)}
         onHoverOut={() => setHovered(false)}
