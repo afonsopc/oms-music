@@ -47,3 +47,29 @@ export const activeLineIndex = (lines: readonly LrcLine[], position: number): nu
   while (i < lines.length && lines[i].time <= position) i++;
   return Math.max(0, i - 1);
 };
+
+/** O último instante lido do leitor, para extrapolar entre leituras. */
+export interface PlaybackClock {
+  position: number;
+  at: number;
+  playing: boolean;
+  rate: number;
+  duration: number;
+}
+
+/**
+ * Até onde se extrapola para lá da última leitura. O leitor lê a posição 4
+ * vezes por segundo (1 quando comanda outro aparelho); se as leituras param
+ * com a música a "tocar" (um engasgo de rede que o leitor nativo não marca
+ * como a carregar, um comando que deixou de mandar), a letra não pode
+ * continuar a correr sozinha e acender linhas antes da voz.
+ */
+export const MAX_EXTRAPOLATION_S = 1.5;
+
+/** A posição agora: a última leitura mais o tempo que passou, com tecto. */
+export const estimatePosition = (clock: PlaybackClock, now: number): number => {
+  if (!clock.playing) return clock.position;
+  const elapsed = Math.min(Math.max((now - clock.at) / 1000, 0), MAX_EXTRAPOLATION_S);
+  const estimate = clock.position + elapsed * (clock.rate || 1);
+  return clock.duration > 0 ? Math.min(estimate, clock.duration) : estimate;
+};

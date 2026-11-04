@@ -46,8 +46,8 @@ import { isApiError } from "@/domain/api";
 import type { SongId } from "@/domain/ids";
 import type { Lyrics, LrcLine, LyricsTranslationTarget, LyricsWordLine } from "@/domain/lyrics";
 import { useT } from "@/i18n";
-import { activeLineIndex, parseLrc } from "@/lyrics/lrc";
-import { awaitJob, generateLyricsSync } from "@/lyrics/syncJob";
+import { activeLineIndex, estimatePosition, parseLrc } from "@/lyrics/lrc";
+import { awaitJob, generateLyricsSync, type SyncOutcome, syncOutcome } from "@/lyrics/syncJob";
 import { LINE_LEAD_S, wordsForLines, wordsSung } from "@/lyrics/words";
 import {
   TRANSLATION_TARGET_OPTIONS,
@@ -82,7 +82,17 @@ const PLACEHOLDER_DOT = "·";
 
 type SyncRun =
   | { songId: SongId; phase: "running" }
-  | { songId: SongId; phase: "done"; ok: boolean };
+  | { songId: SongId; phase: "done"; ok: boolean; outcome: SyncOutcome };
+
+/** A frase de cada desfecho da sync/geração (o servidor diz porquê). */
+const SYNC_MESSAGE: Record<SyncOutcome, string> = {
+  ok: "syncGenerated",
+  unsynced: "generateUnsynced",
+  no_match: "syncNoMatch",
+  no_voice: "generateNoVoice",
+  busy: "syncBusy",
+  failed: "syncFailed",
+};
 
 /**
  * A synced line whose emphasis GLIDES: every line renders at the active font
@@ -303,14 +313,14 @@ export default function LyricsBody() {
     void (async () => {
       try {
         const job = await generateLyricsSync(forSong, { signal: controller.signal });
-        const ok = job.status === "complete";
-        if (ok) {
+        const outcome = syncOutcome(job);
+        if (job.status === "complete") {
           await queryClient.invalidateQueries({ queryKey: keys.lyrics(forSong) });
         }
-        setSyncRun({ songId: forSong, phase: "done", ok });
+        setSyncRun({ songId: forSong, phase: "done", ok: outcome === "ok", outcome });
       } catch {
         if (!controller.signal.aborted) {
-          setSyncRun({ songId: forSong, phase: "done", ok: false });
+          setSyncRun({ songId: forSong, phase: "done", ok: false, outcome: "failed" });
         }
       }
     })();
@@ -354,13 +364,7 @@ export default function LyricsBody() {
     });
   }, []);
 
-  const estimatedPosition = useCallback((): number => {
-    const clock = clockRef.current;
-    if (!clock.playing) return clock.position;
-    const elapsed = (Date.now() - clock.at) / 1000;
-    const estimate = clock.position + elapsed * (clock.rate || 1);
-    return clock.duration > 0 ? Math.min(estimate, clock.duration) : estimate;
-  }, []);
+  const estimatedPosition = useCallback((): number => estimatePosition(clockRef.current, Date.now()), []);
 
   const playing = usePlaybackView((v) => v.playing);
   const [activeIndex, setActiveIndex] = useState(-1);
@@ -506,8 +510,8 @@ export default function LyricsBody() {
         ) : (
           <View style={{ alignItems: "center", gap: 10 }}>
             {syncRun?.phase === "done" && !syncRun.ok && syncRun.songId === songId ? (
-              <Text style={{ color: tokens.mutedForeground, fontSize: 12, textAlign: "center" }}>
-                {t(`${K}.generateFailed`)}
+              <Text style={{ color: tokens.mutedForeground, fontSize: 12, textAlign: "center", paddingHorizontal: 32 }}>
+                {t(syncRun.outcome === "failed" ? `${K}.generateFailed` : `${K}.${SYNC_MESSAGE[syncRun.outcome]}`)}
               </Text>
             ) : null}
             <Pressable
@@ -544,7 +548,7 @@ export default function LyricsBody() {
       : null;
   const syncMessage =
     syncRun?.phase === "done" && syncRun.songId === songId
-      ? t(syncRun.ok ? `${K}.syncGenerated` : `${K}.syncFailed`)
+      ? t(`${K}.${SYNC_MESSAGE[syncRun.outcome]}`)
       : null;
   const inlineMessage = notice ?? translationError ?? syncMessage;
 

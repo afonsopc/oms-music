@@ -26,7 +26,7 @@ import { getTransport } from "@/contracts/transport";
 import type { LrcLine } from "@/domain/lyrics";
 import { useIsOffline } from "@/features/shell/OfflineBanner";
 import { useT } from "@/i18n";
-import { activeLineIndex, parseLrc } from "@/lyrics/lrc";
+import { activeLineIndex, estimatePosition, parseLrc } from "@/lyrics/lrc";
 import { getPlayerEngine } from "@/player/register";
 import { stemModeResidentLocally } from "@/player/sources";
 import { playerStore, usePlayerStore } from "@/player/store";
@@ -181,13 +181,7 @@ export default function KaraokeBody() {
     return subscribePlaybackView(() => sample(getPlaybackView()));
   }, []);
 
-  const estimatedPosition = useCallback((): number => {
-    const clock = clockRef.current;
-    if (!clock.playing) return clock.position;
-    const elapsed = (Date.now() - clock.at) / 1000;
-    const estimate = clock.position + elapsed * (clock.rate || 1);
-    return clock.duration > 0 ? Math.min(estimate, clock.duration) : estimate;
-  }, []);
+  const estimatedPosition = useCallback((): number => estimatePosition(clockRef.current, Date.now()), []);
 
   const playing = usePlaybackView((v) => v.playing);
   const [activeIndex, setActiveIndex] = useState(-1);

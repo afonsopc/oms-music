@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { activeLineIndex, parseLrc } from "../lrc";
+import { activeLineIndex, estimatePosition, MAX_EXTRAPOLATION_S, parseLrc } from "../lrc";
 
 describe("parseLrc (FR-76, exact web parity)", () => {
   it("parses [mm:ss.xx] with float seconds: time = minutes * 60 + seconds", () => {
@@ -76,5 +76,22 @@ describe("activeLineIndex (FR-77 active line = last line with time <= position)"
   it("keeps the last line active past the end, including placeholder lines", () => {
     expect(activeLineIndex(lines, 20)).toBe(2);
     expect(activeLineIndex(lines, 9999)).toBe(2);
+  });
+});
+
+describe("estimatePosition", () => {
+  const clock = { position: 10, at: 1_000, playing: true, rate: 1, duration: 200 };
+
+  it("extrapolates between two reads of the player", () => {
+    expect(estimatePosition(clock, 1_250)).toBeCloseTo(10.25);
+  });
+
+  it("stops running ahead when the reads stop (the lyrics never race the voice)", () => {
+    expect(estimatePosition(clock, 60_000)).toBeCloseTo(10 + MAX_EXTRAPOLATION_S);
+  });
+
+  it("holds still when paused and never goes back in time", () => {
+    expect(estimatePosition({ ...clock, playing: false }, 9_000)).toBe(10);
+    expect(estimatePosition(clock, 500)).toBe(10);
   });
 });

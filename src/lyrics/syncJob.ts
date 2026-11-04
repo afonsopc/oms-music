@@ -177,3 +177,19 @@ export const generateLyricsSync = async (
   const { job_id } = await startLyricsSync(songId);
   return awaitJob(job_id, opts);
 };
+
+/**
+ * Porque é que a sync/geração não deu, pelo código que o servidor põe no
+ * erro do job ("[no_match] Não deu para…", LyricsSyncJob::Failure). Um job
+ * que acabou com letra mas sem tempos diz `unsynced` no resultado.
+ */
+export type SyncOutcome = "ok" | "unsynced" | "no_match" | "no_voice" | "busy" | "failed";
+
+export const syncOutcome = (job: Job): SyncOutcome => {
+  if (job.status === "complete") {
+    const result = job.result as { unsynced?: unknown } | null;
+    return result && typeof result === "object" && result.unsynced === true ? "unsynced" : "ok";
+  }
+  const code = /^\[(\w+)\]/.exec(job.error ?? "")?.[1];
+  return code === "no_match" || code === "no_voice" || code === "busy" ? code : "failed";
+};

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import type { Job } from "@/domain/lyrics";
-import { awaitJob, jobFromCableMessage, setJobChannelWatcher } from "../syncJob";
+import { awaitJob, jobFromCableMessage, setJobChannelWatcher, syncOutcome } from "../syncJob";
 
 const job = (over: Partial<Job>): Job => ({
   id: "job-1",
@@ -76,5 +76,21 @@ describe("awaitJob (FR-80 channel fast path)", () => {
       message = error instanceof Error ? error.message : String(error);
     }
     expect(message).toBe("aborted");
+  });
+});
+
+describe("syncOutcome", () => {
+  const job = (over: Partial<Job>): Job =>
+    ({ id: "j", status: "failed", result: null, error: null, finished_at: "x", ...over }) as Job;
+
+  it("reads the reason the server put in the error", () => {
+    expect(syncOutcome(job({ error: "[no_match] Não deu para acertar esta letra" }))).toBe("no_match");
+    expect(syncOutcome(job({ error: "[busy] Os transcritores estão ocupados" }))).toBe("busy");
+    expect(syncOutcome(job({ error: "RuntimeError" }))).toBe("failed");
+  });
+
+  it("tells lyrics written without timing apart from a full sync", () => {
+    expect(syncOutcome(job({ status: "complete", result: { unsynced: true } }))).toBe("unsynced");
+    expect(syncOutcome(job({ status: "complete", result: { synced_lines: 12 } }))).toBe("ok");
   });
 });
