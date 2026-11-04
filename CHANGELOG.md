@@ -6,6 +6,8 @@ O que entra vai para "Por lançar"; o bump dá-lhe o número.
 
 ## Por lançar
 
+## 2.1.0 (2026-11-04)
+
 - Transmitir para TVs e colunas: um botão, uma lista com os teus aparelhos, Chromecast, AirPlay e TVs DLNA. O leitor diz "A tocar em Sala (Chromecast)".
 - Chromecast na web (Chrome, Edge), no Android e no iOS: a fila vai para a TV e continua com o telemóvel bloqueado ou a app fechada; play, pausa, saltar, voltar, procurar e volume a partir da app.
 - AirPlay no iOS e no Safari: a lista do sistema dentro da app.
