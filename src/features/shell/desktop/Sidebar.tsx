@@ -140,11 +140,14 @@ const NavRow = ({
  * A marca a girar (ronda 2, pedido do dono): o truque do antigo nome do
  * omelhorsite na barra (WebsiteNameLabel com `rotate`, retirado do site a
  * 2026-11-02): a mesma palavra em 22 camadas da OMS Wide empilhadas em
- * translateZ, a rodar em 20 s com uma inclinação a meio. Só CSS (GPU), e
+ * translateZ, de frente quase sempre e uma volta a cada 16 s. Só CSS (GPU), e
  * parada com "reduzir movimento".
  */
+// De frente a maior parte do tempo (a ler-se), com um balanço de poucos
+// graus; uma volta inteira e suave a cada 16 s (queixa do dono: apanhada ao
+// contrário a meio da volta).
 const SPIN_CSS =
-  "@keyframes omsSpin{0%{transform:rotateX(0) rotateY(0)}50%{transform:rotateX(-20deg) rotateY(180deg)}100%{transform:rotateX(0) rotateY(360deg)}}";
+  "@keyframes omsSpin{0%{transform:rotateY(-7deg) rotateX(0)}30%{transform:rotateY(7deg) rotateX(3deg)}62%{transform:rotateY(0) rotateX(0);animation-timing-function:cubic-bezier(.65,0,.35,1)}82%{transform:rotateY(200deg) rotateX(-14deg);animation-timing-function:cubic-bezier(.3,0,.2,1)}100%{transform:rotateY(353deg) rotateX(0)}}";
 
 const SpinningWordmark = ({ text, collapsed }: { text: string; collapsed: boolean }) => {
   const { tokens, scheme } = useTheme();
@@ -159,7 +162,7 @@ const SpinningWordmark = ({ text, collapsed }: { text: string; collapsed: boolea
       style={{ fontFamily: FONT_OMS_WIDE, fontSize: collapsed ? 18 : 17, color: tokens.foreground, height: 44, display: "flex", alignItems: "center", justifyContent: collapsed ? "center" : "flex-start", padding: collapsed ? 0 : "0 12px", perspective: "500px", userSelect: "none" }}
     >
       <style>{SPIN_CSS}</style>
-      <span style={{ position: "relative", display: "inline-block", transformStyle: "preserve-3d", animation: reduce ? "none" : "omsSpin 20s linear infinite" }}>
+      <span style={{ position: "relative", display: "inline-block", transformStyle: "preserve-3d", animation: reduce ? "none" : "omsSpin 16s ease-in-out infinite" }}>
         <span style={{ opacity: 0 }}>{shown}</span>
         {Array.from({ length: layers }, (_, i) => (
           <span

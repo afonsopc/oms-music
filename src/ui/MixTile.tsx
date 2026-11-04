@@ -55,7 +55,7 @@ export const MixTileArtwork = ({ kind, stamp, artworkUri, size, icon }: MixTileA
   // foto, a foto enche o quadrado e um véu escuro em baixo segura o nome;
   // sem foto, uma capa gerada em carvão com o ícone do tipo em grande e
   // esbatido. O nome vai em letra normal (nada de maiúsculas a gritar).
-  const fontSize = Math.round(stampFontSize(stamp) * (size >= 160 ? 0.88 : 0.76));
+  const fontSize = Math.round(stampFontSize(stamp) * (artworkUri ? (size >= 160 ? 0.88 : 0.76) : size >= 160 ? 1.15 : 0.95));
   return (
     <View
       style={{
@@ -76,8 +76,23 @@ export const MixTileArtwork = ({ kind, stamp, artworkUri, size, icon }: MixTileA
           accessible={false}
         />
       ) : (
-        <View pointerEvents="none" style={{ position: "absolute", right: -size * 0.12, top: -size * 0.08, opacity: 0.1 }}>
-          <Icon name={icon ?? gradient.icon} size={size * 0.78} color="#ffffff" />
+        // Sem foto: uma capa tipográfica (ronda 2, pedido do dono): luz
+        // suave num canto, o ícone pequeno no topo e o nome grande em baixo.
+        <View pointerEvents="none" style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}>
+          <View
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              ...gradientBackground(`radial-gradient(circle at 78% 18%, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.04) 38%, rgba(0,0,0,0) 62%)`),
+            }}
+          />
+          <View style={{ position: "absolute", top: 12, left: 12, flexDirection: "row", alignItems: "center", gap: 6, opacity: 0.75 }}>
+            <Icon name={icon ?? gradient.icon} size={14} color="#ffffff" />
+            <Text style={{ color: "#ffffff", fontSize: 11, fontWeight: "600", letterSpacing: 1.2 }}>MIX</Text>
+          </View>
         </View>
       )}
       <View

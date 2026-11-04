@@ -135,6 +135,7 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const bottomPadding = useContentBottomPadding();
   const cardWidth = useCardWidth();
+  const artistWidth = useCardWidth(true);
   const [filter, setFilter] = useState<HomeFilter>("all");
 
   const recentAlbumsQuery = useRecentAlbums(RECENT_ALBUMS_LIMIT);
@@ -435,7 +436,7 @@ export default function HomeScreen() {
                   key={`artist-${i}-${name}`}
                   title={name}
                   circle
-                  width={cardWidth}
+                  width={artistWidth}
                   artwork={typeof row.artist === "object" ? artistImageSource(row.artist, "sm") : { kind: "initials", name }}
                   onPress={() => router.push(artistRoute(segment))}
                 />

@@ -90,7 +90,10 @@ export const mystify = (): Canvas2DScene => {
           ctx.globalAlpha = (1 - k / poly.trail.length) * (0.5 + 0.5 * s.energy);
           ctx.lineWidth = 2 + 3 * s.beat;
           ctx.beginPath();
-          pts.forEach((p, j) => (j ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
+          pts.forEach((p, j) => {
+            if (j) ctx.lineTo(p.x, p.y);
+            else ctx.moveTo(p.x, p.y);
+          });
           ctx.closePath();
           ctx.stroke();
         });
@@ -162,7 +165,8 @@ export const scope = (): Canvas2DScene => ({
         x = u * w;
         y = h / 2 + wave(u) * h * 0.38 * (0.6 + s.energy);
       }
-      i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+      if (i) ctx.lineTo(x, y);
+      else ctx.moveTo(x, y);
     }
     ctx.stroke();
     ctx.shadowBlur = 0;
@@ -248,7 +252,8 @@ export const vector = (): Canvas2DScene => {
       ctx.beginPath();
       for (let x = 0; x <= w; x += w / 40) {
         const y = h * 0.85 - Math.abs(Math.sin(x * 0.01 + t * 0.5)) * h * 0.08 * (0.5 + s.mid);
-        x ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+        if (x) ctx.lineTo(x, y);
+        else ctx.moveTo(x, y);
       }
       ctx.stroke();
       ctx.shadowBlur = 0;

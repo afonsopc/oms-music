@@ -3,7 +3,7 @@
  * Canvas 2D, DOM) e uma camada de efeitos; uma cena de cada vez.
  */
 import { compile, fullscreenTriangle, hexToVec, target, textureFrom, type Target } from "./gl";
-import { FULL_SCENES, type FromViz, type SceneName, type ToViz, type VizFx, type VizSong } from "./protocol";
+import { type FromViz, type SceneName, type ToViz, type VizFx, type VizSong } from "./protocol";
 import { decode, sample, Smoother, type Decoded } from "./signal";
 import { matrix, mystify, pipes, pixel8, scope, starfield, vector } from "./scenes/canvas";
 import { familyFor, ScenePicker } from "./selector";

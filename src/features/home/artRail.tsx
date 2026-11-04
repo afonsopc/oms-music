@@ -8,24 +8,31 @@
  * isso um ScrollView chega; no computador a roda do rato passa a deslocar na
  * horizontal (react-native-web não passa o onWheel, daí o addEventListener).
  */
-import React, { memo, useEffect, useRef } from "react";
-import { Platform, ScrollView, Text, View } from "react-native";
+import React, { memo, useState } from "react";
+import { Pressable, ScrollView, Text, View } from "react-native";
 import type { ArtworkSource } from "@/domain/artwork";
 import { useTheme } from "@/theme/provider";
-import { ArtworkImage, Skeleton, collectionGridColumns, useContainerWidth, useDesktopShell } from "@/ui";
+import { ArtworkImage, Icon, Skeleton, collectionGridColumns, useContainerWidth, useDesktopShell } from "@/ui";
 import { PressableScale, Reveal } from "@/ui/motion";
 import { SectionLabel, useGutter } from "@/ui/page";
 
 /** Largura de um cartão numa fila: grande no telemóvel, um pouco mais no computador. */
-export const useCardWidth = (): number => {
+/**
+ * No computador as filas são grelhas de uma linha que enchem a largura: as
+ * colunas que cabem com capas de pelo menos 190 px (artistas, em círculo,
+ * 120), e a largura exacta de cada uma. No telemóvel, 152 e a fila desliza.
+ */
+export const useRailColumns = (circle = false): { columns: number; width: number } => {
   const desktop = useDesktopShell();
   const containerWidth = useContainerWidth();
-  if (!desktop) return 152;
-  // Computador: seis capas por linha visível da coluna (ronda 2; antes 184
-  // fixos, pequenas num ecrã largo), entre 180 e 236.
-  const usable = containerWidth - 2 * 40 - 5 * 14;
-  return Math.round(Math.max(180, Math.min(236, usable / 6)));
+  if (!desktop) return { columns: 0, width: circle ? 120 : 152 };
+  const usable = Math.max(320, containerWidth - 2 * 40);
+  const min = circle ? 120 : 190;
+  const columns = Math.max(3, Math.floor((usable + RAIL_GAP) / (min + RAIL_GAP)));
+  return { columns, width: Math.floor((usable - RAIL_GAP * (columns - 1)) / columns) };
 };
+
+export const useCardWidth = (circle = false): number => useRailColumns(circle).width;
 
 const RAIL_GAP = 14;
 
@@ -98,35 +105,68 @@ export const ArtRail = ({
   children?: React.ReactNode;
 }) => {
   const gutter = useGutter();
-  const width = useCardWidth();
+  const { columns, width } = useRailColumns(circle);
   const desktop = useDesktopShell();
-  const ref = useRef<ScrollView>(null);
+  const { tokens } = useTheme();
+  const [page, setPage] = useState(0);
+  const [hovered, setHovered] = useState(false);
+  const items = React.Children.toArray(children);
 
-  useEffect(() => {
-    if (!desktop || Platform.OS !== "web") return;
-    const node = ref.current?.getScrollableNode?.() as
-      | {
-          addEventListener: HTMLElement["addEventListener"];
-          removeEventListener: HTMLElement["removeEventListener"];
-          scrollLeft: number;
-        }
-      | null
-      | undefined;
-    if (!node?.addEventListener) return;
-    const onWheel = (event: WheelEvent): void => {
-      if (Math.abs(event.deltaX) >= Math.abs(event.deltaY)) return;
-      node.scrollLeft += event.deltaY;
-      event.preventDefault();
+  // Computador: nada de faixa a deslizar escondida nem de roda do rato
+  // roubada (queixa do dono 2026-11-04: a página andava para o lado). Uma
+  // linha que enche a largura e, havendo mais, ‹ › ao passar o rato.
+  if (desktop) {
+    const pages = Math.max(1, Math.ceil(items.length / columns));
+    const current = Math.min(page, pages - 1);
+    const shown = loading
+      ? Array.from({ length: columns }, (_, i) => <ArtCardSkeleton key={i} width={width} circle={circle} />)
+      : items.slice(current * columns, current * columns + columns);
+    const arrow = (dir: 1 | -1) => {
+      const disabled = dir === -1 ? current === 0 : current >= pages - 1;
+      return (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={dir === 1 ? "›" : "‹"}
+          disabled={disabled}
+          onPress={() => setPage(current + dir)}
+          style={({ pressed, hovered: h }: { pressed: boolean; hovered?: boolean }) => ({
+            width: 30,
+            height: 30,
+            borderRadius: 15,
+            alignItems: "center",
+            justifyContent: "center",
+            borderWidth: 1,
+            borderColor: tokens.border,
+            backgroundColor: h ? tokens.secondary : "transparent",
+            opacity: disabled ? 0.3 : pressed ? 0.6 : 1,
+          })}
+        >
+          <Icon name={dir === 1 ? "chevron-right" : "chevron-left"} size={16} color={tokens.foreground} />
+        </Pressable>
+      );
     };
-    node.addEventListener("wheel", onWheel, { passive: false });
-    return () => node.removeEventListener("wheel", onWheel);
-  }, [desktop]);
+    return (
+      <View {...({ onPointerEnter: () => setHovered(true), onPointerLeave: () => setHovered(false) } as object)}>
+        <View style={{ flexDirection: "row", alignItems: "flex-end" }}>
+          <View style={{ flex: 1 }}>
+            <SectionLabel title={title} actionLabel={actionLabel} onAction={onAction} />
+          </View>
+          {pages > 1 ? (
+            <View style={{ flexDirection: "row", gap: 6, paddingRight: gutter, paddingBottom: 10, opacity: hovered ? 1 : 0 }}>
+              {arrow(-1)}
+              {arrow(1)}
+            </View>
+          ) : null}
+        </View>
+        <View style={{ flexDirection: "row", gap: RAIL_GAP, paddingHorizontal: gutter }}>{shown}</View>
+      </View>
+    );
+  }
 
   return (
     <View>
       <SectionLabel title={title} actionLabel={actionLabel} onAction={onAction} />
       <ScrollView
-        ref={ref}
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: gutter, gap: RAIL_GAP }}

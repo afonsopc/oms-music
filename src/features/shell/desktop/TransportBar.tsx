@@ -75,12 +75,16 @@ const TransportScrub = () => {
   };
 
   return (
-    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-      <Text style={[timeStyle, { textAlign: "right" }]}>{formatDuration(shownSeconds)}</Text>
-      <View style={{ flex: 1 }}>
-        <View style={{ position: "absolute", left: 0, right: 0, top: 2 }}>
-          <Waveform songId={songId} fraction={fraction} height={14} bars={110} />
+    <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 8 }}>
+      <Text style={[timeStyle, { textAlign: "right", lineHeight: 22 }]}>{formatDuration(shownSeconds)}</Text>
+      {/* 34 px: a onda (18) em cima e a barra por baixo. O Slider tem 44 de
+          toque; fica posto por cima, centrado na linha da barra, para a
+          coluna do meio nunca passar a altura da barra do leitor. */}
+      <View style={{ flex: 1, height: 34 }}>
+        <View style={{ position: "absolute", left: 0, right: 0, top: 0 }}>
+          <Waveform songId={songId} fraction={fraction} height={18} bars={120} />
         </View>
+        <View style={{ position: "absolute", left: 0, right: 0, top: 6 }}>
         <Slider
           value={fraction}
           accessibilityLabel={t("native.player.progress")}
@@ -93,8 +97,9 @@ const TransportScrub = () => {
             getTransport().seek(value * duration);
           }}
         />
+        </View>
       </View>
-      <Text style={timeStyle}>{formatDuration(duration)}</Text>
+      <Text style={[timeStyle, { lineHeight: 22 }]}>{formatDuration(duration)}</Text>
     </View>
   );
 };
@@ -290,7 +295,7 @@ export const DesktopTransportBar = ({
           <PlayFab
             playing={playing}
             loading={buffering}
-            size={40}
+            size={36}
             accessibilityLabel={playing ? t(`${BB}.pause`) : t(`${BB}.play`)}
             onPress={() => getTransport().toggle()}
           />

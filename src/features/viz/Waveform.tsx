@@ -6,6 +6,7 @@
  */
 import React, { memo, useMemo } from "react";
 import { View } from "react-native";
+import { withAlpha } from "@/theme/contrast";
 import { useTheme } from "@/theme/provider";
 import { useSongAnalysis } from "./analysis";
 
@@ -52,9 +53,11 @@ export const Waveform = ({ songId, fraction, height = 22, bars = 72 }: { songId:
   if (!levels) return <View style={{ height }} />;
   return (
     <View style={{ height }} onLayout={(e) => setWidth(e.nativeEvent.layout.width)} pointerEvents="none">
-      <Bars levels={levels} color={tokens.muted} height={height} width="100%" />
+      {/* Por tocar: o texto do tema a 30 %; já tocado: inteiro. Neutro e
+          legível nos dois temas. */}
+      <Bars levels={levels} color={withAlpha(tokens.foreground, 0.3)} height={height} width="100%" />
       <View style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${Math.min(1, Math.max(0, fraction)) * 100}%`, overflow: "hidden" }}>
-        {width > 0 ? <Bars levels={levels} color={tokens.foreground} height={height} width={width} /> : null}
+        {width > 0 ? <Bars levels={levels} color={withAlpha(tokens.foreground, 0.95)} height={height} width={width} /> : null}
       </View>
     </View>
   );
