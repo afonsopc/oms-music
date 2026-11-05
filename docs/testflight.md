@@ -17,8 +17,11 @@ commitado; `WORK=` muda a pasta, por omissão `$TMPDIR/oms-music-testflight`),
 (pára se o bundle iOS nomear serviços de fora), `xcodebuild archive` e
 `-exportArchive` com `method app-store-connect` e `destination upload`.
 
-- Build number = data e hora (`AAAAMMDDHHMM`, posto no Info.plist depois do
-  prebuild); a versão é a do `package.json` (docs/DEVELOPMENT.md, "Versões"). `ITSAppUsesNonExemptEncryption`
+- Build number = data e hora (`AAMMDD.HHMM`, ex. `261105.812`, posto no Info.plist
+  depois do prebuild; `scripts/ios-build-number.js`). Nunca um número só com mais de 6
+  dígitos: o Google Cast lê o CFBundleVersion como major.minor.patch de 6 dígitos e
+  aborta a app (NSAssert em PHTPhenotypeUtil.m:91) mal vê uma TV; foi o crash em
+  ciclo da 2.1.0/2.1.1. O script e o `app.config.js` recusam um build assim; a versão é a do `package.json` (docs/DEVELOPMENT.md, "Versões"). `ITSAppUsesNonExemptEncryption`
   é `false` no `app.json` (só HTTPS normal), por isso as builds não ficam à
   espera da pergunta da exportação.
 - Chave da App Store Connect API em `~/.appstoreconnect/oms-ci.env`

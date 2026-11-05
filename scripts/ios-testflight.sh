@@ -9,7 +9,8 @@
 # Passos: clone -> bun install -> expo prebuild (conta paga: Associated
 # Domains) -> pod install -> verificação App Store (docs/app-store.md) ->
 # xcodebuild archive -> exportArchive (Apple Distribution, perfil App Store)
-# -> envio para o App Store Connect. Build number = data e hora (AAAAMMDDHHMM).
+# -> envio para o App Store Connect. Build number = data e hora (AAMMDD.HHMM,
+# scripts/ios-build-number.js: o Google Cast aborta com partes de mais de 6 dígitos).
 # Chave da API em ~/.appstoreconnect/oms-ci.env; docs/testflight.md.
 set -euo pipefail
 
@@ -22,7 +23,8 @@ set -a; . "$ASC_ENV"; set +a
 TEAM="${APPLE_TEAM_ID:-6FYT6632J8}"
 AUTH=(-allowProvisioningUpdates -authenticationKeyPath "$ASC_KEY_PATH"
       -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID")
-BUILD_NUMBER="$(date +%Y%m%d%H%M)"
+BUILD_NUMBER="$(bun "$REPO/scripts/ios-build-number.js")"
+bun "$REPO/scripts/ios-build-number.js" check "$BUILD_NUMBER"
 # app.config.js lê-o (CFBundleVersion e expo-constants); a versão vem do package.json.
 export OMS_IOS_BUILD_NUMBER="$BUILD_NUMBER"
 DEST=upload; [ "${UPLOAD:-1}" = "0" ] && DEST=export
@@ -81,6 +83,11 @@ archive() {
 # ("failed with exit code 0 but produced no further output"); à segunda passa.
 archive "" || { echo "  archive falhou, segunda tentativa"; archive 2; } \
   || { grep -E "error:" "$LOGS/archive2.log" | head -20; echo "o archive falhou ($LOGS/archive2.log)" >&2; exit 1; }
+
+# O que ficou no binário (o Cast lê-o do Info.plist do .app).
+BUILT="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$(ls -d "$ARCHIVE"/Products/Applications/*.app | head -1)/Info.plist")"
+[ "$BUILT" = "$BUILD_NUMBER" ] || { echo "o CFBundleVersion do archive é $BUILT, esperava $BUILD_NUMBER" >&2; exit 1; }
+bun scripts/ios-build-number.js check "$BUILT"
 
 OPTS="$WORK/build/ExportOptions.plist"
 cat > "$OPTS" <<PLIST

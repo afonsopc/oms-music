@@ -277,14 +277,16 @@ visualizador; antes o telemóvel dizia 1.1.0 e o desktop ia na 1.4.1).
 
 - `app.config.js` põe-na no `expo.version`, por isso chega ao iOS
   (CFBundleShortVersionString), ao Android (versionName), à web e ao `expo-constants`.
-- Os builds continuam a ser data e hora e só sobem: iOS `AAAAMMDDHHMM`
-  (`OMS_IOS_BUILD_NUMBER` no `ios-testflight.sh`), Android `AAMMDDHH`
+- Os builds continuam a ser data e hora e só sobem: iOS `AAMMDD.HHMM`, ex. `261105.812`
+  (`OMS_IOS_BUILD_NUMBER` no `ios-testflight.sh`, `scripts/ios-build-number.js`; até à
+  2.1.1 era `AAAAMMDDHHMM`, que fazia o Google Cast abortar a app: cada parte do
+  CFBundleVersion tem de caber em 6 dígitos, o `app.config.js` recusa o resto), Android `AAMMDDHH`
   (`OMS_ANDROID_VERSION_CODE`, o que o aviso de APK novo compara).
 - Desktop: a mesma versão em `desktop/package.json`, `tauri.conf.json`, `Cargo.toml` e
   `Cargo.lock` (o Tauri e o Cargo precisam dela escrita lá). O actualizador compara
   SemVer: a 2.0.0 é mais nova do que a 1.4.1, por isso quem tem a 1.4.1 recebe-a.
   `release-macos.sh` recusa se o `package.json` da raiz não bater certo.
-- Nas definições, no fim: "Versão 2.0.0 (202611041504)" (`src/features/settings/version.tsx`;
+- Nas definições, no fim: "Versão 2.1.2 (261105.812)" (`src/features/settings/version.tsx`;
   no desktop a versão da janela, na web só a versão).
 - Subir: `bun run version:bump patch|minor|major`. Acerta todas as cópias, dá número à
   secção "Por lançar" do `CHANGELOG.md`, faz o commit só desses ficheiros e a tag

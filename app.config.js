@@ -2,6 +2,7 @@ const config = require("./app.json");
 // A versão (SemVer) só vive no package.json: iOS, Android, web e desktop
 // lêem-na de lá (bun run version:bump; docs/DEVELOPMENT.md, "Versões").
 const { version } = require("./package.json");
+const { iosBuildNumberProblem } = require("./scripts/ios-build-number");
 
 // Associated Domains is a PAID Apple Developer Program capability. A personal
 // (free) team cannot sign a build that requests it: Xcode refuses with "Personal
@@ -44,8 +45,12 @@ module.exports = () => {
     expo.android = { ...expo.android, versionCode: Number(process.env.OMS_ANDROID_VERSION_CODE) };
   }
 
-  // iOS (scripts/ios-testflight.sh): build = data e hora (AAAAMMDDHHMM), para
-  // o expo-constants o mostrar nas definições.
+  // iOS (scripts/ios-testflight.sh): build = data e hora (AAMMDD.HHMM), para
+  // o expo-constants o mostrar nas definições. Cada parte tem de caber em 6
+  // dígitos, senão o Google Cast aborta a app (scripts/ios-build-number.js).
+  const iosBuild = process.env.OMS_IOS_BUILD_NUMBER || expo.ios?.buildNumber;
+  const iosBuildProblem = iosBuildNumberProblem(iosBuild);
+  if (iosBuildProblem) throw new Error(`build iOS inválido: ${iosBuildProblem}`);
   if (process.env.OMS_IOS_BUILD_NUMBER) {
     expo.ios = { ...expo.ios, buildNumber: process.env.OMS_IOS_BUILD_NUMBER };
   }
@@ -62,6 +67,10 @@ module.exports = () => {
       {
         receiverAppId: (process.env.EXPO_PUBLIC_CAST_APP_ID || "").trim() || "92D04F41",
         iosStartDiscoveryAfterFirstTapOnCastButton: false,
+        // O SDK não procura TVs no arranque: só quando a lista Transmitir
+        // abre (src/cast/drivers/nativeCast.ts). Assim nada do Cast corre
+        // ao abrir a app por causa de aparelhos guardados de outras vezes.
+        iosDisableDiscoveryAutostart: true,
         // Fixa: a 23.x puxa o mediarouter 1.9, que pede compileSdk 37 (o
         // Expo 57 compila contra o 36).
         androidPlayServicesCastFrameworkVersion: "22.3.1",
