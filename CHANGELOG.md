@@ -6,6 +6,8 @@ O que entra vai para "Por lançar"; o bump dá-lhe o número.
 
 ## Por lançar
 
+## 2.1.2 (2026-11-05)
+
 - iPhone: a app fechava sozinha ao abrir o Transmitir com uma TV na rede, e depois em todos os arranques. O número de build (202611050730) era grande de mais para o Google Cast, que abortava a app; passa a ser 261105.812 (data e hora curtas) e o build recusa números que o Cast não aceita. O Cast também deixa de procurar TVs no arranque: só quando abres o Transmitir.
 
 ## 2.1.1 (2026-11-05)

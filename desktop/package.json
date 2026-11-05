@@ -1,7 +1,7 @@
 {
   "name": "oms-music-desktop",
   "private": true,
-  "version": "2.1.1",
+  "version": "2.1.2",
   "description": "Shell Tauri v2 do plano 'uma so app' (F5): o export web de oms-music dentro de uma janela nativa. Este package.json e o UNICO sitio JS onde o desktop pode declarar dependencias novas - o package.json da app fica intocado.",
   "scripts": {
     "tauri": "tauri",
