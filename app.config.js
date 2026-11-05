@@ -51,16 +51,16 @@ module.exports = () => {
   }
 
   // Transmitir (src/cast): o SDK do Google Cast em iOS e Android. O App ID
-  // do receptor fica no binário (o SDK lê-o no arranque), por isso o receptor
-  // próprio (docs/cast.md) precisa de build novo; até lá, o Default Media
-  // Receiver do Google. O plugin põe a permissão de rede local e o Bonjour
+  // do receptor fica no binário (o SDK lê-o no arranque), por isso mudá-lo
+  // pede build novo. Por omissão o receptor próprio (92D04F41, docs/cast.md,
+  // o mesmo de src/cast/config.ts). O plugin põe a permissão de rede local e o Bonjour
   // (_googlecast._tcp) no Info.plist.
   expo.plugins = [
     ...(expo.plugins ?? []),
     [
       "react-native-google-cast",
       {
-        receiverAppId: (process.env.EXPO_PUBLIC_CAST_APP_ID || "").trim() || "CC1AD845",
+        receiverAppId: (process.env.EXPO_PUBLIC_CAST_APP_ID || "").trim() || "92D04F41",
         iosStartDiscoveryAfterFirstTapOnCastButton: false,
         // Fixa: a 23.x puxa o mediarouter 1.9, que pede compileSdk 37 (o
         // Expo 57 compila contra o 36).

@@ -6,6 +6,8 @@ O que entra vai para "Por lançar"; o bump dá-lhe o número.
 
 ## Por lançar
 
+- Chromecast com os visuais na TV: a app usa o receptor próprio da OMS Music (App ID 92D04F41) em vez do do Google. Enquanto não for publicado na consola do Google, só abre nos Chromecasts registados lá como aparelhos de teste (docs/cast.md).
+
 ## 2.1.0 (2026-11-04)
 
 - Transmitir para TVs e colunas: um botão, uma lista com os teus aparelhos, Chromecast, AirPlay e TVs DLNA. O leitor diz "A tocar em Sala (Chromecast)".

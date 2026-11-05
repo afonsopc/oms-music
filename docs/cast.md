@@ -30,37 +30,44 @@ isso o desktop tem de ficar aberto.
 
 O que a TV não faz: stems/karaoke, EQ, velocidade (tocam a mistura normal).
 
-## Registar o receptor próprio (os visuais na TV)
+## O receptor próprio (os visuais na TV)
 
-O receptor está pronto em <https://music.omelhorsite.pt/cast/receiver/>
-(`public/cast/receiver/index.html`): toca a fila e mostra o motor /viz/ em ecrã
-inteiro, com a letra palavra a palavra e as secções (análise e letra por
-`GET /media/cast_viz` com um token de 24 h). Para ver num separador:
-`/cast/receiver/?demo=<url de um áudio>`.
+O receptor está em <https://music.omelhorsite.pt/cast/receiver/>
+(`public/cast/receiver/index.html`, sobe com o build da web): toca a fila e
+mostra o motor /viz/ em ecrã inteiro, com a letra palavra a palavra e as
+secções (análise e letra por `GET /media/cast_viz` com um token de 24 h). Para
+ver num separador: `/cast/receiver/?demo=<url de um áudio>`.
 
-Para o Chromecast o abrir, o Google tem de lhe dar um App ID:
+Está registado na Google Cast SDK Developer Console
+(<https://cast.google.com/publish>) como **Custom Receiver** "OMS Music":
 
-1. Abre <https://cast.google.com/publish> com a conta Google que queres usar e
-   paga a inscrição (5 USD, uma vez).
-2. **Add New Application** → **Custom Receiver**.
-3. Nome: `OMS Music`. Receiver Application URL:
-   `https://music.omelhorsite.pt/cast/receiver/`. Guarda.
-4. Copia o **Application ID** (8 caracteres, tipo `A1B2C3D4`) e manda-mo.
-5. Enquanto a aplicação não for publicada, só os Chromecasts registados como
-   aparelhos de teste a abrem: **Add New Device** com o número de série do
-   Chromecast (está na caixa ou na app Google Home, Definições do aparelho) e
-   espera 15 minutos; o Chromecast tem de ser reiniciado depois. Para todos
-   os Chromecasts, **Publish** na aplicação (o Google aprova em poucos minutos
-   a algumas horas).
+- **Application ID: `92D04F41`** (desde a 2.1.1).
+- Receiver Application URL: `https://music.omelhorsite.pt/cast/receiver/`.
+- Estado: **Unpublished**, ou seja, só abre nos aparelhos registados na consola.
 
-Depois de haver App ID:
+O id está no código como omissão em dois sítios (têm de ser iguais):
 
-- web e desktop: `EXPO_PUBLIC_CAST_APP_ID=<id>` no build da web (`scripts/publish-osnosite.sh`);
-- iOS e Android: o mesmo `EXPO_PUBLIC_CAST_APP_ID=<id>` no `bun run ios:testflight` e no
-  `PUBLISH=1 bun run android:apk` (o SDK nativo lê o id no arranque, por isso é build novo).
+- `src/cast/config.ts` (`OMS_RECEIVER_APP_ID`): web e app do Mac (o desktop
+  leva o build da web);
+- `app.config.js` (plugin `react-native-google-cast`, `receiverAppId`): iOS e
+  Android. O SDK nativo lê-o no arranque, por isso mudá-lo pede build novo.
 
-Sem App ID fica o **Default Media Receiver** do Google: capa, título, artista
-e a barra de progresso, sem visuais.
+`EXPO_PUBLIC_CAST_APP_ID=<id>` no build sobrepõe os dois (ex. `CC1AD845`, o
+**Default Media Receiver** do Google: capa, título, artista e a barra, sem
+visuais).
+
+### O que falta ao dono
+
+1. **Registar o Chromecast/TV como aparelho de teste.** Na consola,
+   **Devices** → **Add New Device**: o número de série do Chromecast (na
+   caixa, na etiqueta do aparelho ou na app Google Home, Definições do
+   aparelho → Informações; nas TVs com Google TV, Definições → Sistema →
+   Acerca de) e uma descrição. Espera ~15 minutos até ficar "Ready for
+   Testing" e **reinicia o Chromecast/TV** (desligar da corrente e voltar a
+   ligar). Sem isto o aparelho não abre o receptor (a app não consegue ligar).
+2. **Para abrir a todos**: quando estiver bem testado, **Publish** na
+   aplicação, na consola. O Google aprova em minutos a algumas horas e depois
+   qualquer Chromecast o abre, sem registo nem build novo.
 
 ## Testar
 
