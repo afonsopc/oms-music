@@ -4,6 +4,7 @@
  * reprodução e as mudanças de props. Só o transporte muda (iframe/WebView).
  */
 import { useEffect, useRef, useState } from "react";
+import { AppState } from "react-native";
 import { songArtworkSource } from "@/domain/artwork";
 import { useLyricsDelay } from "@/lyrics/delay";
 import { usePlaybackView } from "@/remote/mirror";
@@ -49,7 +50,16 @@ export const useVizDriver = (send: (msg: ToViz) => void, props: VizFrameProps) =
     sendRef.current({ type: "analysis", songId, data });
   }, [ready, songId, analysis.data]);
 
-  const { mode, scene, chaos, fx, paused, selection, cycleOnTrack, lyrics } = props;
+  // Com a app em fundo (ou o ecrã bloqueado) o motor pára: a WebView nem
+  // sempre deixa de correr o rAF sozinha, e um visual a desenhar sem ninguém
+  // a ver só aquece o telemóvel.
+  const [appActive, setAppActive] = useState(AppState.currentState !== "background");
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state) => setAppActive(state === "active"));
+    return () => sub.remove();
+  }, []);
+  const { mode, scene, chaos, fx, selection, cycleOnTrack, lyrics } = props;
+  const paused = props.paused || !appActive;
   const lyricsDelayMs = useLyricsDelay((s) => s.ms);
   const fxKey = JSON.stringify(fx ?? {});
   const favKey = JSON.stringify(props.favorites ?? []);

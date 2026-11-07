@@ -6,6 +6,10 @@ O que entra vai para "Por lançar"; o bump dá-lhe o número.
 
 ## Por lançar
 
+- Letras: numa música já cantada na língua da tradução (ex. uma música portuguesa com o PT ligado) deixa de aparecer por baixo de cada linha uma cópia quase igual, só com vírgulas ou "?" a mais. Não há tradução para a mesma língua, e uma linha traduzida que só muda pontuação, maiúsculas ou acentos não aparece.
+- Letras: o botão "Voltar à linha actual" só aparece quando a linha que está a tocar saiu do ecrã.
+- Visualizador "Painel de partidas": deixa de travar o telemóvel (no iPhone corria a ~10 fps com o processador a 100 %); agora a 60 fps com ~15 %, com o mesmo aspecto. Os visuais param com a app em fundo.
+
 ## 2.1.2 (2026-11-05)
 
 - iPhone: a app fechava sozinha ao abrir o Transmitir com uma TV na rede, e depois em todos os arranques. O número de build (202611050730) era grande de mais para o Google Cast, que abortava a app; passa a ser 261105.812 (data e hora curtas) e o build recusa números que o Cast não aceita. O Cast também deixa de procurar TVs no arranque: só quando abres o Transmitir.

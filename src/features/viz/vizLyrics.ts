@@ -9,6 +9,7 @@ import { useLyrics, useLyricsTranslation } from "@/api/queries/lyrics";
 import type { SongId } from "@/domain/ids";
 import { initialTranslationTarget, translationWasOn } from "@/features/lyrics/targetStore";
 import { parseLrc } from "@/lyrics/lrc";
+import { translationApplies } from "@/lyrics/translation";
 import type { VizLyricLine } from "../../../viz/protocol";
 
 const fromLrc = (synced: string | null | undefined): VizLyricLine[] | null => {
@@ -25,10 +26,12 @@ const fromLrc = (synced: string | null | undefined): VizLyricLine[] | null => {
 export const useVizLyrics = (songId: string | null): VizLyricLine[] | null => {
   const id = songId as unknown as SongId | null;
   const lyrics = useLyrics(id, songId != null);
-  const translate = translationWasOn();
-  const translation = useLyricsTranslation(id, initialTranslationTarget(), translate && songId != null);
+  const target = initialTranslationTarget();
+  // Já cantada nessa língua: a letra original (com as palavras), sem pedir tradução.
+  const translate = translationWasOn() && translationApplies(lyrics.data?.language, target);
+  const translation = useLyricsTranslation(id, target, translate && songId != null && lyrics.isSuccess);
   return useMemo(() => {
-    if (translate && translation.data?.synced) return fromLrc(translation.data.synced);
+    if (translate && !translation.data?.same_language && translation.data?.synced) return fromLrc(translation.data.synced);
     const data = lyrics.data;
     if (!data) return null;
     const byLine = fromLrc(data.synced);

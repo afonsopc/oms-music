@@ -11,6 +11,8 @@ import { JOIN_RE, Lyric, SANS, artistOf, hash1, titleOf, units, upper } from "./
 
 const BASE = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789:.-'!?,";
 const MAX_GLYPHS = 220;
+const PER_ROW = 16;
+const BG = "#050506";
 const STATUS: Record<string, string> = {
   none: "A EMBARCAR", intro: "A EMBARCAR", verse: "EMBARQUE", build: "ÚLTIMA CHAMADA", drop: "PARTIU",
   chorus: "A DESCOLAR", high: "EM VOO", breakdown: "ATRASADO", outro: "ATERROU",
@@ -40,6 +42,10 @@ export default canvasScene({
   let rowText: string[] = [];
   let destCols = 0, status = "";
   let lineStarts: number[] = [];
+  // o que está pintado no canvas, célula a célula (-1: por pintar)
+  let drawnG = new Int16Array(0), drawnY = new Uint8Array(0), drawnP = new Uint8Array(0);
+  let drawnRow: string[] = [];
+  let full = true;
 
   const slot = (c: string) => {
     let i = glyphs.get(c);
@@ -51,9 +57,15 @@ export default canvasScene({
     drawGlyph(i);
     return i;
   };
+  // O atlas é uma grelha (PER_ROW palhetas por linha, cada uma com a versão
+  // branca e a amarela uma por baixo da outra): uma tira de 220 palhetas
+  // tinha ~10 000 px de largura, acima do que o WebKit do iPhone aguenta numa
+  // textura, e cada drawImage dela ia pelo processador.
+  const gx = (i: number) => (i % PER_ROW) * cw;
+  const gy = (i: number, v: number) => (Math.floor(i / PER_ROW) * 2 + v) * ch;
   const drawGlyph = (i: number) => {
     for (let v = 0; v < 2; v++) {
-      const x = i * cw, y = v * ch;
+      const x = gx(i), y = gy(i, v);
       ax.save();
       ax.beginPath();
       ax.rect(x, y, cw, ch);
@@ -93,14 +105,17 @@ export default canvasScene({
     if (rows * (ch + gapY) > h * 0.92) { ch = (h * 0.92) / rows - gapY; cw = ch / 1.5; }
     ox = (w - cols * (cw + gapX)) / 2;
     oy = (h - rows * (ch + gapY)) / 2;
-    atlas.width = Math.ceil(cw * MAX_GLYPHS);
-    atlas.height = Math.ceil(ch * 2);
+    atlas.width = Math.ceil(cw * PER_ROW);
+    atlas.height = Math.ceil(ch * 2 * Math.ceil(MAX_GLYPHS / PER_ROW));
     glyphs.clear();
     chars.length = 0;
     for (const c of BASE) slot(c);
     const n = cols * rows;
     cur = new Int16Array(n); tgt = new Int16Array(n); yel = new Uint8Array(n);
     next = new Float32Array(n); steps = new Uint8Array(n);
+    drawnG = new Int16Array(n).fill(-1); drawnY = new Uint8Array(n); drawnP = new Uint8Array(n);
+    drawnRow = new Array(rows).fill("\u0000");
+    full = true;
     rowText = new Array(rows).fill("");
     destCols = cols - 9;
     built = true; wFor = w; hFor = h;
@@ -169,7 +184,7 @@ export default canvasScene({
   };
 
   return {
-    reset() { built = false; },
+    reset() { built = false; full = true; },
     frame(ctx, w, h, dt, t, s, env) {
       if (!built || w !== wFor || h !== hFor) { build(w, h); layoutBoard(t, s, env); }
       const changed = lyr.update(env, t, s);
@@ -188,22 +203,39 @@ export default canvasScene({
         }
       }
 
-      ctx.fillStyle = "#050506";
-      ctx.fillRect(0, 0, w, h);
+      // Só se pinta o que mexe: o quadro fica no canvas de um frame para o
+      // outro (o motor não o limpa) e cada frame redesenha as réguas e as
+      // palhetas a virar ou que mudaram. Parado, são duas réguas por frame.
+      if (full) {
+        ctx.fillStyle = BG;
+        ctx.fillRect(0, 0, w, h);
+        drawnG.fill(-1);
+        drawnRow.fill("\u0000");
+        full = false;
+      }
       // moldura e réguas entre as linhas
+      const rx = ox - gapX * 2, rw = cols * (cw + gapX) + gapX * 3;
+      const r1 = oy + ch + gapY / 2 - 1, r2 = oy + (rows - 1) * (ch + gapY) - gapY / 2 - 1;
+      ctx.fillStyle = BG;
+      ctx.fillRect(rx, r1 - 1, rw, 4);
+      ctx.fillRect(rx, r2 - 1, rw, 4);
       ctx.fillStyle = env.colors[0];
       ctx.globalAlpha = 0.25 + 0.25 * s.beat;
-      ctx.fillRect(ox - gapX * 2, oy + ch + gapY / 2 - 1, cols * (cw + gapX) + gapX * 3, 2);
-      ctx.fillRect(ox - gapX * 2, oy + (rows - 1) * (ch + gapY) - gapY / 2 - 1, cols * (cw + gapX) + gapX * 3, 2);
+      ctx.fillRect(rx, r1, rw, 2);
+      ctx.fillRect(rx, r2, rw, 2);
       ctx.globalAlpha = 1;
 
       const STEP = 0.055;
+      const hh = ch / 2;
       for (let r = 0; r < rows; r++) {
         const y = oy + r * (ch + gapY);
+        const rt = rowText[r];
+        // o letreiro mudou (ou deixou de existir): a linha inteira volta a pintar-se
+        if (rt !== drawnRow[r]) for (let c = 0; c < cols; c++) drawnG[r * cols + c] = -1;
+        let rowDirty = rt !== drawnRow[r];
         for (let c = 0; c < cols; c++) {
           const i = r * cols + c;
-          const x = ox + c * (cw + gapX);
-          const v = yel[i] * ch;
+          const v = yel[i];
           let a = cur[i];
           if (a !== tgt[i] && t >= next[i]) {
             // um passo: a seguinte no ciclo, ou salta para a certa se não está no ciclo
@@ -213,29 +245,36 @@ export default canvasScene({
             cur[i] = a; steps[i]++;
             next[i] = t + STEP;
           }
-          const flipping = a !== tgt[i] || t < next[i];
+          const flipping = !env.reduceMotion && (a !== tgt[i] || t < next[i]);
           const p = flipping ? Math.min(1, Math.max(0, 1 - (next[i] - t) / STEP)) : 1;
-          if (p >= 1 || env.reduceMotion) {
-            ctx.drawImage(atlas, a * cw, v, cw, ch, x, y, cw, ch);
+          const settled = p >= 1;
+          // parada e igual ao que já está no canvas: nada a fazer
+          if (settled && drawnG[i] === a && drawnY[i] === v && drawnP[i] >= 1) continue;
+          const x = ox + c * (cw + gapX);
+          rowDirty = true;
+          drawnG[i] = a; drawnY[i] = v; drawnP[i] = settled ? 1 : 0;
+          ctx.fillStyle = BG;
+          ctx.fillRect(x, y, cw, ch);
+          if (settled) {
+            ctx.drawImage(atlas, gx(a), gy(a, v), cw, ch, x, y, cw, ch);
             continue;
           }
           // a meio de virar: a de cima já é a nova, a de baixo ainda a velha e a palheta a cair
           const prev = a === 0 ? 0 : (a + BASE.length - 1) % BASE.length;
-          const hh = ch / 2;
-          ctx.drawImage(atlas, a * cw, v, cw, hh, x, y, cw, hh);
-          ctx.drawImage(atlas, prev * cw, v + hh, cw, hh, x, y + hh, cw, hh);
+          ctx.drawImage(atlas, gx(a), gy(a, v), cw, hh, x, y, cw, hh);
+          ctx.drawImage(atlas, gx(prev), gy(prev, v) + hh, cw, hh, x, y + hh, cw, hh);
           if (p < 0.5) {
             const k = 1 - p * 2;
-            ctx.drawImage(atlas, prev * cw, v, cw, hh, x, y + hh * (1 - k), cw, hh * k);
+            ctx.drawImage(atlas, gx(prev), gy(prev, v), cw, hh, x, y + hh * (1 - k), cw, hh * k);
           } else {
             const k = (p - 0.5) * 2;
-            ctx.drawImage(atlas, a * cw, v + hh, cw, hh, x, y + hh, cw, hh * k);
+            ctx.drawImage(atlas, gx(a), gy(a, v) + hh, cw, hh, x, y + hh, cw, hh * k);
           }
         }
+        drawnRow[r] = rt;
         // linhas em escritas que não se partem letra a letra: o destino inteiro, num só letreiro
-        const rt = rowText[r];
         const bar = rt.indexOf("|");
-        if (bar >= 0) {
+        if (bar >= 0 && rowDirty) {
           const x0 = ox + 11 * (cw + gapX), x1 = ox + (cols - 3) * (cw + gapX);
           ctx.fillStyle = "#151517";
           ctx.fillRect(x0, y, x1 - x0, ch);

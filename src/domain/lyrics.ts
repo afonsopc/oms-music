@@ -20,10 +20,14 @@ export interface Lyrics {
   timing?: { checked: boolean; applied: boolean; error_before_ms?: number; method?: string } | null;
   /** O dono da música pode acertar os tempos. */
   can_adjust?: boolean;
+  /** A língua em que a música é cantada (detectada pela letra); ausente nos servidores antigos. */
+  language?: string | null;
 }
 
 export interface LyricsTranslation extends Lyrics {
-  target: string;
+  target?: string;
+  /** A música já é cantada nesta língua: não há tradução (servidor desde 2026-11-07). */
+  same_language?: boolean;
 }
 
 /** text "" renders a placeholder dot (FR-76). */

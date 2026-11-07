@@ -54,6 +54,7 @@ import {
   TRANSLATION_TARGET_OPTIONS,
   buildSyncedTranslationMap,
   plainTranslationFor,
+  translationApplies,
   splitPlainLines,
   syncedTranslationFor,
 } from "@/lyrics/translation";
@@ -185,6 +186,7 @@ export default function LyricsBody() {
   const { tokens } = useTheme();
   const focused = useIsFocused();
   const songId = usePlaybackView((v) => v.song?.id ?? null);
+  const songLanguage = usePlaybackView((v) => v.song?.language ?? null);
   const lyricsQuery = useLyrics(songId);
 
   const synced = lyricsQuery.data?.synced ?? null;
@@ -201,8 +203,18 @@ export default function LyricsBody() {
   const [showTranslation, setShowTranslation] = useState(translationWasOn);
   const [target, setTarget] = useState<LyricsTranslationTarget>(initialTranslationTarget);
   const [targetSheetOpen, setTargetSheetOpen] = useState(false);
-  const translationQuery = useLyricsTranslation(songId, target, showTranslation && hasContent);
-  const translationVisible = showTranslation && translationQuery.isSuccess;
+  // Uma música já cantada na língua escolhida não tem tradução: nem se pede.
+  const translatable = translationApplies(lyricsQuery.data?.language ?? songLanguage, target);
+  const translationQuery = useLyricsTranslation(
+    songId,
+    target,
+    showTranslation && hasContent && translatable,
+  );
+  const translationVisible =
+    showTranslation &&
+    translatable &&
+    translationQuery.isSuccess &&
+    translationQuery.data?.same_language !== true;
   const translatedSynced = translationQuery.data?.synced ?? null;
   const translatedPlain = translationQuery.data?.plain ?? null;
   const translatedByTime = useMemo(
@@ -386,6 +398,10 @@ export default function LyricsBody() {
   const viewportHeightRef = useRef(0);
   const lineLayoutsRef = useRef<({ y: number; height: number } | undefined)[]>([]);
   const userScrollUntilRef = useRef(0);
+  const scrollYRef = useRef(0);
+  // A linha actual está fora do ecrã: só aí o "Voltar à linha actual" tem
+  // razão de aparecer (antes bastava tocar na letra, com a linha à vista).
+  const [activeOffscreen, setActiveOffscreen] = useState(false);
   const suppressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [suppressed, setSuppressed] = useState(false);
 
@@ -415,6 +431,14 @@ export default function LyricsBody() {
     setSuppressed(false);
   }, []);
 
+  const checkActiveVisible = useCallback(() => {
+    const layout = lineLayoutsRef.current[activeIndexRef.current];
+    const viewport = viewportHeightRef.current;
+    if (!layout || viewport <= 0) return;
+    const top = layout.y - scrollYRef.current;
+    setActiveOffscreen(top + layout.height <= 0 || top >= viewport);
+  }, []);
+
   const scrollToLine = useCallback((index: number, animated: boolean) => {
     if (index < 0) return;
     const layout = lineLayoutsRef.current[index];
@@ -428,9 +452,12 @@ export default function LyricsBody() {
   // within the grace window.
   useEffect(() => {
     if (activeIndex < 0) return;
-    if (Date.now() < userScrollUntilRef.current) return;
+    if (Date.now() < userScrollUntilRef.current) {
+      checkActiveVisible();
+      return;
+    }
     scrollToLine(activeIndex, true);
-  }, [activeIndex, scrollToLine]);
+  }, [activeIndex, scrollToLine, checkActiveVisible]);
 
   const onLinePress = useCallback(
     (line: LrcLine) => {
@@ -607,7 +634,15 @@ export default function LyricsBody() {
         onLayout={(event: LayoutChangeEvent) => {
           viewportHeightRef.current = event.nativeEvent.layout.height;
         }}
-        onScrollBeginDrag={markUserScroll}
+        onScrollBeginDrag={() => {
+          markUserScroll();
+          checkActiveVisible();
+        }}
+        onScroll={(event) => {
+          scrollYRef.current = event.nativeEvent.contentOffset.y;
+          if (suppressed) checkActiveVisible();
+        }}
+        scrollEventThrottle={32}
         contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 8, paddingBottom: 48 }}
         style={{ flex: 1 }}
       >
@@ -694,7 +729,7 @@ export default function LyricsBody() {
         </Text>
       </ScrollView>
 
-      {synced && suppressed ? (
+      {synced && suppressed && activeOffscreen ? (
         <Pressable
           onPress={() => {
             resumeFollow();

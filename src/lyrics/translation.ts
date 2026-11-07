@@ -8,7 +8,12 @@
  *  - Plain alignment: by line index (both sides split on /\r?\n/).
  *  - Identical-line suppression: a translation equal to the original text
  *    (instrumental breaks, vocalizations, lines already in the target
- *    language) adds noise without information and is dropped.
+ *    language) adds noise without information and is dropped. "Equal" is
+ *    after normalising accents, case, punctuation and spaces: a model asked
+ *    to translate a Portuguese song into Portuguese hands it back with a
+ *    comma or a "?" more, and that line used to show twice (2026-11-07).
+ *  - Same language: a song already sung in the target language gets no
+ *    translation at all (translationApplies).
  *
  * Target persistence (kv) lives in features/lyrics/targetStore.ts so this
  * module stays pure and bun-testable.
@@ -38,6 +43,28 @@ export const isTranslationTarget = (value: unknown): value is LyricsTranslationT
   typeof value === "string" &&
   (LYRICS_TRANSLATION_TARGETS as readonly string[]).includes(value);
 
+/** Sem acentos, maiúsculas, pontuação nem espaços a mais: o que conta para "a mesma linha". */
+export const normalizeLyricLine = (text: string): string =>
+  text
+    .normalize("NFD")
+    .replace(/\p{M}+/gu, "")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim();
+
+export const sameLyricLine = (a: string, b: string): boolean =>
+  a === b || normalizeLyricLine(a) === normalizeLyricLine(b);
+
+/**
+ * Há tradução para mostrar nesta língua? Não quando a música já é cantada
+ * nela (a língua vem da letra, "pt", "pt-PT"...; desconhecida conta como
+ * outra) nem quando o servidor diz same_language.
+ */
+export const translationApplies = (
+  language: string | null | undefined,
+  target: LyricsTranslationTarget,
+): boolean => !language || language.trim().toLowerCase().slice(0, 2) !== target;
+
 /** Map keyed by `time.toFixed(2)` from a translated LRC block. */
 export const buildSyncedTranslationMap = (
   translatedSynced: string | null | undefined,
@@ -52,7 +79,7 @@ export const buildSyncedTranslationMap = (
 
 /**
  * Translation for a synced line, or null when there is none or it is
- * identical to the original.
+ * the original once normalised.
  */
 export const syncedTranslationFor = (
   map: Map<string, string> | null,
@@ -60,7 +87,7 @@ export const syncedTranslationFor = (
 ): string | null => {
   if (!map) return null;
   const text = map.get(line.time.toFixed(2));
-  return text && text !== line.text ? text : null;
+  return text && !sameLyricLine(text, line.text) ? text : null;
 };
 
 export const splitPlainLines = (plain: string): string[] => plain.split(/\r?\n/);
@@ -76,5 +103,5 @@ export const plainTranslationFor = (
 ): string | null => {
   if (!translatedLines) return null;
   const text = translatedLines[index];
-  return text && text !== original ? text : null;
+  return text && !sameLyricLine(text, original) ? text : null;
 };

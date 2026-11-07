@@ -2,6 +2,9 @@ import { describe, expect, it } from "bun:test";
 import {
   buildSyncedTranslationMap,
   isTranslationTarget,
+  normalizeLyricLine,
+  sameLyricLine,
+  translationApplies,
   plainTranslationFor,
   splitPlainLines,
   syncedTranslationFor,
@@ -94,5 +97,27 @@ describe("offline lyrics tri-state (FR-81 read half)", () => {
     expect(offlineLyricsFromRow({ lyrics_state: "cached", lyrics_json: "{oops" })).toBeNull();
     expect(offlineLyricsFromRow({ lyrics_state: "cached", lyrics_json: null })).toBeNull();
     expect(offlineLyricsFromRow({ lyrics_state: "cached", lyrics_json: "null" })).toBeNull();
+  });
+});
+
+describe("same line after normalising, and same language (2026-11-07)", () => {
+  it("hides a 'translation' that only adds punctuation, case or accents", () => {
+    const map = buildSyncedTranslationMap("[00:12.34]Coisa fofa, nunca vi\n[00:15.00]está bem ou nao vens?");
+    expect(syncedTranslationFor(map, { time: 12.34, text: "Coisa fofa nunca vi" })).toBeNull();
+    expect(syncedTranslationFor(map, { time: 15, text: "Está bem ou não vens" })).toBeNull();
+    expect(plainTranslationFor(["Sempre juntos, eu prometo!"], 0, "Sempre  juntos eu prometo")).toBeNull();
+  });
+
+  it("keeps a real translation, in any script", () => {
+    expect(sameLyricLine("Hello", "Olá")).toBe(false);
+    expect(sameLyricLine("Ты моя", "ты моя!")).toBe(true);
+    expect(normalizeLyricLine("  Está bem, OU NÃO?  ")).toBe("esta bem ou nao");
+  });
+
+  it("no translation into the language the song is sung in", () => {
+    expect(translationApplies("pt", "pt")).toBe(false);
+    expect(translationApplies("pt-PT", "pt")).toBe(false);
+    expect(translationApplies("en", "pt")).toBe(true);
+    expect(translationApplies(null, "pt")).toBe(true);
   });
 });
