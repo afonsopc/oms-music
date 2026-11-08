@@ -1205,7 +1205,18 @@
     "account": {
       "signOut": "Sign out",
       "signOutTitle": "Sign out?",
-      "signOutMessage": "You can sign back in any time."
+      "signOutMessage": "You can sign back in any time.",
+      "terms": "Terms of use",
+      "privacy": "Privacy policy",
+      "support": "Help and contact",
+      "delete": "Delete my account",
+      "deleteTitle": "Delete your account?",
+      "deleteMessage": "Your O Melhor Site account is deleted with everything in it, including your songs, playlists and history. You will confirm with your password on the account page. The account closes right away and the data is deleted 48 hours later.",
+      "deleteContinue": "Continue",
+      "serviceOff": {
+        "title": "Music isn't turned on yet",
+        "body": "Your O Melhor Site account doesn't have Music turned on yet. Write to us under Help and contact and we'll turn it on for you."
+      }
     },
     "import": {
       "stepPicked": "Files chosen",
@@ -1259,6 +1270,45 @@
       "lyricsSometimes": "Lyrics: sometimes",
       "lyricsNever": "Lyrics: never",
       "queue": "Queue"
+    },
+    "moderation": {
+      "reportOrBlock": "Report or block",
+      "report": {
+        "user": "Report this person",
+        "jam": "Report this jam",
+        "playlist": "Report this playlist",
+        "song": "Report this song"
+      },
+      "reportPerson": "Report {who}",
+      "blockPerson": "Block {who}",
+      "footnote": "Reports reach the team right away and are reviewed within 24 hours. People you block stop being your friends and can't see you or join your jams.",
+      "reasonTitle": "Why are you reporting?",
+      "reasons": {
+        "spam": "Spam",
+        "harassment": "Harassment or bullying",
+        "hate": "Hate speech",
+        "sexual": "Sexual content",
+        "violence": "Violence",
+        "self_harm": "Self-harm or suicide",
+        "illegal": "Illegal or infringes copyright",
+        "impersonation": "Pretends to be someone else",
+        "other": "Something else"
+      },
+      "detailsPlaceholder": "More details (optional)",
+      "send": "Send report",
+      "sentTitle": "Thank you",
+      "sentBody": "Your report was sent. We will review it within 24 hours and remove anything that breaks the Terms.",
+      "failed": "That didn't work. Try again.",
+      "blockTitle": "Block {who}?",
+      "blockMessage": "You stop being friends. They can no longer see your profile, your music or your jams, and you won't see theirs. You can unblock at omelhorsite.pt.",
+      "block": "Block",
+      "terms": {
+        "title": "Terms of use",
+        "body": "To use Music you accept the Terms of use of your O Melhor Site account.",
+        "rules": "There is no tolerance for objectionable content or for people who abuse others. Only upload music that is yours or that you have the right to listen to. You can report and block anyone, and reported content is reviewed within 24 hours.",
+        "accept": "Accept and continue",
+        "read": "Read the Terms"
+      }
     }
   }
 }

@@ -16,6 +16,7 @@
  */
 import { Platform } from "react-native";
 import { API_BASE_URL, oms, omsPublic } from "@/api/oms";
+import { getLocale } from "@/i18n";
 import { OAUTH_NATIVE_CALLBACK } from "./oauthCallback";
 import type { OAuthMode, OAuthProvider } from "./oauthCallback";
 
@@ -52,6 +53,14 @@ export const buildOAuthUrl = (_provider: OAuthProvider, _mode: OAuthMode): strin
   if (Platform.OS === "web") {
     const origin = encodeURIComponent(window.location.origin);
     return `${API_BASE_URL}/music/auth/start?app_origin=${origin}`;
+  }
+  // No iPhone o id esconde "Continuar com Google / GitHub" (platform=ios ->
+  // ui_locales=<língua>-x-iosapp no backend): com eles a App Store exigia o
+  // Sign in with Apple (regra 4.8). Entra-se com email e palavra-passe,
+  // passkey ou código por email, contas próprias. O Android fica igual.
+  if (Platform.OS === "ios") {
+    const lang = { pt: "pt-PT", en: "en", lv: "lv" }[getLocale()] ?? "pt-PT";
+    return `${API_BASE_URL}/music/auth/start?native=1&platform=ios&ui_locales=${lang}`;
   }
   return `${API_BASE_URL}/music/auth/start?native=1`;
 };

@@ -1205,7 +1205,18 @@
     "account": {
       "signOut": "Terminar sessão",
       "signOutTitle": "Terminar sessão?",
-      "signOutMessage": "Voltas a entrar quando quiseres."
+      "signOutMessage": "Voltas a entrar quando quiseres.",
+      "terms": "Termos de utilização",
+      "privacy": "Política de privacidade",
+      "support": "Ajuda e contacto",
+      "delete": "Apagar a minha conta",
+      "deleteTitle": "Apagar a conta?",
+      "deleteMessage": "A tua conta O Melhor Site é apagada com tudo o que tem, incluindo as tuas músicas, playlists e histórico. Vais confirmar com a palavra-passe na página da conta. A conta fecha logo e os dados são apagados 48 horas depois.",
+      "deleteContinue": "Continuar",
+      "serviceOff": {
+        "title": "A Música ainda não está ligada",
+        "body": "A tua conta O Melhor Site ainda não tem a Música activada. Escreve-nos em Ajuda e contacto e ligamo-la para ti."
+      }
     },
     "import": {
       "stepPicked": "Ficheiros escolhidos",
@@ -1259,6 +1270,45 @@
       "lyricsSometimes": "Letra: às vezes",
       "lyricsNever": "Letra: nunca",
       "queue": "Fila"
+    },
+    "moderation": {
+      "reportOrBlock": "Denunciar ou bloquear",
+      "report": {
+        "user": "Denunciar esta pessoa",
+        "jam": "Denunciar esta jam",
+        "playlist": "Denunciar esta playlist",
+        "song": "Denunciar esta música"
+      },
+      "reportPerson": "Denunciar {who}",
+      "blockPerson": "Bloquear {who}",
+      "footnote": "As denúncias chegam logo à equipa e são vistas em 24 horas. Quem bloqueias deixa de ser teu amigo e não te vê nem entra nas tuas jams.",
+      "reasonTitle": "Porque estás a denunciar?",
+      "reasons": {
+        "spam": "Spam",
+        "harassment": "Assédio ou bullying",
+        "hate": "Discurso de ódio",
+        "sexual": "Conteúdo sexual",
+        "violence": "Violência",
+        "self_harm": "Automutilação ou suicídio",
+        "illegal": "Ilegal ou viola direitos de autor",
+        "impersonation": "Faz-se passar por outra pessoa",
+        "other": "Outro motivo"
+      },
+      "detailsPlaceholder": "Mais detalhes (opcional)",
+      "send": "Enviar denúncia",
+      "sentTitle": "Obrigado",
+      "sentBody": "A denúncia foi enviada. Vamos vê-la em 24 horas e remover o que violar os Termos.",
+      "failed": "Não foi possível. Tenta outra vez.",
+      "blockTitle": "Bloquear {who}?",
+      "blockMessage": "Deixam de ser amigos. Essa pessoa deixa de ver o teu perfil, a tua música e as tuas jams, e tu as dela. Podes desbloquear em omelhorsite.pt.",
+      "block": "Bloquear",
+      "terms": {
+        "title": "Termos de utilização",
+        "body": "Para usar a Música aceitas os Termos de utilização da tua conta O Melhor Site.",
+        "rules": "Não há tolerância para conteúdo ofensivo nem para quem abusa de outras pessoas. Só carregas música que é tua ou que tens direito a ouvir. Podes denunciar e bloquear qualquer pessoa, e o conteúdo denunciado é visto em 24 horas.",
+        "accept": "Aceitar e continuar",
+        "read": "Ler os Termos"
+      }
     }
   }
 }

@@ -93,12 +93,18 @@
       [
         "expo-audio",
         {
-          "enableBackgroundPlayback": true
+          "enableBackgroundPlayback": true,
+          "microphonePermission": false
         }
       ],
       "./modules/oms-native/app.plugin.js",
       "expo-sqlite",
-      "expo-secure-store",
+      [
+        "expo-secure-store",
+        {
+          "faceIDPermission": false
+        }
+      ],
       "expo-image",
       "expo-localization"
     ],

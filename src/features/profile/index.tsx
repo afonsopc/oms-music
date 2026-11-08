@@ -14,7 +14,7 @@
  * a friend's fs nodes, so resolving them would 404): they are used AS-IS,
  * never through `imageUrl()`, and never cached beyond the query.
  */
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { avatarUrl } from "@/api/mediaUrl";
@@ -22,6 +22,7 @@ import { acceptedFriends, useRelationships } from "@/api/queries/relationships";
 import { useMusicProfile } from "@/api/queries/social";
 import { useSessionStore } from "@/auth/session";
 import type { UserId } from "@/domain/ids";
+import { ModerationSheet } from "@/features/moderation/ModerationSheet";
 import { useContentBottomPadding, useContentTopPadding } from "@/features/shell/metrics";
 import { useT } from "@/i18n";
 import { haptics } from "@/lib/haptics";
@@ -133,7 +134,9 @@ const ProfileHeader = ({
   isFriend,
   friendsCount,
   plays30d,
+  onModerate,
 }: {
+  onModerate?: () => void;
   person: ProfilePerson;
   isSelf: boolean;
   isFriend: boolean;
@@ -201,6 +204,17 @@ const ProfileHeader = ({
               }}
             />
           </View>
+        ) : onModerate ? (
+          // Num perfil alheio: denunciar e bloquear (App Store 1.2).
+          <View style={{ flexDirection: "row", gap: 10 }}>
+            <TextButton
+              label={t("native.moderation.reportOrBlock")}
+              onPress={() => {
+                haptics.select();
+                onModerate();
+              }}
+            />
+          </View>
         ) : null}
       </View>
     </Reveal>
@@ -218,6 +232,8 @@ export default function ProfileScreen() {
   // side; ids come from notification contexts. Both are legal path segments.
   const idOrHandle = (params.idOrHandle ?? "").replace(/^@/, "");
   const query = useMusicProfile(idOrHandle || null);
+  const router = useRouter();
+  const [moderating, setModerating] = useState(false);
 
   const profile = query.data ?? null;
 
@@ -290,7 +306,16 @@ export default function ProfileScreen() {
             : null
         }
         plays30d={profile?.visible ? (profile.plays_30d ?? null) : null}
+        onModerate={!isSelf && person.id ? () => setModerating(true) : undefined}
       />
+      {person.id && !isSelf ? (
+        <ModerationSheet
+          visible={moderating}
+          onClose={() => setModerating(false)}
+          person={{ id: person.id, handle: person.handle, name: person.name }}
+          onBlocked={() => (router.canGoBack() ? router.back() : router.replace("/"))}
+        />
+      ) : null}
 
       {query.isLoading ? (
         <View style={{ paddingTop: 28 }}>

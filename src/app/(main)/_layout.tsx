@@ -19,6 +19,8 @@ import React from "react";
 import { View } from "react-native";
 import { Stack } from "expo-router";
 import { PlayerSheetProvider } from "@/features/player/sheet/PlayerSheet";
+import { ServiceGate } from "@/features/account/ServiceGate";
+import { TermsGate } from "@/features/moderation/TermsGate";
 import { DesktopShell } from "@/features/shell/desktop/DesktopShell";
 import { useServiceUsagePing } from "@/features/shell/useServiceUsagePing";
 import { useTheme } from "@/theme/provider";
@@ -41,6 +43,8 @@ export default function MainLayout() {
             }}
           />
         </PlayerSheetProvider>
+        <TermsGate />
+        <ServiceGate />
       </View>
     </DesktopShell>
   );

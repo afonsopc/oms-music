@@ -17,8 +17,10 @@
 import React, { useState } from "react";
 import { Text, View } from "react-native";
 import { useRouter, type Href } from "expo-router";
+import * as WebBrowser from "expo-web-browser";
 import { avatarUrl } from "@/api/mediaUrl";
 import { logout, useSessionStore } from "@/auth/session";
+import { ACCOUNT_DELETE_URL, sitePage } from "@/features/moderation/api";
 import { SettingsPage, SettingsRow, SettingsSection } from "@/features/settings/ui";
 import { useT } from "@/i18n";
 import { useTheme } from "@/theme/provider";
@@ -32,6 +34,12 @@ export default function AccountScreen() {
   const user = useSessionStore((s) => s.user);
   const [confirmOut, setConfirmOut] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  // As páginas do site e do id abrem dentro da app (folha do Safari no iOS).
+  const open = (url: string): void => {
+    void WebBrowser.openBrowserAsync(url).catch(() => {});
+  };
 
   const go = (route: Href): void => router.push(route);
 
@@ -95,6 +103,24 @@ export default function AccountScreen() {
           />
         </SettingsSection>
 
+        {/* Termos, privacidade e contacto (App Store 5.1.1 e 1.2): as
+            páginas do site, que valem para as apps também. */}
+        <SettingsSection>
+          <SettingsRow
+            first
+            label={t("native.account.terms")}
+            onPress={() => open(sitePage("terms-of-service"))}
+          />
+          <SettingsRow
+            label={t("native.account.privacy")}
+            onPress={() => open(sitePage("privacy-policy"))}
+          />
+          <SettingsRow
+            label={t("native.account.support")}
+            onPress={() => open(sitePage("about-us"))}
+          />
+        </SettingsSection>
+
         <SettingsSection>
           <SettingsRow
             first
@@ -102,8 +128,31 @@ export default function AccountScreen() {
             onPress={() => setConfirmOut(true)}
             trailing={<View />}
           />
+          {/* Apagar a conta dentro da app (App Store 5.1.1(v)): a conta é a
+              do O Melhor Site; a confirmação é a do id.omelhorsite.pt (pede a
+              palavra-passe ou passkey), já no passo de apagar. Fecha logo e
+              apaga tudo, a música incluída, 48 h depois. */}
+          <SettingsRow
+            destructive
+            label={t("native.account.delete")}
+            onPress={() => setConfirmDelete(true)}
+            trailing={<View />}
+          />
         </SettingsSection>
       </SettingsPage>
+
+      <ConfirmDialog
+        visible={confirmDelete}
+        title={t("native.account.deleteTitle")}
+        message={t("native.account.deleteMessage")}
+        confirmLabel={t("native.account.deleteContinue")}
+        destructive
+        onConfirm={() => {
+          setConfirmDelete(false);
+          open(ACCOUNT_DELETE_URL);
+        }}
+        onCancel={() => setConfirmDelete(false)}
+      />
 
       <ConfirmDialog
         visible={confirmOut}

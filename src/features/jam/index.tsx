@@ -26,6 +26,8 @@ import { avatarUrl } from "@/api/mediaUrl";
 import { useSessionStore } from "@/auth/session";
 import type { UserId } from "@/domain/ids";
 import type { Jam } from "@/domain/jam";
+import type { ReportTarget } from "@/features/moderation/api";
+import { ModerationSheet, type ModerationPerson } from "@/features/moderation/ModerationSheet";
 import { useContentBottomPadding, useContentTopPadding } from "@/features/shell/metrics";
 import { useT } from "@/i18n";
 import { haptics } from "@/lib/haptics";
@@ -45,6 +47,9 @@ import {
   TextButton,
   useGutter,
 } from "@/ui/page";
+
+/** Quem (e o quê) a folha de denunciar/bloquear tem à frente. */
+type Moderate = { person: ModerationPerson | null; content: ReportTarget | null };
 
 const PANEL = "components.music.JamPanel";
 /** A fila da jam vem do servidor; mostrar mais do que isto nao ajuda ninguem. */
@@ -124,10 +129,11 @@ const JamRules = ({ jam, isHost }: { jam: Jam; isHost: boolean }) => {
 // Up next (members only: the host reads their own queue in the Queue screen)
 // ---------------------------------------------------------------------------
 
-const JamUpcoming = () => {
+const JamUpcoming = ({ onModerate }: { onModerate: (target: Moderate) => void }) => {
   const t = useT();
   const upcoming = useJamStore((s) => s.state?.upcoming ?? null);
   const isHost = useJamStore(selectIsHost);
+  const myId = useSessionStore((s) => s.user?.id ?? null);
   if (isHost || !upcoming || upcoming.length === 0) return null;
   const shown = upcoming.slice(0, UPCOMING_SHOWN);
 
@@ -144,6 +150,16 @@ const JamUpcoming = () => {
           leading={<ArtworkImage uri={entry.artwork_url} size={44} />}
           order={index < 10 ? index : undefined}
           last={index === shown.length - 1}
+          // Uma música de outra pessoa: tocar abre denunciar/bloquear (1.2).
+          onPress={
+            entry.proposer && entry.proposer.id !== myId
+              ? () =>
+                  onModerate({
+                    person: entry.proposer,
+                    content: { kind: "song", id: entry.id, label: entry.title },
+                  })
+              : undefined
+          }
         />
       ))}
     </View>
@@ -172,6 +188,7 @@ export default function JamScreen({ embedded = false }: { embedded?: boolean } =
   const [invited, setInvited] = useState<readonly UserId[]>([]);
   const [confirmEnd, setConfirmEnd] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [moderate, setModerate] = useState<Moderate | null>(null);
 
   // The joinable list is only fetched while we are NOT already in a jam.
   const jamsQuery = useJams(!jam);
@@ -371,7 +388,7 @@ export default function JamScreen({ embedded = false }: { embedded?: boolean } =
           ) : null}
 
           <JamRules jam={jam} isHost={isHost} />
-          <JamUpcoming />
+          <JamUpcoming onModerate={setModerate} />
 
           <SectionLabel title={t(`${PANEL}.membersCount`, { count: jam.members.length })} />
           {jam.members.map((member, index) => (
@@ -382,6 +399,12 @@ export default function JamScreen({ embedded = false }: { embedded?: boolean } =
               }`}
               leading={<ArtworkImage uri={avatarUrl(member.id)} size={40} shape="circle" />}
               last={index === jam.members.length - 1}
+              // Outra pessoa: tocar abre denunciar (ela ou a jam) e bloquear.
+              onPress={
+                member.id === myId
+                  ? undefined
+                  : () => setModerate({ person: member, content: { kind: "jam", id: jam.id } })
+              }
               trailing={
                 member.is_host ? (
                   <Text style={[pageType.meta, { color: tokens.mutedForeground }]}>
@@ -410,6 +433,13 @@ export default function JamScreen({ embedded = false }: { embedded?: boolean } =
           </View>
         </>
       )}
+
+      <ModerationSheet
+        visible={moderate !== null}
+        onClose={() => setModerate(null)}
+        person={moderate?.person ?? null}
+        content={moderate?.content ?? null}
+      />
 
       <ConfirmDialog
         visible={confirmEnd}

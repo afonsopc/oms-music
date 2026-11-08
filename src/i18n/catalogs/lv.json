@@ -1205,7 +1205,18 @@
     "account": {
       "signOut": "Iziet",
       "signOutTitle": "Iziet?",
-      "signOutMessage": "Vari pierakstīties atkal jebkurā laikā."
+      "signOutMessage": "Vari pierakstīties atkal jebkurā laikā.",
+      "terms": "Lietošanas noteikumi",
+      "privacy": "Privātuma politika",
+      "support": "Palīdzība un kontakti",
+      "delete": "Dzēst manu kontu",
+      "deleteTitle": "Dzēst kontu?",
+      "deleteMessage": "Tavs O Melhor Site konts tiek dzēsts ar visu saturu, arī dziesmām, atskaņošanas sarakstiem un vēsturi. Apstiprināsi ar paroli konta lapā. Konts tiek slēgts uzreiz, un dati tiek dzēsti pēc 48 stundām.",
+      "deleteContinue": "Turpināt",
+      "serviceOff": {
+        "title": "Mūzika vēl nav ieslēgta",
+        "body": "Tavā O Melhor Site kontā Mūzika vēl nav ieslēgta. Raksti mums sadaļā Palīdzība un kontakti, un mēs to ieslēgsim."
+      }
     },
     "import": {
       "stepPicked": "Faili izvēlēti",
@@ -1259,6 +1270,45 @@
       "lyricsSometimes": "Dziesmas vārdi: dažreiz",
       "lyricsNever": "Dziesmas vārdi: nekad",
       "queue": "Rinda"
+    },
+    "moderation": {
+      "reportOrBlock": "Ziņot vai bloķēt",
+      "report": {
+        "user": "Ziņot par šo cilvēku",
+        "jam": "Ziņot par šo džemu",
+        "playlist": "Ziņot par šo sarakstu",
+        "song": "Ziņot par šo dziesmu"
+      },
+      "reportPerson": "Ziņot par {who}",
+      "blockPerson": "Bloķēt {who}",
+      "footnote": "Ziņojumi uzreiz nonāk pie komandas un tiek izskatīti 24 stundu laikā. Bloķētie vairs nav tavi draugi un nevar tevi redzēt vai pievienoties taviem džemiem.",
+      "reasonTitle": "Kāpēc ziņo?",
+      "reasons": {
+        "spam": "Surogātpasts",
+        "harassment": "Uzmākšanās vai iebiedēšana",
+        "hate": "Naida runa",
+        "sexual": "Seksuāls saturs",
+        "violence": "Vardarbība",
+        "self_harm": "Paškaitējums vai pašnāvība",
+        "illegal": "Nelikumīgs vai pārkāpj autortiesības",
+        "impersonation": "Uzdodas par citu",
+        "other": "Cits iemesls"
+      },
+      "detailsPlaceholder": "Sīkāk (nav obligāti)",
+      "send": "Sūtīt ziņojumu",
+      "sentTitle": "Paldies",
+      "sentBody": "Ziņojums nosūtīts. Izskatīsim to 24 stundu laikā un noņemsim visu, kas pārkāpj noteikumus.",
+      "failed": "Neizdevās. Mēģini vēlreiz.",
+      "blockTitle": "Bloķēt {who}?",
+      "blockMessage": "Jūs vairs neesat draugi. Šis cilvēks vairs neredz tavu profilu, mūziku un džemus, un tu neredzi viņa. Atbloķēt vari omelhorsite.pt.",
+      "block": "Bloķēt",
+      "terms": {
+        "title": "Lietošanas noteikumi",
+        "body": "Lai lietotu Mūziku, tu piekrīti sava O Melhor Site konta lietošanas noteikumiem.",
+        "rules": "Netiek pieļauts aizskarošs saturs un citu cilvēku aizskaršana. Augšupielādē tikai mūziku, kas ir tava vai ko tev ir tiesības klausīties. Vari ziņot par jebkuru un to bloķēt; ziņojumi tiek izskatīti 24 stundu laikā.",
+        "accept": "Piekrist un turpināt",
+        "read": "Lasīt noteikumus"
+      }
     }
   }
 }
