@@ -82,7 +82,7 @@ const GAP = 0;
 /** A pega dos divisores, por cima do traço. */
 const RESIZE_HANDLE = 6;
 const TOPBAR_HEIGHT = 56;
-const TRANSPORT_HEIGHT = 84;
+const TRANSPORT_HEIGHT = 96;
 const SIDEBAR_RAIL_WIDTH = 72;
 const PANEL_RAIL_WIDTH = 0;
 
