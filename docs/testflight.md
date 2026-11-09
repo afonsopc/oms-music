@@ -43,9 +43,9 @@ commitado; `WORK=` muda a pasta, por omissão `$TMPDIR/oms-music-testflight`),
   `bun scripts/asc.ts testers pt.omelhorsite.music` (uma vez; o grupo recebe
   todas as builds e não passa pela revisão da Apple).
 
-## App Store pública: ainda não
+## App Store pública
 
-O TestFlight interno não passa pela revisão. Antes de submeter à App Store tem
-de estar acabada a saída da sincronização com outros serviços e dos
-descarregamentos de vídeo para o serviço de importação à parte
-(`docs/app-store.md`, import.omelhorsite.pt); só então submeter.
+A saída da importação de fora para o `oms-music-import` está feita
+(`docs/app-store.md`), e a app está pronta para a revisão desde 2026-11-08:
+ficha, capturas, conta de demonstração e os passos à mão que faltam estão em
+`docs/app-store.md`. A build para a revisão é uma build normal deste script.

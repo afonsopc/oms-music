@@ -1,0 +1,93 @@
+{
+  "versionString": "2.1.3",
+  "copyright": "2026 Afonso Coutinho",
+  "categories": {
+    "primary": "MUSIC",
+    "secondary": null
+  },
+  "ageRating": {
+    "advertising": false,
+    "ageAssurance": false,
+    "alcoholTobaccoOrDrugUseOrReferences": "NONE",
+    "contests": "NONE",
+    "gambling": false,
+    "gamblingSimulated": "NONE",
+    "gunsOrOtherWeapons": "NONE",
+    "healthOrWellnessTopics": false,
+    "horrorOrFearThemes": "NONE",
+    "lootBox": false,
+    "matureOrSuggestiveThemes": "NONE",
+    "medicalOrTreatmentInformation": "NONE",
+    "messagingAndChat": false,
+    "parentalControls": false,
+    "profanityOrCrudeHumor": "INFREQUENT_OR_MILD",
+    "sexualContentGraphicAndNudity": "NONE",
+    "sexualContentOrNudity": "NONE",
+    "socialMedia": false,
+    "unrestrictedWebAccess": false,
+    "userGeneratedContent": true,
+    "violenceCartoonOrFantasy": "NONE",
+    "violenceRealistic": "NONE",
+    "violenceRealisticProlongedGraphicOrSadistic": "NONE"
+  },
+  "locales": {
+    "pt-PT": {
+      "name": "OMS Music",
+      "subtitle": "O leitor da tua música",
+      "privacyPolicyUrl": "https://omelhorsite.pt/pt/privacy-policy",
+      "supportUrl": "https://omelhorsite.pt/pt/about-us",
+      "marketingUrl": "https://music.omelhorsite.pt",
+      "keywords": "música,leitor,biblioteca,mp3,flac,playlists,letras,offline,cast,jam,amigos",
+      "promotionalText": "A tua própria música, no iPhone, no computador e na TV. Sem anúncios e sem catálogo: só o que é teu.",
+      "description": "A OMS Music é o leitor da tua própria música: carregas os teus ficheiros de áudio e ouves no iPhone, no computador e na TV, com tudo sincronizado.\n\nA TUA BIBLIOTECA\n• Carrega os teus ficheiros (MP3, AAC, FLAC, OGG, WAV...) a partir da app Ficheiros.\n• Álbuns, artistas e playlists organizados sozinhos, com capas.\n• Gosto, histórico, e misturas e rádios feitas só com a tua música.\n\nOUVIR\n• Leitor com fila, aleatório, repetir e reprodução em segundo plano.\n• Transfere músicas para ouvir sem rede.\n• Letras sincronizadas, quando existem.\n• Transmite para a TV ou colunas com Google Cast.\n\nCOM AMIGOS\n• Partilha uma playlist só com amigos.\n• Jams: ouçam juntos a mesma música, cada um no seu telefone.\n• Podes denunciar e bloquear qualquer pessoa.\n\nA música é tua: cada conta só ouve o que carregou (ou o que um amigo partilhou com ela). Não há catálogo, anúncios nem compras. Usa a conta grátis do O Melhor Site, e podes apagá-la na própria app."
+    },
+    "en-US": {
+      "name": "OMS Music",
+      "subtitle": "The player for your music",
+      "privacyPolicyUrl": "https://omelhorsite.pt/en/privacy-policy",
+      "supportUrl": "https://omelhorsite.pt/en/about-us",
+      "marketingUrl": "https://music.omelhorsite.pt",
+      "keywords": "music,player,library,mp3,flac,playlists,lyrics,offline,cast,jam,friends",
+      "promotionalText": "Your own music on your iPhone, computer and TV. No ads and no catalog: only what is yours.",
+      "description": "OMS Music is the player for your own music: upload your audio files and listen on your iPhone, computer and TV, all in sync.\n\nYOUR LIBRARY\n• Upload your files (MP3, AAC, FLAC, OGG, WAV...) from the Files app.\n• Albums, artists and playlists organised for you, with artwork.\n• Likes, history, and mixes and radios made only from your music.\n\nLISTEN\n• Player with queue, shuffle, repeat and background playback.\n• Download songs to listen offline.\n• Synced lyrics, when available.\n• Cast to your TV or speakers with Google Cast.\n\nWITH FRIENDS\n• Share a playlist with friends only.\n• Jams: listen to the same song together, each on their own phone.\n• You can report and block anyone.\n\nThe music is yours: each account only plays what it uploaded (or what a friend shared with it). No catalog, no ads, no purchases. Uses your free O Melhor Site account, which you can delete inside the app."
+    }
+  },
+  "review": {
+    "contactFirstName": "Afonso",
+    "contactLastName": "Coutinho",
+    "contactEmail": "afonso@omelhorsite.pt",
+    "contactPhone": "+351968374909",
+    "demoAccountRequired": true,
+    "demoAccountName": "appreview@omelhorsite.pt",
+    "demoAccountPassword": null,
+    "notes": [
+      "OMS Music is a music player for YOUR OWN music library, made and run by an independent developer (Afonso Coutinho). It is the music part of O Melhor Site (omelhorsite.pt) and uses the same free accounts.",
+      "",
+      "MUSIC RIGHTS (5.2)",
+      "- There is no catalog, store or streaming service inside the app. Each account only plays the audio files that its owner uploaded from their own device (Settings > Import, \"Importar\": files picked from the Files app). Songs belong to one account; they are never shared with other accounts or searchable by others.",
+      "- The only way someone else hears a song is if its owner chooses to share it with an accepted friend: a playlist set to \"friends\", or a listening session (\"Jam\") with friends. There is no public sharing.",
+      "- The app does not download from websites or other music services and has no links to do so.",
+      "- The demo account contains only 8 recordings in the public domain or under CC0: the Open Goldberg Variations by Kimiko Ishizaka (CC0, Free Music Archive), Albinoni Oboe Concerto Op. 9 No. 2 performed by Paul Arden-Taylor (CC0, Musopen), Borodin In the Steppes of Central Asia by the Musopen Symphony Orchestra (CC0), Bach Jesus bleibet meine Freude by Orchestra Gli Armonici (CC0) and Vivaldi Mandolin Concerto RV 425 by The Milan Baroque Soloists (Public Domain Mark, Musopen), all from Wikimedia Commons. Cover art was made by us.",
+      "- Song lyrics, artist photos and bios are metadata looked up by title and artist; the uploader is told to only upload music they own or have the right to listen to (Terms of Use).",
+      "",
+      "SIGN-IN",
+      "Tap \"Entrar\". Sign-in opens our own account service (id.omelhorsite.pt) in an ASWebAuthenticationSession; use the demo account (email + password). In the iOS app only our own accounts are offered (email + password, passkey or emailed code): no third-party or social login, so Sign in with Apple does not apply (4.8).",
+      "",
+      "USER-GENERATED CONTENT (1.2)",
+      "Other people's content only appears between accepted friends (profiles, friends' playlists, Jams).",
+      "- Terms of Use with zero tolerance for objectionable content and abusive users are accepted before first use.",
+      "- Report: on another person's profile, \"Denunciar ou bloquear\"; in a Jam, tap a member (report the person or the Jam) or a song added by someone else (report the song). Reasons + optional details. Reports reach the administrators immediately and are handled within 24 hours (content removed, account suspended).",
+      "- Block: same menus, \"Bloquear\". Blocking ends the friendship in both directions: no profile, shared playlists or Jams.",
+      "- Contact: afonso@omelhorsite.pt, and Profile > \"Ajuda e contacto\".",
+      "",
+      "ACCOUNT DELETION (5.1.1(v))",
+      "Profile tab > \"Apagar a minha conta\". It opens the delete confirmation of our account service inside the app (Safari view); the account closes at once and all data, music included, is deleted after 48 hours. Privacy policy and terms are in the same screen.",
+      "",
+      "OTHER",
+      "- Background audio (UIBackgroundModes audio) for playback; Google Cast to TVs/speakers (local network permission, only when the Cast list is opened).",
+      "- The visualizer and montage views show web pages from our own site (music.omelhorsite.pt) in a web view; they only draw animations for the song that is playing and add no features.",
+      "- An assistant tab answers questions about the user's own library (AI, run on our servers and processors listed in the privacy policy).",
+      "- Nothing to buy: no purchases, subscriptions, ads or external payment links. Encryption: only standard HTTPS (ITSAppUsesNonExemptEncryption = NO)."
+    ]
+  }
+}
