@@ -7,8 +7,10 @@ import { describe, expect, test } from "bun:test";
 import {
   getDownloadStatusReader,
   setDownloadStatusReader,
+  summarizeDownloads,
   type DownloadStatusReader,
 } from "../downloadStatus";
+import type { SongDownloadStatus } from "@/domain/downloads";
 
 const makeReader = (): DownloadStatusReader & {
   bump: () => void;
@@ -60,5 +62,44 @@ describe("downloadStatus seam", () => {
     setDownloadStatusReader(second);
     expect(getDownloadStatusReader().getStatus(1)).toBe("done");
     expect(getDownloadStatusReader().getProgress(99)).toBe(1);
+  });
+});
+
+describe("summarizeDownloads (collection X de Y)", () => {
+  const byId: Record<string, SongDownloadStatus> = {
+    "1": "done",
+    "2": "queued",
+    "3": "downloading",
+    "4": "error",
+    "5": "none",
+  };
+  const read = { getStatus: (id: number | string) => byId[String(id)] ?? "none" };
+
+  test("counts done, pending (queued + downloading) and error", () => {
+    expect(summarizeDownloads([1, 2, 3, 4, 5], read)).toEqual({
+      total: 5,
+      done: 1,
+      pending: 2,
+      error: 1,
+    });
+  });
+
+  test("numeric and string ids hit the same reader keys", () => {
+    expect(summarizeDownloads(["1", 2, "3"], read)).toEqual({
+      total: 3,
+      done: 1,
+      pending: 2,
+      error: 0,
+    });
+  });
+
+  test("defaults to the installed reader", () => {
+    setDownloadStatusReader({
+      getStatus: () => "done",
+      getProgress: () => 1,
+      subscribe: () => () => {},
+    });
+    expect(summarizeDownloads([7, 8])).toEqual({ total: 2, done: 2, pending: 0, error: 0 });
+    expect(summarizeDownloads([])).toEqual({ total: 0, done: 0, pending: 0, error: 0 });
   });
 });

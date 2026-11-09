@@ -6,6 +6,8 @@ O que entra vai para "Por lançar"; o bump dá-lhe o número.
 
 ## Por lançar
 
+- Downloads de playlists, álbuns e artistas: cada música mostra o seu estado: um relógio enquanto espera, um anel que se vai enchendo enquanto descarrega, um visto quando está no aparelho e um aviso se falhar. Ao lado do botão de download aparece "12 de 40" até estarem todas. No iPhone, as músicas que já tinham sido pré-carregadas (normalmente as que estão no ecrã) eram saltadas pelo download da playlist: não mostravam estado nenhum e não ficavam guardadas para ouvir sem rede. Agora ficam.
+
 ## 2.1.3 (2026-11-07)
 
 - Letras: numa música já cantada na língua da tradução (ex. uma música portuguesa com o PT ligado) deixa de aparecer por baixo de cada linha uma cópia quase igual, só com vírgulas ou "?" a mais. Não há tradução para a mesma língua, e uma linha traduzida que só muda pontuação, maiúsculas ou acentos não aparece.

@@ -33,6 +33,7 @@ import { isManualOffline, isOnline } from "../offlineLibrary";
 import { getDownloadSettings } from "../settings";
 import { assertUnderStorageCap, isStorageCapError } from "../storageCap";
 import {
+  bumpDownloadStatus,
   clearSongStatuses,
   getKindStatus,
   getMixedProgress,
@@ -411,6 +412,7 @@ export const downloadSong = async (
   if (wants.length === 0) return;
 
   const songKey = toSongKey(song.id);
+  const wasPinned = current.songs.has(songKey);
   // The pin lands in memory FIRST, so the badge and the song menu answer
   // correctly in the same frame as the click. Rust writes the same row.
   current.songs.set(songKey, song);
@@ -418,7 +420,13 @@ export const downloadSong = async (
   // Optimistic queued for the row the UI watches. Rust's own `queued` arrives
   // milliseconds later and, being the SAME status, rides the progress channel
   // instead of bumping the coarse one a second time.
+  //
+  // When a row already exists (the play cache or the predictive tier got
+  // there first) its status was never visible - `getStatusFor` answers
+  // "none" for an unpinned song - so the pin itself is the transition the
+  // badge must hear about.
   if (getKindStatus(songKey, "mixed") == null) setKindStatus(songKey, "mixed", "queued", 0);
+  else if (!wasPinned) bumpDownloadStatus();
 
   try {
     await cacheDownload(songKey, JSON.stringify(song), wants);

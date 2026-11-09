@@ -210,7 +210,9 @@
         "more": "More",
         "offlineOn": "Downloaded and synced. Tap to remove.",
         "offlineOff": "Download this collection and keep it synced with new additions.",
-        "removeDownload": "Remove download"
+        "removeDownload": "Remove download",
+        "offlineProgress": "{done} of {total}",
+        "offlineFailed": "Failed: {count}"
       },
       "MixView": {
         "mixLabel": "Mix",

@@ -42,6 +42,7 @@ import { withAlpha } from "@/theme/contrast";
 import { useTheme } from "@/theme/provider";
 import {
   ActionBar,
+  CollectionDownloadProgress,
   artworkSourceUri,
   EmptyState,
   GhostIconButton,
@@ -319,6 +320,7 @@ export default function ArtistScreen() {
         }
         onToggleOffline={handleToggleOffline}
         isOffline={artistIsOffline}
+        offlineStatus={artistIsOffline ? <CollectionDownloadProgress songs={allSongs} /> : null}
         isPlayingThisCollection={isPlayingThisArtist}
         secondarySlot={
           topSongs.length > 0 ? (

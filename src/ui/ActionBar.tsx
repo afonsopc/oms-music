@@ -39,6 +39,8 @@ export interface ActionBarProps {
   /** Offline keep-synced toggle (FR-87): Download / CloudCheck states. */
   onToggleOffline?: () => void;
   isOffline?: boolean;
+  /** Rendered right after the download toggle (the "X de Y" while songs arrive). */
+  offlineStatus?: React.ReactNode;
   isPlayingThisCollection?: boolean;
   playLoading?: boolean;
   /** Overflow sheet items (e.g. delete playlist, copy to editable). */
@@ -62,6 +64,7 @@ export const ActionBar = ({
   addLabel,
   onToggleOffline,
   isOffline = false,
+  offlineStatus,
   isPlayingThisCollection = false,
   playLoading = false,
   menuItems,
@@ -154,6 +157,7 @@ export const ActionBar = ({
             }
           />
         ) : null}
+        {onToggleOffline ? offlineStatus : null}
         {onLike ? (
           <GhostIconButton
             icon="heart"

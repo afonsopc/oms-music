@@ -87,6 +87,19 @@ const notifyCoarse = (): void => {
   }, THROTTLE_MS);
 };
 
+/**
+ * Coarse bump WITHOUT a map write: a song just got pinned (dl_songs row)
+ * over a mixed file the play cache or the predictive tier had already
+ * queued, started or finished. The map row did not change, so no transition
+ * fired, but `getStatusFor` went from "none" to that status - the badge has
+ * to hear about it or the row stays blank until some OTHER song moves
+ * (owner report 2026-11-09: a playlist download showed nothing per song).
+ * Throttled like every other coarse bump.
+ */
+export const bumpDownloadStatus = (): void => {
+  notifyCoarse();
+};
+
 export const subscribeDownloadStatus = (cb: () => void): (() => void) => {
   listeners.add(cb);
   return () => {

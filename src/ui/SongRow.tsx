@@ -14,7 +14,9 @@ import type { PopoverAnchor } from "./popoverPosition";
 import { songTableColumnGate, songTableDurationWidth, songTablePanelGate } from "./breakpoints";
 import { useContainerWidth, useDesktopShell } from "./shellLayout";
 import { getDownloadStatusReader, useDownloadBadgeVersion } from "./downloadStatus";
+import { Image } from "expo-image";
 import { Icon } from "./icons";
+import { progressRingUri } from "./iconSvg";
 import { PlayingBars } from "./PlayingBars";
 import { SongMenu } from "./SongMenu";
 import { songArtworkSource } from "@/domain/artwork";
@@ -77,6 +79,16 @@ export interface SongRowProps {
   onToggleLike?: () => void;
 }
 
+/**
+ * Per-song download state, one 14px glyph per state so they read apart at
+ * a glance (owner report 2026-11-09: queued and downloading were the same
+ * muted arrow, and a playlist download looked like nothing was happening):
+ *   queued      clock, muted and dimmed - waiting its turn;
+ *   downloading a ring filling clockwise (5% steps, ~1 Hz);
+ *   done        check in the success ink;
+ *   error       alert in the destructive ink.
+ * Same 14x14 slot in every state: no text, so nothing in the row reflows.
+ */
 const DownloadBadge = ({ songId }: { songId: number }) => {
   // Status glyphs are ink on the page, not fills, so they take the ink
   // variants: raw `destructive` is ~2:1 on the dark background.
@@ -91,24 +103,19 @@ const DownloadBadge = ({ songId }: { songId: number }) => {
     return <Icon name="circle-check" size={14} color={ink.success} />;
   }
   if (status === "error") {
-    return <Icon name="download" size={14} color={ink.destructive} />;
+    return <Icon name="alert-circle" size={14} color={ink.destructive} />;
   }
-  const progress = reader.getProgress(songId);
+  if (status === "queued") {
+    return <Icon name="clock" size={14} color={tokens.mutedForeground} style={{ opacity: 0.7 }} />;
+  }
   return (
-    <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-      <Icon name="download" size={14} color={tokens.mutedForeground} />
-      {status === "downloading" && progress > 0 ? (
-        <Text
-          style={{
-            color: tokens.mutedForeground,
-            fontSize: 11,
-            fontVariant: ["tabular-nums"],
-          }}
-        >
-          {Math.round(progress * 100)}%
-        </Text>
-      ) : null}
-    </View>
+    <Image
+      alt=""
+      source={{ uri: progressRingUri(reader.getProgress(songId), tokens.foreground) }}
+      style={{ width: 14, height: 14 }}
+      contentFit="contain"
+      accessible={false}
+    />
   );
 };
 

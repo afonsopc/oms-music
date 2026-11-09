@@ -48,9 +48,12 @@ export { GhostIconButton, PlayFab, type GhostIconButtonProps, type PlayFabProps 
 export {
   getDownloadStatusReader,
   setDownloadStatusReader,
+  summarizeDownloads,
   useDownloadStatusVersion,
+  type CollectionDownloadSummary,
   type DownloadStatusReader,
 } from "./downloadStatus";
+export { CollectionDownloadProgress } from "./CollectionDownloadProgress";
 export { EmptyState, type EmptyStateProps } from "./EmptyState";
 export { ErrorState, type ErrorStateProps } from "./ErrorState";
 export { FilterPills, type FilterPill, type FilterPillsProps } from "./FilterPills";

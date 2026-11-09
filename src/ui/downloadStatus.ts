@@ -119,3 +119,31 @@ export const useDownloadStatusVersion = (): number =>
 /** Leaf hook for the badge/percent surfaces: transitions + ~1 Hz progress. */
 export const useDownloadBadgeVersion = (): number =>
   useSyncExternalStore(subscribeWithProgress, getVersion, getVersion);
+
+export interface CollectionDownloadSummary {
+  total: number;
+  done: number;
+  /** queued + downloading: still on its way. */
+  pending: number;
+  error: number;
+}
+
+/**
+ * Counts a collection's songs by status for the "X de Y" next to the
+ * collection's download toggle. O(n) over plain reads; the caller runs it
+ * from a LEAF component on the coarse channel only (transitions, <= 4 Hz),
+ * never from the screen.
+ */
+export const summarizeDownloads = (
+  ids: readonly (number | string)[],
+  read: Pick<DownloadStatusReader, "getStatus"> = reader,
+): CollectionDownloadSummary => {
+  const out: CollectionDownloadSummary = { total: ids.length, done: 0, pending: 0, error: 0 };
+  for (const id of ids) {
+    const status = read.getStatus(id);
+    if (status === "done") out.done++;
+    else if (status === "queued" || status === "downloading") out.pending++;
+    else if (status === "error") out.error++;
+  }
+  return out;
+};

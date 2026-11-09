@@ -198,6 +198,56 @@ export const iconUri = (name: IconName, color: string, filled = false): string =
   return uri;
 };
 
+/** Quantization of the download ring: 5% steps, so at most 21 URIs per color. */
+const RING_STEPS = 20;
+
+/** Snaps 0..1 progress onto the ring's steps (pure, tested). */
+export const ringStep = (progress: number): number => {
+  if (!Number.isFinite(progress) || progress <= 0) return 0;
+  if (progress >= 1) return RING_STEPS;
+  return Math.round(progress * RING_STEPS);
+};
+
+/**
+ * The per-song download ring (row badge, owner report 2026-11-09): a faint
+ * full track (same ink at 25%, so no rgba() the native decoder may reject) plus an arc from 12 o'clock, clockwise, in the ink colour. Same
+ * 24x24 box and stroke as the glyphs, so it sits in the 14px badge slot
+ * exactly where the clock and the check do - no layout shift between states.
+ * At 0 the arc is a short stub so "started, no bytes yet" still reads as
+ * moving rather than as an empty circle.
+ */
+export const progressRingUri = (progress: number, color: string): string => {
+  const step = ringStep(progress);
+  const cacheKey = `ring|${step}|${color}`;
+  const hit = uriCache.get(cacheKey);
+  if (hit) return hit;
+  const r = 9;
+  // A plain arc PATH, not a dash-array on a rotated circle: the native SVG
+  // decoder behind expo-image does the basic shapes reliably and little else.
+  const fraction = step === RING_STEPS ? 1 : Math.max(step / RING_STEPS, 0.08);
+  const arc =
+    fraction >= 1
+      ? `<circle cx="12" cy="12" r="${r}" stroke="${color}" stroke-width="3"/>`
+      : (() => {
+          const angle = fraction * 2 * Math.PI;
+          const x = (12 + r * Math.sin(angle)).toFixed(2);
+          const y = (12 - r * Math.cos(angle)).toFixed(2);
+          const large = fraction > 0.5 ? 1 : 0;
+          return (
+            `<path d="M12 ${12 - r} A${r} ${r} 0 ${large} 1 ${x} ${y}" stroke="${color}" ` +
+            `stroke-width="3" stroke-linecap="round"/>`
+          );
+        })();
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">` +
+    `<circle cx="12" cy="12" r="${r}" stroke="${color}" stroke-opacity="0.25" stroke-width="3"/>` +
+    arc +
+    `</svg>`;
+  const uri = `data:image/svg+xml;base64,${toBase64(svg)}`;
+  uriCache.set(cacheKey, uri);
+  return uri;
+};
+
 /**
  * Maps free-form icon hints from song-menu slot registrations
  * (contracts/songMenu `SongMenuItem.icon`) onto the local set.

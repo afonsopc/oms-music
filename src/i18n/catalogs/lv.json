@@ -210,7 +210,9 @@
         "more": "Vairāk",
         "offlineOn": "Lejupielādēts un sinhronizēts. Pieskaries, lai noņemtu.",
         "offlineOff": "Lejupielādē šo kolekciju un uzturi to sinhronizētu ar jaunumiem.",
-        "removeDownload": "Noņemt lejupielādi"
+        "removeDownload": "Noņemt lejupielādi",
+        "offlineProgress": "{done} no {total}",
+        "offlineFailed": "Neizdevās: {count}"
       },
       "MixView": {
         "mixLabel": "Mikss",

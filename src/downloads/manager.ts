@@ -51,6 +51,7 @@ import {
   getMixedStatus,
   resetStatuses,
   setKindStatus,
+  bumpDownloadStatus,
   subscribeDownloadStatus,
 } from "./status";
 import { TransferScheduler, type TransferRequest } from "./tasks";
@@ -820,6 +821,12 @@ export const downloadSong = async (song: Song, opts?: DownloadOpts): Promise<voi
   if (!existing || existing.lyricsState === "unfetched") {
     fetchLyricsIntoRow(session, song, songKey);
   }
+
+  // Newly pinned over an orphan mixed row (the visible rows of a collection
+  // are exactly what the predictive tier prefetched): its status was written
+  // silently, and enqueueKind below dedups without writing again, so nothing
+  // would tell the badge it is now visible.
+  if (!existing && getKindStatus(songKey, "mixed")) bumpDownloadStatus();
 
   const usesCompressed = mixedNode === song.compressed_audio_media_id;
   enqueueKind(session, song, songKey, "mixed", mixedNode, {

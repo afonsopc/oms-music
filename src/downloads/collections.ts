@@ -20,6 +20,7 @@ import {
   addOfflineCollection,
   downloadSong,
   forgetCollectionMembership,
+  getStatusFor,
   isOfflineCollectionKey,
   isStarted,
   isWifiRefusedError,
@@ -33,7 +34,6 @@ import {
 } from "./manager";
 import { NOTICE_KEYS, notifyDownloadNotice } from "./notices";
 import { isOffline } from "./offlineLibrary";
-import { getMixedStatus } from "./status";
 import { isStorageCapError } from "./storageCap";
 import type { SongKey } from "@/domain/ids";
 import type { Song } from "@/domain/song";
@@ -103,7 +103,14 @@ export const downloadSongsSequentially = async (songs: readonly Song[]): Promise
   }
   for (const song of songs) {
     if (song.jam_song) continue;
-    if (getMixedStatus(normalizeSongKey(song.id)) === "done") continue;
+    // `getStatusFor` (pinned songs only), NOT the raw mixed status - the same
+    // rule the desktop fork already follows. The rows a collection screen
+    // shows are exactly what the play cache and the viewport prefetch have
+    // already landed as ORPHAN files, so the raw check skipped them: never
+    // pinned, no badge, absent from the offline library, while the songs
+    // further down (never prefetched) did download (owner report
+    // 2026-11-09). Pinning an already-done file costs one row write.
+    if (getStatusFor(song.id) === "done") continue;
     try {
       await downloadSong(song, { skipWifiGate: true });
     } catch (error) {
@@ -178,7 +185,7 @@ export const syncOfflineCollection = async (
     }
     for (const song of songs) {
       if (song.jam_song) continue;
-      if (getMixedStatus(normalizeSongKey(song.id)) === "done") continue;
+      if (getStatusFor(song.id) === "done") continue; // pinned only, see above
       try {
         await downloadSong(song, { skipWifiGate: true });
       } catch (error) {

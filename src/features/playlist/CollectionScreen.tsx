@@ -27,6 +27,7 @@ import { usePlaybackView } from "@/remote/mirror";
 import { useTheme } from "@/theme/provider";
 import {
   ActionBar,
+  CollectionDownloadProgress,
   EmptyState,
   ErrorState,
   getDownloadStatusReader,
@@ -425,6 +426,7 @@ export const CollectionScreen = ({
         addLabel={addLabel}
         onToggleOffline={offlineApi && collectionKey ? handleToggleOffline : undefined}
         isOffline={isOffline}
+        offlineStatus={isOffline ? <CollectionDownloadProgress songs={songs} /> : null}
         isPlayingThisCollection={isPlayingThisCollection}
         playLoading={playLoading}
         menuItems={menuItems}
