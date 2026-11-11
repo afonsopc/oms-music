@@ -235,13 +235,11 @@ compila o HEAD, passa a verificação de "Nada de importar de fora" (pára se
 o bundle iOS nomear serviços de fora) e envia. `ITSAppUsesNonExemptEncryption
 = false` (só HTTPS), por isso a build não fica à espera de perguntas.
 
-**Estado a 2026-11-09**: a build para a revisão ainda **não** foi enviada.
-A tentativa (HEAD `45415ad`, versão 2.1.3, build 261108.2355) passou o
-prebuild, o pod install e a verificação "nada de importar de fora" (vazia),
-e o archive caiu só por **disco cheio** ("No space left on device"; o Mac
-ficou com 310 MB livres). Uma build de iPhone precisa de uns 8-10 GB livres
-na pasta temporária. Liberta espaço e corre `bun run ios:testflight` (passo
-3 da lista acima).
+**Estado a 2026-11-11**: a build 261111.145 (2.1.3, HEAD `88c5a00`, sem
+letras nem fotos de fora e com a verificação alargada) está VALID no
+TestFlight e já está ligada à versão 2.1.3 no App Store Connect (pela API).
+Os passos 3 e 4 da lista acima estão feitos; falta o resto (privacidade,
+Direitos de conteúdo, submeter), à mão.
 
 ## Nada de importar de fora (App Store e Play Store)
 
