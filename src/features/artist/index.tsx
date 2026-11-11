@@ -62,6 +62,7 @@ import { AlbumGrid } from "./AlbumGrid";
 import { ArtistPreviewStories } from "./PreviewStories";
 import { ArtistGallery } from "./ArtistGallery";
 import { htmlToParagraphs } from "./bioHtml";
+import { sourceCredit } from "@/features/import/sourceCredits";
 import { hasOwnArtistImage, heroAvatarSource, heroBackdropUri } from "./images";
 
 /**
@@ -153,7 +154,7 @@ export default function ArtistScreen() {
   const featuredSongsQuery = useArtistSongs(artistName || null, "featured", enabled);
   const metadataQuery = useArtistMetadata(artistName || null, enabled);
   const topQuery = useTopSongs(artistName || null, { since: "all", limit: 5, enabled });
-  // Lazily populates the Deezer picture columns server-side; skipped when the
+  // Reads the library picture (the import put it there); skipped when the
   // resource already carries a picture worth showing.
   const picturesQuery = useArtistPictures(
     artistName || null,
@@ -250,6 +251,7 @@ export default function ArtistScreen() {
       : undefined;
 
   const galleryUrls = artistResource?.gallery_image_urls ?? [];
+  const aboutCredit = sourceCredit("artistAbout");
   const bioParagraphs = useMemo(
     () => htmlToParagraphs(artistResource?.bio_html ?? metadataQuery.data?.bio_html),
     [artistResource?.bio_html, metadataQuery.data?.bio_html],
@@ -394,9 +396,9 @@ export default function ArtistScreen() {
               {paragraph}
             </Text>
           ))}
-          <Text style={{ color: tokens.mutedForeground, fontSize: 11 }}>
-            {t("components.music.ArtistView.aboutAttribution")}
-          </Text>
+          {aboutCredit ? (
+            <Text style={{ color: tokens.mutedForeground, fontSize: 11 }}>{aboutCredit}</Text>
+          ) : null}
         </View>
       </Section>
     ) : null;

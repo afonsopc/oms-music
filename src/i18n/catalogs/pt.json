@@ -63,7 +63,6 @@
         "participatesIn": "Participa em",
         "featuredOn": "Aparece em",
         "about": "Sobre",
-        "aboutAttribution": "Bio via Last.fm / Wikipedia (CC-BY-SA).",
         "noAlbumsFound": "Nenhum álbum encontrado",
         "albumSubtitle": "Álbum",
         "unknownAlbum": "Álbum Desconhecido",
@@ -224,7 +223,6 @@
       "RadioView": {
         "radioLabel": "Rádio",
         "songs": "músicas",
-        "attribution": "Similaridade via Last.fm",
         "errorLoadingRadio": "Erro ao carregar o rádio",
         "saveAsPlaylist": "Guardar como playlist",
         "savedAsPlaylist": "Rádio guardada como playlist",

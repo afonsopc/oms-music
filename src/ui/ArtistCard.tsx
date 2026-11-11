@@ -1,7 +1,7 @@
 /**
  * Grid artist card (web ArtistCard parity): circular avatar + centered
  * name. With no picture the deterministic initials disc renders (the ONLY
- * legal initials surface, FR-21). A `loading` state covers the Deezer
+ * legal initials surface, FR-21). A `loading` state covers the library
  * picture lookup for derived name-only cards.
  */
 import React from "react";

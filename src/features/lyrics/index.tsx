@@ -65,6 +65,7 @@ import {
 } from "@/remote/mirror";
 import { withAlpha } from "@/theme/contrast";
 import { useTheme } from "@/theme/provider";
+import { sourceCredit } from "@/features/import/sourceCredits";
 import { BottomSheet, EmptyState, ErrorState, GhostIconButton, Icon, Skeleton } from "@/ui";
 import {
   initialTranslationTarget,
@@ -188,6 +189,7 @@ export default function LyricsBody() {
   const songId = usePlaybackView((v) => v.song?.id ?? null);
   const songLanguage = usePlaybackView((v) => v.song?.language ?? null);
   const lyricsQuery = useLyrics(songId);
+  const lyricsCredit = sourceCredit("lyrics", lyricsQuery.data?.attribution);
 
   const synced = lyricsQuery.data?.synced ?? null;
   const plain = lyricsQuery.data?.plain ?? null;
@@ -724,9 +726,9 @@ export default function LyricsBody() {
                 </View>
               );
             })}
-        <Text style={{ color: tokens.mutedForeground, fontSize: 12, paddingTop: 20 }}>
-          {t(`${K}.attribution`, { source: lyricsQuery.data?.attribution || "" })}
-        </Text>
+        {lyricsCredit ? (
+          <Text style={{ color: tokens.mutedForeground, fontSize: 12, paddingTop: 20 }}>{lyricsCredit}</Text>
+        ) : null}
       </ScrollView>
 
       {synced && suppressed && activeOffscreen ? (

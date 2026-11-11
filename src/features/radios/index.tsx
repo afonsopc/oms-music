@@ -24,6 +24,7 @@ import { useTheme } from "@/theme/provider";
 import { RADIUS, RADIO_KIND_GRADIENTS } from "@/theme/tokens";
 import { artworkSourceUri, Icon, MixTileArtwork } from "@/ui";
 import { CollectionScreen } from "@/features/playlist/CollectionScreen";
+import { sourceCredit } from "@/features/import/sourceCredits";
 
 /** Radio gradients reuse the mix families (theme/tokens keeps them in sync). */
 const MIX_KIND_FOR_RADIO: Record<"artist" | "song", MixKind> = {
@@ -50,7 +51,7 @@ export const RadioScreen = (props: RadioScreenProps) => {
   const songs = useMemo(() => radio?.songs ?? [], [radio]);
   const seed = songs[0];
 
-  // Artist radio: the artist's Deezer photo. Song radio: the seed artwork
+  // Artist radio: the artist's library photo. Song radio: the seed artwork
   // (the generator unshifts the seed track as songs[0]).
   const picturesQuery = useArtistPictures(isArtist ? props.artist : null, isArtist);
   const picture = picturesQuery.data?.[0];
@@ -77,8 +78,10 @@ export const RadioScreen = (props: RadioScreenProps) => {
     ? [
         radio.description,
         `${songs.length} ${t("components.music.RadioView.songs")}`,
-        t("components.music.RadioView.attribution"),
-      ].join(" • ")
+        sourceCredit("radio"),
+      ]
+        .filter(Boolean)
+        .join(" • ")
     : undefined;
 
   return (

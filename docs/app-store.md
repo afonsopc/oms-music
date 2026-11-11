@@ -19,6 +19,14 @@ biblioteca partilhada nem música posta por nós:
 - O áudio só sai pelo `GET /media/:id/...`, que dá 404 a quem não é dono.
 - Biblioteca, pesquisa, álbuns, artistas, rádios, misturas, Rewind, DJ,
   assistente, letras e Montagem: só a música da própria conta.
+- **Letras e fotos de artistas** (desde 2026-11-11): também só da biblioteca
+  da própria conta, como a música. A app (iOS, Android, web e computador) e o
+  núcleo nunca as vão buscar a outros serviços; quem as procura é o serviço
+  de importação (`import.omelhorsite.pt`), sozinho quando a pessoa importa
+  uma música ou quando ela pede na aba "Letras e imagens" dessa página (tudo
+  o que falta, ou uma música / um artista). Ficam na linha da música
+  (`songs.user_id`) e do artista (`artists.user_id`) dessa conta; nada é
+  partilhado entre contas. Uma música sem letra mostra só que não tem.
 - **Duas excepções, só entre amigos aceites**: uma playlist que o dono pôs
   em "amigos" (os amigos ouvem-na) e as jams (quem está na jam ouve a música
   do anfitrião e as que os outros propõem). Não há partilha pública nem
@@ -30,16 +38,13 @@ biblioteca partilhada nem música posta por nós:
   iPhone. A app nunca o nomeia nem lá leva (ver abaixo).
 
 **Risco que vejo**: a app em si é honesta ("leitor da tua própria
-biblioteca"), e é isso que as notas dizem. Os pontos fracos são: (1) uma
-pessoa pode pôr na biblioteca, pelo site de importação, música que não é
-dela, e ouvi-la no iPhone; a Apple não vê isso na app, mas se perguntar "de
-onde vem a música", a resposta honesta é "ficheiros do utilizador"; (2) as
-**letras** vêm de sites de terceiros (lrclib, e o fetcher também lê o Genius)
-e a app mostra "Letras via <fonte>"; letras são obras protegidas e a Apple
-pode pedir a licença (os grandes usam LyricFind/Musixmatch). Se a revisão
-falar disso, o mais seguro é tirar as letras de fora da app iOS (como os
-Filmes no O Melhor Site). (3) As fotos e biografias de artistas vêm do
-Deezer/Last.fm/Wikipedia (metadados, risco baixo).
+biblioteca"), e é isso que as notas dizem. O ponto fraco é que uma pessoa
+pode pôr na biblioteca, pelo site de importação, música (e letras e fotos de
+artistas) que não é dela, e vê-la no iPhone; a Apple não vê isso na app, mas
+se perguntar "de onde vem", a resposta honesta é "da importação do próprio
+utilizador". Desde 2026-11-11 a app já não vai buscar letras nem fotos lá
+fora e não mostra de onde vieram ("Letras via …", "Similaridade via …" e
+"Bio via …" só na web e no computador, `src/features/import/sourceCredits.web.ts`).
 
 A conta de demonstração tem só música livre: `docs/app-store/musica-livre.md`
 (origem, licença e como conferir).
@@ -55,7 +60,7 @@ A conta de demonstração tem só música livre: `docs/app-store/musica-livre.md
 | 4.8 | No iPhone o login pede ao id sem Google/GitHub (`platform=ios` -> `ui_locales=<língua>-x-iosapp`, como o site), por isso não é preciso Sign in with Apple | `src/auth/oauth.ts`, backend `Music::AuthController#id_extra` |
 | 2.1 | Conta sem o serviço "music" (vem desligado nas contas novas): um ecrã a dizê-lo, com contacto, em vez de erros | `src/features/account/ServiceGate.tsx` |
 | 5.1.1 permissões | Saíram os pedidos de microfone e Face ID (a app não usa nenhum); fica a rede local (Transmitir) | `app.json` (`microphonePermission`/`faceIDPermission: false`) |
-| 3.1 | Nada pago: sem compras, assinaturas, anúncios nem links para pagar | — |
+| 3.1 | Nada pago: sem compras, assinaturas, anúncios nem links para pagar | (nada) |
 
 **Decisão para o Afonso (importante para uma app pública)**: o serviço
 "music" vem **desligado** nas contas novas (`ServicesCatalog`, nos dois
@@ -122,10 +127,11 @@ estiver em inglês, o nome em inglês vai entre parênteses):
    - no fim, **Publicar** (Publish), em cima à direita.
 2. **Informações da app** (App Information) > **Direitos de conteúdo**
    (Content Rights) > **Configurar**: "A app contém, mostra ou acede a
-   conteúdo de terceiros?" A resposta honesta é **Sim** (a música que cada
-   pessoa carrega, as letras e as fotos de artistas), e depois "Tem os
-   direitos necessários?" — isto é uma declaração tua; vê o risco das letras
-   acima antes de responder. **Guardar**.
+   conteúdo de terceiros?" **Não, a app não contém conteúdo de terceiros**:
+   todo o conteúdo (música, letras, fotos de artistas) é posto por cada
+   pessoa na sua biblioteca, pela sua própria importação; a app não vai
+   buscar nada a outros serviços (desde 2026-11-11, ver "A pergunta
+   principal"). **Guardar**.
 3. **A build**: no Terminal, na pasta `oms-music`, com tudo commitado:
    `bun run ios:testflight`. Uns 10-15 minutos a compilar e enviar, e mais
    uns minutos até aparecer em **TestFlight** como "Pronta a testar". Não há
@@ -251,6 +257,12 @@ importa os ficheiros do próprio utilizador (definições > importar, que chama
 - A app (iOS, Android, web e desktop) nunca volta a ter importação de fora:
   nada de sincronizar com outros serviços, importar por link, pesquisa
   externa, trocar a fonte de uma música, nem mostrar de onde veio uma música.
+- Nem letras, fotos, biografias ou galerias de artistas vindas de fora
+  (2026-11-11): nenhum botão, nenhuma procura ao tocar ou ao abrir um
+  artista, nenhum endpoint do núcleo que vá lá fora. As apps só lêem o que a
+  biblioteca da pessoa tem; procurar é do serviço de importação (aba "Letras
+  e imagens"). Os créditos ("Letras via …") e os nomes desses sítios só em
+  `src/features/import/sourceCredits.web.ts`; o par nativo devolve `null`.
   As playlists mantidas por fora aparecem só como "Sincronizada"
   (`playlist.synced`), sem o nome de nenhum serviço.
 - O único sítio que fala da página de importação é
@@ -277,19 +289,23 @@ importa os ficheiros do próprio utilizador (definições > importar, que chama
   `bun patch --commit node_modules/@omelhorsite/sdk`).
 - O teste `src/boot/__tests__/appStore.test.ts` falha se algum ficheiro de
   `src/` que vá para as apps nativas (tudo menos `*.web.ts(x)` e
-  `__tests__`), ou os catálogos, nomear esses serviços ou a página de
-  importação, e se o SDK instalado não estiver remendado.
+  `__tests__`), ou os catálogos, nomear esses serviços, a página de
+  importação ou os sítios das letras e fotos (lrclib, Genius, Deezer,
+  Last.fm, MusicBrainz, Wikipédia), e se o SDK instalado não estiver
+  remendado.
 
 ### Verificação antes de qualquer build iOS ou Android
 
 ```bash
 bunx expo export --platform ios --no-bytecode --output-dir /tmp/omsm-ios-export
 bunx expo export --platform android --no-bytecode --output-dir /tmp/omsm-android-export
-grep -i -o -E "spotify|youtube|soundcloud|bandcamp|yt-dlp|ytdlp|import\.omelhorsite|song_imports|external_search|rematch|match_candidates|artist_imports|artist_syncs|playlist_imports|itunes" -r /tmp/omsm-ios-export | sort | uniq -c
+grep -i -o -E "spotify|youtube|soundcloud|bandcamp|yt-dlp|ytdlp|import\.omelhorsite|song_imports|external_search|rematch|match_candidates|artist_imports|artist_syncs|playlist_imports|itunes|lrclib|genius|deezer|last\.fm|audioscrobbler|musicbrainz|wikipedia\.org" -r /tmp/omsm-ios-export | sort | uniq -c
 grep -i -o -E "spotify|youtube|soundcloud|bandcamp|yt-dlp|ytdlp|import\.omelhorsite|song_imports|external_search|rematch|match_candidates|artist_imports|artist_syncs|playlist_imports|itunes" -r /tmp/omsm-android-export | sort | uniq -c
 ```
 
-O de iOS tem de sair vazio. No Android aparecem hoje duas linhas `youtube`
+O de iOS tem de sair vazio (o `bun run ios:testflight` corre-o e pára se
+não sair). `wikipedia.org` e não a palavra solta: "wikipedia" está numa lista
+de palavras de frases-passe de uma dependência. No Android aparecem hoje duas linhas `youtube`
 que não são nossas: são nomes de ícones (`youtube_activity`,
 `youtube_searched_for`) na tabela de símbolos Material do `expo-symbols`
 (`build/android/symbols.json`). Qualquer outra coisa trava o build.

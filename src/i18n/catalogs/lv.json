@@ -60,7 +60,6 @@
         "participatesIn": "Piedalās",
         "featuredOn": "Parādās",
         "about": "Par",
-        "aboutAttribution": "Biogrāfija no Last.fm / Wikipedia (CC-BY-SA).",
         "loading": "Ielādē...",
         "errorLoadingAlbums": "Kļūda ielādējot albumus",
         "albums": "Albumi",
@@ -224,7 +223,6 @@
       "RadioView": {
         "radioLabel": "Radio",
         "songs": "dziesmas",
-        "attribution": "Līdzība no Last.fm",
         "errorLoadingRadio": "Kļūda ielādējot radio",
         "saveAsPlaylist": "Saglabāt kā atskaņošanas sarakstu",
         "savedAsPlaylist": "Radio saglabāts kā atskaņošanas saraksts",

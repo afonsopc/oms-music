@@ -52,7 +52,10 @@ if [ "${SKIP_STORE_CHECK:-0}" != "1" ]; then
   echo "» verificação App Store (nada de importar de fora no bundle)"
   rm -rf "$WORK/.store-check"
   bunx expo export --platform ios --no-bytecode --output-dir "$WORK/.store-check" >/dev/null
-  if grep -i -o -E "spotify|youtube|soundcloud|bandcamp|yt-dlp|ytdlp|import\.omelhorsite|song_imports|external_search|rematch|match_candidates|artist_imports|artist_syncs|playlist_imports|itunes" -r "$WORK/.store-check" | sort | uniq -c | grep .; then
+  # Também os sítios de onde a importação traz letras e fotos de artistas
+  # (2026-11-11, "Direitos de conteúdo"). wikipedia.org e não a palavra solta:
+  # "wikipedia" está na lista de palavras das frases-passe de uma dependência.
+  if grep -i -o -E "spotify|youtube|soundcloud|bandcamp|yt-dlp|ytdlp|import\.omelhorsite|song_imports|external_search|rematch|match_candidates|artist_imports|artist_syncs|playlist_imports|itunes|lrclib|genius|deezer|last\.fm|audioscrobbler|musicbrainz|wikipedia\.org" -r "$WORK/.store-check" | sort | uniq -c | grep .; then
     echo "o bundle iOS fala de serviços de fora (docs/app-store.md); parei" >&2; exit 1
   fi
 fi

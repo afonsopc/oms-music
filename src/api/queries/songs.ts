@@ -194,7 +194,7 @@ export const useRandomAlbums = (count = 10, enabled = true) => {
   });
 };
 
-/** Deezer picture lookup for derived artist cards (FR-33). */
+/** The library artist picture for derived artist cards (FR-33), read-only. */
 export const useArtistPictures = (name: string | null, enabled = true) => {
   const authReady = useAuthReady();
   const key = keys.songs.artistPictures(name ?? "");

@@ -56,7 +56,7 @@ export interface Song {
    * antes de 2026-08-31 (downloads, snapshots) nao o trazem.
    */
   language?: string | null;
-  /** Etiquetas do Last.fm, minusculas, no maximo seis. Opcional, como acima. */
+  /** Etiquetas de genero, minusculas, no maximo seis. Opcional, como acima. */
   tags?: string[];
   /** Batidas por minuto, pelo ISRC da gravacao. Nulo e comum. */
   bpm?: number | null;

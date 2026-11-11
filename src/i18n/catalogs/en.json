@@ -60,7 +60,6 @@
         "participatesIn": "Participates in",
         "featuredOn": "Featured on",
         "about": "About",
-        "aboutAttribution": "Bio via Last.fm / Wikipedia (CC-BY-SA).",
         "loading": "Loading...",
         "errorLoadingAlbums": "Error loading albums",
         "albums": "Albums",
@@ -224,7 +223,6 @@
       "RadioView": {
         "radioLabel": "Radio",
         "songs": "songs",
-        "attribution": "Similarity via Last.fm",
         "errorLoadingRadio": "Error loading radio",
         "saveAsPlaylist": "Save as playlist",
         "savedAsPlaylist": "Radio saved as a playlist",

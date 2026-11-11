@@ -5,7 +5,10 @@
  *
  *  1. no source file that Metro can bundle into iOS/Android (everything under
  *     src/ except `*.web.ts(x)` and `__tests__`), and none of the i18n
- *     catalogs, names those services or the import page;
+ *     catalogs, names those services or the import page, nor the sites the
+ *     import gets lyrics, artist photos and bios from (2026-11-11: the apps
+ *     only show what each person has in their own library, "Content
+ *     Rights");
  *  2. the patched SDK (patches/, applied by `bun install`) no longer ships the
  *     import, sync, match and external-search namespaces.
  *
@@ -28,6 +31,17 @@ const FORBIDDEN_IN_APP = words(
   ["band", "camp"],
   ["yt-", "dlp"],
   ["import.", "omelhorsite"],
+);
+
+/** Where the import service finds lyrics, artist photos, bios and similar artists. */
+const CONTENT_SOURCES = words(
+  ["lrc", "lib"],
+  ["gen", "ius"],
+  ["dee", "zer"],
+  ["last", ".fm"],
+  ["audio", "scrobbler"],
+  ["music", "brainz"],
+  ["wiki", "pedia"],
 );
 
 const FORBIDDEN_IN_SDK = [
@@ -77,6 +91,10 @@ describe("App Store gate", () => {
     const files = nativeSources(SRC);
     expect(files.some((f) => f.endsWith("catalogs/pt.json"))).toBe(true);
     expect(hits(files, FORBIDDEN_IN_APP)).toEqual([]);
+  });
+
+  it("keeps the lyrics and artist-photo sources out of every native-bundled source and catalog", () => {
+    expect(hits(nativeSources(SRC), CONTENT_SOURCES)).toEqual([]);
   });
 
   it("ships the SDK patched (bun install applies patches/)", () => {

@@ -17,17 +17,17 @@ const IMPORT_PAGE = "https://import.omelhorsite.pt";
 const COPY: Record<Locale, { title: string; line: string; host: string }> = {
   pt: {
     title: "Importar de outros sítios",
-    line: "Spotify, YouTube e links: em ",
+    line: "Spotify, YouTube, links, letras e fotos dos artistas: em ",
     host: "import.omelhorsite.pt",
   },
   en: {
     title: "Import from elsewhere",
-    line: "Spotify, YouTube and links: at ",
+    line: "Spotify, YouTube, links, lyrics and artist photos: at ",
     host: "import.omelhorsite.pt",
   },
   lv: {
     title: "Importēt no citām vietām",
-    line: "Spotify, YouTube un saites: ",
+    line: "Spotify, YouTube, saites, dziesmu vārdi un mākslinieku foto: ",
     host: "import.omelhorsite.pt",
   },
 };

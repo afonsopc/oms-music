@@ -3,7 +3,7 @@
  *
  * The backend sanitizes the bio down to a narrow allowlist (a/i/em/strong/
  * p/br) before it ever reaches a client, but React Native has no HTML
- * renderer and pulling in a WebView for two paragraphs of Last.fm prose is
+ * renderer and pulling in a WebView for two paragraphs of bio prose is
  * not worth it. Paragraph and line breaks become list entries, every other
  * tag is dropped, and the handful of entities the shim emits are decoded.
  * Pure: unit-tested.

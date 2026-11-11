@@ -127,7 +127,7 @@ export const useArtist = (idOrSlug: string | null, enabled = true) => {
   });
 };
 
-/** Legacy Last.fm shim; ALWAYS 200 (unknown artist = all-null echo). */
+/** Legacy artist metadata shim (read-only); ALWAYS 200 (unknown artist = all-null echo). */
 export const useArtistMetadata = (name: string | null, enabled = true) => {
   const authReady = useAuthReady();
   const key = keys.artists.metadata(name ?? "");

@@ -51,7 +51,7 @@ type ArtistImageCarrier = Pick<
 > & { gallery_image_urls?: string[] };
 
 /**
- * Artist image chain: compressed upload > upload > Deezer picture by size
+ * Artist image chain: compressed upload > upload > library picture by size
  * (sm contexts: picture_medium; hero: picture_xl/picture_big) > picture >
  * gallery[0] > fallback artwork node > external_image_url > initials.
  */
@@ -62,11 +62,11 @@ export const artistImageSource = (
   if (artist.compressed_image_media_id)
     return { kind: "node", nodeId: artist.compressed_image_media_id };
   if (artist.image_media_id) return { kind: "node", nodeId: artist.image_media_id };
-  const deezer =
+  const libraryPicture =
     size === "sm"
       ? artist.picture_medium
       : (artist.picture_xl ?? artist.picture_big ?? artist.picture_medium);
-  if (deezer) return { kind: "external", url: deezer };
+  if (libraryPicture) return { kind: "external", url: libraryPicture };
   if (artist.picture) return { kind: "external", url: artist.picture };
   const gallery = artist.gallery_image_urls?.[0];
   if (gallery) return { kind: "external", url: gallery };

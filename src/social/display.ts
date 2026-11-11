@@ -21,7 +21,7 @@ export const formatSnapshotDuration = (seconds: number): string => {
 /**
  * Music profile artist image pick order (FR-120), verbatim from the web's
  * `musicProfileArtistImage`: the user-uploaded presigned image wins, then
- * the Deezer sizes largest-first, then the external fallback.
+ * the library picture sizes largest-first, then the external fallback.
  */
 export const musicProfileArtistImage = (artist: {
   image_url?: string | null;
