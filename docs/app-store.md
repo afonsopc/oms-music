@@ -235,8 +235,9 @@ compila o HEAD, passa a verificação de "Nada de importar de fora" (pára se
 o bundle iOS nomear serviços de fora) e envia. `ITSAppUsesNonExemptEncryption
 = false` (só HTTPS), por isso a build não fica à espera de perguntas.
 
-**Estado a 2026-11-11**: a build 261111.145 (2.1.3, HEAD `88c5a00`, sem
-letras nem fotos de fora e com a verificação alargada) está VALID no
+**Estado a 2026-11-11**: a build 261111.1026 (2.1.3, HEAD `7542984`, sem
+letras nem fotos de fora, as fotos dos artistas só do nosso armazenamento,
+e com a verificação alargada) está VALID no
 TestFlight e já está ligada à versão 2.1.3 no App Store Connect (pela API).
 Os passos 3 e 4 da lista acima estão feitos; falta o resto (privacidade,
 Direitos de conteúdo, submeter), à mão.
