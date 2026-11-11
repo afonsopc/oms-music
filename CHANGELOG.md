@@ -6,6 +6,7 @@ O que entra vai para "Por lançar"; o bump dá-lhe o número.
 
 ## Por lançar
 
+- Fotos dos artistas: passam a vir só do armazenamento da OMS Music (as que já tinhas foram copiadas para lá), nunca de outros sites. Na edição do artista, a galeria só se pode encurtar: já não se cola o endereço de uma imagem de fora.
 - Letras e fotos dos artistas: a app deixa de as ir buscar a outros serviços. Mostra as que estão na tua biblioteca; as que faltam procuram-se na página de importar (sozinhas ao importar uma música, ou na aba "Letras e imagens", todas de uma vez ou uma a uma). As letras e fotos que já tinhas ficam.
 - Downloads de playlists, álbuns e artistas: cada música mostra o seu estado: um relógio enquanto espera, um anel que se vai enchendo enquanto descarrega, um visto quando está no aparelho e um aviso se falhar. Ao lado do botão de download aparece "12 de 40" até estarem todas. No iPhone, as músicas que já tinham sido pré-carregadas (normalmente as que estão no ecrã) eram saltadas pelo download da playlist: não mostravam estado nenhum e não ficavam guardadas para ouvir sem rede. Agora ficam.
 

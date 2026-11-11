@@ -7,8 +7,10 @@
  *     sends `image` and gets a 400).
  * Both live in the SDK (music.artists.update / uploadBanner); this screen just drives them.
  *
- * Gallery URLs are http(s) only (server-enforced) and come from the EXTENDED
- * artist view, so the dialog fetches the detail when it opens.
+ * The gallery comes from the EXTENDED artist view, so the dialog fetches the
+ * detail when it opens. It can only be trimmed or kept: the photos are the
+ * ones the import service stored on our own storage, and the server refuses
+ * any new address (App Store "content rights": no third-party image hosts).
  */
 import React, { useMemo, useState } from "react";
 import { Modal, Pressable, ScrollView, Text, View } from "react-native";
@@ -36,8 +38,6 @@ import {
 
 const DIALOG_KEY = "components.music.Settings.ArtistsTable.EditArtistDialog";
 
-const isHttpUrl = (value: string): boolean => /^https?:\/\//i.test(value.trim());
-
 export const ArtistEditDialog = ({
   artist,
   visible,
@@ -61,7 +61,6 @@ export const ArtistEditDialog = ({
   // the row; the gallery follows the extended payload until the user edits
   // it (null = "still following the server").
   const [name, setName] = useState(artist.name);
-  const [galleryDraft, setGalleryDraft] = useState("");
   const [galleryEdit, setGalleryEdit] = useState<string[] | null>(null);
   const [busy, setBusy] = useState<"image" | "banner" | "save" | null>(null);
   const [notice, setNotice] = useState<{ kind: "error" | "success"; text: string } | null>(null);
@@ -75,17 +74,6 @@ export const ArtistEditDialog = ({
   const galleryChanged =
     gallery.length !== initialGallery.length ||
     gallery.some((url, index) => initialGallery[index] !== url);
-
-  const addGalleryUrl = (): void => {
-    const url = galleryDraft.trim();
-    if (!url) return;
-    if (!isHttpUrl(url)) {
-      setNotice({ kind: "error", text: t(`${DIALOG_KEY}.galleryInvalidUrl`) });
-      return;
-    }
-    if (!gallery.includes(url)) setGallery([...gallery, url]);
-    setGalleryDraft("");
-  };
 
   const save = async (): Promise<void> => {
     if (!nameChanged && !galleryChanged) {
@@ -229,22 +217,6 @@ export const ArtistEditDialog = ({
                 </View>
               ))
             )}
-            <View style={{ flexDirection: "row", gap: 8, alignItems: "flex-end" }}>
-              <View style={{ flex: 1 }}>
-                <LabeledField
-                  label={t(`${DIALOG_KEY}.galleryAddPlaceholder`)}
-                  value={galleryDraft}
-                  onChangeText={setGalleryDraft}
-                  autoCapitalize="none"
-                />
-              </View>
-              <GhostButton
-                label={t(`${DIALOG_KEY}.galleryAdd`)}
-                compact
-                disabled={!galleryDraft.trim()}
-                onPress={addGalleryUrl}
-              />
-            </View>
           </View>
         </ScrollView>
 

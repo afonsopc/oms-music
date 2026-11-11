@@ -442,10 +442,7 @@
             "galleryTitle": "Gallery",
             "galleryDescription": "Photos shown in the artist's About section.",
             "galleryEmpty": "No photos yet.",
-            "galleryAddPlaceholder": "Paste image URL",
-            "galleryAdd": "Add",
-            "galleryRemove": "Remove",
-            "galleryInvalidUrl": "Use a valid http(s) URL"
+            "galleryRemove": "Remove"
           },
           "DeleteArtistDialog": {
             "title": "Delete {name}?",

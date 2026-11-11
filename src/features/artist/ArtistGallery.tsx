@@ -2,8 +2,10 @@
  * Artist gallery slideshow (FR-42, P2): 16:9 crossfading photos that
  * auto-advance every 6 seconds, pause while the user is touching the frame,
  * with chevron prev/next and dot indicators. The URLs come straight from
- * `gallery_image_urls` (arbitrary Wikimedia hosts) so they are rendered as
- * plain external images, never through the fs-node builder.
+ * `gallery_image_urls`: our own public picture addresses
+ * (backend.omelhorsite.pt/media/pictures/…, copied there by the import
+ * service; never a third-party host), rendered as plain images, never
+ * through the fs-node builder.
  */
 import React, { useEffect, useState } from "react";
 import { Pressable, View } from "react-native";

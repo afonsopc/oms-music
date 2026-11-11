@@ -440,10 +440,7 @@
             "galleryTitle": "Galeria",
             "galleryDescription": "Fotos mostradas na secção Sobre do artista.",
             "galleryEmpty": "Ainda sem fotos.",
-            "galleryAddPlaceholder": "Cola o endereço da imagem",
-            "galleryAdd": "Adicionar",
-            "galleryRemove": "Remover",
-            "galleryInvalidUrl": "Usa um endereço http(s) válido"
+            "galleryRemove": "Remover"
           },
           "DeleteArtistDialog": {
             "title": "Apagar {name}?",

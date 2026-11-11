@@ -442,10 +442,7 @@
             "galleryTitle": "Galerija",
             "galleryDescription": "Foto, kas tiek rādītas izpildītāja sadaļā Par.",
             "galleryEmpty": "Vēl nav foto.",
-            "galleryAddPlaceholder": "Ielīmē attēla URL",
-            "galleryAdd": "Pievienot",
-            "galleryRemove": "Noņemt",
-            "galleryInvalidUrl": "Izmanto derīgu http(s) URL"
+            "galleryRemove": "Noņemt"
           },
           "DeleteArtistDialog": {
             "title": "Dzēst {name}?",
