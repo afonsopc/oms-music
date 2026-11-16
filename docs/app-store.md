@@ -209,8 +209,25 @@ HEAD, iPhone 18 Pro Max, modo escuro, barra de estado 9:41) com a conta
 for L in pt-PT en-US; do
   bun scripts/asc.ts screenshots pt.omelhorsite.music $L APP_IPHONE_67 docs/app-store/screenshots/6.9
   bun scripts/asc.ts screenshots pt.omelhorsite.music $L APP_IPHONE_65 docs/app-store/screenshots/6.5
+  bun scripts/asc.ts screenshots pt.omelhorsite.music $L APP_IPAD_PRO_3GEN_129 docs/app-store/screenshots/ipad-13/$L
 done
 ```
+
+**iPad 13"** (2026-11-16): a build tem `TARGETED_DEVICE_FAMILY = "1,2"`
+(`supportsTablet: true`), por isso a Apple exige capturas de iPad
+(`STATE_ERROR.SCREENSHOT_REQUIRED.IPAD_13_PROFILE`). Estão em
+`docs/app-store/screenshots/ipad-13/pt-PT` e `en-US` (2064×2752,
+`APP_IPAD_PRO_3GEN_129`, JPEG sem alfa, uma pasta por língua porque a
+interface muda de língua): as mesmas 6 vistas, tiradas do código da build
+261111.1026 (`7542984`) num iPad Pro 13" (M5) de simulador, Release, modo
+escuro, 9:41, conta `appreview`, só música livre, com o áudio a 0 (o
+adaptador do leitor na cópia das capturas punha `volume = 0` e
+`muted = true`). A língua da app mudou-se pelo hook (`setLocale`) e a do
+simulador (`AppleLanguages`) para a barra de estado. O iPadOS 26 mostra no
+canto de baixo à direita a pega de redimensionar a janela: foi apagada das
+imagens (só os píxeis da pega, trocados pelos 80 px à esquerda). As 12 em
+"COMPLETE". O tocar deixou 4 `PlayEvent` na demo, apagados por id no fim,
+com a sessão das capturas.
 
 Para as refazer sem tocar no ecrã (o Simulador aqui não tem janela): numa
 cópia limpa do HEAD (nunca no repo), `src/auth/token.ts` devolve o token de
@@ -239,8 +256,12 @@ o bundle iOS nomear serviços de fora) e envia. `ITSAppUsesNonExemptEncryption
 letras nem fotos de fora, as fotos dos artistas só do nosso armazenamento,
 e com a verificação alargada) está VALID no
 TestFlight e já está ligada à versão 2.1.3 no App Store Connect (pela API).
-Os passos 3 e 4 da lista acima estão feitos; falta o resto (privacidade,
-Direitos de conteúdo, submeter), à mão.
+Os passos 3 e 4 da lista acima estão feitos.
+
+**Submetida a 2026-11-16**: privacidade e Direitos de conteúdo feitos à mão;
+faltavam as capturas de iPad 13" (ver "Capturas"). A versão 2.1.3 foi
+acrescentada à submissão `b6ae517c-4fcd-4760-801e-3abe22a87783` e submetida
+pela API: `WAITING_FOR_REVIEW`.
 
 ## Nada de importar de fora (App Store e Play Store)
 
