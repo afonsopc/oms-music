@@ -25,7 +25,20 @@ const COPY: Record<Locale, { title: string; update: string; later: string }> = {
   lv: { title: "Ir jauna versija.", update: "Atjaunināt", later: "Ne tagad" },
 };
 
-const myVersionCode = (): number => Number(Constants.expoConfig?.android?.versionCode ?? 0);
+export const myVersionCode = (): number => Number(Constants.expoConfig?.android?.versionCode ?? 0);
+export const APK_URL = `${SITE}/app/oms-music.apk`;
+
+/** The published APK's versionCode, or null (offline, bad answer). */
+export const fetchLatestVersionCode = async (): Promise<number | null> => {
+  try {
+    const res = await fetch(`${SITE}/app/android.json`, { cache: "no-store" });
+    if (!res.ok) return null;
+    const latest = (await res.json()) as { versionCode?: number };
+    return typeof latest.versionCode === "number" ? latest.versionCode : null;
+  } catch {
+    return null;
+  }
+};
 
 export const AndroidUpdateToast = () => {
   const [open, setOpen] = useState(false);
@@ -39,14 +52,9 @@ export const AndroidUpdateToast = () => {
     const check = async (): Promise<void> => {
       if (Date.now() - last < EVERY_MS) return;
       last = Date.now();
-      try {
-        const res = await fetch(`${SITE}/app/android.json`, { cache: "no-store" });
-        if (!res.ok) return;
-        const latest = (await res.json()) as { versionCode?: number };
-        if (typeof latest.versionCode === "number" && latest.versionCode > myVersionCode()) setOpen(true);
-      } catch {
-        // Sem net: fica para a próxima.
-      }
+      // Sem net: fica para a próxima.
+      const latest = await fetchLatestVersionCode();
+      if (latest != null && latest > myVersionCode()) setOpen(true);
     };
     const timer = setTimeout(() => void check(), 5000);
     const sub = AppState.addEventListener("change", (state) => {
@@ -91,7 +99,7 @@ export const AndroidUpdateToast = () => {
           accessibilityRole="button"
           onPress={() => {
             setOpen(false);
-            void Linking.openURL(`${SITE}/app/oms-music.apk`);
+            void Linking.openURL(APK_URL);
           }}
           style={{
             backgroundColor: tokens.foreground,

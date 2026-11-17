@@ -6,6 +6,7 @@ O que entra vai para "Por lançar"; o bump dá-lhe o número.
 
 ## Por lançar
 
+- Android: "Procurar actualizações" no perfil, com a versão instalada. Se houver uma nova, descarrega-a logo; senão diz que já tens a mais recente.
 - Android: a notificação e o ecrã bloqueado passam a ter Anterior e Seguinte em vez de recuar/avançar 10 segundos.
 - Mini-leitor: botão "Seguinte" ao lado do play/pausa (antes só se mudava de música deslizando o mini-leitor para o lado).
 - Playlists, no telemóvel: segura na capa de uma música e arrasta para a mudar de sítio, sem ter de abrir "Reordenar" no menu "⋯".

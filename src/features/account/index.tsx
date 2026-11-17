@@ -22,6 +22,7 @@ import { avatarUrl } from "@/api/mediaUrl";
 import { logout, useSessionStore } from "@/auth/session";
 import { ACCOUNT_DELETE_URL, sitePage } from "@/features/moderation/api";
 import { SettingsPage, SettingsRow, SettingsSection } from "@/features/settings/ui";
+import { AndroidUpdateRow } from "@/features/android/UpdateRow";
 import { useT } from "@/i18n";
 import { useTheme } from "@/theme/provider";
 import { ArtworkImage, ConfirmDialog, Skeleton } from "@/ui";
@@ -101,6 +102,8 @@ export default function AccountScreen() {
             label={t("native.library.settings")}
             onPress={() => go("/settings")}
           />
+          {/* Só no Android (o APK não vem de loja nenhuma). */}
+          <AndroidUpdateRow />
         </SettingsSection>
 
         {/* Termos, privacidade e contacto (App Store 5.1.1 e 1.2): as
