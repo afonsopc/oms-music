@@ -112,8 +112,7 @@ if [ "$STORE" = "play" ]; then
   AAB="android/app/build/outputs/bundle/release/app-release.aab"
   jarsigner -verify "$AAB" 2>&1 | grep -q "jar verified" || { echo "o AAB não está assinado" >&2; exit 1; }
   # O manifest final (o que vai dentro do AAB, depois de juntar as bibliotecas).
-  MANIFEST="$(find android/app/build/intermediates -path "*release*" -name AndroidManifest.xml \
-    \( -path "*merged_manifest/*" -o -path "*bundle_manifest/*" \) | head -1)"
+  MANIFEST="$(find android/app/build/intermediates/bundle_manifest -path "*release*" -name AndroidManifest.xml | head -1)"
   [ -n "$MANIFEST" ] || { echo "não encontrei o manifest final" >&2; exit 1; }
   PERMS="$(grep -o 'uses-permission[^>]*android:name="[^"]*"' "$MANIFEST" | sed -E 's/.*android:name="([^"]*)"/\1/' | sort -u)"
   if echo "$PERMS" | grep -q -E "REQUEST_INSTALL_PACKAGES|REQUEST_DELETE_PACKAGES"; then

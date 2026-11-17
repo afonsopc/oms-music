@@ -1,8 +1,9 @@
-# App Android (APK, fora da Play Store)
+# App Android (APK de fora da loja, e o AAB para a Google Play)
 
 A Música para Android é a mesma app Expo (`pt.omelhorsite.music`), compilada
 neste Mac e posta para descarregar em https://music.omelhorsite.pt/android/.
-Não está na Play Store.
+Ainda não está na Play Store: o build para lá já existe (`STORE=play`, ver
+"Google Play" no fim), falta a conta na Play Console.
 
 ## Compilar
 
@@ -77,3 +78,66 @@ A pessoa instala por cima (mesma chave, os dados ficam).
 - Entrar: o mesmo `expo-web-browser` (Custom Tab) com volta por `omsmusic://`.
 - A app do omelhorsite abre esta quando está instalada (`<queries>` com
   `pt.omelhorsite.music`).
+
+## Google Play (STORE=play, o AAB)
+
+```sh
+STORE=play bun run android:apk      # AAB assinado do HEAD, para a Play Console
+```
+
+O mesmo `scripts/android-apk.sh`, com as mesmas regras (cópia limpa do HEAD,
+a verificação "nada de importar de fora" no bundle, versionCode `AAMMDDHH`,
+versionName do `package.json`, a mesma chave). O que muda:
+
+- `gradle bundleRelease` em vez de `assembleRelease`: sai um **AAB**
+  (`~/Documents/oms/builds/android/oms-music-play-<versionCode>.aab`) com
+  `armeabi-v7a`, `arm64-v8a` e `x86_64`. A Play dá a cada telemóvel só a
+  ABI dele, por isso o tamanho do AAB não é o que a pessoa descarrega. Ao
+  lado fica `oms-music-play-<versionCode>.permissions.txt`, as permissões do
+  manifest final. Não mexe no `oms-music.apk` e `PUBLISH=1` é recusado.
+- `OMS_ANDROID_DISTRIBUTION=play` no `app.config.js`:
+  - `extra.distribution = "play"` (chega à app pelo `expo-constants`;
+    `src/features/android/distribution.ts`, `isPlayBuild()`). Com ele **não
+    há** o aviso "Há uma versão nova" (`updateToast.tsx`) nem "Procurar
+    actualizações" no perfil (`UpdateRow.tsx`): quem actualiza é a loja, e a
+    política da Play proíbe uma app da loja descarregar ou instalar APKs por
+    fora.
+  - `android.blockedPermissions`: fora do manifest `REQUEST_INSTALL_PACKAGES`
+    (nunca esteve, fica garantido), `RECORD_AUDIO` (vem do plugin do
+    `expo-audio`; a app não grava), `USE_BIOMETRIC`/`USE_FINGERPRINT` (do
+    `expo-secure-store`; não usamos biometria), `SYSTEM_ALERT_WINDOW` e
+    `READ`/`WRITE_EXTERNAL_STORAGE` (do template; a app guarda tudo na pasta
+    dela e escolhe ficheiros pelo seletor do sistema).
+- O script pára se o AAB não estiver assinado, se o manifest final pedir
+  `REQUEST_INSTALL_PACKAGES`, ou se o `app.config` embutido não disser
+  `"distribution":"play"`.
+- O APK de fora (sem `STORE`) fica exactamente como era: sem `extra`, com as
+  mesmas permissões e com o aviso de versões novas.
+
+**targetSdk**: 36 (Android 16), o do Expo 57 (`compileSdk`/`targetSdk` 36,
+`minSdk` 24). É o mínimo da Play para apps novas e actualizações desde
+31-08-2026. As bibliotecas nativas vêm alinhadas a 16 KB (a Play exige-o
+para apps com targetSdk 35+): conferido no AAB `26111713`, as 146 `.so` com
+`LOAD` a `0x4000`.
+
+**Primeiro AAB** (2026-11-17, HEAD `57098f2`): `oms-music-play-26111713.aab`,
+2.1.3, 63 MB (as três ABIs), assinado com a `oms`. Permissões do manifest
+final: `INTERNET`, `ACCESS_NETWORK_STATE`, `ACCESS_WIFI_STATE`,
+`FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_MEDIA_PLAYBACK`, `WAKE_LOCK`,
+`MODIFY_AUDIO_SETTINGS`, `VIBRATE` e a interna
+`DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION` (porquê de cada uma:
+`store/play/console.md`). Sem `AD_ID`.
+
+**Chave**: a Play guarda a chave da app (Play App Signing). Para que quem
+tem o APK do site possa passar a actualizar pela loja sem apagar a app, na
+primeira subida escolher **usar a nossa chave** (a `oms` acima, exportada
+com a ferramenta PEPK que a consola dá) em vez de deixar a Google gerar
+outra. Se a Google gerar a dela, a `oms` passa a ser só a chave de upload e
+as duas instalações não se misturam (a do site tem de ser apagada antes de
+instalar a da loja).
+
+**Ficha da loja**: `store/play/` (títulos, descrições, as respostas da
+Segurança dos dados, classificação, público-alvo, conta de teste e o que
+falta fazer na Play Console em `store/play/console.md`). Os gráficos
+(ícone 512, gráfico de destaque 1024×500, capturas 1080×1920 a partir das da
+App Store) fazem-se com `python3 scripts/play-graphics.py`.
