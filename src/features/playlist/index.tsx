@@ -344,7 +344,9 @@ const PlaylistBody = ({ playlistId }: { playlistId: PlaylistId }) => {
         addedAtFor={addedAtFor}
         surface="playlist"
         extraActionsFor={system ? undefined : extraActionsFor}
-        onReorder={canReorder && reorderMode ? handleReorder : undefined}
+        // Segurar na capa arrasta sempre; as pegas só no modo Reordenar.
+        onReorder={canReorder ? handleReorder : undefined}
+        showReorderGrips={reorderMode}
         menuItems={menuItems}
         collectionKey={String(playlistId)}
         recentEntry={

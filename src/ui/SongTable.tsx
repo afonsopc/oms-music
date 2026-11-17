@@ -8,6 +8,10 @@
  * handle with a PanResponder; on release the visual index delta maps to
  * `onReorder(fromVisible, toVisible)`. Only enabled when the surface says
  * so (playlists refuse reorder until fully loaded, FR-50).
+ *
+ * Holding the cover also drags the row (ArtworkDrag), with or without the
+ * grips: a friend asked to "segurar na foto" to sort a playlist, and the
+ * grips only show after picking Reordenar in the ⋯ menu.
  */
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -26,6 +30,7 @@ import { songTableColumnGate, songTableDurationWidth, songTablePanelGate } from 
 import { useGutter } from "./page";
 import { useContainerWidth, useDesktopShell } from "./shellLayout";
 import { Icon } from "./icons";
+import { ArtworkDrag } from "./ArtworkDrag";
 import {
   DEFAULT_SONG_COLUMNS,
   songRowHeight,
@@ -61,6 +66,11 @@ export interface SongTableProps {
   extraActionsFor?: (song: Song, index: number) => SongMenuItem[] | undefined;
   /** Enables drag handles; refuse by omitting (partially loaded lists). */
   onReorder?: (fromVisible: number, toVisible: number) => void;
+  /**
+   * Show the grip column while `onReorder` is set (default). False keeps
+   * only hold-the-cover dragging, so rows look as usual.
+   */
+  showGrips?: boolean;
   /** Compact view mode (plan 4.3): 40px artwork-less rows. */
   compact?: boolean;
   header?: React.ReactElement | null;
@@ -196,6 +206,7 @@ export const SongTable = ({
   onToggleLike,
   extraActionsFor,
   onReorder,
+  showGrips = true,
   compact = false,
   header,
   footer,
@@ -221,6 +232,7 @@ export const SongTable = ({
   const [drag, setDrag] = useState<DragState | null>(null);
   const [dragY] = useState(() => new Animated.Value(0));
   const reorderEnabled = !!onReorder;
+  const gripsShown = reorderEnabled && showGrips;
   // The header's trailing spacer must mirror the rows' like column, which
   // only exists at desktop widths and OUTSIDE panel form (SongRow applies
   // the same two gates).
@@ -420,6 +432,7 @@ export const SongTable = ({
             onPlay={onPlay}
             onToggleLike={onToggleLike}
             reorderEnabled={reorderEnabled}
+            showGrips={gripsShown}
             dragColor={tokens.mutedForeground}
             dragLabel={t("components.music.SongTable.drag")}
             onDragStart={startDrag}
@@ -442,6 +455,7 @@ export const SongTable = ({
       onPlay,
       onToggleLike,
       reorderEnabled,
+      gripsShown,
       startDrag,
       moveDrag,
       endDrag,
@@ -527,7 +541,7 @@ export const SongTable = ({
             <SongTableHeader
               columns={columns}
               hasPlays={!!playCounts && Object.keys(playCounts).length > 0}
-              reorder={reorderEnabled}
+              reorder={gripsShown}
               hasLike={likeColumn}
             />
             </View>
@@ -561,6 +575,7 @@ interface TableRowProps {
   onPlay: (song: Song, index: number) => void;
   onToggleLike?: (song: Song, liked: boolean) => void;
   reorderEnabled: boolean;
+  showGrips: boolean;
   dragColor: string;
   dragLabel: string;
   onDragStart: (index: number) => void;
@@ -581,6 +596,7 @@ const TableRow = memo(function TableRow({
   onToggleLike,
   liked,
   reorderEnabled,
+  showGrips,
   dragColor,
   dragLabel,
   onDragStart,
@@ -589,6 +605,19 @@ const TableRow = memo(function TableRow({
   ...rest
 }: TableRowProps) {
   const extraActions = useMemo(() => extraActionsFor?.(song, index), [extraActionsFor, song, index]);
+  const wrapArtwork = useCallback(
+    (artwork: React.ReactElement) => (
+      <ArtworkDrag
+        index={index}
+        onStart={onDragStart}
+        onMove={onDragMove}
+        onEnd={onDragEnd}
+      >
+        {artwork}
+      </ArtworkDrag>
+    ),
+    [index, onDragStart, onDragMove, onDragEnd],
+  );
   return (
     <SongRow
       {...rest}
@@ -598,8 +627,9 @@ const TableRow = memo(function TableRow({
       extraActions={extraActions}
       onPlay={() => onPlay(song, index)}
       onToggleLike={onToggleLike ? () => onToggleLike(song, liked) : undefined}
+      wrapArtwork={reorderEnabled ? wrapArtwork : undefined}
       dragHandle={
-        reorderEnabled ? (
+        showGrips ? (
           <DragHandle
             index={index}
             color={dragColor}
@@ -680,3 +710,4 @@ const DragHandle = ({ index, color, label, onStart, onMove, onEnd }: DragHandleP
     </View>
   );
 };
+

@@ -104,6 +104,8 @@ export interface CollectionScreenProps {
   extraActionsFor?: (song: Song, index: number) => SongMenuItem[] | undefined;
   /** Reorder over the FULL list; suppressed while filtering downloads. */
   onReorder?: (fromVisible: number, toVisible: number) => void;
+  /** Grip column with `onReorder` (default); false = hold the cover only. */
+  showReorderGrips?: boolean;
   onStartRadio?: () => void;
   onAdd?: () => void;
   addLabel?: string;
@@ -149,6 +151,7 @@ export const CollectionScreen = ({
   surface = "row",
   extraActionsFor,
   onReorder,
+  showReorderGrips = true,
   onStartRadio,
   onAdd,
   addLabel,
@@ -474,6 +477,7 @@ export const CollectionScreen = ({
         onToggleLike={handleToggleLike}
         extraActionsFor={extraActionsFor}
         onReorder={showOnlyDownloaded ? undefined : onReorder}
+        showGrips={showReorderGrips}
         compact={compact}
         header={header}
         footer={
@@ -528,7 +532,7 @@ export const CollectionScreen = ({
           <SongTableHeader
             columns={columns}
             hasPlays={!!playCounts && Object.keys(playCounts).length > 0}
-            reorder={!showOnlyDownloaded && !!onReorder}
+            reorder={!showOnlyDownloaded && !!onReorder && showReorderGrips}
             // This copy only exists on desktop, where the like column is on.
             hasLike
             backgroundColor={tokens.background}

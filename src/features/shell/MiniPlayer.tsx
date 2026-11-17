@@ -1,6 +1,6 @@
 /**
  * O mini-leitor (FR-16): um cartão neutro com a capa (44), título e
- * artistas, o botão de aparelhos e play/pausa, e a barra fina do progresso no
+ * artistas, o botão de aparelhos, play/pausa e seguinte, e a barra fina do progresso no
  * rebordo de baixo. Tocar abre o leitor.
  *
  * No nativo também se arrasta (MiniPlayerSwipe): para o lado muda de música,
@@ -18,6 +18,7 @@ import { ActivityIndicator, Animated, Pressable, Text, View } from "react-native
 import { useBeatPulse } from "@/features/viz/beatPulse";
 import { useArtworkTint } from "@/theme/useArtworkTint";
 import { artworkSourceUri } from "@/ui";
+import { Icon } from "@/ui/icons";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { getTransport } from "@/contracts/transport";
@@ -186,6 +187,28 @@ export const MiniPlayer = ({ attachedTop = false }: { attachedTop?: boolean }) =
           ) : (
             <PlayGlyph color={tokens.foreground} size={16} />
           )}
+        </Pressable>
+        {/* Saltar à vista: deslizar para o lado também muda, mas ninguém o
+            adivinhava ("não tem botão de skip"). */}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t("components.music.BottomBar.next")}
+          hitSlop={8}
+          onPress={(event) => {
+            event.stopPropagation();
+            haptics.tap();
+            getTransport().next();
+          }}
+          style={({ pressed }) => ({
+            width: 40,
+            height: 44,
+            alignItems: "center",
+            justifyContent: "center",
+            opacity: pressed ? 0.6 : 1,
+            transform: [{ scale: pressed ? 0.92 : 1 }],
+          })}
+        >
+          <Icon name="skip-forward" size={20} color={tokens.foreground} filled />
         </Pressable>
         <MiniProgress track={tokens.border} fill={tokens.foreground} />
       </Pressable>

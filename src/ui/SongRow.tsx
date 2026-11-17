@@ -68,6 +68,11 @@ export interface SongRowProps {
   extraActions?: SongMenuItem[];
   /** Sortable grip rendered by the table when reorder is enabled. */
   dragHandle?: React.ReactNode;
+  /**
+   * Wraps the artwork (the table uses it for hold-the-cover-to-drag). The
+   * wrapper owns the touch on the cover, so it must also handle the tap.
+   */
+  wrapArtwork?: (artwork: React.ReactElement) => React.ReactNode;
   /** Compact view mode (desktop shell): 40px, no artwork, one line. */
   compact?: boolean;
   onPlay: () => void;
@@ -132,6 +137,7 @@ const SongRowInner = ({
   surface = "row",
   extraActions,
   dragHandle,
+  wrapArtwork,
   compact = false,
   onPlay,
   onToggleLike,
@@ -284,7 +290,8 @@ const SongRowInner = ({
 
         {has("title") ? (
           <View style={{ flex: 1.5, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 12 }}>
-            {showArtwork ? (
+            {showArtwork
+              ? (wrapArtwork ?? identityWrap)(
               <View style={{ width: 44, height: 44 }}>
                 <ArtworkImage
                   source={songArtworkSource(song)}
@@ -314,7 +321,8 @@ const SongRowInner = ({
                   </View>
                 ) : null}
               </View>
-            ) : null}
+                )
+              : null}
             {/*
               Emphasis order is load bearing: the TITLE carries `foreground`
               (or `primary` on the current row, which is the same monochrome
@@ -521,5 +529,7 @@ const SongRowInner = ({
     </>
   );
 };
+
+const identityWrap = (artwork: React.ReactElement): React.ReactNode => artwork;
 
 export const SongRow = memo(SongRowInner);
