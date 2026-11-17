@@ -102,7 +102,7 @@ export default function AccountScreen() {
             label={t("native.library.settings")}
             onPress={() => go("/settings")}
           />
-          {/* Só no Android (o APK não vem de loja nenhuma). */}
+          {/* Só no APK de Android de fora da loja (no da Play não aparece). */}
           <AndroidUpdateRow />
         </SettingsSection>
 

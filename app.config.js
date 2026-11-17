@@ -4,6 +4,19 @@ const config = require("./app.json");
 const { version } = require("./package.json");
 const { iosBuildNumberProblem } = require("./scripts/ios-build-number");
 
+// Fora do manifest do build da Play (tools:node="remove", vence as das
+// bibliotecas). A app não grava som, não usa biometria, não desenha por cima
+// de outras apps, guarda tudo na pasta dela e nunca instala APKs.
+const PLAY_BLOCKED_PERMISSIONS = [
+  "android.permission.REQUEST_INSTALL_PACKAGES",
+  "android.permission.RECORD_AUDIO",
+  "android.permission.SYSTEM_ALERT_WINDOW",
+  "android.permission.READ_EXTERNAL_STORAGE",
+  "android.permission.WRITE_EXTERNAL_STORAGE",
+  "android.permission.USE_BIOMETRIC",
+  "android.permission.USE_FINGERPRINT",
+];
+
 // Associated Domains is a PAID Apple Developer Program capability. A personal
 // (free) team cannot sign a build that requests it: Xcode refuses with "Personal
 // development teams do not support the Associated Domains capability" and no
@@ -43,6 +56,25 @@ module.exports = () => {
   // a app o lê para saber se há um APK mais novo (features/android).
   if (process.env.OMS_ANDROID_VERSION_CODE) {
     expo.android = { ...expo.android, versionCode: Number(process.env.OMS_ANDROID_VERSION_CODE) };
+  }
+
+  // Android para a Google Play (STORE=play scripts/android-apk.sh, o AAB):
+  // extra.distribution = "play" chega à app pelo expo-constants e desliga o
+  // que só faz sentido no APK de fora da loja (o aviso de versão nova e
+  // "Procurar actualizações", src/features/android/distribution.ts). A Play
+  // não deixa uma app da loja instalar APKs por fora. Ficam também de fora
+  // as permissões que a app não usa e que a Play pergunta porquê (microfone
+  // do expo-audio, biometria do expo-secure-store, as do template). Sem a
+  // variável (o APK do site) nada disto muda: nem extra, nem permissões.
+  if (process.env.OMS_ANDROID_DISTRIBUTION === "play") {
+    expo.extra = { ...expo.extra, distribution: "play" };
+    expo.android = {
+      ...expo.android,
+      blockedPermissions: [
+        ...(expo.android?.blockedPermissions ?? []),
+        ...PLAY_BLOCKED_PERMISSIONS,
+      ],
+    };
   }
 
   // iOS (scripts/ios-testflight.sh): build = data e hora (AAMMDD.HHMM), para

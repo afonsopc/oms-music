@@ -3,7 +3,8 @@
  * O aviso do arranque (updateToast) só pergunta de 6 em 6 horas; aqui a
  * pessoa pergunta já. Versão nova: abre o APK no browser, como o aviso.
  * Já a mais recente: diz isso na própria linha. Fora do Android não aparece
- * (o iPhone actualiza pela loja e a web está sempre na última).
+ * (o iPhone actualiza pela loja e a web está sempre na última), nem no
+ * build da Google Play (distribution.ts), que a loja actualiza.
  *
  * Textos aqui, como no updateToast: frases só desta peça.
  */
@@ -14,6 +15,7 @@ import { SettingsRow } from "@/features/settings/ui";
 import { haptics } from "@/lib/haptics";
 import { useLocale, type Locale } from "@/i18n";
 import { useTheme } from "@/theme/provider";
+import { isPlayBuild } from "./distribution";
 import { APK_URL, fetchLatestVersionCode, myVersionCode } from "./updateToast";
 
 type State = "idle" | "checking" | "latest" | "found" | "offline";
@@ -49,7 +51,7 @@ export const AndroidUpdateRow = ({ first = false }: { first?: boolean }) => {
   const [state, setState] = useState<State>("idle");
   const { tokens } = useTheme();
   const copy = COPY[useLocale()] ?? COPY.pt;
-  if (Platform.OS !== "android") return null;
+  if (Platform.OS !== "android" || isPlayBuild()) return null;
 
   const version = Constants.expoConfig?.version ?? "";
   const detail = (state === "idle" ? copy.version : copy[state]).replace("{v}", version);

@@ -5,6 +5,8 @@
  * PUBLISH=1). Se há um versionCode maior que o desta build, aparece em cima
  * "Há uma versão nova" com "Actualizar", que abre o APK no browser.
  *
+ * No build da Google Play (distribution.ts) não há aviso: actualiza a loja.
+ *
  * Os textos ficam aqui (como em import/elsewhere.web.tsx): três frases só
  * desta peça, fora dos catálogos partilhados.
  */
@@ -15,6 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocale, type Locale } from "@/i18n";
 import { useTheme } from "@/theme/provider";
 import { RADIUS } from "@/theme/tokens";
+import { isPlayBuild } from "./distribution";
 
 const SITE = "https://music.omelhorsite.pt";
 const EVERY_MS = 6 * 3_600_000;
@@ -47,7 +50,7 @@ export const AndroidUpdateToast = () => {
   const copy = COPY[useLocale()] ?? COPY.pt;
 
   useEffect(() => {
-    if (Platform.OS !== "android") return;
+    if (Platform.OS !== "android" || isPlayBuild()) return;
     let last = 0;
     const check = async (): Promise<void> => {
       if (Date.now() - last < EVERY_MS) return;
