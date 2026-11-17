@@ -56,6 +56,9 @@ fi
 
 echo "» expo prebuild -p android"
 CI=1 bunx expo prebuild -p android --no-install >/dev/null
+# O D8 (mergeExtDexRelease) ficava sem memória com os 2 GB do template.
+sed -i.bak -E 's/^org\.gradle\.jvmargs=.*/org.gradle.jvmargs=-Xmx6g -XX:MaxMetaspaceSize=1g/' android/gradle.properties
+rm -f android/gradle.properties.bak
 
 # Assinatura de release (a chave nunca entra no repo nem no log).
 GRADLE=android/app/build.gradle
