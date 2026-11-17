@@ -1,8 +1,8 @@
 {
-  "versionCode": 26111710,
+  "versionCode": 26111712,
   "versionName": "2.1.3",
-  "url": "https://api.osnosite.com/site_assets/oms-music/app/oms-music-26111710.apk",
-  "size": 53320124,
-  "sha256": "23c060db0c65f8bde4424c6b87c4e625ea70d5b30a713141cd510c8080dac538",
-  "commit": "cb4791e9751f70c21f258cedea186cbd67007310"
+  "url": "https://api.osnosite.com/site_assets/oms-music/app/oms-music-26111712.apk",
+  "size": 53327076,
+  "sha256": "aabd8d8ac630c0129275cbc1b32e093dc49a4307a32e42900d9d31d5f5fe8768",
+  "commit": "34734b5edbbf7ad147f9e92751f803c32fbb2e14"
 }
