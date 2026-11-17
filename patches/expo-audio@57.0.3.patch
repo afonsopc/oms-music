@@ -1,0 +1,195 @@
+diff --git a/android/src/main/java/expo/modules/audio/AudioPlayer.kt b/android/src/main/java/expo/modules/audio/AudioPlayer.kt
+index c76a9fd2a53743a691782e0f67d0d71401df58f6..1b82f3afc8636fb389883821c01aa2c72e91a6b8 100644
+--- a/android/src/main/java/expo/modules/audio/AudioPlayer.kt
++++ b/android/src/main/java/expo/modules/audio/AudioPlayer.kt
+@@ -24,6 +24,7 @@ import java.lang.ref.WeakReference
+ 
+ private const val PLAYBACK_STATUS_UPDATE = "playbackStatusUpdate"
+ private const val AUDIO_SAMPLE_UPDATE = "audioSampleUpdate"
++private const val REMOTE_COMMAND = "remoteCommand"
+ private const val SEEK_JUMP_INTERVAL_MS: Long = 10_000
+ 
+ @UnstableApi
+@@ -224,6 +225,11 @@ class AudioPlayer(
+     mediaSession = buildBasicMediaSession(context, ref)
+   }
+ 
++  // oms-music: notification / lock screen next and previous, for the JS queue.
++  fun emitRemoteCommand(command: String) {
++    emit(REMOTE_COMMAND, mapOf("command" to command))
++  }
++
+   private fun sendAudioSampleUpdate(sample: List<Float>) {
+     val body = mapOf(
+       "channels" to listOf(
+diff --git a/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt b/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt
+index 196a5d57f887c2667a88543bd2f6a80044a044f2..5137892b8896e90b9787aabab4f220c93f40c8c7 100644
+--- a/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt
++++ b/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt
+@@ -90,6 +90,8 @@ class AudioControlsService : MediaSessionService() {
+ 
+         ACTION_SEEK_FORWARD -> currentPlayerRef.seekTo(currentPlayerRef.currentPosition + SEEK_INTERVAL_MS)
+         ACTION_SEEK_BACKWARD -> currentPlayerRef.seekTo(currentPlayerRef.currentPosition - SEEK_INTERVAL_MS)
++        ACTION_NEXT -> emitTrackCommand("next")
++        ACTION_PREVIOUS -> emitTrackCommand("previous")
+       }
+     }
+ 
+@@ -97,6 +99,12 @@ class AudioControlsService : MediaSessionService() {
+     return super.onStartCommand(intent, flags, startId)
+   }
+ 
++  private fun emitTrackCommand(command: String) {
++    val player = currentPlayer ?: return
++    appContext?.mainQueue?.launch { player.emitRemoteCommand(command) }
++      ?: player.emitRemoteCommand(command)
++  }
++
+   private fun ensureForegroundNotification() {
+     val notification = buildNotification() ?: buildPlaceholderNotification()
+     try {
+@@ -192,7 +200,18 @@ class AudioControlsService : MediaSessionService() {
+       val compactViewIndices = mutableListOf<Int>()
+       var currentIndex = 0
+ 
+-      if (currentOptions?.showSeekBackward == true) {
++      // oms-music: previous / next take the seek slots.
++      builder.addAction(
++        NotificationCompat.Action(
++          androidx.media3.session.R.drawable.media3_icon_previous,
++          "Previous",
++          buildActionPendingIntent(ACTION_PREVIOUS)
++        )
++      )
++      compactViewIndices.add(currentIndex)
++      currentIndex++
++
++      if (false && currentOptions?.showSeekBackward == true) {
+         builder.addAction(
+           NotificationCompat.Action(
+             androidx.media3.session.R.drawable.media3_icon_skip_back,
+@@ -218,16 +237,14 @@ class AudioControlsService : MediaSessionService() {
+       compactViewIndices.add(currentIndex)
+       currentIndex++
+ 
+-      if (currentOptions?.showSeekForward == true) {
+-        builder.addAction(
+-          NotificationCompat.Action(
+-            androidx.media3.session.R.drawable.media3_icon_skip_forward,
+-            "Seek Forward",
+-            buildActionPendingIntent(ACTION_SEEK_FORWARD)
+-          )
++      builder.addAction(
++        NotificationCompat.Action(
++          androidx.media3.session.R.drawable.media3_icon_next,
++          "Next",
++          buildActionPendingIntent(ACTION_NEXT)
+         )
+-        compactViewIndices.add(currentIndex)
+-      }
++      )
++      compactViewIndices.add(currentIndex)
+ 
+       style.setShowActionsInCompactView(*compactViewIndices.toIntArray())
+     }
+@@ -240,8 +257,18 @@ class AudioControlsService : MediaSessionService() {
+     val session = mediaSession ?: return
+     val mediaButtons = mutableListOf<CommandButton>()
+ 
++    // oms-music: previous / next in the side slots instead of the 10 s skips.
++    mediaButtons.add(
++      CommandButton.Builder(CommandButton.ICON_PREVIOUS)
++        .setDisplayName("Previous")
++        .setEnabled(true)
++        .setSessionCommand(SessionCommand(ACTION_PREVIOUS, Bundle.EMPTY))
++        .setSlots(CommandButton.SLOT_BACK)
++        .build()
++    )
++
+     // Add seek backward button if enabled
+-    if (currentOptions?.showSeekBackward == true) {
++    if (false && currentOptions?.showSeekBackward == true) {
+       mediaButtons.add(
+         CommandButton.Builder(CommandButton.ICON_SKIP_BACK_10)
+           .setDisplayName("Seek Backward")
+@@ -262,8 +289,17 @@ class AudioControlsService : MediaSessionService() {
+         .build()
+     )
+ 
++    mediaButtons.add(
++      CommandButton.Builder(CommandButton.ICON_NEXT)
++        .setDisplayName("Next")
++        .setEnabled(true)
++        .setSessionCommand(SessionCommand(ACTION_NEXT, Bundle.EMPTY))
++        .setSlots(CommandButton.SLOT_FORWARD)
++        .build()
++    )
++
+     // Add seek forward button if enabled
+-    if (currentOptions?.showSeekForward == true) {
++    if (false && currentOptions?.showSeekForward == true) {
+       mediaButtons.add(
+         CommandButton.Builder(CommandButton.ICON_SKIP_FORWARD_10)
+           .setDisplayName("Seek Forward")
+@@ -371,7 +407,7 @@ class AudioControlsService : MediaSessionService() {
+           updateMetadata(metadata)
+         }
+         val session = MediaSession.Builder(context, sessionPlayer)
+-          .setCallback(AudioMediaSessionCallback())
++          .setCallback(AudioMediaSessionCallback { emitTrackCommand(it) })
+           .build()
+ 
+         // Replace the basic media session with a session connected to our playback service.
+@@ -452,7 +488,7 @@ class AudioControlsService : MediaSessionService() {
+           updateMetadata(metadata)
+         }
+         val session = MediaSession.Builder(context, sessionPlayer)
+-          .setCallback(AudioMediaSessionCallback())
++          .setCallback(AudioMediaSessionCallback { emitTrackCommand(it) })
+           .build()
+ 
+         player.mediaSession.release()
+@@ -559,6 +595,9 @@ class AudioControlsService : MediaSessionService() {
+     const val ACTION_SEEK_FORWARD = "expo.modules.audio.action.SEEK_FORWARD"
+     const val ACTION_SEEK_BACKWARD = "expo.modules.audio.action.SEEK_BACKWARD"
+ 
++    const val ACTION_NEXT = "expo.modules.audio.action.NEXT"
++    const val ACTION_PREVIOUS = "expo.modules.audio.action.PREVIOUS"
++
+     const val SEEK_INTERVAL_MS = 10000L
+   }
+ }
+diff --git a/android/src/main/java/expo/modules/audio/service/AudioMediaSessionCallback.kt b/android/src/main/java/expo/modules/audio/service/AudioMediaSessionCallback.kt
+index 839aaef12d7699ea1a89037b31849775daa079f4..753e379f9048cd8c31a5cbfa75f788800f98febb 100644
+--- a/android/src/main/java/expo/modules/audio/service/AudioMediaSessionCallback.kt
++++ b/android/src/main/java/expo/modules/audio/service/AudioMediaSessionCallback.kt
+@@ -10,7 +10,10 @@ import androidx.media3.common.util.UnstableApi
+ import com.google.common.util.concurrent.ListenableFuture
+ 
+ @OptIn(UnstableApi::class)
+-class AudioMediaSessionCallback : MediaSession.Callback {
++class AudioMediaSessionCallback(
++  // oms-music: next/previous are the app's queue, not ExoPlayer's (one item).
++  private val onTrackCommand: (String) -> Unit = {}
++) : MediaSession.Callback {
+   override fun onConnect(
+     session: MediaSession,
+     controller: MediaSession.ControllerInfo
+@@ -35,6 +38,8 @@ class AudioMediaSessionCallback : MediaSession.Callback {
+           MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS.buildUpon()
+             .add(SessionCommand(AudioControlsService.ACTION_SEEK_BACKWARD, Bundle.EMPTY))
+             .add(SessionCommand(AudioControlsService.ACTION_SEEK_FORWARD, Bundle.EMPTY))
++            .add(SessionCommand(AudioControlsService.ACTION_NEXT, Bundle.EMPTY))
++            .add(SessionCommand(AudioControlsService.ACTION_PREVIOUS, Bundle.EMPTY))
+             .build()
+         )
+         .build()
+@@ -56,6 +61,8 @@ class AudioMediaSessionCallback : MediaSession.Callback {
+       AudioControlsService.ACTION_SEEK_BACKWARD -> {
+         session.player.seekTo(session.player.currentPosition - AudioControlsService.SEEK_INTERVAL_MS)
+       }
++      AudioControlsService.ACTION_NEXT -> onTrackCommand("next")
++      AudioControlsService.ACTION_PREVIOUS -> onTrackCommand("previous")
+     }
+     return super.onCustomCommand(session, controller, command, args)
+   }

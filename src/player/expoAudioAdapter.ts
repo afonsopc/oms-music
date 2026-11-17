@@ -44,12 +44,22 @@ const STATUS_INTERVAL_MS = 250;
  * what the owner saw. Changing tracks is worth more than a 10 s nudge the
  * scrubber can do anyway, so iOS turns them off.
  *
- * Android keeps them: expo-audio strips the track-navigation commands from
- * the only MediaSession the app has (docs/LOCKSCREEN-PATCH.md section 6), so
- * there is no next/previous to make room FOR, and turning the skips off
- * there would leave the notification with play/pause alone.
+ * Android: our expo-audio patch (patches/expo-audio@57.0.3.patch) puts
+ * previous/next in the notification's side slots and sends them back as a
+ * `remoteCommand` event, so the skips are never drawn there either.
  */
-const SHOW_LOCK_SCREEN_SEEK_BUTTONS = Platform.OS !== "ios";
+const SHOW_LOCK_SCREEN_SEEK_BUTTONS = false;
+
+type TrackCommand = "next" | "previous";
+let androidTrackHandler: (command: TrackCommand) => void = () => {};
+
+/**
+ * Where the Android notification's previous/next go (register.ts routes them
+ * through contracts/transport, like the iOS oms-native events).
+ */
+export const setAndroidTrackCommandHandler = (handler: (command: TrackCommand) => void): void => {
+  androidTrackHandler = handler;
+};
 
 /**
  * How far the blend may sit from the muted reference clock before both stems
@@ -135,6 +145,22 @@ export const createExpoAudioAdapter = (): AudioAdapter => {
     keepAudioSessionActive: true,
   });
   player.shouldCorrectPitch = false;
+  // Only the patched expo-audio emits it (Android); typed loosely on purpose.
+  const trackSub =
+    Platform.OS === "android"
+      ? (
+          player as unknown as {
+            addListener: (
+              event: string,
+              cb: (payload: { command?: string }) => void,
+            ) => { remove: () => void };
+          }
+        ).addListener("remoteCommand", (payload) => {
+          if (payload?.command === "next" || payload?.command === "previous") {
+            androidTrackHandler(payload.command);
+          }
+        })
+      : null;
   let sourceUri: string | null = null;
 
   // Blend state. Gains and bands are remembered while the stems are OFF so
@@ -336,6 +362,7 @@ export const createExpoAudioAdapter = (): AudioAdapter => {
     },
     remove(): void {
       releaseStems();
+      trackSub?.remove();
       player.remove();
     },
 

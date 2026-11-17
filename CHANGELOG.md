@@ -6,6 +6,7 @@ O que entra vai para "Por lançar"; o bump dá-lhe o número.
 
 ## Por lançar
 
+- Android: a notificação e o ecrã bloqueado passam a ter Anterior e Seguinte em vez de recuar/avançar 10 segundos.
 - Mini-leitor: botão "Seguinte" ao lado do play/pausa (antes só se mudava de música deslizando o mini-leitor para o lado).
 - Playlists, no telemóvel: segura na capa de uma música e arrasta para a mudar de sítio, sem ter de abrir "Reordenar" no menu "⋯".
 - Fotos dos artistas: passam a vir só do armazenamento da OMS Music (as que já tinhas foram copiadas para lá), nunca de outros sites. Na edição do artista, a galeria só se pode encurtar: já não se cola o endereço de uma imagem de fora.

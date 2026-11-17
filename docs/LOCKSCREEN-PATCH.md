@@ -1,7 +1,12 @@
 # LOCKSCREEN-PATCH.md - enabling next/previous on the lock screen
 
-**Status: iOS SHIPS. Android does not, and structurally cannot without patching
-expo-audio.** Delivered by the local Expo module `modules/oms-native` (option C below),
+**Status: iOS SHIPS (oms-native). Android SHIPS since 2026-11-17 through
+`patches/expo-audio@57.0.3.patch`** (bun patchedDependencies): the notification's
+side slots are previous/next custom session commands (ACTION_PREVIOUS/ACTION_NEXT)
+instead of the 10 s skips, and the service emits `remoteCommand` `{command}` on the
+AudioPlayer, which `src/player/expoAudioAdapter.ts` routes through
+`setAndroidTrackCommandHandler` -> `routeRemoteCommand`. Re-apply on any expo-audio bump.
+The rest of this file is the original iOS-side record. Delivered by the local Expo module `modules/oms-native` (option C below),
 which adds native code of its own instead of rewriting a dependency: nothing inside
 `node_modules/` is modified, no patch tool runs, and `bunx expo prebuild --clean`
 reproduces everything from a clean checkout.

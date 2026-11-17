@@ -19,7 +19,7 @@ import { postPlayEvent } from "@/api/queries/playEvents";
 import type { Song } from "@/domain/song";
 import { noteSongPlayed } from "@/lib/playContext";
 import { PlayerEngineImpl } from "./engine";
-import { createExpoAudioAdapter } from "./expoAudioAdapter";
+import { createExpoAudioAdapter, setAndroidTrackCommandHandler } from "./expoAudioAdapter";
 import { createListenerSettingsPersistence } from "./persistence";
 import { publishLockScreen, routeRemoteCommand, setRemoteTrackRouter } from "./lockScreen";
 import { playerStore } from "./store";
@@ -101,6 +101,8 @@ export const registerPlayerEngine = (): PlayerEngineImpl => {
   // land on routeRemoteCommand, which dispatches through contracts/transport,
   // so on a controller device they advance the ACTIVE device. Inert wherever
   // the native module is absent (Android, web, Expo Go).
+  // Android: the same two commands come from our expo-audio patch.
+  setAndroidTrackCommandHandler((kind) => routeRemoteCommand({ kind }));
   setRemoteTrackRouter(
     createRemoteTrackRouter(getRemoteTrackCommands(), (kind) => {
       routeRemoteCommand({ kind });

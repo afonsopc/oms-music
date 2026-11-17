@@ -37,3 +37,8 @@ export const createExpoAudioAdapter = (): AudioAdapter => {
     onMainMedia: setMainWebMedia,
   });
 };
+
+/** Android-only (patched expo-audio notification); nothing to wire on the web. */
+export const setAndroidTrackCommandHandler = (
+  _handler: (command: "next" | "previous") => void,
+): void => {};
