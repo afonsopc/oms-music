@@ -17,6 +17,7 @@ export type DeepLinkTarget =
   | { kind: "mix"; slug: string }
   | { kind: "radioArtist"; artist: string }
   | { kind: "radioSong"; id: number }
+  | { kind: "song"; id: number }
   | { kind: "artist"; artist: string }
   | {
       kind: "album";
@@ -131,8 +132,13 @@ export const parseDeepLink = (url: string): DeepLinkTarget | null => {
     case "search":
       return { kind: "search", query: params.get("query") ?? null };
     case "playlist": {
-      const id = Number(params.get("id"));
+      const id = Number(params.get("id") ?? tail[0]);
       return Number.isInteger(id) && id > 0 ? { kind: "playlist", id } : { kind: "playlists" };
+    }
+    case "song": {
+      // /song?id=N or /song/N (the import site links both ways).
+      const id = Number(params.get("id") ?? tail[0]);
+      return Number.isInteger(id) && id > 0 ? { kind: "song", id } : { kind: "home" };
     }
     case "mix": {
       const slug = params.get("slug");

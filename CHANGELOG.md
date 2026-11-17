@@ -6,6 +6,7 @@ O que entra vai para "Por lançar"; o bump dá-lhe o número.
 
 ## Por lançar
 
+- Links do site de importação: tocar numa música ou playlist importada abre-a logo na app (no Android sem perguntar). A música começa a tocar e aparece em destaque no álbum.
 - Android: "Procurar actualizações" no perfil, com a versão instalada. Se houver uma nova, descarrega-a logo; senão diz que já tens a mais recente.
 - Android: a notificação e o ecrã bloqueado passam a ter Anterior e Seguinte em vez de recuar/avançar 10 segundos.
 - Mini-leitor: botão "Seguinte" ao lado do play/pausa (antes só se mudava de música deslizando o mini-leitor para o lado).

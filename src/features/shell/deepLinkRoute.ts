@@ -41,6 +41,8 @@ export const routeForTarget = (target: DeepLinkTarget): string => {
       return `${HOME}/radio/artist/${enc(target.artist)}`;
     case "radioSong":
       return `${HOME}/radio/song/${target.id}`;
+    case "song":
+      return `${HOME}/song/${target.id}`;
     case "artist":
       return `${HOME}/artist/${enc(target.artist)}`;
     case "album": {

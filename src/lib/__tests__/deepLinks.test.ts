@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { parseDeepLink } from "../deepLinks";
+import { routeForDeepLinkUrl } from "@/features/shell/deepLinkRoute";
 
 describe("parseDeepLink", () => {
   it("strips the locale prefix for every locale", () => {
@@ -104,4 +105,19 @@ describe("parseDeepLink", () => {
       kind: "artists",
     });
   });
+
+describe("links from the import site", () => {
+  it("opens a song by id (query or path, scheme or web)", () => {
+    expect(parseDeepLink("omsmusic://music/song?id=42")).toEqual({ kind: "song", id: 42 });
+    expect(parseDeepLink("https://music.omelhorsite.pt/song/42")).toEqual({ kind: "song", id: 42 });
+    expect(parseDeepLink("omsmusic://song/abc")).toEqual({ kind: "home" });
+  });
+  it("opens a playlist by path id", () => {
+    expect(parseDeepLink("https://music.omelhorsite.pt/playlist/7")).toEqual({ kind: "playlist", id: 7 });
+    expect(parseDeepLink("omsmusic://music/playlist?id=7")).toEqual({ kind: "playlist", id: 7 });
+  });
+  it("routes a song to its own screen under Início", () => {
+    expect(routeForDeepLinkUrl("omsmusic://music/song?id=42")).toBe("/(main)/(tabs)/(home)/song/42");
+  });
+});
 });
