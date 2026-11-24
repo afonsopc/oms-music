@@ -23,7 +23,7 @@ index c76a9fd2a53743a691782e0f67d0d71401df58f6..1b82f3afc8636fb389883821c01aa2c7
      val body = mapOf(
        "channels" to listOf(
 diff --git a/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt b/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt
-index 196a5d57f887c2667a88543bd2f6a80044a044f2..5137892b8896e90b9787aabab4f220c93f40c8c7 100644
+index 196a5d57f887c2667a88543bd2f6a80044a044f2..a7c9a6daded00ef18750f40acfc140ae4c541720 100644
 --- a/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt
 +++ b/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt
 @@ -90,6 +90,8 @@ class AudioControlsService : MediaSessionService() {
@@ -92,46 +92,33 @@ index 196a5d57f887c2667a88543bd2f6a80044a044f2..5137892b8896e90b9787aabab4f220c9
  
        style.setShowActionsInCompactView(*compactViewIndices.toIntArray())
      }
-@@ -240,8 +257,18 @@ class AudioControlsService : MediaSessionService() {
+@@ -240,8 +257,10 @@ class AudioControlsService : MediaSessionService() {
      val session = mediaSession ?: return
      val mediaButtons = mutableListOf<CommandButton>()
  
-+    // oms-music: previous / next in the side slots instead of the 10 s skips.
-+    mediaButtons.add(
-+      CommandButton.Builder(CommandButton.ICON_PREVIOUS)
-+        .setDisplayName("Previous")
-+        .setEnabled(true)
-+        .setSessionCommand(SessionCommand(ACTION_PREVIOUS, Bundle.EMPTY))
-+        .setSlots(CommandButton.SLOT_BACK)
-+        .build()
-+    )
-+
++    // oms-music: the system draws previous / next from the player's commands
++    // (buttons here would hide ACTION_SKIP_TO_* from headsets and cars).
      // Add seek backward button if enabled
 -    if (currentOptions?.showSeekBackward == true) {
 +    if (false && currentOptions?.showSeekBackward == true) {
        mediaButtons.add(
          CommandButton.Builder(CommandButton.ICON_SKIP_BACK_10)
            .setDisplayName("Seek Backward")
-@@ -262,8 +289,17 @@ class AudioControlsService : MediaSessionService() {
-         .build()
+@@ -263,7 +282,7 @@ class AudioControlsService : MediaSessionService() {
      )
  
-+    mediaButtons.add(
-+      CommandButton.Builder(CommandButton.ICON_NEXT)
-+        .setDisplayName("Next")
-+        .setEnabled(true)
-+        .setSessionCommand(SessionCommand(ACTION_NEXT, Bundle.EMPTY))
-+        .setSlots(CommandButton.SLOT_FORWARD)
-+        .build()
-+    )
-+
      // Add seek forward button if enabled
 -    if (currentOptions?.showSeekForward == true) {
 +    if (false && currentOptions?.showSeekForward == true) {
        mediaButtons.add(
          CommandButton.Builder(CommandButton.ICON_SKIP_FORWARD_10)
            .setDisplayName("Seek Forward")
-@@ -371,7 +407,7 @@ class AudioControlsService : MediaSessionService() {
+@@ -367,11 +386,11 @@ class AudioControlsService : MediaSessionService() {
+ 
+       appContext?.mainQueue?.launch {
+         val context = appContext?.reactContext ?: return@launch
+-        val sessionPlayer = MetadataInjectingPlayer(resolveSessionPlayer(player, options)).apply {
++        val sessionPlayer = MetadataInjectingPlayer(resolveSessionPlayer(player, options)) { emitTrackCommand(it) }.apply {
            updateMetadata(metadata)
          }
          val session = MediaSession.Builder(context, sessionPlayer)
@@ -140,7 +127,12 @@ index 196a5d57f887c2667a88543bd2f6a80044a044f2..5137892b8896e90b9787aabab4f220c9
            .build()
  
          // Replace the basic media session with a session connected to our playback service.
-@@ -452,7 +488,7 @@ class AudioControlsService : MediaSessionService() {
+@@ -448,11 +467,11 @@ class AudioControlsService : MediaSessionService() {
+       sessionMetadataPlayer = null
+       appContext?.mainQueue?.launch {
+         val context = appContext?.reactContext ?: return@launch
+-        val sessionPlayer = MetadataInjectingPlayer(resolveSessionPlayer(player, options)).apply {
++        val sessionPlayer = MetadataInjectingPlayer(resolveSessionPlayer(player, options)) { emitTrackCommand(it) }.apply {
            updateMetadata(metadata)
          }
          val session = MediaSession.Builder(context, sessionPlayer)
@@ -149,7 +141,7 @@ index 196a5d57f887c2667a88543bd2f6a80044a044f2..5137892b8896e90b9787aabab4f220c9
            .build()
  
          player.mediaSession.release()
-@@ -559,6 +595,9 @@ class AudioControlsService : MediaSessionService() {
+@@ -559,6 +578,9 @@ class AudioControlsService : MediaSessionService() {
      const val ACTION_SEEK_FORWARD = "expo.modules.audio.action.SEEK_FORWARD"
      const val ACTION_SEEK_BACKWARD = "expo.modules.audio.action.SEEK_BACKWARD"
  
@@ -160,7 +152,7 @@ index 196a5d57f887c2667a88543bd2f6a80044a044f2..5137892b8896e90b9787aabab4f220c9
    }
  }
 diff --git a/android/src/main/java/expo/modules/audio/service/AudioMediaSessionCallback.kt b/android/src/main/java/expo/modules/audio/service/AudioMediaSessionCallback.kt
-index 839aaef12d7699ea1a89037b31849775daa079f4..753e379f9048cd8c31a5cbfa75f788800f98febb 100644
+index 839aaef12d7699ea1a89037b31849775daa079f4..a23bbe3cd19becdcbca47f719e48b08464c7b00c 100644
 --- a/android/src/main/java/expo/modules/audio/service/AudioMediaSessionCallback.kt
 +++ b/android/src/main/java/expo/modules/audio/service/AudioMediaSessionCallback.kt
 @@ -10,7 +10,10 @@ import androidx.media3.common.util.UnstableApi
@@ -175,7 +167,19 @@ index 839aaef12d7699ea1a89037b31849775daa079f4..753e379f9048cd8c31a5cbfa75f78880
    override fun onConnect(
      session: MediaSession,
      controller: MediaSession.ControllerInfo
-@@ -35,6 +38,8 @@ class AudioMediaSessionCallback : MediaSession.Callback {
+@@ -27,14 +30,18 @@ class AudioMediaSessionCallback : MediaSession.Callback {
+             // Remove track navigation commands
+             .remove(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
+             .remove(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
+-            .remove(Player.COMMAND_SEEK_TO_PREVIOUS)
+-            .remove(Player.COMMAND_SEEK_TO_NEXT)
++            // oms-music: headset keys, double press, car and watch arrive as these two;
++            // MetadataInjectingPlayer hands them to the app's queue.
++            .add(Player.COMMAND_SEEK_TO_PREVIOUS)
++            .add(Player.COMMAND_SEEK_TO_NEXT)
+             .build()
+         )
+         .setAvailableSessionCommands(
            MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS.buildUpon()
              .add(SessionCommand(AudioControlsService.ACTION_SEEK_BACKWARD, Bundle.EMPTY))
              .add(SessionCommand(AudioControlsService.ACTION_SEEK_FORWARD, Bundle.EMPTY))
@@ -184,7 +188,7 @@ index 839aaef12d7699ea1a89037b31849775daa079f4..753e379f9048cd8c31a5cbfa75f78880
              .build()
          )
          .build()
-@@ -56,6 +61,8 @@ class AudioMediaSessionCallback : MediaSession.Callback {
+@@ -56,6 +63,8 @@ class AudioMediaSessionCallback : MediaSession.Callback {
        AudioControlsService.ACTION_SEEK_BACKWARD -> {
          session.player.seekTo(session.player.currentPosition - AudioControlsService.SEEK_INTERVAL_MS)
        }
@@ -193,3 +197,48 @@ index 839aaef12d7699ea1a89037b31849775daa079f4..753e379f9048cd8c31a5cbfa75f78880
      }
      return super.onCustomCommand(session, controller, command, args)
    }
+diff --git a/android/src/main/java/expo/modules/audio/service/MetadataInjectingPlayer.kt b/android/src/main/java/expo/modules/audio/service/MetadataInjectingPlayer.kt
+index 18203a364d17dcf3de95d22a20175308e3363889..422372f80d07eb74fbafe64521464d69a5705ef6 100644
+--- a/android/src/main/java/expo/modules/audio/service/MetadataInjectingPlayer.kt
++++ b/android/src/main/java/expo/modules/audio/service/MetadataInjectingPlayer.kt
+@@ -16,7 +16,9 @@ import java.util.IdentityHashMap
+ // metadata updates without replacing the active media item on the real ExoPlayer instance.
+ @UnstableApi
+ internal class MetadataInjectingPlayer(
+-  player: Player
++  player: Player,
++  // oms-music: next/previous are the app's queue, not ExoPlayer's (one item).
++  private val onTrackCommand: (String) -> Unit = {}
+ ) : ForwardingPlayer(player) {
+   private val handler = Handler(applicationLooper)
+   private val listeners = IdentityHashMap<Player.Listener, Player.Listener>()
+@@ -36,6 +38,18 @@ internal class MetadataInjectingPlayer(
+     super.removeListener(forwardingListener ?: listener)
+   }
+ 
++  override fun getAvailableCommands(): Player.Commands =
++    super.getAvailableCommands().buildUpon()
++      .add(Player.COMMAND_SEEK_TO_NEXT)
++      .add(Player.COMMAND_SEEK_TO_PREVIOUS)
++      .build()
++
++  override fun isCommandAvailable(command: Int): Boolean = availableCommands.contains(command)
++
++  override fun seekToNext() = onTrackCommand("next")
++
++  override fun seekToPrevious() = onTrackCommand("previous")
++
+   override fun getMediaMetadata(): MediaMetadata {
+     val metadata = injectedMetadata
+     return super.getMediaMetadata()
+@@ -86,6 +100,10 @@ internal class MetadataInjectingPlayer(
+       listener.onMediaMetadataChanged(this@MetadataInjectingPlayer.mediaMetadata)
+     }
+ 
++    override fun onAvailableCommandsChanged(availableCommands: Player.Commands) {
++      listener.onAvailableCommandsChanged(this@MetadataInjectingPlayer.availableCommands)
++    }
++
+     override fun onEvents(player: Player, events: Player.Events) {
+       listener.onEvents(this@MetadataInjectingPlayer, events)
+     }
