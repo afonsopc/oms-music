@@ -1,0 +1,16 @@
+diff --git a/Libraries/Animated/nodes/AnimatedProps.js b/Libraries/Animated/nodes/AnimatedProps.js
+index e053d91635a28617f7db0cf8e63d793ac23132f9..710f53bdd22d8ac8cd973e474d6723feb7afe647 100644
+--- a/Libraries/Animated/nodes/AnimatedProps.js
++++ b/Libraries/Animated/nodes/AnimatedProps.js
+@@ -264,6 +264,11 @@ export default class AnimatedProps extends AnimatedNode {
+     if (this._target?.instance === instance) {
+       return;
+     }
++    // oms-music: let go of the previous view first. Android throws "Animated
++    // node is already attached to a view" (and the app dies) otherwise.
++    if (this.__isNative && this._target != null) {
++      this.#disconnectAnimatedView(this._target);
++    }
+     const target = (this._target = {instance, connectedViewTag: null});
+     if (this.__isNative) {
+       this.#connectAnimatedView(target);

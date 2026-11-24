@@ -72,7 +72,8 @@
   "patchedDependencies": {
     "@omelhorsite/sdk@0.15.1": "patches/@omelhorsite%2Fsdk@0.15.1.patch",
     "react-native-web@0.21.2": "patches/react-native-web@0.21.2.patch",
-    "expo-audio@57.0.3": "patches/expo-audio@57.0.3.patch"
+    "expo-audio@57.0.3": "patches/expo-audio@57.0.3.patch",
+    "react-native@0.86.2": "patches/react-native@0.86.2.patch"
   },
   "expo": {
     "autolinking": {
