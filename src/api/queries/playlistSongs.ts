@@ -21,8 +21,10 @@ import { useAuthReady } from "@/auth/guard";
 import { withOfflineFallback } from "@/contracts/offlineFallback";
 import type { PlaylistId, SongId } from "@/domain/ids";
 import type { PlaylistSong } from "@/domain/playlist";
+import type { Song } from "@/domain/song";
+import { PLAYLIST_SONGS_PAGE_SIZE, withSongAppended, withoutPendingSong } from "@/domain/playlistPages";
 
-export const PLAYLIST_SONGS_PAGE_SIZE = 100;
+export { PLAYLIST_SONGS_PAGE_SIZE };
 
 /** One position-ordered page (FR-48: infinite pages of 100). The offline
  *  resolver reads exactly these two arguments. */
@@ -82,11 +84,22 @@ export const useSongMemberships = (songId: SongId | null, enabled = true) => {
 export const useAddPlaylistSong = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ playlistId, songId }: { playlistId: PlaylistId; songId: SongId }) =>
+    mutationFn: ({ playlistId, songId }: { playlistId: PlaylistId; songId: SongId; song?: Song }) =>
       oms().music.playlists.songs.add(playlistId, songId) as unknown as Promise<PlaylistSong>,
-    onMutate: async ({ playlistId, songId }) => {
+    onMutate: async ({ playlistId, songId, song }) => {
       const key = keys.songMembership(songId);
-      await qc.cancelQueries({ queryKey: key });
+      const listKey = keys.playlistSongs(playlistId);
+      await Promise.all([
+        qc.cancelQueries({ queryKey: key }),
+        qc.cancelQueries({ queryKey: listKey }),
+      ]);
+      // The song joins the end of the open playlist right away, as long as
+      // that end is loaded; the settled invalidation brings the real row.
+      const pages = qc.getQueryData<InfiniteData<PlaylistSong[]>>(listKey);
+      if (song && pages) {
+        const next = withSongAppended(pages, playlistId, song);
+        if (next !== pages) qc.setQueryData(listKey, next);
+      }
       const previous = qc.getQueryData<PlaylistSong[]>(key);
       if (previous && !previous.some((row) => row.playlist_id === playlistId)) {
         // id 0 marks the placeholder; nothing keys rows by join id here, and
@@ -98,8 +111,11 @@ export const useAddPlaylistSong = () => {
       }
       return { previous };
     },
-    onError: (_error, { songId }, context) => {
+    onError: (_error, { songId, playlistId }, context) => {
       if (context?.previous) qc.setQueryData(keys.songMembership(songId), context.previous);
+      const listKey = keys.playlistSongs(playlistId);
+      const pages = qc.getQueryData<InfiniteData<PlaylistSong[]>>(listKey);
+      if (pages) qc.setQueryData(listKey, withoutPendingSong(pages, songId));
     },
     onSettled: (_row, _error, { playlistId, songId }) => {
       void qc.invalidateQueries({ queryKey: keys.playlistSongs(playlistId) });

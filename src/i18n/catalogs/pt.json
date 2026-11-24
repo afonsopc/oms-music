@@ -1065,7 +1065,9 @@
       "karaoke": "Karaoke",
       "karaokeNeedsStems": "Karaoke - separa as vozes primeiro",
       "karaokeVoice": "Voz",
-      "karaokeNoSyncedLyrics": "Esta música ainda não tem letra sincronizada. Gera-a na vista de letras."
+      "karaokeNoSyncedLyrics": "Esta música ainda não tem letra sincronizada. Gera-a na vista de letras.",
+      "separationCancel": "Parar a separação",
+      "separationCancelFailed": "Não deu para parar a separação"
     },
     "settings": {
       "hub": {
@@ -1163,7 +1165,9 @@
     },
     "playlist": {
       "reorder": "Reordenar músicas",
-      "reorderDone": "Concluir reordenação"
+      "reorderDone": "Concluir reordenação",
+      "swipeRemove": "Remover",
+      "addFailed": "Não deu para adicionar a “{name}”"
     },
     "downloadsOverview": {
       "goOffline": "Modo offline",
@@ -1306,6 +1310,24 @@
         "accept": "Aceitar e continuar",
         "read": "Ler os Termos"
       }
+    },
+    "notifications": {
+      "title": "Notificações",
+      "empty": "Ainda não há notificações. As músicas que entrarem na tua biblioteca aparecem aqui.",
+      "songAdded": "“{title}” já está na tua biblioteca",
+      "songAddedUntitled": "Uma música nova já está na tua biblioteca",
+      "songFailed": "Não deu para adicionar “{title}”",
+      "songFailedUntitled": "Não deu para adicionar uma música",
+      "artistAdded": "As músicas de {title} já estão na tua biblioteca",
+      "artistAddedUntitled": "As músicas do artista já estão na tua biblioteca",
+      "syncDone": "As tuas playlists foram atualizadas",
+      "syncDoneUntitled": "As tuas playlists foram atualizadas",
+      "syncFailed": "Não deu para atualizar as tuas playlists",
+      "syncFailedUntitled": "Não deu para atualizar as tuas playlists",
+      "separationDone": "A voz de “{title}” já está separada",
+      "separationDoneUntitled": "A separação da voz acabou",
+      "separationFailed": "Não deu para separar a voz de “{title}”",
+      "separationFailedUntitled": "Não deu para separar a voz"
     }
   }
 }

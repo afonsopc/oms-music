@@ -17,6 +17,7 @@ import {
   type SongMenuSlotHook,
 } from "@/contracts/songMenu";
 import { formatDuration } from "@/domain/format";
+import { pushNotice } from "@/lib/noticeBus";
 import { separationService } from "./service";
 
 const useSeparateVocalsSlot: SongMenuSlotHook = (ctx) => {
@@ -41,7 +42,20 @@ const useSeparateVocalsSlot: SongMenuSlotHook = (ctx) => {
       disabled: true,
       onPress: () => {},
     };
-    return [item];
+    if (stemsPresent) return [item];
+    return [
+      item,
+      {
+        id: "separate-vocals-cancel",
+        labelKey: "native.player.separationCancel",
+        icon: "x",
+        onPress: () => {
+          void getSeparationService()
+            .cancelSeparation(song.id)
+            .catch(() => pushNotice("native.player.separationCancelFailed"));
+        },
+      },
+    ];
   }
 
   const item: SongMenuItem = {

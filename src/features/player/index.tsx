@@ -36,6 +36,7 @@ import { songArtworkSource } from "@/domain/artwork";
 import { isDjClip } from "@/domain/song";
 import { formatArtists, formatDuration, primaryArtistSegment } from "@/domain/format";
 import type { Song } from "@/domain/song";
+import { openAddToPlaylist } from "@/features/playlists/addToPlaylist";
 import { getShellSlots, useShellSlotsVersion } from "@/features/shell/slots";
 import { useT } from "@/i18n";
 import { haptics } from "@/lib/haptics";
@@ -369,6 +370,17 @@ export default function NowPlayingBody() {
                   toggleLike.mutate({ songId: song.id, liked });
                 }}
               />
+              {song.jam_song ? null : (
+                <GhostIconButton
+                  icon="library"
+                  size={24}
+                  accessibilityLabel={t("components.music.SongCard.addToPlaylist")}
+                  onPress={() => {
+                    haptics.select();
+                    openAddToPlaylist(song);
+                  }}
+                />
+              )}
               <GhostIconButton
                 icon="more-horizontal"
                 size={24}

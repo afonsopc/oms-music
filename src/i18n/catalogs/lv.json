@@ -1065,7 +1065,9 @@
       "karaoke": "Karaoke",
       "karaokeNeedsStems": "Karaoke - vispirms atdali vokālus",
       "karaokeVoice": "Balss",
-      "karaokeNoSyncedLyrics": "Šai dziesmai vēl nav sinhronizētu vārdu. Izveido tos vārdu skatā."
+      "karaokeNoSyncedLyrics": "Šai dziesmai vēl nav sinhronizētu vārdu. Izveido tos vārdu skatā.",
+      "separationCancel": "Apturēt atdalīšanu",
+      "separationCancelFailed": "Neizdevās apturēt atdalīšanu"
     },
     "settings": {
       "hub": {
@@ -1163,7 +1165,9 @@
     },
     "playlist": {
       "reorder": "Pārkārtot dziesmas",
-      "reorderDone": "Pabeigt pārkārtošanu"
+      "reorderDone": "Pabeigt pārkārtošanu",
+      "swipeRemove": "Noņemt",
+      "addFailed": "Neizdevās pievienot “{name}”"
     },
     "downloadsOverview": {
       "goOffline": "Bezsaistes režīms",
@@ -1306,6 +1310,24 @@
         "accept": "Piekrist un turpināt",
         "read": "Lasīt noteikumus"
       }
+    },
+    "notifications": {
+      "title": "Paziņojumi",
+      "empty": "Paziņojumu vēl nav. Šeit parādīsies dziesmas, kas pievienotas tavai bibliotēkai.",
+      "songAdded": "“{title}” jau ir tavā bibliotēkā",
+      "songAddedUntitled": "Jauna dziesma jau ir tavā bibliotēkā",
+      "songFailed": "Neizdevās pievienot “{title}”",
+      "songFailedUntitled": "Neizdevās pievienot dziesmu",
+      "artistAdded": "{title} dziesmas jau ir tavā bibliotēkā",
+      "artistAddedUntitled": "Izpildītāja dziesmas jau ir tavā bibliotēkā",
+      "syncDone": "Tavas spēļlistes ir atjauninātas",
+      "syncDoneUntitled": "Tavas spēļlistes ir atjauninātas",
+      "syncFailed": "Neizdevās atjaunināt tavas spēļlistes",
+      "syncFailedUntitled": "Neizdevās atjaunināt tavas spēļlistes",
+      "separationDone": "“{title}” balss ir atdalīta",
+      "separationDoneUntitled": "Balss atdalīšana ir pabeigta",
+      "separationFailed": "Neizdevās atdalīt “{title}” balsi",
+      "separationFailedUntitled": "Neizdevās atdalīt balsi"
     }
   }
 }

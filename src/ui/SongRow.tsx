@@ -263,6 +263,9 @@ const SongRowInner = ({
           borderColor: highlighted ? tokens.ring : "transparent",
         })}
       >
+        {/* On the phone the grip leads the row (ticket #49): the left edge is
+            free, the right one already has the menu. */}
+        {phone ? dragHandle : null}
         {has("index") ? (
           <View style={{ width: phone ? 22 : 28, alignItems: "center" }}>
             {isCurrent ? (
@@ -495,7 +498,7 @@ const SongRowInner = ({
               />
             </Pressable>
           ) : null}
-          {dragHandle}
+          {desktopShell ? dragHandle : null}
           <Pressable
             onPress={openMenuFromPress}
             accessibilityRole="button"

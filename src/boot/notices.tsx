@@ -23,51 +23,11 @@ import { setJamNoticeHandler } from "@/jam/notices";
 import { setPlayerToastHandler } from "@/player/recovery";
 import { setRemoteNoticeHandler } from "@/remote/register";
 import { useT } from "@/i18n";
-import type { IcuParams } from "@/i18n/icu";
+import { dismissNotice, getNotices, pushNotice, subscribeNotices, type Notice } from "@/lib/noticeBus";
 import { useTheme } from "@/theme/provider";
 import { RADIUS } from "@/theme/tokens";
 
 const VISIBLE_MS = 4200;
-const MAX_VISIBLE = 3;
-
-export interface Notice {
-  id: number;
-  key: string;
-  params?: IcuParams;
-}
-
-let nextId = 1;
-let notices: Notice[] = [];
-const listeners = new Set<() => void>();
-
-const emit = (): void => {
-  for (const cb of listeners) cb();
-};
-
-const subscribe = (cb: () => void): (() => void) => {
-  listeners.add(cb);
-  return () => {
-    listeners.delete(cb);
-  };
-};
-
-const getNotices = (): Notice[] => notices;
-
-/** Adds a notice; identical consecutive keys collapse into the newest one. */
-export const pushNotice = (key: string, params?: IcuParams): void => {
-  const withoutDuplicate = notices.filter((n) => n.key !== key);
-  const notice: Notice = { id: nextId, key, params };
-  nextId += 1;
-  notices = [...withoutDuplicate, notice].slice(-MAX_VISIBLE);
-  emit();
-};
-
-export const dismissNotice = (id: number): void => {
-  const next = notices.filter((n) => n.id !== id);
-  if (next.length === notices.length) return;
-  notices = next;
-  emit();
-};
 
 let handlersRegistered = false;
 
@@ -115,7 +75,7 @@ const NoticeStack = () => {
   const insets = useSafeAreaInsets();
   // The store hands out a NEW array on every change and the same one in
   // between, which is exactly the useSyncExternalStore contract.
-  const visible = useSyncExternalStore(subscribe, getNotices, getNotices);
+  const visible = useSyncExternalStore(subscribeNotices, getNotices, getNotices);
 
   if (visible.length === 0) return null;
 

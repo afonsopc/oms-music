@@ -56,6 +56,16 @@ export const clearRecentCollections = (): void => {
   for (const cb of listeners) cb();
 };
 
+/** A collection that no longer exists (deleted here or elsewhere). */
+export const forgetRecentCollection = (kind: RecentCollection["kind"], key: string): void => {
+  const current = load();
+  const next = current.filter((e) => !(e.kind === kind && e.key === key));
+  if (next.length === current.length) return;
+  cached = next;
+  kvSetJson(KV_KEY, next);
+  for (const cb of listeners) cb();
+};
+
 /** Called by CollectionScreen whenever a queue starts from a collection. */
 export const recordRecentCollection = (
   entry: Omit<RecentCollection, "at">,

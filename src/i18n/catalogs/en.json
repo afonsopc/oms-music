@@ -1065,7 +1065,9 @@
       "karaoke": "Karaoke",
       "karaokeNeedsStems": "Karaoke - separate the vocals first",
       "karaokeVoice": "Voice",
-      "karaokeNoSyncedLyrics": "This song has no synced lyrics yet. Generate them in the lyrics view."
+      "karaokeNoSyncedLyrics": "This song has no synced lyrics yet. Generate them in the lyrics view.",
+      "separationCancel": "Stop separating",
+      "separationCancelFailed": "Could not stop the separation"
     },
     "settings": {
       "hub": {
@@ -1163,7 +1165,9 @@
     },
     "playlist": {
       "reorder": "Reorder songs",
-      "reorderDone": "Done reordering"
+      "reorderDone": "Done reordering",
+      "swipeRemove": "Remove",
+      "addFailed": "Could not add to “{name}”"
     },
     "downloadsOverview": {
       "goOffline": "Offline mode",
@@ -1306,6 +1310,24 @@
         "accept": "Accept and continue",
         "read": "Read the Terms"
       }
+    },
+    "notifications": {
+      "title": "Notifications",
+      "empty": "No notifications yet. Songs that join your library show up here.",
+      "songAdded": "“{title}” is in your library",
+      "songAddedUntitled": "A new song is in your library",
+      "songFailed": "Could not add “{title}”",
+      "songFailedUntitled": "Could not add a song",
+      "artistAdded": "{title}'s songs are in your library",
+      "artistAddedUntitled": "The artist's songs are in your library",
+      "syncDone": "Your playlists were updated",
+      "syncDoneUntitled": "Your playlists were updated",
+      "syncFailed": "Could not update your playlists",
+      "syncFailedUntitled": "Could not update your playlists",
+      "separationDone": "The vocals of “{title}” are separated",
+      "separationDoneUntitled": "The vocal separation finished",
+      "separationFailed": "Could not separate the vocals of “{title}”",
+      "separationFailedUntitled": "Could not separate the vocals"
     }
   }
 }

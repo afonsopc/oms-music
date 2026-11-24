@@ -5,7 +5,7 @@
  * (FR: no artwork request storm on 500-row libraries).
  *
  * Drag-to-reorder (no dnd library installed): fixed-height rows + a grip
- * handle with a PanResponder; on release the visual index delta maps to
+ * handle; on release the visual index delta maps to
  * `onReorder(fromVisible, toVisible)`. Only enabled when the surface says
  * so (playlists refuse reorder until fully loaded, FR-50).
  *
@@ -13,9 +13,8 @@
  * grips: a friend asked to "segurar na foto" to sort a playlist, and the
  * grips only show after picking Reordenar in the ⋯ menu.
  */
-import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
-  Animated,
   FlatList,
   PanResponder,
   Platform,
@@ -31,6 +30,8 @@ import { useGutter } from "./page";
 import { useContainerWidth, useDesktopShell } from "./shellLayout";
 import { Icon } from "./icons";
 import { ArtworkDrag } from "./ArtworkDrag";
+import { RowDragView, useRowDragDriver, type RowDragDriver } from "./rowDrag";
+import { SwipeRow } from "./SwipeRow";
 import {
   DEFAULT_SONG_COLUMNS,
   songRowHeight,
@@ -178,13 +179,6 @@ export const SongTableHeader = ({
   );
 };
 
-interface DragState {
-  index: number;
-}
-
-/** Rampa do degrau com que uma vizinha abre espaço: desliza, não salta. */
-const SLIDE_PX = 10;
-
 /** Faixa nas bordas da lista onde um arrasto começa a puxar a lista. */
 const AUTO_SCROLL_EDGE = 64;
 /** Passo por tick e intervalo entre ticks: 12px/16ms ≈ 750px por segundo. */
@@ -229,8 +223,8 @@ export const SongTable = ({
   // linhas alinhar com o título do hero.
   const rowInset = Math.max(0, useGutter() - 12);
   const rowInsetStyle = useMemo(() => ({ marginHorizontal: rowInset }), [rowInset]);
-  const [drag, setDrag] = useState<DragState | null>(null);
-  const [dragY] = useState(() => new Animated.Value(0));
+  const [dragging, setDragging] = useState(false);
+  const driver = useRowDragDriver();
   const reorderEnabled = !!onReorder;
   const gripsShown = reorderEnabled && showGrips;
   // The header's trailing spacer must mirror the rows' like column, which
@@ -249,7 +243,7 @@ export const SongTable = ({
    * linha arrastada está em `header + index * altura - offset + dy`, e as três
    * medidas vêm do onLayout/onScroll/onContentSizeChange do próprio FlatList.
    *
-   * `dragY` (e portanto o alvo) conta o dedo MAIS o que a lista rolou, que é
+   * O deslocamento (e portanto o alvo) conta o dedo MAIS o que a lista rolou, que é
    * o deslocamento no CONTEÚDO; no ecrã a linha continua a seguir o dedo,
    * porque o conteúdo inteiro andou o mesmo.
    */
@@ -314,11 +308,25 @@ export const SongTable = ({
       if (applied === 0) return;
       travel.current.scrolled = scrolled + applied;
       scrollListTo(next);
-      dragY.setValue(dy + travel.current.scrolled);
+      driver.setScrolled(travel.current.scrolled);
     }, AUTO_SCROLL_MS);
-  }, [dragY, rowHeight, scrollListTo, stopAutoScroll, travel]);
+  }, [driver, rowHeight, scrollListTo, stopAutoScroll, travel]);
 
   useEffect(() => stopAutoScroll, [stopAutoScroll]);
+
+  const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useLayoutEffect(() => {
+    if (settleTimer.current == null) return;
+    clearTimeout(settleTimer.current);
+    settleTimer.current = null;
+    driver.end();
+  }, [songs, driver, settleTimer]);
+  useEffect(
+    () => () => {
+      if (settleTimer.current != null) clearTimeout(settleTimer.current);
+    },
+    [settleTimer],
+  );
 
   const clampTarget = useCallback(
     (from: number, dy: number): number => {
@@ -330,76 +338,41 @@ export const SongTable = ({
 
   const startDrag = useCallback(
     (index: number) => {
-      dragY.setValue(0);
+      driver.begin(index);
       travel.current = { dy: 0, base: scrollOffset.current, scrolled: 0, index };
-      setDrag({ index });
+      setDragging(true);
       startAutoScroll();
     },
-    [dragY, travel, scrollOffset, startAutoScroll],
+    [driver, travel, scrollOffset, startAutoScroll],
   );
 
   const moveDrag = useCallback(
     (dy: number) => {
       travel.current.dy = dy;
-      dragY.setValue(dy + travel.current.scrolled);
+      // On native the finger already wrote it, on the UI thread.
+      if (Platform.OS === "web") driver.move(dy);
     },
-    [dragY, travel],
+    [driver, travel],
   );
 
   const endDrag = useCallback(
     (index: number, dy: number) => {
       stopAutoScroll();
-      setDrag(null);
-      dragY.setValue(0);
+      setDragging(false);
       // O que a linha andou é o dedo MAIS o que a lista rolou por baixo dela.
       const to = clampTarget(index, dy + travel.current.scrolled);
       travel.current = { dy: 0, base: 0, scrolled: 0, index: -1 };
-      if (to !== index) onReorder?.(index, to);
-    },
-    [clampTarget, dragY, onReorder, stopAutoScroll, travel],
-  );
-
-  /**
-   * O estilo de cada linha durante um arrasto: a arrastada segue o dedo, as
-   * VIZINHAS abrem espaço. Sem elas a abrir, o arrasto não tinha leitura
-   * nenhuma - a linha passava por cima das outras sem nada dizer onde ia
-   * cair, e acertar no sítio era à sorte.
-   *
-   * Sai tudo do MESMO `dragY`, por interpolação: durante o gesto não há uma
-   * única volta ao React. Cada degrau cai exactamente onde `clampTarget`
-   * muda de alvo (meia linha), portanto o que se vê é o que fica; a rampa de
-   * SLIDE_PX à volta do degrau é só para a vizinha deslizar em vez de saltar.
-   */
-  const rowDragStyle = useCallback(
-    (index: number) => {
-      if (drag == null) return null;
-      if (drag.index === index) {
-        return {
-          transform: [{ translateY: dragY }],
-          zIndex: 10,
-          elevation: 4,
-          backgroundColor: tokens.card,
-          borderRadius: 8,
-        };
+      if (to === index || !onReorder) {
+        driver.end();
+        return;
       }
-      const height = songRowHeight(compact);
-      const below = index > drag.index;
-      // Meia linha antes do centro da vizinha: é aí que o alvo passa a ser o
-      // lugar dela, e é aí que ela tem de sair da frente.
-      const step = (index - drag.index + (below ? -0.5 : 0.5)) * height;
-      return {
-        transform: [
-          {
-            translateY: dragY.interpolate({
-              inputRange: [step - SLIDE_PX, step + SLIDE_PX],
-              outputRange: below ? [0, -height] : [height, 0],
-              extrapolate: "clamp" as const,
-            }),
-          },
-        ],
-      };
+      onReorder(index, to);
+      // The rows keep their offsets until the new order is on screen (the
+      // layout effect below), or the dragged one would flash back for a frame.
+      // A refused reorder never changes `songs`: the timer lets go then.
+      settleTimer.current = setTimeout(driver.end, 400);
     },
-    [drag, dragY, compact, tokens.card],
+    [clampTarget, driver, onReorder, settleTimer, stopAutoScroll, travel],
   );
 
   const renderItem = useCallback(
@@ -413,7 +386,13 @@ export const SongTable = ({
       // e portanto sem reordenar nada. A forma da árvore fica fixa; muda só o
       // estilo.
       return (
-        <Animated.View style={[rowInsetStyle, rowDragStyle(index)]}>
+        <RowDragView
+          driver={driver}
+          index={index}
+          rowHeight={rowHeight}
+          liftColor={tokens.card}
+          style={rowInsetStyle}
+        >
           <TableRow
             song={item}
             index={index}
@@ -438,8 +417,9 @@ export const SongTable = ({
             onDragStart={startDrag}
             onDragMove={moveDrag}
             onDragEnd={endDrag}
+            driver={driver}
           />
-        </Animated.View>
+        </RowDragView>
       );
     },
     [
@@ -459,7 +439,9 @@ export const SongTable = ({
       startDrag,
       moveDrag,
       endDrag,
-      rowDragStyle,
+      driver,
+      rowHeight,
+      tokens.card,
       rowInsetStyle,
       compact,
       tokens.mutedForeground,
@@ -518,8 +500,10 @@ export const SongTable = ({
       initialNumToRender={16}
       maxToRenderPerBatch={24}
       windowSize={9}
-      removeClippedSubviews
-      scrollEnabled={scrollEnabled && drag == null}
+      // Not while rows can be reordered: clipping a row that is being moved or
+      // re-parented is a known way to crash the Android list.
+      removeClippedSubviews={!reorderEnabled}
+      scrollEnabled={scrollEnabled && !dragging}
       onEndReached={onEndReached}
       onEndReachedThreshold={onEndReachedThreshold}
       onScroll={handleScroll}
@@ -581,6 +565,7 @@ interface TableRowProps {
   onDragStart: (index: number) => void;
   onDragMove: (dy: number) => void;
   onDragEnd: (index: number, dy: number) => void;
+  driver: RowDragDriver;
 }
 
 /**
@@ -602,6 +587,7 @@ const TableRow = memo(function TableRow({
   onDragStart,
   onDragMove,
   onDragEnd,
+  driver,
   ...rest
 }: TableRowProps) {
   const extraActions = useMemo(() => extraActionsFor?.(song, index), [extraActionsFor, song, index]);
@@ -612,13 +598,15 @@ const TableRow = memo(function TableRow({
         onStart={onDragStart}
         onMove={onDragMove}
         onEnd={onDragEnd}
+        driver={driver}
       >
         {artwork}
       </ArtworkDrag>
     ),
-    [index, onDragStart, onDragMove, onDragEnd],
+    [index, onDragStart, onDragMove, onDragEnd, driver],
   );
-  return (
+  const removeAction = extraActions?.find((action) => action.id === "removeFromPlaylist");
+  const row = (
     <SongRow
       {...rest}
       song={song}
@@ -637,11 +625,13 @@ const TableRow = memo(function TableRow({
             onMove={onDragMove}
             onEnd={onDragEnd}
             label={dragLabel}
+            driver={driver}
           />
         ) : undefined
       }
     />
   );
+  return removeAction ? <SwipeRow action={removeAction}>{row}</SwipeRow> : row;
 });
 
 interface DragHandleProps {
@@ -651,9 +641,28 @@ interface DragHandleProps {
   onStart: (index: number) => void;
   onMove: (dy: number) => void;
   onEnd: (index: number, dy: number) => void;
+  driver: RowDragDriver;
 }
 
-const DragHandle = ({ index, color, label, onStart, onMove, onEnd }: DragHandleProps) => {
+/** Native grips use the gesture on the UI thread, web ones a PanResponder. */
+const DragHandle = (props: DragHandleProps) => {
+  if (Platform.OS === "web") return <WebDragHandle {...props} />;
+  const { index, color, label, onStart, onMove, onEnd, driver } = props;
+  return (
+    <ArtworkDrag index={index} onStart={onStart} onMove={onMove} onEnd={onEnd} driver={driver} immediate>
+      <View
+        accessible
+        accessibilityLabel={label}
+        hitSlop={8}
+        style={{ width: 32, height: 44, alignItems: "center", justifyContent: "center" }}
+      >
+        <Icon name="grip-vertical" size={18} color={color} />
+      </View>
+    </ArtworkDrag>
+  );
+};
+
+const WebDragHandle = ({ index, color, label, onStart, onMove, onEnd }: DragHandleProps) => {
   const [grabbing, setGrabbing] = useState(false);
   // Um PanResponder novo traz um gestureState novo, com o dy outra vez a
   // zero: recriá-lo a meio do gesto perdia tudo o que a linha já tinha

@@ -11,6 +11,7 @@ import { useCreatePlaylist, usePlaylists } from "@/api/queries/playlists";
 import { playlistArtworkSource } from "@/domain/artwork";
 import { toSongId } from "@/domain/ids";
 import { isSystemPlaylist } from "@/domain/playlist";
+import { pushNotice } from "@/lib/noticeBus";
 import type { PlaylistId, SongId } from "@/domain/ids";
 import { AddToPlaylistDialog, type AddToPlaylistRow } from "@/ui";
 import { closeAddToPlaylist, useAddToPlaylistSong } from "./addToPlaylist";
@@ -59,10 +60,12 @@ export const AddToPlaylistHost = ({ children }: { children?: React.ReactNode }) 
         songId,
       });
     } else {
+      // Optimistic: the dialog leaves at once and only a failure speaks.
       addMutation.mutate(
-        { playlistId: row.id as PlaylistId, songId },
-        { onSuccess: () => closeAddToPlaylist() },
+        { playlistId: row.id as PlaylistId, songId, song: song ?? undefined },
+        { onError: () => pushNotice("native.playlist.addFailed", { name: row.name }) },
       );
+      closeAddToPlaylist();
     }
   };
 
@@ -73,7 +76,7 @@ export const AddToPlaylistHost = ({ children }: { children?: React.ReactNode }) 
       {
         onSuccess: (playlist) => {
           addMutation.mutate(
-            { playlistId: playlist.id, songId },
+            { playlistId: playlist.id, songId, song: song ?? undefined },
             { onSettled: () => closeAddToPlaylist() },
           );
         },

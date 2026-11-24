@@ -15,6 +15,7 @@ export const keys = {
   user: (id: string): QueryKey => ["user", id],
   musicProfile: (idOrHandle: string): QueryKey => ["musicProfile", idOrHandle],
   relationships: ["relationships"] as QueryKey,
+  musicNotifications: ["musicNotifications"] as QueryKey,
   identities: ["identities"] as QueryKey,
 
   songs: {

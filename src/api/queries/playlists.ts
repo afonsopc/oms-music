@@ -11,9 +11,12 @@ import { keys } from "../queryKeys";
 import { FULL_PAGE, WHOLE_LIST_LIMIT, guardedQueryFn } from "./common";
 import { useAuthReady } from "@/auth/guard";
 import { withOfflineFallback } from "@/contracts/offlineFallback";
+import { isApiError } from "@/domain/api";
 import { rankByMatch } from "@/domain/rank";
 import type { PlaylistId, SongId } from "@/domain/ids";
 import type { Playlist } from "@/domain/playlist";
+import { forgetRecentCollection } from "@/lib/recentCollections";
+import { queryClient } from "../queryClient";
 
 /**
  * A biblioteca de playlists. Sem `limit` é a lista INTEIRA (percorrida a 500
@@ -32,8 +35,25 @@ export const listPlaylists = async (opts: { limit?: number } = {}): Promise<Play
   )) as Playlist[];
 };
 
-export const getPlaylist = (id: PlaylistId): Promise<Playlist> =>
-  oms().music.playlists.get(id) as Promise<Playlist>;
+/** Takes a deleted playlist out of every list and of the Home quick grid. */
+const dropPlaylist = (id: PlaylistId): void => {
+  forgetRecentCollection("playlist", String(id));
+  for (const [key, list] of queryClient.getQueriesData<Playlist[]>({
+    queryKey: [...keys.playlists.all, "list"],
+  })) {
+    if (list?.some((p) => p.id === id)) queryClient.setQueryData(key, list.filter((p) => p.id !== id));
+  }
+};
+
+/** A 404 is the server saying it is gone: it must not linger anywhere here. */
+export const getPlaylist = async (id: PlaylistId): Promise<Playlist> => {
+  try {
+    return (await oms().music.playlists.get(id)) as Playlist;
+  } catch (error) {
+    if (isApiError(error) && error.status === 404) dropPlaylist(id);
+    throw error;
+  }
+};
 
 const listPlaylistsWithFallback = withOfflineFallback(listPlaylists, "playlists");
 // Same key: the resolver dispatches a single id arg as the detail lookup.
@@ -46,10 +66,16 @@ export const playlistsListKey = (limit?: number) =>
 export const usePlaylists = (opts: { limit?: number; enabled?: boolean } = {}) => {
   const authReady = useAuthReady();
   const key = playlistsListKey(opts.limit);
-  return useQuery({
+  return useQuery<Playlist[]>({
     queryKey: key,
     queryFn: guardedQueryFn(key, () => listPlaylistsWithFallback({ limit: opts.limit })),
     enabled: authReady && (opts.enabled ?? true),
+    // The Home rail and the whole list share rows: whichever is already here
+    // paints while a slow server answers the other.
+    placeholderData: () =>
+      opts.limit === undefined
+        ? undefined
+        : queryClient.getQueryData<Playlist[]>(playlistsListKey())?.slice(0, opts.limit),
   });
 };
 
@@ -146,7 +172,15 @@ export const useUpdatePlaylist = () => {
 export const useDeletePlaylist = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: PlaylistId) => oms().music.playlists.delete(id),
+    mutationFn: async (id: PlaylistId) => {
+      try {
+        await oms().music.playlists.delete(id);
+      } catch (error) {
+        // Already gone (deleted elsewhere): that is the outcome asked for.
+        if (!isApiError(error) || error.status !== 404) throw error;
+      }
+      forgetRecentCollection("playlist", String(id));
+    },
     onMutate: async (id) => {
       await qc.cancelQueries({ queryKey: keys.playlists.all });
       const previousLists = qc.getQueriesData<Playlist[]>({

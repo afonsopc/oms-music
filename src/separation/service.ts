@@ -134,8 +134,24 @@ const deleteSeparation = async (songId: SongId): Promise<void> => {
   void queryClient.invalidateQueries({ queryKey: keys.songs.all });
 };
 
+/**
+ * The server cancels through the same DELETE (it fails the live run and the
+ * worker drops its result), but that DELETE also removes existing stems, so
+ * it is only sent while the server itself says there are none.
+ */
+const cancelSeparation = async (songId: SongId): Promise<void> => {
+  const current = await getSeparation(songId);
+  const active = current.job?.status === "pending" || current.job?.status === "processing";
+  if (!active || current.vocals_media_id || current.instrumental_media_id) {
+    await queryClient.invalidateQueries({ queryKey: keys.songs.separation(songId) });
+    return;
+  }
+  await deleteSeparation(songId);
+};
+
 export const separationService: SeparationService = {
   useSeparationStatus: useSeparationStatusHook,
   triggerSeparation,
   deleteSeparation,
+  cancelSeparation,
 };

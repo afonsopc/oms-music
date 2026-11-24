@@ -36,6 +36,7 @@ const EXACT: Record<string, string> = {
   "/artists": "Artistas",
   "/artists-roster": "Artistas",
   "/friends": "Amigos",
+  "/notifications": "Notificações",
   "/gallery": "Galeria",
   "/jam": "Jam",
   "/queue": "Fila",

@@ -93,6 +93,11 @@ export default function AccountScreen() {
             onPress={() => go("/friends")}
           />
           <SettingsRow
+            icon="circle-check"
+            label={t("native.notifications.title")}
+            onPress={() => go("/notifications" as Href)}
+          />
+          <SettingsRow
             icon="download"
             label={t("native.shell.tabDownloads")}
             onPress={() => go("/settings/downloads-overview")}

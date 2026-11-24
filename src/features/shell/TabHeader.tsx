@@ -31,7 +31,7 @@ export const TabHeader = ({
   return (
     <View
       style={[
-        { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: gutter, minHeight: 44 },
+        { flexDirection: "row", alignItems: "center", gap: 22, paddingHorizontal: gutter, minHeight: 44 },
         style,
       ]}
     >

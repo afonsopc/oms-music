@@ -26,7 +26,7 @@
  *  - a build with no native mixer says so instead of pretending: the audio
  *    would be the plain mix, and the EQ is only in the mixer's path.
  */
-import React from "react";
+import React, { useState } from "react";
 import { ActivityIndicator, Text, View } from "react-native";
 import { getSeparationService, type SeparationStatus } from "@/contracts/separation";
 import { updateDownloadSettings, useDownloadSettings } from "@/downloads/settings";
@@ -35,6 +35,7 @@ import type { EqBands, PlaybackMode } from "@/domain/playback";
 import type { Song } from "@/domain/song";
 import { useIsOffline } from "@/features/shell/OfflineBanner";
 import { useT } from "@/i18n";
+import { pushNotice } from "@/lib/noticeBus";
 import { getTransport } from "@/contracts/transport";
 import { getPlayerEngine } from "@/player/register";
 import { stemModeResidentLocally } from "@/player/sources";
@@ -191,6 +192,7 @@ export const SeparationSection = ({ song, controlling }: { song: Song; controlli
   const busy = status.phase === "pending" || status.phase === "processing";
   const inCustom = playbackMode === "custom";
   const offline = useIsOffline();
+  const [cancelling, setCancelling] = useState(false);
   // Costura stem/cache (handoff 2026-08-17): offline, um modo de stem cujo
   // ficheiro não está no disco tocaria o mixed cacheado (player/sources.ts) -
   // o chip diz isso em vez de fingir que o modo funciona.
@@ -276,14 +278,28 @@ export const SeparationSection = ({ song, controlling }: { song: Song; controlli
               one tap away from the listening modes. */}
           {!stemsReady ? (
             <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
-              <Chip
-                label={t(`${K}.separate`)}
-                selected={false}
-                disabled={busy}
-                onPress={() => {
-                  void service.triggerSeparation(song.id);
-                }}
-              />
+              {busy ? (
+                <Chip
+                  label={t(`${K}.separationCancel`)}
+                  selected={false}
+                  disabled={cancelling}
+                  onPress={() => {
+                    setCancelling(true);
+                    void service
+                      .cancelSeparation(song.id)
+                      .catch(() => pushNotice(`${K}.separationCancelFailed`))
+                      .finally(() => setCancelling(false));
+                  }}
+                />
+              ) : (
+                <Chip
+                  label={t(`${K}.separate`)}
+                  selected={false}
+                  onPress={() => {
+                    void service.triggerSeparation(song.id);
+                  }}
+                />
+              )}
             </View>
           ) : null}
         </View>

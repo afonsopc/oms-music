@@ -52,6 +52,8 @@ export const projectSeparation = (
       // as ready (the songs refetch fills the ids in).
       return { phase: "ready", progressPercent: null, startedAtMs: null };
     case "failed":
+      // Stopped by the person: back to the start, not an error.
+      if (/^canceled by user/i.test(job.error ?? "")) return IDLE;
       return { phase: "failed", progressPercent: null, startedAtMs: null };
     default:
       return IDLE;

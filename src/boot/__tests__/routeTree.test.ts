@@ -51,6 +51,8 @@ const routeFiles = (dir: string): string[] => {
 
 /** Tudo o que vive na pasta partilhada: as 4 raizes + as rotas empurradas. */
 const PUSHED_ROUTES = [
+  "notifications.tsx",
+  "song/[id].tsx",
   "home.tsx",
   "library.tsx",
   "search.tsx",

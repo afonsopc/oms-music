@@ -17,6 +17,7 @@ import {
   type SongMenuSlotHook,
 } from "@/contracts/songMenu";
 import { getTransport } from "@/contracts/transport";
+import { primaryArtistSegment } from "@/domain/format";
 import { songAlbumRoute, songArtistRoute } from "@/lib/routes";
 import { usePlaybackView } from "@/remote/mirror";
 import { openAddToPlaylist } from "@/features/playlists/addToPlaylist";
@@ -95,14 +96,17 @@ const useOpenAlbumSlot: SongMenuSlotHook = (ctx) => [
   },
 ];
 
-const useOpenArtistSlot: SongMenuSlotHook = (ctx) => [
-  {
-    id: "openArtist",
-    labelKey: "components.music.SongCard.openArtist",
-    icon: "user",
-    onPress: () => router.push(songArtistRoute(ctx.song)),
-  },
-];
+const useOpenArtistSlot: SongMenuSlotHook = (ctx) =>
+  primaryArtistSegment(ctx.song)
+    ? [
+        {
+          id: "openArtist",
+          labelKey: "components.music.SongCard.openArtist",
+          icon: "user",
+          onPress: () => router.push(songArtistRoute(ctx.song)),
+        },
+      ]
+    : [];
 
 /** Opens the one shared AddToPlaylist dialog (FR-49 behavior is WP6's
  *  AddToPlaylistHost; wireup must registerShellProvider it). Hidden for jam

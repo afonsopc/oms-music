@@ -29,6 +29,7 @@ import type { SongMenuItem } from "@/contracts/songMenu";
 import { playlistArtworkSource } from "@/domain/artwork";
 import { splitDuration, totalDuration } from "@/domain/format";
 import { useOfflinePlaylistIdentity } from "@/downloads/collections";
+import { isApiError } from "@/domain/api";
 import type { PlaylistId } from "@/domain/ids";
 import { sourceName } from "./sourceName";
 import {
@@ -172,7 +173,8 @@ const PlaylistBody = ({ playlistId }: { playlistId: PlaylistId }) => {
     (song: Song, index: number): SongMenuItem[] | undefined => {
       if (system) return undefined;
       const row = rows[index];
-      if (!row) return undefined;
+      // A row still on its way to the server has no join id to remove yet.
+      if (!row || row.id <= 0) return undefined;
       return [
         {
           id: "removeFromPlaylist",
@@ -285,6 +287,11 @@ const PlaylistBody = ({ playlistId }: { playlistId: PlaylistId }) => {
     return items;
   }, [system, mirror, viaProvider, likedMirror, artworkChange, copyMutation, playlistId, router, t, canReorder, reorderMode]);
 
+  // Deleted elsewhere: back to the list instead of an error with a retry that
+  // can never work.
+  if (playlistQuery.isError && isApiError(playlistQuery.error) && playlistQuery.error.status === 404) {
+    return <Redirect href="/playlists" />;
+  }
   if (playlistQuery.isError) {
     return (
       <ErrorState

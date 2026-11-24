@@ -15,8 +15,26 @@ import { registerLogoutTask, useSessionStore } from "@/auth/session";
 import { cableCredential } from "@/auth/token";
 import { getCableClient } from "@/cable/client";
 import { JAM_NOTICES, notifyJam } from "@/jam/notices";
+import { pushNotice } from "@/lib/noticeBus";
 import { FriendListeningManager } from "./listeningStore";
+import { changesLibrary } from "./musicNotifications";
 import { NotificationsManager } from "./notifications";
+
+/**
+ * A playlist arrives as one notification per song: the library refreshes a
+ * moment after the first and then at most every few seconds, not once each.
+ */
+const LIBRARY_REFRESH_MS = 4_000;
+let libraryTimer: ReturnType<typeof setTimeout> | null = null;
+const scheduleLibraryRefresh = (): void => {
+  if (libraryTimer) return;
+  libraryTimer = setTimeout(() => {
+    libraryTimer = null;
+    for (const key of [keys.songs.all, keys.albums.all, keys.artists.all, keys.playlists.all, ["playlistSongs"]]) {
+      void queryClient.invalidateQueries({ queryKey: key });
+    }
+  }, LIBRARY_REFRESH_MS);
+};
 
 let registered = false;
 let friends: FriendListeningManager | null = null;
@@ -58,6 +76,11 @@ export const registerSocial = (): void => {
         key: JAM_NOTICES.inviteReceived,
         params: { handle: invite.inviterHandle ?? invite.hostHandle ?? "" },
       });
+    },
+    onMusicNotification: (notification) => {
+      pushNotice(`native.notifications.${notification.key}`, notification.params);
+      void queryClient.invalidateQueries({ queryKey: keys.musicNotifications });
+      if (changesLibrary(notification)) scheduleLibraryRefresh();
     },
   });
 

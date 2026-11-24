@@ -20,7 +20,7 @@ import { useT } from "@/i18n";
 import { useTheme } from "@/theme/provider";
 import { ArtworkImage, Icon, useDesktopShell } from "@/ui";
 
-export const HEADER_AVATAR_SIZE = 32;
+export const HEADER_AVATAR_SIZE = 40;
 
 export const HeaderAvatar = () => {
   const t = useT();
@@ -35,7 +35,7 @@ export const HeaderAvatar = () => {
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={t("native.shell.tabProfile")}
-      hitSlop={10}
+      hitSlop={{ top: 12, bottom: 12, left: 20, right: 8 }}
       onPress={() => router.push("/account")}
       style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
     >

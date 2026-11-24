@@ -1,6 +1,7 @@
 /**
  * Minimal self-contained bottom sheet (no sheet library is installed):
- * RN Modal + animated slide-up + backdrop press to dismiss. Content taller
+ * RN Modal + animated slide-up + backdrop press or pull-down (SheetBody) to
+ * dismiss. Content taller
  * than maxHeightRatio scrolls internally (callers embed their own
  * ScrollView/FlatList when needed via `scroll={false}`).
  *
@@ -18,7 +19,6 @@ import {
   Modal,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   useWindowDimensions,
   View,
@@ -27,6 +27,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useT } from "@/i18n";
 import { useTheme } from "@/theme/provider";
 import { modalScrim } from "../uiTheme";
+import { SheetBody } from "./SheetBody";
 
 export interface BottomSheetProps {
   visible: boolean;
@@ -83,38 +84,23 @@ export const BottomSheet = ({
             accessibilityLabel={closeLabel}
             style={[StyleSheet.absoluteFill, { backgroundColor: modalScrim(scheme) }]}
           />
-          <View style={{ maxHeight: height * maxHeightRatio }}>
-            <Animated.View
-              style={{
+          <Animated.View style={{ transform: [{ translateY }] }}>
+            <SheetBody
+              scroll={scroll}
+              onClose={onClose}
+              maxHeight={height * maxHeightRatio}
+              panelStyle={{
                 backgroundColor: tokens.popover,
                 borderTopLeftRadius: 16,
                 borderTopRightRadius: 16,
                 borderWidth: 1,
                 borderColor: tokens.border,
-                transform: [{ translateY }],
                 maxHeight: height * maxHeightRatio,
-                paddingTop: 8,
               }}
             >
-              <View
-                style={{
-                  alignSelf: "center",
-                  width: 36,
-                  height: 4,
-                  borderRadius: 2,
-                  backgroundColor: tokens.muted,
-                  marginBottom: 8,
-                }}
-              />
-              {scroll ? (
-                <ScrollView bounces={false} keyboardShouldPersistTaps="handled">
-                  {body}
-                </ScrollView>
-              ) : (
-                body
-              )}
-            </Animated.View>
-          </View>
+              {body}
+            </SheetBody>
+          </Animated.View>
         </View>
       </KeyboardAvoidingView>
     </Modal>

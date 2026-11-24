@@ -29,12 +29,14 @@ import { listAllArtists } from "./queries/artists";
 import { listLikedIds } from "./queries/likedSongs";
 import { listMixes } from "./queries/mixes";
 import { listRecentAlbums, type RecentlyPlayedAlbum } from "./queries/playEvents";
-import { listPlaylists, playlistsListKey } from "./queries/playlists";
+import { getPlaylist, listPlaylists, playlistsListKey } from "./queries/playlists";
 import { listPlaylistSongsPage } from "./queries/playlistSongs";
 import { listAlbumSongs, listAlbums } from "./queries/songs";
 import { keys } from "./queryKeys";
 import { queryClient } from "./queryClient";
+import type { PlaylistId } from "@/domain/ids";
 import type { Playlist } from "@/domain/playlist";
+import { getRecentCollections } from "@/lib/recentCollections";
 
 /** Let the mounted screens' own queries land first. */
 const START_DELAY_MS = 2_500;
@@ -82,6 +84,18 @@ const warmLibrary = async (): Promise<void> => {
       queryFn: () => listAllArtists(),
     }),
   );
+
+  // Playlists deleted elsewhere stay in the local "recently played" grid until
+  // somebody asks the server: one GET per recent that the list does not have
+  // (a friend's playlist is not in it either); a 404 forgets it (getPlaylist).
+  steps.push(async () => {
+    const mine = qc.getQueryData<Playlist[]>(playlistsListKey());
+    if (!mine) return;
+    for (const entry of getRecentCollections()) {
+      if (entry.kind !== "playlist" || mine.some((p) => String(p.id) === entry.key)) continue;
+      await getPlaylist(Number(entry.key) as PlaylistId).catch(() => undefined);
+    }
+  });
 
   for (const step of steps) {
     await step().catch(() => undefined);

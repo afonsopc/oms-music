@@ -8,11 +8,13 @@
  *
  * The channel is generic (`{"channel":"NotificationsChannel"}`, per-user
  * stream). Frames: `{type:"created", notification, unread_count}` on arrival
- * and `{type:"unread_count", ...}` on read-state changes. Only `jam_invite`
- * matters to the music app; everything else is ignored on purpose.
+ * and `{type:"unread_count", ...}` on read-state changes. `jam_invite` and the
+ * library kinds (musicNotifications.ts) matter to the music app; everything
+ * else is ignored on purpose.
  */
 import type { CableClient, CableSubscription } from "@/cable/types";
 import type { JamId, UserId } from "@/domain/ids";
+import { parseMusicNotification, type MusicNotification } from "./musicNotifications";
 
 export interface JamInvite {
   jamId: JamId;
@@ -23,6 +25,8 @@ export interface JamInvite {
 }
 
 export type JamInviteHandler = (invite: JamInvite) => void;
+
+export type MusicNotificationHandler = (notification: MusicNotification) => void;
 
 const asRecord = (value: unknown): Record<string, unknown> | null =>
   value && typeof value === "object" ? (value as Record<string, unknown>) : null;
@@ -50,6 +54,7 @@ export const parseJamInvite = (notification: unknown): JamInvite | null => {
 export interface NotificationsManagerDeps {
   cable: CableClient;
   onJamInvite: JamInviteHandler;
+  onMusicNotification?: MusicNotificationHandler;
 }
 
 export class NotificationsManager {
@@ -82,7 +87,11 @@ export class NotificationsManager {
     const msg = asRecord(raw);
     if (!msg || msg.type !== "created") return;
     const invite = parseJamInvite(msg.notification);
-    if (!invite) return;
-    this.deps.onJamInvite(invite);
+    if (invite) {
+      this.deps.onJamInvite(invite);
+      return;
+    }
+    const music = parseMusicNotification(msg.notification);
+    if (music) this.deps.onMusicNotification?.(music);
   }
 }

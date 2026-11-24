@@ -23,6 +23,8 @@ export interface SeparationService {
   useSeparationStatus(songId: SongId): SeparationStatus;
   triggerSeparation(songId: SongId, modelId?: string): Promise<void>;
   deleteSeparation(songId: SongId): Promise<void>;
+  /** Stops a first run (no stems yet); a song that has stems keeps them. */
+  cancelSeparation(songId: SongId): Promise<void>;
 }
 
 const idleStatus: SeparationStatus = {
@@ -36,6 +38,7 @@ const inertService: SeparationService = {
   useSeparationStatus: () => idleStatus,
   triggerSeparation: () => Promise.resolve(),
   deleteSeparation: () => Promise.resolve(),
+  cancelSeparation: () => Promise.resolve(),
 };
 
 let current: SeparationService = inertService;
