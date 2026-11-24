@@ -9,6 +9,7 @@ import { View, type StyleProp, type ViewStyle } from "react-native";
 import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
 import Animated, {
   runOnJS,
+  useAnimatedProps,
   useAnimatedScrollHandler,
   useAnimatedStyle,
   useSharedValue,
@@ -35,7 +36,9 @@ export const SheetBody = ({ panelStyle, maxHeight, scroll, onClose, children }: 
   const scrollY = useSharedValue(0);
   const startX = useSharedValue(0);
   const startY = useSharedValue(0);
+  const handleY = useSharedValue(0);
   const closing = useSharedValue(false);
+  const pulling = useSharedValue(false);
 
   const settle = (translation: number, velocity: number): void => {
     "worklet";
@@ -76,23 +79,30 @@ export const SheetBody = ({ panelStyle, maxHeight, scroll, onClose, children }: 
       else if (dy > PULL_SLOP && dy > dx) state.activate();
     })
     .onStart((event) => {
-      startY.value = event.translationY;
+      startY.value = event.absoluteY;
+      pulling.value = true;
     })
+    // Absolute, never `translationY`: that one is measured against a view this
+    // very gesture is moving, and the sheet would chase its own tail.
     .onUpdate((event) => {
-      y.value = Math.max(0, event.translationY - startY.value);
+      y.value = Math.max(0, event.absoluteY - startY.value);
     })
     .onEnd((event) => settle(y.value, event.velocityY))
     .onFinalize((_event, success) => {
+      pulling.value = false;
       if (!success) settle(y.value, 0);
     })
     .simultaneousWithExternalGesture(native);
 
   const handle = Gesture.Pan()
     .activeOffsetY([-10_000, 3])
-    .onUpdate((event) => {
-      y.value = Math.max(0, event.translationY);
+    .onStart((event) => {
+      handleY.value = event.absoluteY;
     })
-    .onEnd((event) => settle(event.translationY, event.velocityY))
+    .onUpdate((event) => {
+      y.value = Math.max(0, event.absoluteY - handleY.value);
+    })
+    .onEnd((event) => settle(y.value, event.velocityY))
     .onFinalize((_event, success) => {
       if (!success) settle(y.value, 0);
     })
@@ -101,12 +111,16 @@ export const SheetBody = ({ panelStyle, maxHeight, scroll, onClose, children }: 
   const onScroll = useAnimatedScrollHandler((event) => {
     scrollY.value = event.contentOffset.y;
   });
+  // The content holds still while the sheet itself is being carried.
+  const scrollProps = useAnimatedProps(() => ({ scrollEnabled: !pulling.value }));
   const pulled = useAnimatedStyle(() => ({ transform: [{ translateY: y.value }] }));
 
   return (
     // A Modal is its own window on Android: gestures need a root in here.
     <GestureHandlerRootView style={{ maxHeight }}>
       <GestureDetector gesture={pull}>
+        {/* Still on purpose: the gesture lives on what does not move. */}
+        <View style={{ maxHeight }} collapsable={false}>
         <Animated.View
           style={[panelStyle, pulled]}
           onLayout={(event) => {
@@ -125,6 +139,7 @@ export const SheetBody = ({ panelStyle, maxHeight, scroll, onClose, children }: 
                 overScrollMode="never"
                 keyboardShouldPersistTaps="handled"
                 onScroll={onScroll}
+                animatedProps={scrollProps}
                 scrollEventThrottle={16}
               >
                 {children}
@@ -134,6 +149,7 @@ export const SheetBody = ({ panelStyle, maxHeight, scroll, onClose, children }: 
             children
           )}
         </Animated.View>
+        </View>
       </GestureDetector>
     </GestureHandlerRootView>
   );
