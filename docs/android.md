@@ -73,8 +73,8 @@ A pessoa instala por cima (mesma chave, os dados ficam).
 
 - Som em segundo plano e controlos no ecrã bloqueado/notificação: os do
   `expo-audio` (`enableBackgroundPlayback`, serviço de media em primeiro plano):
-  tocar, pausar e avançar na barra. Seguinte/anterior no ecrã bloqueado não
-  (ver `docs/LOCKSCREEN-PATCH.md`, secção 6).
+  tocar, pausar, avançar na barra, e Anterior/Seguinte também pelos botões dos
+  auriculares (carregar duas vezes = Seguinte; `docs/LOCKSCREEN-PATCH.md`).
 - Entrar: o mesmo `expo-web-browser` (Custom Tab) com volta por `omsmusic://`.
 - A app do omelhorsite abre esta quando está instalada (`<queries>` com
   `pt.omelhorsite.music`).

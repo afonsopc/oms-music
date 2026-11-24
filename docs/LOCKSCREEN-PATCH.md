@@ -2,8 +2,10 @@
 
 **Status: iOS SHIPS (oms-native). Android SHIPS since 2026-11-17 through
 `patches/expo-audio@57.0.3.patch`** (bun patchedDependencies): the notification's
-side slots are previous/next custom session commands (ACTION_PREVIOUS/ACTION_NEXT)
-instead of the 10 s skips, and the service emits `remoteCommand` `{command}` on the
+side slots are previous/next instead of the 10 s skips. Since 2026-11-24 they are the
+player's own COMMAND_SEEK_TO_NEXT/PREVIOUS (`MetadataInjectingPlayer`), so headset keys,
+double press, cars and watches work too; custom buttons in those slots would hide
+ACTION_SKIP_TO_* from them. And the service emits `remoteCommand` `{command}` on the
 AudioPlayer, which `src/player/expoAudioAdapter.ts` routes through
 `setAndroidTrackCommandHandler` -> `routeRemoteCommand`. Re-apply on any expo-audio bump.
 The rest of this file is the original iOS-side record. Delivered by the local Expo module `modules/oms-native` (option C below),
