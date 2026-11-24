@@ -15,7 +15,7 @@ import { isApiError } from "@/domain/api";
 import { rankByMatch } from "@/domain/rank";
 import type { PlaylistId, SongId } from "@/domain/ids";
 import type { Playlist } from "@/domain/playlist";
-import { forgetRecentCollection } from "@/lib/recentCollections";
+import { forgetRecentCollection, getRecentCollections } from "@/lib/recentCollections";
 import { queryClient } from "../queryClient";
 
 /**
@@ -26,13 +26,36 @@ import { queryClient } from "../queryClient";
 export const listPlaylists = async (opts: { limit?: number } = {}): Promise<Playlist[]> => {
   const limit = opts.limit;
   if (limit !== undefined) {
-    return (await oms().music.playlists.list({ page: 1, pageSize: limit, order: null }))
+    const first = (await oms().music.playlists.list({ page: 1, pageSize: limit, order: null }))
       .items as Playlist[];
+    // Fewer than asked: that is the whole library.
+    if (first.length < limit) void checkRecentPlaylists(first);
+    return first;
   }
-  return (await collect(
+  const all = (await collect(
     await oms().music.playlists.list({ pageSize: FULL_PAGE, order: null }),
     WHOLE_LIST_LIMIT,
   )) as Playlist[];
+  void checkRecentPlaylists(all);
+  return all;
+};
+
+/**
+ * Playlists deleted elsewhere stay in the local "recently played" grid until
+ * the server is asked: one GET per recent the library does not have (a
+ * friend's playlist is not in it either); a 404 forgets it (getPlaylist). Each
+ * id is asked at most once every few minutes.
+ */
+const RECENT_CHECK_MS = 5 * 60 * 1000;
+const recentChecks = new Map<string, number>();
+const checkRecentPlaylists = async (library: readonly Playlist[]): Promise<void> => {
+  const now = Date.now();
+  for (const entry of getRecentCollections()) {
+    if (entry.kind !== "playlist" || library.some((p) => String(p.id) === entry.key)) continue;
+    if (now - (recentChecks.get(entry.key) ?? 0) < RECENT_CHECK_MS) continue;
+    recentChecks.set(entry.key, now);
+    await getPlaylist(Number(entry.key) as PlaylistId).catch(() => undefined);
+  }
 };
 
 /** Takes a deleted playlist out of every list and of the Home quick grid. */
