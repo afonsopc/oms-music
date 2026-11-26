@@ -1,8 +1,17 @@
 # Google Play: o que pôr na Play Console (rascunho)
 
-Estado em 2026-11-17: **ainda não há conta na Play Console**. Nada foi
-enviado à Google. Este ficheiro tem as respostas prontas a copiar; o build
-está em `docs/android.md`, secção "Google Play".
+Estado em 2026-11-26: conta pessoal (afonsopcastro@gmail.com) e app criadas.
+Tudo o que está abaixo foi preenchido na consola e o primeiro lançamento
+(`26111713`, 2.1.3) foi enviado para revisão na faixa "Testes fechados -
+Alpha" (todos os países, lista de testadores "Testadores OMS"). Chave de
+assinatura da app na Play = a nossa `oms` (SHA-256 `C9:7F:…:FC:74`, enviada
+com a PEPK); a chave de upload também é a `oms`. Falta: o vídeo do serviço em
+primeiro plano (a declaração está por enviar), 12 testadores durante 14 dias,
+e depois pedir o acesso à produção. O build está em `docs/android.md`,
+secção "Google Play". Notas: na classificação respondeu-se "Conteúdo online:
+sim" (o assistente e as letras vêm do servidor) e "conteúdo dos
+utilizadores é a fonte principal: não"; o AAB (63 MB) passa dos 50 MB do
+browse, carregou-se aos bocados pela página.
 
 App: **OMS Music**, pacote `pt.omelhorsite.music`, grátis, sem anúncios,
 sem compras. Língua principal: Português (Portugal) `pt-PT`; tradução
